@@ -593,7 +593,7 @@ tr:hover td{background:var(--surf2);}
     </div>
     <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
     <div style="text-align:center;margin-top:12px;">
-      <a href="https://ittdmh.pro/reset?from=csr" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
+      <a href="https://tdmhcore.io/reset?from=csr" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
     </div>
     <p style="font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;">
       Taytay Doctors Multispecialty Hospital · IT Department
@@ -2442,7 +2442,7 @@ async function directIssueFromStock() {
     // SMS confirmation link to dept
     const deptUsers = state.users.filter(u => u.dept_id === dept && u.phone)
     if (deptUsers.length > 0) {
-      const confirmUrl = 'https://ittdmh.pro/csr?confirm=' + token
+      const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + token
       const deptName = state.departments.find(d => d.id === dept)?.dept_name || 'your department'
       await sendSMS(deptUsers.map(u => u.phone),
         '[TDMH Supply] ' + requestNo + ' — items from stock are ready for pickup. Please confirm receipt: ' + confirmUrl)
@@ -4419,7 +4419,7 @@ async function autoCreateITSetupTicket(assetNo, assetName, deptId) {
     '🆕 New Equipment Setup: ' + assetNo,
     assetName + ' issued from CSR — needs IT setup.',
     'action_required', 'csr', 'asset', assetNo,
-    'https://ittdmh.pro/it'
+    'https://tdmhcore.io/helpdesk'
   )
   showToast('info','IT Setup Ticket Created', ticketId + ' — IT team notified.')
 }
@@ -5294,7 +5294,7 @@ function updateSMSPreview() {
 
   if (receiver.value && phone && phone.value) {
     preview.style.display = 'block'
-    text.textContent = 'Hi ' + receiverName.split(' ')[0] + ', your supply request ' + csrNo + ' is ready for pickup at the Supply Room. Please confirm receipt: https://ittdmh.pro/csr?confirm=<token>'
+    text.textContent = 'Hi ' + receiverName.split(' ')[0] + ', your supply request ' + csrNo + ' is ready for pickup at the Supply Room. Please confirm receipt: https://tdmhcore.io/csr?confirm=<token>'
   } else {
     preview.style.display = 'none'
   }
@@ -5394,7 +5394,7 @@ async function saveIssuance() {
 
     // Send SMS confirmation link
     if (phone) {
-      const confirmUrl = 'https://ittdmh.pro/csr?confirm=' + token
+      const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + token
       const receiver = state.users.find(u => u.id === receiverId)
       const firstName = receiver ? receiver.full_name.split(' ')[0] : 'Sir/Ma\'am'
       const csrNo = csrId ? (issState.pendingRequests.find(r => r.id === csrId)?.request_no || '') : ''
@@ -5440,7 +5440,7 @@ function generateToken() {
 // (inventoryv2 checkScanParam reads ?asset= -> lookupAsset -> viewAsset).
 function assetQRUrl(a) {
   const code = a.qr_code || a.asset_no || ''
-  return 'https://ittdmh.pro/inventoryv2?asset=' + encodeURIComponent(code)
+  return 'https://tdmhcore.io/inventory?asset=' + encodeURIComponent(code)
 }
 
 function buildAssetLabelHTML(a, dept) {
@@ -5798,7 +5798,7 @@ async function sendConfirmLink(issId, resend = false) {
   try {
     // Generate unique token
     const token = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
-    const confirmUrl = 'https://ittdmh.pro/csr?confirm=' + token
+    const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + token
 
     // Get issuance + request info
     const { data: iss } = await SB.from('issuances').select('*').eq('id', issId).single()
@@ -6003,7 +6003,7 @@ async function resendIssuanceSMS(issId) {
   if (!iss || !iss.sms_sent_to || !iss.confirm_token) return
   const receiver = state.users.find(u => u.id === iss.received_by)
   const firstName = receiver ? receiver.full_name.split(' ')[0] : 'Sir/Ma\'am'
-  const confirmUrl = 'https://ittdmh.pro/csr?confirm=' + iss.confirm_token
+  const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + iss.confirm_token
   await sendSMS([iss.sms_sent_to], 'Hi ' + firstName + ', reminder: your supply items are ready. Confirm receipt: ' + confirmUrl)
   showToast('success','SMS Resent','Reminder sent to ' + iss.sms_sent_to)
 }
@@ -6014,7 +6014,7 @@ async function resendAllPending() {
   for (const iss of pending) {
     const receiver = state.users.find(u => u.id === iss.received_by)
     const firstName = receiver ? receiver.full_name.split(' ')[0] : 'Sir/Ma\'am'
-    const confirmUrl = 'https://ittdmh.pro/csr?confirm=' + iss.confirm_token
+    const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + iss.confirm_token
     await sendSMS([iss.sms_sent_to], 'Hi ' + firstName + ', reminder: supply items ready. Confirm: ' + confirmUrl)
     count++
   }
@@ -9025,11 +9025,11 @@ async function openPortal() {
   const u = window.S?.user || window.state?.user
   if (!u) return
   const systems = [
-    { key:'csr', icon:'📋', label:'CSR System', url:'https://ittdmh.pro/csr', role:u.csr_role },
-    { key:'maintenance', icon:'🔧', label:'Maintenance Hub', url:'https://ittdmh.pro/maintenance', role:u.maintenance_role },
-    { key:'it', icon:'🖥️', label:'IT Helpdesk', url:'https://ittdmh.pro/it', role:u.it_role },
-    { key:'inventory', icon:'🏷️', label:'Asset Inventory', url:'https://ittdmh.pro/inventory', role:u.inventory_role },
-    { key:'scan', icon:'📷', label:'Scan & Request', url:'https://ittdmh.pro/scan', role:'any' },
+    { key:'csr', icon:'📋', label:'CSR System', url:'https://tdmhcore.io/csr', role:u.csr_role },
+    { key:'maintenance', icon:'🔧', label:'Maintenance Hub', url:'https://tdmhcore.io/maintenance', role:u.maintenance_role },
+    { key:'it', icon:'🖥️', label:'IT Helpdesk', url:'https://tdmhcore.io/helpdesk', role:u.it_role },
+    { key:'inventory', icon:'🏷️', label:'Asset Inventory', url:'https://tdmhcore.io/inventory', role:u.inventory_role },
+    { key:'scan', icon:'📷', label:'Scan & Request', url:'https://tdmhcore.io/scan', role:'any' },
   ]
   const { data: notifs } = await SB.from('notifications').select('source_system').eq('user_id', u.id).eq('is_read', false)
   const unreadBySystem = {}
