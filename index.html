@@ -73,7 +73,13 @@ h1,h2,h3,h4{font-family:'Manrope',system-ui,sans-serif;}
 .nav-ext{margin-left:auto;font-size:11px;color:var(--txt3);opacity:0;transition:opacity .18s,transform .18s;}
 .nav-system:hover .nav-ext{opacity:1;transform:translateX(2px);}
 .nav-system:hover{color:var(--accent);}
-.sidebar-footer{padding:12px;border-top:1px solid var(--bdr);}
+.sidebar-footer{padding:12px;border-top:1px solid var(--bdr);position:relative;}
+.user-menu{display:none;position:absolute;left:12px;right:12px;bottom:calc(100% - 6px);background:var(--surf1);border:1px solid var(--bdr2);border-radius:12px;box-shadow:var(--shadow2);overflow:hidden;z-index:50;}
+.user-menu.open{display:block;animation:fadeUp .2s ease both;}
+.user-menu-item{display:flex;align-items:center;gap:10px;padding:11px 14px;font-size:13px;font-weight:500;color:var(--txt);cursor:pointer;transition:background .12s;}
+.user-menu-item:hover{background:var(--surf3);}
+.user-menu-item.danger{color:var(--red);border-top:1px solid var(--bdr);}
+.user-menu-item.danger:hover{background:var(--red-a);}
 .user-chip{display:flex;align-items:center;gap:10px;padding:10px;background:var(--surf2);border-radius:10px;border:1px solid var(--bdr);cursor:pointer;}
 .user-chip:hover{background:var(--surf3);}
 .user-avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-a);border:1px solid var(--accent-b);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0;}
@@ -374,13 +380,17 @@ canvas{max-height:220px;}
 
       </nav>
       <div class="sidebar-footer">
-        <div class="user-chip" onclick="confirm2('Sign out?',doLogout)">
+        <div class="user-chip" onclick="toggleUserMenu(event)">
           <div class="user-avatar" id="userAvatar">--</div>
           <div class="user-info">
             <div class="user-name" id="userName">Loading...</div>
             <div class="user-role" id="userRoleLabel">--</div>
           </div>
-          <span style="font-size:10px;color:var(--txt3);">⏻</span>
+          <span style="font-size:10px;color:var(--txt3);">⋯</span>
+        </div>
+        <div class="user-menu" id="userMenu">
+          <div class="user-menu-item" onclick="openChangePassword()"><span>🔑</span> Change Password</div>
+          <div class="user-menu-item danger" onclick="confirm2('Sign out?',doLogout)"><span>⏻</span> Sign Out</div>
         </div>
       </div>
     </div>
@@ -478,6 +488,61 @@ async function doLogin(){
   finally{btn.disabled=false;btn.textContent='Sign In'}
 }
 function showLoginErr(msg){const el=document.getElementById('loginErr');el.textContent=msg;el.style.display='block'}
+function toggleUserMenu(e){
+  if(e)e.stopPropagation()
+  const m=document.getElementById('userMenu')
+  m.classList.toggle('open')
+}
+document.addEventListener('click',e=>{
+  const chip=e.target.closest('.user-chip')
+  const menu=e.target.closest('.user-menu')
+  if(!chip&&!menu){const m=document.getElementById('userMenu');if(m)m.classList.remove('open')}
+})
+
+function openChangePassword(){
+  document.getElementById('userMenu')?.classList.remove('open')
+  document.getElementById('modalTitle').textContent='🔑 Change Password'
+  let html='<p style="font-size:13px;color:var(--txt2);margin-bottom:16px;">Maglagay ng bagong password para sa account mo. Mananatili kang naka-login pagkatapos.</p>'
+  html+='<div class="field"><label>New Password *</label><input type="password" id="cp_new" placeholder="Hindi bababa sa 6 characters" autocomplete="new-password"></div>'
+  html+='<div class="field"><label>Confirm New Password *</label><input type="password" id="cp_confirm" placeholder="Ulitin ang bagong password" autocomplete="new-password"></div>'
+  html+='<div id="cp_err" style="display:none;background:var(--red-a);border:1px solid var(--red);color:var(--red);padding:9px 13px;border-radius:9px;font-size:12px;margin-top:4px;"></div>'
+  document.getElementById('modalBody').innerHTML=html
+  document.getElementById('modalFooter').innerHTML=
+    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>'+
+    '<button class="btn btn-primary" id="cpSaveBtn" onclick="saveNewPassword()">🔑 Update Password</button>'
+  openModal('mainModal')
+  setTimeout(()=>document.getElementById('cp_new')?.focus(),100)
+}
+
+async function saveNewPassword(){
+  const np=document.getElementById('cp_new')?.value||''
+  const cf=document.getElementById('cp_confirm')?.value||''
+  const errBox=document.getElementById('cp_err')
+  const showErr=(msg)=>{if(errBox){errBox.textContent=msg;errBox.style.display='block'}}
+  if(errBox)errBox.style.display='none'
+  if(np.length<6){showErr('Ang password ay dapat hindi bababa sa 6 characters.');return}
+  if(np!==cf){showErr('Hindi magkatugma ang dalawang password.');return}
+  const btn=document.getElementById('cpSaveBtn')
+  if(btn){btn.disabled=true;btn.textContent='Updating...'}
+  try{
+    const{error}=await SB.auth.updateUser({password:np})
+    if(error){showErr(error.message||'Hindi na-update ang password.');if(btn){btn.disabled=false;btn.textContent='🔑 Update Password'}return}
+    // Refresh stored tokens so the session stays valid across systems
+    const{data:{session}}=await SB.auth.getSession()
+    if(session){
+      const s=getSession()||{}
+      s.access_token=session.access_token
+      s.refresh_token=session.refresh_token
+      setSession(s)
+    }
+    closeModal('mainModal')
+    showToast('success','Password Updated','✅ Napalitan ang password mo. Gamitin ito sa susunod na login sa lahat ng systems.')
+  }catch(e){
+    showErr('May error na naganap. Subukan ulit.')
+    if(btn){btn.disabled=false;btn.textContent='🔑 Update Password'}
+  }
+}
+
 async function doLogout(){await SB.auth.signOut();clearSession();document.getElementById('appShell').style.display='none';document.getElementById('loginScreen').style.display='flex'}
 
 // BOOT
