@@ -584,8 +584,8 @@ tr:hover td{background:var(--surf2);}
     <p class="sub">Sign in with your employee credentials</p>
     <div class="login-err" id="loginErr"></div>
     <div class="form-group">
-      <label>Employee No. or Email</label>
-      <input type="text" id="loginEmpNo" placeholder="e.g. ADMIN-001 or you@tdmh.com" autocomplete="username">
+      <label>Email</label>
+      <input type="text" id="loginEmpNo" placeholder="you@taytaydoctorshospital.com" autocomplete="username">
     </div>
     <div class="form-group">
       <label>Password</label>
@@ -9196,7 +9196,7 @@ async function reLoginInPlace() {
   overlay.innerHTML = '<div style="background:var(--surf1);border:1px solid var(--bdr2);border-radius:18px;padding:28px;width:100%;max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,0.6);">' +
     '<h3 style="font-size:18px;font-weight:700;margin-bottom:6px;font-family:sans-serif;">🔐 Re-authenticate</h3>' +
     '<p style="font-size:13px;color:var(--txt2);margin-bottom:20px;">Your session expired. Enter your password to continue — your current page will not be lost.</p>' +
-    '<div style="margin-bottom:12px;"><input type="text" id="reLoginEmp" value="' + empNo + '" placeholder="Employee No. or Email" style="width:100%;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;color:var(--txt);font-family:inherit;font-size:14px;outline:none;margin-bottom:10px;">' +
+    '<div style="margin-bottom:12px;"><input type="text" id="reLoginEmp" value="' + empNo + '" placeholder="you@taytaydoctorshospital.com" style="width:100%;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;color:var(--txt);font-family:inherit;font-size:14px;outline:none;margin-bottom:10px;">' +
     '<input type="password" id="reLoginPass" placeholder="Password" style="width:100%;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;color:var(--txt);font-family:inherit;font-size:14px;outline:none;"></div>' +
     '<div id="reLoginErr" style="color:var(--red);font-size:12px;margin-bottom:10px;display:none;"></div>' +
     '<div style="display:flex;gap:8px;">' +
