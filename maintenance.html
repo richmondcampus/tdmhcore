@@ -411,7 +411,7 @@ tr:hover td{background:var(--surf2);}
     </div>
     <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
     <div style="text-align:center;margin-top:12px;">
-      <a href="https://ittdmh.pro/reset?from=maintenance" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
+      <a href="https://tdmhcore.io/reset?from=maintenance" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
     </div>
     <p style="font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;">Taytay Doctors Multispecialty Hospital · Maintenance Dept</p>
   </div>
@@ -2518,7 +2518,7 @@ async function checkMaintSLAEscalation() {
         '🚨 Maintenance SLA Breached: ' + t.id,
         t.title + ' — ' + Math.round(ageHours) + 'h elapsed.',
         'error', 'maintenance', 'ticket', t.id,
-        'https://ittdmh.pro/maintenance'
+        'https://tdmhcore.io/maintenance'
       )
       await SB.from('sla_escalation_log').insert(
         supervisors.map(u => ({ ticket_id:t.id, ticket_type:'maintenance', escalated_to:u.id, reason:'SLA resolution breached' }))
@@ -2917,11 +2917,11 @@ async function sendNotification(userIds, title, body, type, sourceSystem, refTyp
 async function openPortal() {
   const u = S.user
   const systems = [
-    { key:'csr', icon:'📋', label:'CSR System', sub:'Supply Requests', url:'https://ittdmh.pro/csr', role: u.csr_role },
-    { key:'maintenance', icon:'🔧', label:'Maintenance Hub', sub:'Maintenance Tickets', url:'https://ittdmh.pro/maintenance', role: u.maintenance_role },
-    { key:'it', icon:'🖥️', label:'IT Helpdesk', sub:'IT Support Tickets', url:'https://ittdmh.pro/it', role: u.it_role },
-    { key:'inventory', icon:'🏷️', label:'Asset Inventory', sub:'Asset Management', url:'https://ittdmh.pro/inventory', role: u.inventory_role },
-    { key:'scan', icon:'📷', label:'Scan & Request', sub:'Quick QR scan', url:'https://ittdmh.pro/scan', role:'any' },
+    { key:'csr', icon:'📋', label:'CSR System', sub:'Supply Requests', url:'https://tdmhcore.io/csr', role: u.csr_role },
+    { key:'maintenance', icon:'🔧', label:'Maintenance Hub', sub:'Maintenance Tickets', url:'https://tdmhcore.io/maintenance', role: u.maintenance_role },
+    { key:'it', icon:'🖥️', label:'IT Helpdesk', sub:'IT Support Tickets', url:'https://tdmhcore.io/helpdesk', role: u.it_role },
+    { key:'inventory', icon:'🏷️', label:'Asset Inventory', sub:'Asset Management', url:'https://tdmhcore.io/inventory', role: u.inventory_role },
+    { key:'scan', icon:'📷', label:'Scan & Request', sub:'Quick QR scan', url:'https://tdmhcore.io/scan', role:'any' },
   ]
   const { data: notifs } = await SB.from('notifications').select('source_system').eq('user_id', u.id).eq('is_read', false)
   const unreadBySystem = {}
