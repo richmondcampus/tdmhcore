@@ -328,8 +328,8 @@ canvas{max-height:220px;}
     <p style="color:var(--txt2);font-size:13px;margin-bottom:24px;">Sign in with your employee credentials</p>
     <div class="login-err" id="loginErr"></div>
     <div class="form-group">
-      <label>Employee No. or Email</label>
-      <input type="text" id="loginEmpNo" placeholder="EMP-001 or you@tdmh.com" autocomplete="username">
+      <label>Email</label>
+      <input type="text" id="loginEmpNo" placeholder="you@taytaydoctorshospital.com" autocomplete="username">
     </div>
     <div class="form-group">
       <label>Password</label>
@@ -371,6 +371,8 @@ canvas{max-height:220px;}
         <div class="nav-item" onclick="showPage('reports')" id="nav_reports"><span class="nav-icon">📊</span>Management Reports</div>
         <div class="nav-item" onclick="showPage('budget')" id="nav_budget"><span class="nav-icon">💰</span>Budget Tracking</div>
         <div class="nav-item" onclick="showPage('room_view')" id="nav_room_view"><span class="nav-icon">📍</span>Room / Location</div>
+        <div class="nav-section" id="navAdminHeader" style="display:none;">Administration</div>
+        <div class="nav-item" onclick="showPage('user_mgmt')" id="nav_user_mgmt" style="display:none;"><span class="nav-icon">👥</span>User Management</div>
         <div class="nav-section" id="navSystemsHeader" style="display:none;">Systems</div>
         <div class="nav-item nav-system" onclick="goSystem('maintenance')" id="navsys_maintenance" style="display:none;"><span class="nav-icon">🔧</span>Maintenance<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('it')" id="navsys_it" style="display:none;"><span class="nav-icon">🖥️</span>IT Helpdesk<span class="nav-ext">↗</span></div>
@@ -565,6 +567,12 @@ async function bootApp(session){
   })
   const sysHdr=document.getElementById('navSystemsHeader')
   if(sysHdr)sysHdr.style.display=anySys?'':'none'
+  // Reveal Administration (User Management) for admins in any system
+  const isAdmin=session.csr_role==='admin'||session.maintenance_role==='admin'||session.it_role==='admin'||session.inventory_role==='admin'
+  if(isAdmin){
+    const ah=document.getElementById('navAdminHeader'); if(ah)ah.style.display=''
+    const um=document.getElementById('nav_user_mgmt'); if(um)um.style.display=''
+  }
   const[{data:depts},{data:users}]=await Promise.all([
     SB.from('departments').select('*').eq('is_active',true).order('dept_name'),
     SB.from('users').select('id,full_name,employee_no,dept_id,csr_role,maintenance_role,it_role,inventory_role').eq('is_active',true)
@@ -578,7 +586,7 @@ async function bootApp(session){
 }
 
 // NAV
-const PAGE_TITLES={announcements:'📢 Announcements',memos:'📄 Memos',documents:'📁 Documents',my_work:'🎯 My Work',notifications:'🔔 Notifications',dept_view:'🏢 Department View',handover:'🔄 Shift Handover',search:'🔍 Global Search',audit_trail:'📋 Audit Trail',reports:'📊 Management Reports',budget:'💰 Budget Tracking',room_view:'📍 Room / Location'}
+const PAGE_TITLES={announcements:'📢 Announcements',memos:'📄 Memos',documents:'📁 Documents',my_work:'🎯 My Work',notifications:'🔔 Notifications',dept_view:'🏢 Department View',handover:'🔄 Shift Handover',search:'🔍 Global Search',audit_trail:'📋 Audit Trail',reports:'📊 Management Reports',budget:'💰 Budget Tracking',room_view:'📍 Room / Location',user_mgmt:'👥 User Management'}
 function showPage(page){
   S.page=page
   document.getElementById('topbarTitle').textContent=PAGE_TITLES[page]||page
@@ -590,7 +598,7 @@ function showPage(page){
   content.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading...</p></div>'
   Object.values(S.charts).forEach(c=>{try{c.destroy()}catch(e){}})
   S.charts={}
-  const pages={announcements:renderAnnouncements,memos:renderMemos,documents:renderDocuments,my_work:renderMyWork,notifications:renderNotifications,dept_view:renderDeptView,handover:renderHandover,search:renderSearch,audit_trail:renderAuditTrail,reports:renderReports,budget:renderBudget,room_view:renderRoomView}
+  const pages={announcements:renderAnnouncements,memos:renderMemos,documents:renderDocuments,my_work:renderMyWork,notifications:renderNotifications,dept_view:renderDeptView,handover:renderHandover,search:renderSearch,audit_trail:renderAuditTrail,reports:renderReports,budget:renderBudget,room_view:renderRoomView,user_mgmt:renderUserMgmt}
   if(pages[page])pages[page]()
 }
 function goSystem(key){window.open(SYSTEMS[key],'_blank')}
@@ -1719,6 +1727,229 @@ async function deleteDocument(id){
     showPage('documents')
   })
 }
+
+// ═══════════════════════════════════════════════
+// USER MANAGEMENT (admin-only) — Command Center
+// ═══════════════════════════════════════════════
+const UM = { users: [], filter: '', roleFilter: '', statusFilter: 'active' }
+
+const ROLE_OPTS = {
+  csr: ['requester','dept_head','supply_officer','purchasing_officer','admin'],
+  maintenance: ['requester','technician','supervisor','admin'],
+  it: ['requester','technician','supervisor','admin'],
+  inventory: ['viewer','encoder','admin']
+}
+const ROLE_LABELS = { csr:'CSR', maintenance:'Maintenance', it:'IT', inventory:'Inventory' }
+
+async function callUserFn(payload){
+  const { data:{ session } } = await SB.auth.getSession()
+  const token = session?.access_token || S.user?.access_token
+  const res = await fetch(SUPA_URL + '/functions/v1/create-user', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token, 'apikey':SUPA_KEY },
+    body: JSON.stringify(payload)
+  })
+  let out; try{ out = await res.json() }catch{ out = { error:'Invalid response' } }
+  if(!res.ok || out.error) throw new Error(out.error || ('HTTP '+res.status))
+  return out
+}
+
+async function renderUserMgmt(){
+  const content = document.getElementById('mainContent')
+  content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading users...</p></div>'
+  const { data, error } = await SB.from('users')
+    .select('id,employee_no,full_name,email,phone,dept_id,position,csr_role,maintenance_role,it_role,inventory_role,is_active')
+    .order('full_name')
+  if(error){ content.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Error</h3><p>'+esc(error.message)+'</p></div>'; return }
+  UM.users = data || []
+  drawUserMgmt()
+}
+
+function drawUserMgmt(){
+  const content = document.getElementById('mainContent')
+  let list = UM.users.slice()
+  // filters
+  if(UM.statusFilter==='active') list = list.filter(u=>u.is_active)
+  else if(UM.statusFilter==='inactive') list = list.filter(u=>!u.is_active)
+  if(UM.roleFilter){
+    list = list.filter(u => u.csr_role===UM.roleFilter||u.maintenance_role===UM.roleFilter||u.it_role===UM.roleFilter||u.inventory_role===UM.roleFilter)
+  }
+  if(UM.filter){
+    const q = UM.filter.toLowerCase()
+    list = list.filter(u => (u.full_name||'').toLowerCase().includes(q) || (u.employee_no||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
+  }
+
+  let html = '<div class="page-header"><h2>👥 User Management</h2>'
+  html += '<button class="btn btn-primary" onclick="openUserForm()">＋ New User</button></div>'
+
+  // Filter bar
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">'
+  html += '<input type="text" id="umSearch" placeholder="🔍 Search name, employee no, or email..." value="'+esc(UM.filter)+'" oninput="UM.filter=this.value;drawUserMgmt();setTimeout(()=>{const e=document.getElementById(\'umSearch\');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}},0)" style="flex:1;min-width:220px;padding:9px 13px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;outline:none;">'
+  html += '<select onchange="UM.statusFilter=this.value;drawUserMgmt()" style="padding:9px 13px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
+  ;[['active','✅ Active'],['inactive','🚫 Inactive'],['all','All Status']].forEach(o=>{ html+='<option value="'+o[0]+'"'+(UM.statusFilter===o[0]?' selected':'')+'>'+o[1]+'</option>' })
+  html += '</select>'
+  html += '<select onchange="UM.roleFilter=this.value;drawUserMgmt()" style="padding:9px 13px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
+  html += '<option value="">All Roles</option><option value="admin"'+(UM.roleFilter==='admin'?' selected':'')+'>Admins only</option>'
+  html += '</select></div>'
+
+  html += '<div style="font-size:12px;color:var(--txt2);margin-bottom:10px;">'+list.length+' user'+(list.length!==1?'s':'')+'</div>'
+
+  if(list.length===0){
+    html += '<div class="empty-state"><div class="empty-icon">👥</div><h3>No users found</h3></div>'
+  } else {
+    html += '<div class="table-wrap"><table><thead><tr>'
+    html += '<th>Name</th><th>Email / Login</th><th>Dept</th><th>Roles</th><th>Status</th><th></th>'
+    html += '</tr></thead><tbody>'
+    list.forEach(u=>{
+      const dept = S.departments.find(d=>d.id===u.dept_id)
+      const roleChips = []
+      ;['csr','maintenance','it','inventory'].forEach(sys=>{
+        const r = u[sys+'_role']
+        if(r) roleChips.push('<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:var(--surf3);color:var(--txt2);white-space:nowrap;">'+ROLE_LABELS[sys]+': '+r+'</span>')
+      })
+      const hasRealEmail = u.email && !u.email.endsWith('@tdmh.local')
+      html += '<tr>'
+      html += '<td><div style="font-weight:600;">'+esc(u.full_name)+'</div>'+(u.employee_no?'<div style="font-size:11px;color:var(--txt3);">#'+esc(u.employee_no)+'</div>':'')+'</td>'
+      html += '<td>'+(hasRealEmail?'<span style="font-size:12px;">'+esc(u.email)+'</span>':'<span style="font-size:11px;color:var(--txt3);">'+esc(u.employee_no||'—')+' (no email)</span>')+'</td>'
+      html += '<td style="font-size:12px;">'+(dept?esc(dept.dept_name):'—')+'</td>'
+      html += '<td><div style="display:flex;flex-wrap:wrap;gap:3px;max-width:280px;">'+(roleChips.join('')||'<span style="color:var(--txt3);font-size:11px;">no roles</span>')+'</div></td>'
+      html += '<td>'+(u.is_active?'<span class="badge badge-active">Active</span>':'<span class="badge badge-closed">Inactive</span>')+'</td>'
+      html += '<td style="white-space:nowrap;text-align:right;">'
+      html += '<button class="btn btn-ghost btn-sm" onclick="openUserForm(\''+u.id+'\')">Edit</button> '
+      html += '<button class="btn btn-ghost btn-sm" onclick="openResetPwd(\''+u.id+'\')">🔑</button>'
+      html += '</td></tr>'
+    })
+    html += '</tbody></table></div>'
+  }
+  content.innerHTML = html
+}
+
+function roleSelect(sys, current){
+  let h = '<div class="field"><label>'+ROLE_LABELS[sys]+' Role</label><select id="uf_'+sys+'"><option value="">— None (no access) —</option>'
+  ROLE_OPTS[sys].forEach(r=>{ h += '<option value="'+r+'"'+(current===r?' selected':'')+'>'+r+'</option>' })
+  h += '</select></div>'
+  return h
+}
+
+function openUserForm(userId){
+  const u = userId ? UM.users.find(x=>x.id===userId) : null
+  const editing = !!u
+  document.getElementById('modalTitle').textContent = editing ? '✏️ Edit User' : '👤 New User'
+
+  let html = '<div class="field-row">'
+  html += '<div class="field"><label>Full Name *</label><input type="text" id="uf_name" value="'+(u?esc(u.full_name):'')+'" placeholder="Juan Dela Cruz"></div>'
+  html += '<div class="field"><label>Employee No.</label><input type="text" id="uf_empno" value="'+(u?esc(u.employee_no||''):'')+'" placeholder="e.g. 10522"></div>'
+  html += '</div>'
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Email '+(editing?'':'(login identity)')+'</label><input type="email" id="uf_email" value="'+(u&&u.email&&!u.email.endsWith('@tdmh.local')?esc(u.email):'')+'" placeholder="user@taytaydoctorshospital.com"></div>'
+  html += '<div class="field"><label>Phone</label><input type="text" id="uf_phone" value="'+(u?esc(u.phone||''):'')+'" placeholder="09xx..."></div>'
+  html += '</div>'
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Department</label><select id="uf_dept"><option value="">— None —</option>'
+  S.departments.forEach(d=>{ html += '<option value="'+d.id+'"'+(u&&u.dept_id===d.id?' selected':'')+'>'+esc(d.dept_name)+'</option>' })
+  html += '</select></div>'
+  html += '<div class="field"><label>Position</label><input type="text" id="uf_position" value="'+(u?esc(u.position||''):'')+'" placeholder="e.g. Nurse, Technician"></div>'
+  html += '</div>'
+
+  html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 6px;">System Roles</div>'
+  html += '<div class="field-row">'+roleSelect('csr', u?.csr_role)+roleSelect('maintenance', u?.maintenance_role)+'</div>'
+  html += '<div class="field-row">'+roleSelect('it', u?.it_role)+roleSelect('inventory', u?.inventory_role)+'</div>'
+
+  if(!editing){
+    html += '<div class="field"><label>Initial Password *</label><input type="text" id="uf_pass" placeholder="At least 6 characters"></div>'
+    html += '<p style="font-size:11px;color:var(--txt3);">Kung may email, mag-login gamit ang email. Kung walang email, employee number ang gamit sa login.</p>'
+  } else {
+    html += '<div class="field"><label>Status</label><select id="uf_active"><option value="true"'+(u.is_active?' selected':'')+'>✅ Active</option><option value="false"'+(!u.is_active?' selected':'')+'>🚫 Inactive</option></select></div>'
+  }
+  html += '<div id="uf_err" style="display:none;background:var(--red-a);border:1px solid var(--red);color:var(--red);padding:9px 13px;border-radius:9px;font-size:12px;margin-top:6px;"></div>'
+
+  document.getElementById('modalBody').innerHTML = html
+  document.getElementById('modalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>'+
+    '<button class="btn btn-primary" id="ufSaveBtn" onclick="saveUser('+(editing?'\''+u.id+'\'':'null')+')">'+(editing?'💾 Save Changes':'👤 Create User')+'</button>'
+  openModal('mainModal')
+}
+
+async function saveUser(userId){
+  const editing = !!userId
+  const g = id => (document.getElementById(id)?.value || '').trim()
+  const errBox = document.getElementById('uf_err')
+  const showErr = m => { if(errBox){ errBox.textContent=m; errBox.style.display='block' } }
+  if(errBox) errBox.style.display='none'
+
+  const name = g('uf_name')
+  if(!name){ showErr('Full name is required.'); return }
+
+  const payload = {
+    action: editing ? 'update' : 'create',
+    full_name: name,
+    employee_no: g('uf_empno') || null,
+    email: g('uf_email') || null,
+    phone: g('uf_phone') || null,
+    dept_id: g('uf_dept') || null,
+    position: g('uf_position') || null,
+    csr_role: g('uf_csr') || null,
+    maintenance_role: g('uf_maintenance') || null,
+    it_role: g('uf_it') || null,
+    inventory_role: g('uf_inventory') || null
+  }
+  if(editing){
+    payload.user_id = userId
+    payload.is_active = g('uf_active') === 'true'
+  } else {
+    const pass = g('uf_pass')
+    if(pass.length < 6){ showErr('Password must be at least 6 characters.'); return }
+    payload.password = pass
+  }
+
+  const btn = document.getElementById('ufSaveBtn')
+  if(btn){ btn.disabled=true; btn.textContent='Saving...' }
+  try{
+    await callUserFn(payload)
+    closeModal('mainModal')
+    showToast('success', editing?'User Updated':'User Created', editing?'✅ Na-save ang pagbabago.':'✅ Nagawa ang bagong user.')
+    // refresh global users cache too
+    renderUserMgmt()
+  }catch(e){
+    showErr(e.message || 'Save failed.')
+    if(btn){ btn.disabled=false; btn.textContent=editing?'💾 Save Changes':'👤 Create User' }
+  }
+}
+
+function openResetPwd(userId){
+  const u = UM.users.find(x=>x.id===userId)
+  if(!u) return
+  document.getElementById('modalTitle').textContent = '🔑 Reset Password'
+  let html = '<p style="font-size:13px;color:var(--txt2);margin-bottom:14px;">Magtakda ng bagong password para kay <strong>'+esc(u.full_name)+'</strong>.</p>'
+  html += '<div class="field"><label>New Password *</label><input type="text" id="rp_pass" placeholder="At least 6 characters"></div>'
+  html += '<p style="font-size:11px;color:var(--txt3);">Sabihin ang bagong password sa user. Pwede nilang palitan mismo sa Change Password kapag naka-login na.</p>'
+  html += '<div id="rp_err" style="display:none;background:var(--red-a);border:1px solid var(--red);color:var(--red);padding:9px 13px;border-radius:9px;font-size:12px;margin-top:6px;"></div>'
+  document.getElementById('modalBody').innerHTML = html
+  document.getElementById('modalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>'+
+    '<button class="btn btn-primary" id="rpBtn" onclick="doResetPwd(\''+userId+'\')">🔑 Set Password</button>'
+  openModal('mainModal')
+  setTimeout(()=>document.getElementById('rp_pass')?.focus(),100)
+}
+
+async function doResetPwd(userId){
+  const pass = (document.getElementById('rp_pass')?.value||'').trim()
+  const errBox = document.getElementById('rp_err')
+  const showErr = m => { if(errBox){ errBox.textContent=m; errBox.style.display='block' } }
+  if(errBox) errBox.style.display='none'
+  if(pass.length < 6){ showErr('Password must be at least 6 characters.'); return }
+  const btn = document.getElementById('rpBtn')
+  if(btn){ btn.disabled=true; btn.textContent='Setting...' }
+  try{
+    await callUserFn({ action:'reset_password', user_id:userId, new_password:pass })
+    closeModal('mainModal')
+    showToast('success','Password Reset','✅ Nabago ang password. Ibigay ito sa user.')
+  }catch(e){
+    showErr(e.message || 'Reset failed.')
+    if(btn){ btn.disabled=false; btn.textContent='🔑 Set Password' }
+  }
+}
+
 
 function esc(s){
   if(s==null)return''
