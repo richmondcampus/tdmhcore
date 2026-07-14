@@ -479,8 +479,9 @@ async function bootApp(session){
   const initials=session.full_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()
   document.getElementById('userAvatar').textContent=initials
   document.getElementById('userName').textContent=session.full_name
-  const roles=[session.csr_role,session.maintenance_role,session.it_role,session.inventory_role].filter(Boolean)
-  document.getElementById('userRoleLabel').textContent=roles.join(' · ')
+  const roles=[...new Set([session.csr_role,session.maintenance_role,session.it_role,session.inventory_role].filter(Boolean))]
+  const roleLabel=roles.map(r=>String(r).replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())).join(' · ')
+  document.getElementById('userRoleLabel').textContent=roleLabel||'Staff'
   const[{data:depts},{data:users}]=await Promise.all([
     SB.from('departments').select('*').eq('is_active',true).order('dept_name'),
     SB.from('users').select('id,full_name,employee_no,dept_id,csr_role,maintenance_role,it_role,inventory_role').eq('is_active',true)
