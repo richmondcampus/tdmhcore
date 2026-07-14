@@ -1,0 +1,2645 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TDMH — IT Helpdesk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+[data-theme="dark"]{
+  --bg:#080e14;--surf1:#0d1520;--surf2:#111d2b;--surf3:#162235;--surf4:#1b2940;
+  --bdr:rgba(255,255,255,0.06);--bdr2:rgba(255,255,255,0.11);
+  --txt:#e2edf8;--txt2:#5f8099;--txt3:#324f66;
+  --shadow:0 2px 20px rgba(0,0,0,0.55);--shadow2:0 8px 32px rgba(0,0,0,0.6);
+  --accent:#4d9fff;--accent2:#2070d0;--accent-a:rgba(77,159,255,0.12);--accent-b:rgba(77,159,255,0.22);
+  --red:#f04060;--red-a:rgba(240,64,96,0.12);
+  --amber:#f0a500;--amber-a:rgba(240,165,0,0.12);
+  --green:#22c55e;--green-a:rgba(34,197,94,0.12);
+  --violet:#a070ff;--violet-a:rgba(160,112,255,0.12);
+}
+[data-theme="light"]{
+  --bg:#f0f5fb;--surf1:#fff;--surf2:#f7fafd;--surf3:#edf3fa;--surf4:#e3ecf5;
+  --bdr:rgba(0,0,0,0.07);--bdr2:rgba(0,0,0,0.13);
+  --txt:#0c1e2e;--txt2:#4a6a80;--txt3:#9ab8cc;
+  --shadow:0 2px 16px rgba(0,0,0,0.08);--shadow2:0 8px 28px rgba(0,0,0,0.12);
+  --accent:#2070d0;--accent2:#1558b0;--accent-a:rgba(32,112,208,0.10);--accent-b:rgba(32,112,208,0.20);
+  --red:#d03050;--red-a:rgba(208,48,80,0.09);
+  --amber:#c07800;--amber-a:rgba(192,120,0,0.10);
+  --green:#16a34a;--green-a:rgba(22,163,74,0.10);
+  --violet:#7040d0;--violet-a:rgba(112,64,208,0.09);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+*{transition:background-color .2s,border-color .2s,color .15s;}
+.btn,.badge,.toast{transition:none!important;}
+html,body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;line-height:1.55;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--surf4);border-radius:2px;}
+h1,h2,h3,h4{font-family:'Bricolage Grotesque',sans-serif;}
+
+/* LOGIN */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(77,159,255,0.05) 0%,transparent 60%);}
+.login-card{width:100%;max-width:400px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:20px;padding:40px;box-shadow:var(--shadow2);}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+.login-logo-mark{width:44px;height:44px;background:var(--accent-a);border:1px solid var(--accent-b);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.login-logo-text h1{font-size:18px;font-weight:700;}
+.login-logo-text p{font-size:12px;color:var(--txt2);}
+.login-card h2{font-size:22px;font-weight:700;margin-bottom:6px;}
+.login-card .sub{color:var(--txt2);font-size:13px;margin-bottom:28px;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.form-group input{width:100%;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;color:var(--txt);font-family:inherit;font-size:14px;outline:none;}
+.form-group input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-a);}
+.login-err{background:var(--red-a);border:1px solid var(--red);color:var(--red);padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:transform .1s,opacity .15s!important;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{opacity:.88;}
+.btn-secondary{background:var(--surf3);color:var(--txt);border:1px solid var(--bdr2);}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--bdr2);}.btn-ghost:hover{background:var(--surf3);color:var(--txt);}
+.btn-danger{background:var(--red-a);color:var(--red);border:1px solid var(--red);}
+.btn-success{background:var(--green-a);color:var(--green);border:1px solid var(--green);}
+.btn-full{width:100%;}.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px;}.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* APP */
+#appShell{display:none;height:100vh;overflow:hidden;}
+.shell{display:flex;height:100vh;}
+.sidebar{width:240px;min-width:240px;background:var(--surf1);border-right:1px solid var(--bdr);display:flex;flex-direction:column;height:100vh;z-index:10;flex-shrink:0;}
+.sidebar-logo{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bdr);}
+.sidebar-logo-mark{width:34px;height:34px;background:var(--accent-a);border:1px solid var(--accent-b);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.sidebar-logo-text h2{font-size:13px;font-weight:700;}
+.sidebar-logo-text p{font-size:11px;color:var(--txt2);}
+.sidebar-nav{flex:1;overflow-y:auto;padding:10px;}
+.nav-section{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;padding:8px 10px 4px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;cursor:pointer;color:var(--txt2);font-size:13px;font-weight:500;margin-bottom:2px;}
+.nav-item:hover{background:var(--surf3);color:var(--txt);}
+.nav-item.active{background:var(--accent-a);color:var(--accent);border:1px solid var(--accent-b);}
+.nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0;}
+.nav-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:20px;padding:1px 6px;font-size:10px;font-weight:700;}
+.sidebar-footer{padding:12px;border-top:1px solid var(--bdr);}
+.user-chip{display:flex;align-items:center;gap:10px;padding:10px;background:var(--surf2);border-radius:10px;border:1px solid var(--bdr);cursor:pointer;}
+.user-chip:hover{background:var(--surf3);}
+.user-avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-a);border:1px solid var(--accent-b);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0;}
+.user-info{overflow:hidden;flex:1;}
+.user-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-role{font-size:10px;color:var(--txt2);}
+.topbar{height:56px;background:var(--surf1);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;}
+.topbar-title{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:700;flex:1;}
+.icon-btn{width:34px;height:34px;border-radius:9px;background:var(--surf2);border:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--txt2);}
+.icon-btn:hover{background:var(--surf3);}
+.main{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+.content{flex:1;overflow-y:auto;padding:24px;}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.badge-open{background:var(--blue-a,var(--accent-a));color:var(--accent);}.badge-open::before{background:var(--accent);}
+.badge-assigned{background:var(--violet-a);color:var(--violet);}.badge-assigned::before{background:var(--violet);}
+.badge-in_progress{background:var(--amber-a);color:var(--amber);}.badge-in_progress::before{background:var(--amber);}
+.badge-pending_user{background:var(--amber-a);color:var(--amber);}.badge-pending_user::before{background:var(--amber);}
+.badge-resolved{background:var(--green-a);color:var(--green);}.badge-resolved::before{background:var(--green);}
+.badge-closed{background:var(--surf3);color:var(--txt3);}.badge-closed::before{background:var(--txt3);}
+.badge-reopened{background:var(--red-a);color:var(--red);}.badge-reopened::before{background:var(--red);}
+.badge-low{background:var(--surf3);color:var(--txt2);}
+.badge-medium{background:var(--blue-a,var(--accent-a));color:var(--accent);}
+.badge-high{background:var(--amber-a);color:var(--amber);}
+.badge-critical{background:var(--red-a);color:var(--red);animation:pulse .8s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+/* CARDS */
+.card{background:var(--surf1);border:1px solid var(--bdr);border-radius:14px;padding:20px;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--surf1);border:1px solid var(--bdr);border-radius:14px;padding:18px 20px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.stat-value{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:700;}
+.stat-sub{font-size:11px;color:var(--txt2);margin-top:4px;}
+
+/* TICKET CARDS */
+.ticket-card{background:var(--surf1);border:1px solid var(--bdr);border-radius:14px;padding:16px;cursor:pointer;margin-bottom:10px;}
+.ticket-card:hover{border-color:var(--bdr2);box-shadow:var(--shadow);}
+.ticket-card.priority-critical{border-left:3px solid var(--red);}
+.ticket-card.priority-high{border-left:3px solid var(--amber);}
+.ticket-card.priority-medium{border-left:3px solid var(--accent);}
+
+/* TABLE */
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--bdr);}
+table{width:100%;border-collapse:collapse;background:var(--surf1);}
+th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--txt2);padding:10px 14px;text-align:left;background:var(--surf2);border-bottom:1px solid var(--bdr);white-space:nowrap;}
+td{padding:12px 14px;border-bottom:1px solid var(--bdr);font-size:13px;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--surf2);}
+.td-mono{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;opacity:0;pointer-events:none;transition:opacity .2s!important;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--surf1);border:1px solid var(--bdr2);border-radius:18px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow2);transform:translateY(12px);transition:transform .2s!important;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-lg{max-width:820px;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0;}
+.modal-header h3{font-size:17px;font-weight:700;}
+.modal-close{width:28px;height:28px;border-radius:7px;background:var(--surf3);border:none;cursor:pointer;font-size:16px;color:var(--txt2);display:flex;align-items:center;justify-content:center;}
+.modal-body{padding:20px 24px;}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--bdr);}
+
+/* FORMS */
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.field input,.field select,.field textarea{width:100%;padding:9px 13px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;outline:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-a);}
+.field textarea{resize:vertical;min-height:80px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+
+/* REPLIES */
+.reply-thread{display:flex;flex-direction:column;gap:12px;max-height:320px;overflow-y:auto;padding-right:4px;}
+.reply-item{display:flex;gap:10px;}
+.reply-avatar{width:30px;height:30px;border-radius:8px;background:var(--accent-a);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0;}
+.reply-body{flex:1;background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;}
+.reply-body.internal{background:var(--amber-a);border-color:var(--amber);}
+.reply-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.reply-author{font-size:12px;font-weight:600;}
+.reply-time{font-size:11px;color:var(--txt3);}
+.reply-text{font-size:13px;color:var(--txt2);}
+
+/* SLA BAR */
+.sla-bar{height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;}
+.sla-fill{height:100%;border-radius:3px;transition:width .5s;}
+
+/* STARS */
+.stars{display:flex;gap:4px;}
+.star{font-size:20px;cursor:pointer;transition:transform .1s!important;}
+.star:hover{transform:scale(1.2);}
+
+/* KB */
+.kb-card{background:var(--surf1);border:1px solid var(--bdr);border-radius:12px;padding:16px;cursor:pointer;margin-bottom:8px;}
+.kb-card:hover{border-color:var(--accent-b);}
+
+/* PAGE */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.page-header h2{font-size:20px;font-weight:700;}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.filter-bar select,.filter-bar input{padding:7px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;outline:none;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--txt2);}
+.empty-state .empty-icon{font-size:40px;margin-bottom:12px;}
+.empty-state h3{font-size:16px;font-weight:600;color:var(--txt);margin-bottom:6px;}
+.bar-chart{display:flex;flex-direction:column;gap:8px;}
+.bar-row{display:flex;align-items:center;gap:10px;}
+.bar-label{font-size:12px;color:var(--txt2);width:130px;text-align:right;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bar-track{flex:1;height:8px;background:var(--surf3);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;}
+.bar-val{font-size:11px;color:var(--txt2);width:28px;text-align:right;}
+
+/* TOAST */
+#toastContainer{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;background:var(--surf1);border:1px solid var(--bdr2);box-shadow:var(--shadow2);min-width:260px;max-width:340px;animation:toastIn .25s ease;}
+@keyframes toastIn{from{transform:translateX(20px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.toast-icon{font-size:16px;flex-shrink:0;}
+.toast-title{font-size:13px;font-weight:600;margin-bottom:2px;}
+.toast-body{font-size:12px;color:var(--txt2);}
+
+@media(max-width:768px){
+  .sidebar{position:fixed;left:-100%;top:0;bottom:0;z-index:100;transition:left .25s ease!important;}
+  .sidebar.open{left:0;}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;}
+  .sidebar.open~.sidebar-overlay{display:block;}
+  .field-row{grid-template-columns:1fr;}
+  .content{padding:12px;}
+  .hamburger{display:flex!important;}
+  .page-header{flex-direction:column;align-items:flex-start;gap:8px;}
+  .table-wrap{display:none;}
+  .mobile-cards{display:flex!important;flex-direction:column;gap:10px;}
+  .stat-grid{grid-template-columns:1fr 1fr!important;}
+  .stat-value{font-size:22px!important;}
+  .filter-bar{gap:6px;}
+  .filter-bar select,.filter-bar input{font-size:12px;padding:6px 10px;}
+  .modal-overlay{padding:0;align-items:flex-end;}
+  .modal{border-radius:18px 18px 0 0;max-height:92vh;max-width:100%!important;}
+  .modal-lg{max-width:100%!important;}
+  .modal-header{padding:16px 18px 0;}
+  .modal-body{padding:14px 18px;}
+  .modal-footer{padding:12px 18px;gap:8px;flex-wrap:wrap;}
+  .modal-footer .btn{flex:1;min-width:120px;}
+  #toastContainer{left:12px;right:12px;top:auto;bottom:70px;}
+  .toast{min-width:unset;max-width:100%;}
+  .reply-thread{max-height:200px;}
+}
+.hamburger{display:none;width:34px;height:34px;border-radius:9px;background:var(--surf2);border:1px solid var(--bdr2);align-items:center;justify-content:center;cursor:pointer;font-size:16px;}
+.mobile-cards{display:none;}
+</style>
+</head>
+<body>
+<div id="toastContainer"></div>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark">🖥️</div>
+      <div class="login-logo-text">
+        <h1>TDMH — IT Helpdesk</h1>
+        <p>IT Support Ticketing System v2</p>
+      </div>
+    </div>
+    <h2>Welcome back</h2>
+    <p class="sub">Sign in with your employee credentials</p>
+    <div class="login-err" id="loginErr"></div>
+    <div class="form-group">
+      <label>Employee No. or Email</label>
+      <input type="text" id="loginEmpNo" placeholder="EMP-001 or you@tdmh.com" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
+    <div style="text-align:center;margin-top:12px;">
+      <a href="https://ittdmh.pro/reset?from=it" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
+    </div>
+    <p style="font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;">Taytay Doctors Multispecialty Hospital · IT Department</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appShell">
+  <div class="shell">
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">🖥️</div>
+        <div class="sidebar-logo-text">
+          <h2>IT Helpdesk</h2>
+          <p>v2 · tdmh-core</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+      <div class="sidebar-footer">
+        <div class="user-chip" onclick="confirm2('Sign out?',doLogout)">
+          <div class="user-avatar" id="userAvatar">--</div>
+          <div class="user-info">
+            <div class="user-name" id="userName">Loading...</div>
+            <div class="user-role" id="userRoleLabel">--</div>
+          </div>
+          <span style="font-size:10px;color:var(--txt3);">⏻</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+    <div class="main">
+      <div class="topbar">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="icon-btn" onclick="openPortal()" title="All Systems" style="font-size:13px;">🏥</div>
+          <div class="icon-btn" onclick="openNotifications()" title="Notifications" id="notifBell" style="position:relative;">🔔<span id="notifBadge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;"></span></div>
+          <div class="icon-btn" onclick="toggleTheme()">🌙</div>
+        </div>
+      </div>
+      <div class="content" id="mainContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TICKET FORM MODAL -->
+<div class="modal-overlay" id="ticketFormModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="ticketFormTitle">New IT Ticket</h3>
+      <button class="modal-close" onclick="closeModal('ticketFormModal')">✕</button>
+    </div>
+    <div class="modal-body" id="ticketFormBody"></div>
+    <div class="modal-footer" id="ticketFormFooter">
+      <button class="btn btn-ghost" onclick="closeModal('ticketFormModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitTicket()">Submit Ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- TICKET DETAIL MODAL -->
+<div class="modal-overlay" id="ticketDetailModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="ticketDetailTitle">Ticket Detail</h3>
+      <button class="modal-close" onclick="closeModal('ticketDetailModal')">✕</button>
+    </div>
+    <div class="modal-body" id="ticketDetailBody"></div>
+    <div class="modal-footer" id="ticketDetailFooter"></div>
+  </div>
+</div>
+
+<!-- KB ARTICLE MODAL -->
+<div class="modal-overlay" id="kbArticleModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3>📝 New Knowledge Base Article</h3>
+      <button class="modal-close" onclick="closeModal('kbArticleModal')">✕</button>
+    </div>
+    <div class="modal-body" id="kbArticleBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('kbArticleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveArticle()">Publish Article</button>
+    </div>
+  </div>
+</div>
+
+<!-- LINK ASSET MODAL -->
+<div class="modal-overlay" id="linkAssetModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>🏷️ Link Asset to Ticket</h3>
+      <button class="modal-close" onclick="closeLinkAsset()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--txt2);margin-bottom:14px;">Scan the asset QR code or enter the asset number manually.</p>
+      <div id="link_scanner_wrap" style="border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;display:none;">
+        <div id="link_qr_reader"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input type="text" id="link_asset_input" placeholder="Asset No. e.g. AST-IT-2026-0001"
+          style="flex:1;padding:9px 13px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;outline:none;"
+          onkeydown="if(event.key==='Enter')lookupLinkAsset()">
+        <button class="btn btn-ghost btn-sm" onclick="toggleLinkScanner()">📷</button>
+        <button class="btn btn-primary btn-sm" onclick="lookupLinkAsset()">Search</button>
+      </div>
+      <div id="link_asset_preview" style="display:none;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeLinkAsset()">Cancel</button>
+      <button class="btn btn-primary" id="linkAssetConfirmBtn" style="display:none;" onclick="confirmLinkAsset()">🔗 Link Asset</button>
+    </div>
+  </div>
+</div>
+
+<!-- PARTS / REPLACEMENT REQUEST MODAL -->
+<div class="modal-overlay" id="partsReqModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <h3>🔧 Request Parts / Replacement</h3>
+      <button class="modal-close" onclick="closeModal('partsReqModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:12px;">Gagawa ito ng CSR request papunta sa Supply Officer para sa approval. Naka-link sa ticket na ito.</div>
+      <input type="hidden" id="pr_ticket_id">
+      <!-- Request type toggle -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Uri ng request</label>
+        <div style="display:flex;gap:8px;">
+          <button type="button" id="pr_type_parts" class="btn btn-primary btn-sm" style="flex:1;" onclick="setPartsReqType('parts')">🔩 Parts / Spare</button>
+          <button type="button" id="pr_type_replacement" class="btn btn-ghost btn-sm" style="flex:1;" onclick="setPartsReqType('replacement')">💻 Full Replacement</button>
+        </div>
+      </div>
+      <!-- Urgency -->
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Urgency</label>
+        <select id="pr_urgency" style="width:100%;padding:9px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">
+          <option value="routine" selected>Routine</option>
+          <option value="urgent">Urgent</option>
+          <option value="emergency">Emergency</option>
+        </select>
+      </div>
+      <!-- Items -->
+      <div style="margin-bottom:8px;">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Items na kailangan</label>
+        <div id="pr_items"></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addPartsItem()" style="margin-top:6px;">➕ Magdagdag ng item</button>
+      </div>
+      <div style="margin-top:12px;">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px;">Dahilan / Notes</label>
+        <textarea id="pr_notes" rows="2" placeholder="hal. Sirang keyboard, hindi na gumagana ang ilang key" style="width:100%;padding:9px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('partsReqModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitITPartsRequest()">📤 I-submit sa CSR</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <h3 id="confirmTitle">Confirm</h3>
+      <button class="modal-close" onclick="closeModal('confirmModal')">✕</button>
+    </div>
+    <div class="modal-body"><p id="confirmMsg" style="color:var(--txt2);font-size:14px;"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-primary" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeWh3ZHVsaXpvcmduZ2F5eHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjU0NTgsImV4cCI6MjA5NDg0MTQ1OH0.xLdKGNqjNZNRfjAf5NmXGI1GyTbQZAmbZiKokpgAhUo'
+const SMS_URL = SUPA_URL + '/functions/v1/send-sms'
+const SB = supabase.createClient(SUPA_URL, SUPA_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    storageKey: 'tdmh-helpdesk-auth'
+  }
+})
+
+// Ensure there's a live, non-expired auth session before critical queries.
+// Returns true if authenticated; if the session can't be refreshed, prompts re-login.
+async function ensureAuth() {
+  try {
+    const { data: { session } } = await SB.auth.getSession()
+    if (session && session.access_token) {
+      // Refresh proactively if expiring within 60s
+      const expMs = (session.expires_at || 0) * 1000
+      if (expMs && (expMs - Date.now()) < 60000) {
+        const { data: { session: refreshed } } = await SB.auth.refreshSession()
+        return !!(refreshed && refreshed.access_token)
+      }
+      return true
+    }
+    // No active session — try restoring from stored tokens
+    const stored = getSession()
+    if (stored && stored.access_token && stored.refresh_token) {
+      const { data: { session: restored }, error } = await SB.auth.setSession({
+        access_token: stored.access_token,
+        refresh_token: stored.refresh_token
+      })
+      if (restored && !error) return true
+    }
+    return false
+  } catch (e) {
+    console.warn('ensureAuth failed:', e && e.message)
+    return false
+  }
+}
+
+// Show a clear message + send back to login when the session is gone.
+function handleAuthLost() {
+  showToast('warning', 'Session expired', 'Nag-expire ang session. Mag-login ulit.')
+  setTimeout(() => { clearSession(); location.reload() }, 1500)
+}
+
+let S = {
+  user: null, page: 'dashboard',
+  tickets: [], categories: [], users: [], departments: []
+}
+
+// ═══ AUTH ═══
+function getSession() { try { return JSON.parse(localStorage.getItem('tdmh_session')) } catch { return null } }
+function setSession(d) { localStorage.setItem('tdmh_session', JSON.stringify(d)) }
+function clearSession() { localStorage.removeItem('tdmh_session') }
+
+function storeAuthSession(authData, profile) {
+  const roleFields = ['csr_role','it_role','maintenance_role','inventory_role']
+  const session = {
+    id: profile.id, auth_id: authData.user.id,
+    employee_no: profile.employee_no, full_name: profile.full_name,
+    dept_id: profile.dept_id, phone: profile.phone, email: profile.email,
+    access_token: authData.session?.access_token,
+    refresh_token: authData.session?.refresh_token,
+    expires_at: authData.session?.expires_at
+  }
+  roleFields.forEach(r => { session[r] = profile[r] || null })
+  // extra fields
+  if (profile.spec !== undefined) session.spec = profile.spec
+  if (profile.color !== undefined) session.color = profile.color
+  setSession(session)
+  return session
+}
+
+async function doLogin() {
+  const empNo = document.getElementById('loginEmpNo').value.trim()
+  const pass = document.getElementById('loginPass').value.trim()
+  const btn = document.getElementById('loginBtn')
+  document.getElementById('loginErr').style.display = 'none'
+  if (!empNo || !pass) { showLoginErr('Please enter credentials.'); return }
+  btn.disabled = true; btn.textContent = 'Signing in...'
+  try {
+    const loginEmail = empNo.includes('@') ? empNo.toLowerCase() : empNo.toLowerCase().replace(/[^a-z0-9]/g,'-') + '@tdmh.local'
+    const { data: authData, error } = await SB.auth.signInWithPassword({ email: loginEmail, password: pass })
+    if (error || !authData.user) { showLoginErr('Invalid credentials.'); return }
+    let profile = null
+    const { data: dp } = await SB.from('users').select('*').eq('id', authData.user.id).eq('is_active', true).single()
+    if (dp) profile = dp
+    else {
+      const { data: alias } = await SB.from('user_auth_aliases').select('primary_user_id').eq('alias_auth_id', authData.user.id).single()
+      if (alias) {
+        const { data: ap } = await SB.from('users').select('*').eq('id', alias.primary_user_id).eq('is_active', true).single()
+        if (ap) profile = ap
+      }
+    }
+    if (!profile) { showLoginErr('Account not found.'); await SB.auth.signOut(); return }
+    if (!profile.it_role) { showLoginErr('No access to IT Helpdesk. Contact admin.'); await SB.auth.signOut(); return }
+    const session = {
+      id: profile.id, auth_id: authData.user.id,
+      employee_no: profile.employee_no, full_name: profile.full_name,
+      dept_id: profile.dept_id, phone: profile.phone, email: profile.email,
+      it_role: profile.it_role, csr_role: profile.csr_role,
+      maintenance_role: profile.maintenance_role, inventory_role: profile.inventory_role
+    }
+    setSession(session)
+    await bootApp(session)
+  } catch(e) { showLoginErr('Connection error.'); console.error(e) }
+  finally { btn.disabled = false; btn.textContent = 'Sign In' }
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('loginErr')
+  el.textContent = msg; el.style.display = 'block'
+}
+
+async function doLogout() {
+  await SB.auth.signOut(); clearSession()
+  S = { user:null, page:'dashboard', tickets:[], categories:[], users:[], departments:[] }
+  document.getElementById('appShell').style.display = 'none'
+  document.getElementById('loginScreen').style.display = 'flex'
+}
+
+// ═══ BOOT ═══
+async function bootApp(session) {
+  S.user = session
+  document.getElementById('loginScreen').style.display = 'none'
+  document.getElementById('appShell').style.display = 'block'
+  const initials = session.full_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()
+  document.getElementById('userAvatar').textContent = initials
+  document.getElementById('userName').textContent = session.full_name
+  document.getElementById('userRoleLabel').textContent = formatItRole(session.it_role)
+  await Promise.all([loadCategories(), loadDepartments(), loadUsers()])
+  renderSidebarNav()
+  subscribeTickets()
+  showPage('dashboard')
+  subscribeNotifications()
+  loadNotifications()
+}
+
+function formatItRole(r) {
+  return { requester:'Requester', technician:'Technician', supervisor:'Supervisor', admin:'Admin' }[r] || r || '—'
+}
+
+// ═══ DATA ═══
+async function loadCategories() {
+  const { data } = await SB.from('it_categories').select('*').eq('is_active', true).order('name')
+  S.categories = data || []
+}
+async function loadDepartments() {
+  const { data } = await SB.from('departments').select('*').eq('is_active', true).order('dept_name')
+  S.departments = data || []
+}
+async function loadUsers() {
+  const { data } = await SB.from('users').select('id,full_name,employee_no,it_role,phone,dept_id').eq('is_active', true)
+  S.users = data || []
+}
+async function loadTickets(filter = {}) {
+  let q = SB.from('it_tickets').select('*').order('created_at', { ascending: false })
+  if (filter.requester_id) q = q.eq('requester_id', filter.requester_id)
+  if (filter.assigned_to) q = q.eq('assigned_to', filter.assigned_to)
+  if (filter.status) q = q.eq('status', filter.status)
+  if (filter.open) q = q.not('status', 'in', '("resolved","closed")')
+  const { data } = await q
+  return data || []
+}
+
+function subscribeTickets() {
+  SB.channel('it-tickets-live')
+    .on('postgres_changes', { event:'*', schema:'public', table:'it_tickets' }, () => {
+      if (['dashboard','my_tickets','all_tickets','open_tickets'].includes(S.page)) showPage(S.page)
+    }).subscribe()
+}
+
+// ═══ SIDEBAR ═══
+function renderSidebarNav() {
+  const role = S.user.it_role
+  const navHTML = `
+    <div class="nav-section">My Work</div>
+    <div class="nav-item" onclick="showPage('dashboard')" id="nav_dashboard"><span class="nav-icon">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="showPage('my_tickets')" id="nav_my_tickets"><span class="nav-icon">🎫</span>My Tickets</div>
+    ${['technician','supervisor','admin'].includes(role) ? `
+    <div class="nav-section">Queue</div>
+    <div class="nav-item" onclick="showPage('open_tickets')" id="nav_open_tickets"><span class="nav-icon">🔓</span>Open Tickets<span id="openTicketBadge" style="display:none;margin-left:auto;background:var(--red);color:#fff;border-radius:10px;min-width:18px;height:18px;padding:0 5px;font-size:10px;font-weight:700;align-items:center;justify-content:center;"></span></div>
+    <div class="nav-item" onclick="showPage('kanban')" id="nav_kanban"><span class="nav-icon">📋</span>Kanban Board</div>
+    <div class="nav-item" onclick="showPage('all_tickets')" id="nav_all_tickets"><span class="nav-icon">🗂️</span>All Tickets</div>
+    <div class="nav-item" onclick="showPage('assigned_me')" id="nav_assigned_me"><span class="nav-icon">👤</span>Assigned to Me</div>
+    ` : ''}
+    ${['supervisor','admin'].includes(role) ? `
+    <div class="nav-section">Management</div>
+    <div class="nav-item" onclick="showPage('analytics')" id="nav_analytics"><span class="nav-icon">📈</span>Analytics</div>
+    <div class="nav-item" onclick="showPage('sla_report')" id="nav_sla_report"><span class="nav-icon">⏱️</span>SLA Report</div>
+    ` : ''}
+    <div class="nav-section">Resources</div>
+    <div class="nav-item" onclick="showPage('knowledge_base')" id="nav_knowledge_base"><span class="nav-icon">📚</span>Knowledge Base</div>
+  `
+  document.getElementById('sidebarNav').innerHTML = navHTML
+  refreshOpenTicketBadge()
+}
+
+// Count unassigned/open tickets and show on the sidebar badge
+async function refreshOpenTicketBadge() {
+  try {
+    const { count } = await SB.from('it_tickets')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['open','reopened'])
+    const badge = document.getElementById('openTicketBadge')
+    if (badge) {
+      if (count && count > 0) {
+        badge.textContent = count > 99 ? '99+' : count
+        badge.style.display = 'inline-flex'
+      } else {
+        badge.style.display = 'none'
+      }
+    }
+  } catch(e) { /* non-critical */ }
+}
+
+// ═══ NAVIGATION ═══
+const PAGE_TITLES = {
+  dashboard:'Dashboard', my_tickets:'My Tickets', open_tickets:'Open Tickets',
+  all_tickets:'All Tickets', assigned_me:'Assigned to Me', kanban:'Kanban Board',
+  analytics:'Analytics', sla_report:'SLA Report', knowledge_base:'Knowledge Base'
+}
+
+function showPage(page) {
+  S.page = page
+  document.getElementById('topbarTitle').textContent = PAGE_TITLES[page] || page
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
+  const navEl = document.getElementById('nav_' + page)
+  if (navEl) navEl.classList.add('active')
+  closeSidebar()
+  document.getElementById('mainContent').innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div></div>'
+  const pages = {
+    dashboard: renderDashboard, my_tickets: renderMyTickets,
+    open_tickets: renderOpenTickets, all_tickets: renderAllTickets,
+    assigned_me: renderAssignedMe, kanban: renderKanban,
+    analytics: renderAnalytics, sla_report: renderSLAReport,
+    knowledge_base: renderKnowledgeBase
+  }
+  if (pages[page]) pages[page]()
+}
+
+// ═══ DASHBOARD ═══
+async function renderDashboard() {
+  const content = document.getElementById('mainContent')
+  const tickets = await loadTickets()
+  S.tickets = tickets
+  const role = S.user.it_role
+  const isIT = ['technician','supervisor','admin'].includes(role)
+
+  const open = tickets.filter(t => t.status === 'open').length
+  const inProg = tickets.filter(t => ['assigned','in_progress'].includes(t.status)).length
+  const critical = tickets.filter(t => t.priority === 'critical' && !['resolved','closed'].includes(t.status)).length
+  const resolved = tickets.filter(t => t.status === 'resolved').length
+  const myTickets = tickets.filter(t =>
+    isIT ? t.assigned_to === S.user.id : t.requester_id === S.user.id
+  )
+
+  let html = '<div class="page-header">'
+  html += '<h2>👋 Kamusta, ' + S.user.full_name.split(' ')[0] + '</h2>'
+  html += '<button class="btn btn-primary" onclick="openTicketForm()">🖥️ New Ticket</button>'
+  html += '</div>'
+
+  if (critical > 0) {
+    html += '<div style="background:var(--red-a);border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">'
+    html += '<span style="font-size:20px;">🚨</span><strong style="color:var(--red);">' + critical + ' CRITICAL ticket(s) need immediate attention!</strong>'
+    html += '<button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="showPage(\'open_tickets\')">View</button>'
+    html += '</div>'
+  }
+
+  html += '<div class="stat-grid">'
+  html += sC('🔓','Open',open,'Awaiting action','var(--accent)')
+  html += sC('🔄','In Progress',inProg,'Being worked on','var(--amber)')
+  html += sC('✅','Resolved Today',tickets.filter(t=>t.resolved_at&&new Date(t.resolved_at).toDateString()===new Date().toDateString()).length,'Today','var(--green)')
+  html += sC('🎫','Total',tickets.length,'All time','var(--txt2)')
+  html += '</div>'
+
+  // Category quick access
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:24px;">'
+  S.categories.forEach(cat => {
+    const count = tickets.filter(t => t.category_id === cat.id && !['resolved','closed'].includes(t.status)).length
+    html += '<div onclick="openTicketFormWithCategory(\'' + cat.id + '\')" style="background:var(--surf1);border:1px solid var(--bdr);border-radius:12px;padding:14px;cursor:pointer;text-align:center;" class="card-hover">'
+    html += '<div style="font-size:22px;margin-bottom:6px;">' + cat.icon + '</div>'
+    html += '<div style="font-size:12px;font-weight:600;">' + cat.name + '</div>'
+    if (count > 0) html += '<div style="font-size:11px;color:var(--red);margin-top:3px;">' + count + ' open</div>'
+    html += '</div>'
+  })
+  html += '</div>'
+
+  // My recent tickets
+  html += '<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:14px;">'
+  html += '<div style="font-size:13px;font-weight:600;">' + (isIT ? '👤 Assigned to Me' : '🎫 My Tickets') + '</div>'
+  html += '<button class="btn btn-ghost btn-sm" onclick="showPage(\'' + (isIT?'assigned_me':'my_tickets') + '\')">View All →</button></div>'
+
+  if (myTickets.length === 0) {
+    html += '<div class="empty-state" style="padding:20px;"><div class="empty-icon">🎉</div><h3>' + (isIT?'No tickets assigned':'No tickets yet') + '</h3></div>'
+  } else {
+    myTickets.slice(0,5).forEach(t => html += ticketRow(t))
+  }
+  html += '</div>'
+
+  content.innerHTML = html
+}
+
+function sC(icon, label, val, sub, color) {
+  return '<div class="stat-card"><div class="stat-label">' + icon + ' ' + label + '</div><div class="stat-value" style="color:' + color + ';">' + val + '</div><div class="stat-sub">' + sub + '</div></div>'
+}
+
+function ticketRow(t) {
+  const cat = S.categories.find(c => c.id === t.category_id)
+  const requester = S.users.find(u => u.id === t.requester_id)
+  const assigned = S.users.find(u => u.id === t.assigned_to)
+  const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+  const slaColor = t.sla_resolution_due && new Date(t.sla_resolution_due) < new Date() ? 'var(--red)' : 'var(--txt3)'
+  const isIT = ['technician','supervisor','admin'].includes(S.user.it_role)
+  const isMe = t.assigned_to === S.user.id
+
+  // Quick action button
+  let quickBtn = ''
+  if (isIT && t.status === 'open')
+    quickBtn = '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();quickClaimStartIT(\'' + t.id + '\')" style="margin-top:8px;width:100%;">⚡ Claim & Start</button>'
+  else if (isMe && t.status === 'in_progress')
+    quickBtn = '<button class="btn btn-success btn-sm" onclick="event.stopPropagation();quickResolveIT(\'' + t.id + '\')" style="margin-top:8px;width:100%;">✅ Mark as Resolved</button>'
+
+  return '<div class="ticket-card priority-' + t.priority + '" onclick="viewTicket(\'' + t.id + '\')">' +
+    '<div style="display:flex;align-items:flex-start;gap:12px;">' +
+    '<div style="width:34px;height:34px;border-radius:8px;background:var(--surf2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">' + (cat?cat.icon:'🖥️') + '</div>' +
+    '<div style="flex:1;min-width:0;">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+    '<span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--accent);">' + t.id + '</span>' +
+    '<span class="badge badge-' + t.priority + '">' + t.priority.toUpperCase() + '</span>' +
+    '<span class="badge badge-' + t.status + '">' + formatStatus(t.status) + '</span>' +
+    '</div>' +
+    '<div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + t.subject + '</div>' +
+    '<div style="font-size:12px;color:var(--txt2);margin-top:2px;display:flex;gap:12px;">' +
+    '<span>👤 ' + (requester ? requester.full_name.split(' ')[0] : '—') + '</span>' +
+    (assigned ? '<span>🔧 ' + assigned.full_name.split(' ')[0] + '</span>' : '') +
+    '<span style="color:' + slaColor + ';">' + age + 'h ago</span>' +
+    '</div>' +
+    (t.asset_no ? '<div style="font-size:11px;color:var(--txt2);margin-top:3px;">🏷️ ' + t.asset_no + '</div>' : '') +
+    quickBtn +
+    '</div></div></div>'
+}
+
+// ═══ TICKET LISTS ═══
+async function renderMyTickets() {
+  const tickets = await loadTickets({ requester_id: S.user.id })
+  S.tickets = tickets
+  renderTicketList(tickets, 'My Tickets')
+}
+async function renderOpenTickets() {
+  const tickets = await loadTickets({ open: true })
+  S.tickets = tickets
+  renderTicketList(tickets, 'Open Tickets')
+}
+async function renderAllTickets() {
+  const tickets = await loadTickets()
+  S.tickets = tickets
+  renderTicketList(tickets, 'All Tickets')
+}
+async function renderAssignedMe() {
+  const tickets = await loadTickets({ assigned_to: S.user.id })
+  S.tickets = tickets
+  renderTicketList(tickets, 'Assigned to Me')
+}
+
+function buildTicketTable(tickets) {
+  if (tickets.length === 0) {
+    const empty = '<div class="empty-state"><div class="empty-icon">🎫</div><h3>No tickets found</h3></div>'
+    return { table: empty, cards: empty }
+  }
+  let tableHTML = '<div class="table-wrap"><table><thead><tr>'
+  tableHTML += '<th>ID</th><th>Subject</th><th>Category</th><th>Requester</th><th>Assigned</th><th>Priority</th><th>Status</th><th>SLA</th><th>Asset</th><th>Created</th><th>Actions</th>'
+  tableHTML += '</tr></thead><tbody>'
+  let cardsHTML = ''
+  tickets.forEach(t => {
+    const cat = S.categories.find(c => c.id === t.category_id)
+    const req = S.users.find(u => u.id === t.requester_id)
+    const asgn = S.users.find(u => u.id === t.assigned_to)
+    const slaDue = t.sla_resolution_due ? new Date(t.sla_resolution_due) : null
+    const slaBreached = slaDue && slaDue < new Date() && !['resolved','closed'].includes(t.status)
+    const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+    tableHTML += '<tr onclick="viewTicket(\'' + t.id + '\')" style="cursor:pointer;">'
+    tableHTML += '<td class="td-mono">' + t.id + '</td>'
+    tableHTML += '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>' + t.subject + '</strong></td>'
+    tableHTML += '<td>' + (cat ? cat.icon + ' ' + cat.name : '—') + '</td>'
+    tableHTML += '<td style="color:var(--txt2);">' + (req ? req.full_name.split(' ')[0] : '—') + '</td>'
+    tableHTML += '<td style="color:var(--txt2);">' + (asgn ? asgn.full_name.split(' ')[0] : '<span style="color:var(--txt3);">—</span>') + '</td>'
+    tableHTML += '<td><span class="badge badge-' + t.priority + '">' + t.priority.toUpperCase() + '</span></td>'
+    tableHTML += '<td><span class="badge badge-' + t.status + '">' + formatStatus(t.status) + '</span></td>'
+    tableHTML += '<td style="color:' + (slaBreached?'var(--red)':'var(--txt2)') + ';font-size:11px;">' + (slaDue ? (slaBreached ? '⚠️ ' : '') + formatDate(slaDue) : '—') + '</td>'
+    tableHTML += '<td style="font-size:11px;color:var(--txt2);">' + (t.asset_no || '—') + '</td>'
+    tableHTML += '<td style="color:var(--txt2);">' + formatDate(t.created_at) + '</td>'
+    // Actions cell — quick claim (open) or quick resolve (active)
+    const canActRow = ['technician','supervisor','admin'].includes(S.user.it_role)
+    if (canActRow && !t.assigned_to && ['open','reopened'].includes(t.status)) {
+      tableHTML += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">'
+      tableHTML += '<button class="btn btn-primary btn-sm" onclick="quickClaimStartIT(\'' + t.id + '\')" title="Claim and start">⚡ Start</button> '
+      tableHTML += '<button class="btn btn-ghost btn-sm" onclick="quickClaimIT(\'' + t.id + '\')" title="Claim only">👤</button>'
+      tableHTML += '</td>'
+    } else if (canActRow && ['assigned','in_progress','pending_user'].includes(t.status)) {
+      tableHTML += '<td onclick="event.stopPropagation()" style="white-space:nowrap;">'
+      tableHTML += '<button class="btn btn-success btn-sm" onclick="quickResolveIT(\'' + t.id + '\')" title="Mark resolved">✅ Resolve</button>'
+      tableHTML += '</td>'
+    } else {
+      tableHTML += '<td style="color:var(--txt3);font-size:11px;">' + (['resolved','closed'].includes(t.status) ? '✓ done' : (t.assigned_to ? '✓ claimed' : '—')) + '</td>'
+    }
+    tableHTML += '</tr>'
+    cardsHTML += '<div class="ticket-card priority-' + t.priority + '" onclick="viewTicket(\'' + t.id + '\')">'
+    cardsHTML += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'
+    cardsHTML += '<span class="td-mono" style="font-size:11px;">' + t.id + '</span>'
+    cardsHTML += '<div style="display:flex;gap:5px;"><span class="badge badge-' + t.priority + '">' + t.priority.toUpperCase() + '</span>'
+    cardsHTML += '<span class="badge badge-' + t.status + '">' + formatStatus(t.status) + '</span></div></div>'
+    cardsHTML += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">' + t.subject + '</div>'
+    cardsHTML += '<div style="font-size:12px;color:var(--txt2);display:flex;flex-wrap:wrap;gap:8px;">'
+    cardsHTML += (cat ? '<span>' + cat.icon + ' ' + cat.name + '</span>' : '')
+    cardsHTML += '<span>👤 ' + (req ? req.full_name.split(' ')[0] : '—') + '</span>'
+    if (asgn) cardsHTML += '<span>🔧 ' + asgn.full_name.split(' ')[0] + '</span>'
+    cardsHTML += '<span style="color:' + (slaBreached?'var(--red)':'var(--txt3)') + ';">' + age + 'h ago</span>'
+    if (t.asset_no) cardsHTML += '<span>🏷️ ' + t.asset_no + '</span>'
+    cardsHTML += '</div>'
+    // Quick actions (IT staff only)
+    const canAct = ['technician','supervisor','admin'].includes(S.user.it_role)
+    if (canAct && !t.assigned_to && ['open','reopened'].includes(t.status)) {
+      // Unassigned open → claim
+      cardsHTML += '<div style="display:flex;gap:6px;margin-top:10px;" onclick="event.stopPropagation()">'
+      cardsHTML += '<button class="btn btn-primary btn-sm" style="flex:1;" onclick="quickClaimStartIT(\'' + t.id + '\')">⚡ Claim & Start</button>'
+      cardsHTML += '<button class="btn btn-ghost btn-sm" style="flex:1;" onclick="quickClaimIT(\'' + t.id + '\')">👤 Claim</button>'
+      cardsHTML += '</div>'
+    } else if (canAct && ['assigned','in_progress','pending_user'].includes(t.status)) {
+      // Active/claimed → resolve (guard handles open parts requests)
+      cardsHTML += '<div style="display:flex;gap:6px;margin-top:10px;" onclick="event.stopPropagation()">'
+      cardsHTML += '<button class="btn btn-success btn-sm" style="flex:1;" onclick="quickResolveIT(\'' + t.id + '\')">✅ Resolve</button>'
+      cardsHTML += '</div>'
+    }
+    cardsHTML += '</div>'
+  })
+  tableHTML += '</tbody></table></div>'
+  return { table: tableHTML, cards: cardsHTML }
+}
+
+function renderTicketList(tickets, title) {
+  const content = document.getElementById('mainContent')
+  let html = '<div class="page-header"><h2>' + title + '</h2>'
+  html += '<button class="btn btn-primary" onclick="openTicketForm()">🖥️ New Ticket</button></div>'
+  html += '<div class="filter-bar">'
+  html += '<input type="text" id="tsearch" placeholder="🔍 Search..." oninput="filterTicketList()" style="min-width:160px;">'
+  html += '<select id="tcat" onchange="filterTicketList()"><option value="">All Categories</option>'
+  S.categories.forEach(c => { html += '<option value="' + c.id + '">' + c.icon + ' ' + c.name + '</option>' })
+  html += '</select>'
+  html += '<select id="tpri" onchange="filterTicketList()"><option value="">All Priority</option>'
+  ;['critical','high','medium','low'].forEach(p => { html += '<option value="' + p + '">' + p.charAt(0).toUpperCase()+p.slice(1) + '</option>' })
+  html += '</select>'
+  html += '<select id="tstat" onchange="filterTicketList()"><option value="">All Status</option>'
+  ;['open','assigned','in_progress','pending_user','resolved','closed','reopened'].forEach(s => {
+    html += '<option value="' + s + '">' + formatStatus(s) + '</option>'
+  })
+  html += '</select></div>'
+  const built = buildTicketTable(tickets)
+  html += built.table
+  html += '<div class="mobile-cards" id="ticketsMobileCards">' + built.cards + '</div>'
+  content.innerHTML = html
+  content._tickets = tickets
+}
+
+function filterTicketList() {
+  const content = document.getElementById('mainContent')
+  const all = content._tickets || []
+  const search = document.getElementById('tsearch')?.value.toLowerCase()
+  const cat = document.getElementById('tcat')?.value
+  const pri = document.getElementById('tpri')?.value
+  const stat = document.getElementById('tstat')?.value
+  let filtered = all
+  if (search) filtered = filtered.filter(t => t.id.toLowerCase().includes(search) || t.subject.toLowerCase().includes(search))
+  if (cat) filtered = filtered.filter(t => t.category_id === cat)
+  if (pri) filtered = filtered.filter(t => t.priority === pri)
+  if (stat) filtered = filtered.filter(t => t.status === stat)
+  const built = buildTicketTable(filtered)
+  const wrap = document.getElementById('ticketListWrap')
+  if (wrap) wrap.innerHTML = built.table + '<div class="mobile-cards">' + built.cards + '</div>'
+  const cards = document.getElementById('ticketsMobileCards')
+  if (cards) cards.innerHTML = built.cards
+}
+
+// ═══ NEW TICKET FORM ═══
+function openTicketForm(categoryId, ticketType) {
+  const type = ticketType || 'regular'
+  document.getElementById('ticketFormTitle').textContent = type === 'agimat' ? '🆔 Agimat Account Request' : '🖥️ New IT Support Ticket'
+  // Always reset footer to default submit button
+  document.getElementById('ticketFormFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'ticketFormModal\')">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="' + (type === 'agimat' ? 'submitAgimatRequest()' : 'submitTicket()') + '">' +
+    (type === 'agimat' ? '📤 Submit Account Request' : 'Submit Ticket') + '</button>'
+
+  if (type === 'agimat') {
+    renderAgimatForm()
+  } else {
+    renderTicketForm(categoryId)
+  }
+  openModal('ticketFormModal')
+}
+
+function openTicketFormWithCategory(catId) { openTicketForm(catId) }
+
+function renderTicketForm(categoryId) {
+  // Ticket type selector
+  let html = '<div class="field"><label>Ticket Type</label>'
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
+  html += '<button onclick="openTicketForm(null,\'regular\')" style="padding:7px 14px;border-radius:9px;border:2px solid var(--accent);background:var(--accent-a);color:var(--accent);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">🖥️ IT Issue / Request</button>'
+  html += '<button onclick="openTicketForm(null,\'agimat\')" style="padding:7px 14px;border-radius:9px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--txt2);font-family:inherit;font-size:12px;cursor:pointer;">🆔 Agimat Account</button>'
+  html += '</div></div>'
+
+  html += '<div class="field"><label>Subject <span style="color:var(--red);">*</span></label>'
+  html += '<input type="text" id="tf_subject" placeholder="Brief description of the issue"></div>'
+
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Category <span style="color:var(--red);">*</span></label><select id="tf_cat">'
+  html += '<option value="">— Select Category —</option>'
+  S.categories.forEach(c => {
+    const sel = c.id === categoryId ? ' selected' : ''
+    html += '<option value="' + c.id + '"' + sel + '>' + c.icon + ' ' + c.name + '</option>'
+  })
+  html += '</select></div>'
+  html += '<div class="field"><label>Priority</label><select id="tf_priority">'
+  ;[['low','Low'],['medium','Medium'],['high','High'],['critical','🚨 Critical']].forEach(([v,l]) => {
+    html += '<option value="' + v + '"' + (v==='medium'?' selected':'') + '>' + l + '</option>'
+  })
+  html += '</select></div>'
+  html += '</div>'
+
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Department</label><select id="tf_dept">'
+  html += '<option value="">— Select —</option>'
+  S.departments.forEach(d => {
+    const sel = d.id === S.user.dept_id ? ' selected' : ''
+    html += '<option value="' + d.id + '"' + sel + '>' + d.dept_name + '</option>'
+  })
+  html += '</select></div>'
+  html += '<div class="field"><label>Linked Asset (optional)</label>'
+  html += '<input type="text" id="tf_asset" placeholder="Asset No. e.g. AST-IT-2026-0001"></div>'
+  html += '</div>'
+
+  html += '<div class="field"><label>Description <span style="color:var(--red);">*</span></label>'
+  html += '<textarea id="tf_desc" placeholder="Describe the issue in detail. Include any error messages, steps to reproduce, etc." rows="4"></textarea></div>'
+
+  html += '<div class="field"><label>Attachments (optional)</label>'
+  html += '<input type="file" id="tf_files" multiple accept="image/*,.pdf,.doc,.docx" style="color:var(--txt2);font-size:13px;">'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-top:3px;">Images, PDFs accepted. Max 5MB each.</div></div>'
+
+  document.getElementById('ticketFormBody').innerHTML = html
+}
+
+// ═══════════════════════════════════
+// AGIMAT ACCOUNT REQUEST
+// ═══════════════════════════════════
+const POSITIONS = [
+  'Doctor','Nurse','Medical Technologist','Pharmacist','Radiologic Technologist',
+  'Physical Therapist','Dentist','Nutritionist-Dietitian','Social Worker',
+  'Administrative Staff','Accounting / Finance','IT Staff','Security',
+  'Maintenance','Housekeeping','Driver','Other'
+]
+
+function renderAgimatForm() {
+  let html = ''
+
+  // Ticket type selector — same as regular
+  html += '<div class="field"><label>Ticket Type</label>'
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">'
+  html += '<button onclick="openTicketForm(null,\'regular\')" style="padding:7px 14px;border-radius:9px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--txt2);font-family:inherit;font-size:12px;cursor:pointer;">🖥️ IT Issue / Request</button>'
+  html += '<button onclick="openTicketForm(null,\'agimat\')" style="padding:7px 14px;border-radius:9px;border:2px solid var(--accent);background:var(--accent-a);color:var(--accent);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;">🆔 Agimat Account</button>'
+  html += '</div></div>'
+
+  html += '<div style="background:var(--accent-a);border:1px solid var(--accent-b);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--txt2);">'
+  html += '🆔 Request for creation of an <strong>Agimat EMR account</strong>. Fill out all required fields accurately. IT will process within 1-2 business days.'
+  html += '</div>'
+
+  // Basic info
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>First Name <span style="color:var(--red);">*</span></label><input type="text" id="ag_fname" placeholder="Juan"></div>'
+  html += '<div class="field"><label>Middle Name</label><input type="text" id="ag_mname" placeholder="Santos"></div>'
+  html += '</div>'
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Last Name <span style="color:var(--red);">*</span></label><input type="text" id="ag_lname" placeholder="Dela Cruz"></div>'
+  html += '<div class="field"><label>Email Address <span style="color:var(--red);">*</span></label><input type="email" id="ag_email" placeholder="juan@email.com"></div>'
+  html += '</div>'
+
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Department <span style="color:var(--red);">*</span></label><select id="ag_dept">'
+  html += '<option value="">— Select Department —</option>'
+  S.departments.forEach(d => {
+    const sel = d.id === S.user.dept_id ? ' selected' : ''
+    html += '<option value="' + d.id + '"' + sel + '>' + d.dept_name + '</option>'
+  })
+  html += '</select></div>'
+  html += '<div class="field"><label>Position / Job Title <span style="color:var(--red);">*</span></label><select id="ag_position" onchange="checkAgimatPosition()">'
+  html += '<option value="">— Select Position —</option>'
+  POSITIONS.forEach(p => { html += '<option value="' + p + '">' + p + '</option>' })
+  html += '</select></div>'
+  html += '</div>'
+
+  // PRC License — shown always for licensed professionals
+  html += '<div id="ag_prc_wrap" style="display:none;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:14px;margin-bottom:14px;">'
+  html += '<div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--accent);">📋 PRC License Details</div>'
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>PRC License Number <span style="color:var(--red);">*</span></label><input type="text" id="ag_prc_no" placeholder="0123456"></div>'
+  html += '<div class="field"><label>PRC Expiry Date <span style="color:var(--red);">*</span></label><input type="date" id="ag_prc_expiry"></div>'
+  html += '</div>'
+  // Doctor-specific: upload PRC ID photo
+  html += '<div id="ag_prc_photo_wrap" style="display:none;">'
+  html += '<div class="field"><label>PRC ID Photo <span style="color:var(--red);">*</span> <span style="font-size:11px;color:var(--txt3);">(Required for Doctors)</span></label>'
+  html += '<input type="file" id="ag_prc_photo" accept="image/*" style="color:var(--txt2);font-size:13px;" onchange="previewPRCPhoto(this)">'
+  html += '<div id="ag_prc_preview" style="margin-top:8px;"></div>'
+  html += '</div>'
+  html += '</div>'
+  html += '</div>'
+
+  // Optional fields — Doctor only
+  html += '<div id="ag_doctor_optional" style="display:none;background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:4px;">'
+  html += '<div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:10px;">Doctor Optional Fields <span style="font-weight:400;font-size:11px;">(fill if applicable)</span></div>'
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>PhilHealth Accreditation No.</label><input type="text" id="ag_philhealth" placeholder="Accreditation number"></div>'
+  html += '<div class="field"><label>TIN</label><input type="text" id="ag_tin" placeholder="Tax Identification Number"></div>'
+  html += '</div>'
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>PTR No.</label><input type="text" id="ag_ptr" placeholder="Professional Tax Receipt"></div>'
+  html += '<div class="field"><label>PMA No.</label><input type="text" id="ag_pma" placeholder="Philippine Medical Association"></div>'
+  html += '</div>'
+  html += '<div class="field" style="max-width:50%;"><label>S2 No.</label><input type="text" id="ag_s2" placeholder="S2 License (if applicable)"></div>'
+  html += '</div>'
+
+  html += '<div class="field"><label>Additional Notes</label>'
+  html += '<textarea id="ag_notes" rows="2" placeholder="Any additional information for IT..."></textarea></div>'
+
+  document.getElementById('ticketFormBody').innerHTML = html
+}
+
+function checkAgimatPosition() {
+  const position = document.getElementById('ag_position')?.value
+  const prcWrap = document.getElementById('ag_prc_wrap')
+  const photoWrap = document.getElementById('ag_prc_photo_wrap')
+  const doctorOptional = document.getElementById('ag_doctor_optional')
+
+  const licensedPositions = ['Doctor','Nurse','Medical Technologist','Pharmacist',
+    'Radiologic Technologist','Physical Therapist','Dentist','Nutritionist-Dietitian']
+  const isLicensed = licensedPositions.includes(position)
+  const isDoctor = position === 'Doctor'
+
+  if (prcWrap) prcWrap.style.display = isLicensed ? 'block' : 'none'
+  if (photoWrap) photoWrap.style.display = isDoctor ? 'block' : 'none'
+  // Optional fields (PhilHealth, TIN, PTR, PMA, S2) — Doctor only
+  if (doctorOptional) doctorOptional.style.display = isDoctor ? 'block' : 'none'
+}
+
+function previewPRCPhoto(input) {
+  const file = input.files[0]
+  if (!file) return
+  const preview = document.getElementById('ag_prc_preview')
+  if (!preview) return
+  const url = URL.createObjectURL(file)
+  preview.innerHTML = '<img src="' + url + '" style="max-width:200px;max-height:140px;object-fit:cover;border-radius:8px;border:1px solid var(--bdr2);">'
+}
+
+async function submitAgimatRequest() {
+  const fname = document.getElementById('ag_fname')?.value.trim()
+  const lname = document.getElementById('ag_lname')?.value.trim()
+  const email = document.getElementById('ag_email')?.value.trim()
+  const dept = document.getElementById('ag_dept')?.value
+  const position = document.getElementById('ag_position')?.value
+  const prcNo = document.getElementById('ag_prc_no')?.value.trim()
+  const prcExpiry = document.getElementById('ag_prc_expiry')?.value
+  const prcPhoto = document.getElementById('ag_prc_photo')?.files[0]
+
+  // Validation
+  if (!fname) { showToast('error','Required','First name is required.'); return }
+  if (!lname) { showToast('error','Required','Last name is required.'); return }
+  if (!email) { showToast('error','Required','Email address is required.'); return }
+  if (!dept) { showToast('error','Required','Department is required.'); return }
+  if (!position) { showToast('error','Required','Position/Job Title is required.'); return }
+
+  // PRC validation for licensed positions
+  const licensedPositions = ['Doctor','Nurse','Medical Technologist','Pharmacist',
+    'Radiologic Technologist','Physical Therapist','Dentist','Nutritionist-Dietitian']
+  if (licensedPositions.includes(position)) {
+    if (!prcNo) { showToast('error','Required','PRC License Number is required for ' + position + '.'); return }
+    if (!prcExpiry) { showToast('error','Required','PRC Expiry Date is required.'); return }
+    if (position === 'Doctor' && !prcPhoto) { showToast('error','Required','PRC ID Photo is required for Doctors.'); return }
+  }
+
+  try {
+    // Upload PRC photo if present
+    let prcPhotoUrl = null
+    if (prcPhoto) {
+      const ext = prcPhoto.name.split('.').pop()
+      const path = 'prc-ids/' + Date.now() + '-' + lname.toLowerCase() + '.' + ext
+      const { data: uploadData, error: uploadErr } = await SB.storage
+        .from('asset-photos')
+        .upload(path, prcPhoto, { upsert: false, contentType: prcPhoto.type })
+      if (!uploadErr) {
+        const { data: urlData } = SB.storage.from('asset-photos').getPublicUrl(path)
+        prcPhotoUrl = urlData.publicUrl
+      }
+    }
+
+    // Build ticket description
+    const deptName = S.departments.find(d => d.id === dept)?.dept_name || ''
+    const optional = [
+      document.getElementById('ag_philhealth')?.value ? 'PhilHealth: ' + document.getElementById('ag_philhealth').value : '',
+      document.getElementById('ag_tin')?.value ? 'TIN: ' + document.getElementById('ag_tin').value : '',
+      document.getElementById('ag_ptr')?.value ? 'PTR: ' + document.getElementById('ag_ptr').value : '',
+      document.getElementById('ag_pma')?.value ? 'PMA: ' + document.getElementById('ag_pma').value : '',
+      document.getElementById('ag_s2')?.value ? 'S2: ' + document.getElementById('ag_s2').value : '',
+    ].filter(Boolean).join('\n')
+
+    const description =
+      'AGIMAT ACCOUNT REQUEST\n' +
+      '━━━━━━━━━━━━━━━━━━━━━\n' +
+      'Name: ' + fname + ' ' + (document.getElementById('ag_mname')?.value || '') + ' ' + lname + '\n' +
+      'Email: ' + email + '\n' +
+      'Department: ' + deptName + '\n' +
+      'Position: ' + position + '\n' +
+      (prcNo ? 'PRC No.: ' + prcNo + '\n' : '') +
+      (prcExpiry ? 'PRC Expiry: ' + prcExpiry + '\n' : '') +
+      (prcPhotoUrl ? 'PRC ID Photo: ' + prcPhotoUrl + '\n' : '') +
+      (optional ? '\nOptional:\n' + optional + '\n' : '') +
+      (document.getElementById('ag_notes')?.value ? '\nNotes: ' + document.getElementById('ag_notes').value : '')
+
+    // Find Agimat/Account category
+    const cat = S.categories.find(c => c.slug === 'email' || c.name.toLowerCase().includes('email') || c.name.toLowerCase().includes('account')) || S.categories[0]
+
+    // Create ticket
+    const { data: numData } = await SB.rpc('generate_it_ticket_no')
+    const ticketId = numData || ('IT-' + Date.now())
+
+    const { data: ticket, error } = await SB.from('it_tickets').insert({
+      id: ticketId,
+      subject: '🆔 Agimat Account Request — ' + fname + ' ' + lname + ' (' + position + ')',
+      description,
+      category_id: cat?.id || null,
+      priority: 'medium',
+      dept_id: dept,
+      requester_id: S.user.id,
+      sla_response_due: new Date(Date.now() + 8*3600000).toISOString(),
+      sla_resolution_due: new Date(Date.now() + 48*3600000).toISOString(),
+      status: 'open',
+      source_system: 'agimat_request'
+    }).select().single()
+    if (error) throw error
+
+    // Notify IT staff
+    const itStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+    if (itStaff.length > 0) {
+      sendSMS(itStaff.map(u => u.phone),
+        '[TDMH IT] New Agimat Account Request ' + ticketId + ' — ' + fname + ' ' + lname + ' (' + position + ', ' + deptName + ')')
+    }
+
+    closeModal('ticketFormModal')
+    showToast('success','Request Submitted 🆔', ticketId + ' — IT will process within 1-2 business days.')
+    viewTicket(ticketId)
+    if (['dashboard','my_tickets'].includes(S.page)) showPage(S.page)
+
+  } catch(e) { showToast('error','Error', e.message); console.error(e) }
+}
+
+async function submitTicket() {
+  const subject = document.getElementById('tf_subject')?.value.trim()
+  const catId = document.getElementById('tf_cat')?.value
+  const priority = document.getElementById('tf_priority')?.value || 'medium'
+  const deptId = document.getElementById('tf_dept')?.value
+  const assetNo = document.getElementById('tf_asset')?.value.trim()
+  const desc = document.getElementById('tf_desc')?.value.trim()
+
+  if (!subject) { showToast('error','Validation','Please enter a subject.'); return }
+  if (!catId) { showToast('error','Validation','Please select a category.'); return }
+  if (!desc) { showToast('error','Validation','Please describe the issue.'); return }
+
+  try {
+    const { data: numData } = await SB.rpc('generate_it_ticket_no')
+    const ticketId = numData || ('IT-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
+
+    // Compute SLA due times
+    const cat = S.categories.find(c => c.id === catId)
+    const now = new Date()
+    const slaResponse = cat ? new Date(now.getTime() + cat.sla_response_hours * 3600000) : null
+    const slaResolution = cat ? new Date(now.getTime() + cat.sla_resolution_hours * 3600000) : null
+
+    // Lookup linked asset
+    let assetId = null
+    if (assetNo) {
+      const { data: asset } = await SB.from('assets').select('id').eq('asset_no', assetNo).single()
+      if (asset) assetId = asset.id
+      else showToast('warning','Asset Not Found', assetNo + ' not in inventory — ticket submitted without asset link.')
+    }
+
+    const { data: ticket, error } = await SB.from('it_tickets').insert({
+      id: ticketId, subject, description: desc,
+      category_id: catId, priority,
+      dept_id: deptId || null,
+      requester_id: S.user.id,
+      asset_id: assetId,
+      asset_no: assetId ? assetNo : null,
+      sla_response_due: slaResponse?.toISOString() || null,
+      sla_resolution_due: slaResolution?.toISOString() || null,
+      status: 'open', source_system: 'manual'
+    }).select().single()
+    if (error) throw error
+
+    // Notify IT technicians
+    const itStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+    if (itStaff.length > 0) {
+      const smsMsg = '[TDMH IT] ' + (priority === 'critical' ? '🚨 CRITICAL ' : '') +
+        'New ticket ' + ticketId + ': "' + subject + '" from ' + S.user.full_name.split(' ')[0]
+      sendSMS(itStaff.map(u => u.phone), smsMsg)
+    }
+
+    closeModal('ticketFormModal')
+    showToast('success','Ticket Submitted 🖥️', ticketId + ' — IT team has been notified.')
+    viewTicket(ticketId)
+    if (['dashboard','my_tickets'].includes(S.page)) showPage(S.page)
+  } catch(e) { showToast('error','Error', e.message); console.error(e) }
+}
+
+// ═══════════════════════════════════
+// KANBAN BOARD — IT
+// ═══════════════════════════════════
+async function renderKanban() {
+  const content = document.getElementById('mainContent')
+  const tickets = await loadTickets()
+  const cols = [
+    { id:'open',         label:'🔓 Open',        color:'var(--accent)', bg:'var(--accent-a)' },
+    { id:'assigned',     label:'👤 Assigned',     color:'var(--violet)', bg:'var(--violet-a)' },
+    { id:'in_progress',  label:'🔄 In Progress',  color:'var(--amber)',  bg:'var(--amber-a)' },
+    { id:'pending_user', label:'⏳ Pending User', color:'var(--amber)',  bg:'var(--amber-a)' },
+    { id:'resolved',     label:'✅ Resolved',     color:'var(--green)',  bg:'var(--green-a)' },
+  ]
+  let html = '<div class="page-header"><h2>📋 Kanban Board</h2>'
+  html += '<button class="btn btn-primary btn-sm" onclick="openTicketForm()">🖥️ New Ticket</button></div>'
+  html += '<style>.kanban-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:16px;min-height:400px;}.kanban-col{min-width:260px;width:260px;flex-shrink:0;}.kanban-col-header{padding:10px 12px;border-radius:10px 10px 0 0;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;}.kanban-col-body{background:var(--surf2);border-radius:0 0 10px 10px;padding:8px;min-height:160px;border:1px solid var(--bdr);border-top:none;}.kanban-card{background:var(--surf1);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;}.kanban-card:hover{border-color:var(--bdr2);box-shadow:var(--shadow);}.kanban-card.priority-critical{border-left:3px solid var(--red);}.kanban-card.priority-high{border-left:3px solid var(--amber);}</style>'
+  html += '<div class="kanban-board">'
+  cols.forEach(col => {
+    const colTickets = tickets.filter(t => t.status === col.id)
+    html += '<div class="kanban-col"><div class="kanban-col-header" style="background:' + col.bg + ';color:' + col.color + ';">'
+    html += col.label + '<span style="background:' + col.color + ';color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;">' + colTickets.length + '</span></div>'
+    html += '<div class="kanban-col-body">'
+    if (!colTickets.length) html += '<div style="text-align:center;padding:20px;color:var(--txt3);font-size:12px;">Empty</div>'
+    colTickets.forEach(t => {
+      const cat = S.categories.find(c => c.id === t.category_id)
+      const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+      const slaBreached = t.sla_resolution_due && new Date(t.sla_resolution_due) < new Date()
+      const isMe = t.assigned_to === S.user.id
+      const isIT = ['technician','supervisor','admin'].includes(S.user.it_role)
+      html += '<div class="kanban-card priority-' + t.priority + '" onclick="viewTicket(\'' + t.id + '\')">'
+      html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">'
+      html += '<span style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--accent);">' + t.id + '</span>'
+      html += '<span class="badge badge-' + t.priority + '" style="font-size:10px;padding:2px 6px;">' + t.priority.toUpperCase() + '</span>'
+      html += '</div>'
+      html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;line-height:1.3;">' + t.subject + '</div>'
+      if (cat) html += '<div style="font-size:11px;color:var(--txt2);margin-bottom:6px;">' + cat.icon + ' ' + cat.name + '</div>'
+      if (t.asset_no) html += '<div style="font-size:11px;color:var(--txt3);margin-bottom:6px;">🏷️ ' + t.asset_no + '</div>'
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">'
+      html += '<span style="font-size:10px;color:' + (slaBreached?'var(--red)':'var(--txt3)') + ';">' + (slaBreached?'⚠️ ':'')+age+'h</span>'
+      html += '<div style="display:flex;gap:4px;">'
+      if (t.status === 'open' && isIT)
+        html += '<button class="btn btn-primary btn-sm" style="padding:3px 9px;font-size:11px;" onclick="event.stopPropagation();quickClaimStartIT(\'' + t.id + '\')">⚡ Claim & Start</button>'
+      if (t.status === 'in_progress' && isMe)
+        html += '<button class="btn btn-success btn-sm" style="padding:3px 9px;font-size:11px;" onclick="event.stopPropagation();quickResolveIT(\'' + t.id + '\')">Done ✅</button>'
+      html += '</div></div></div>'
+    })
+    html += '</div></div>'
+  })
+  html += '</div>'
+  content.innerHTML = html
+}
+
+// ─── Quick Actions — IT ───
+async function quickClaimStartIT(ticketId) {
+  if (!(await ensureAuth())) { handleAuthLost(); return }
+  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'in_progress', updated_at:new Date().toISOString() }).eq('id',ticketId)
+  if (e1) { showToast('error','Error', e1.message); return }
+  await SB.from('it_ticket_replies').insert({ ticket_id:ticketId, author_id:S.user.id, body:'⚡ Claimed and started by '+S.user.full_name+'.', is_internal:true })
+  const{data:t}=await SB.from('it_tickets').select('requester_id,subject').eq('id',ticketId).single()
+  if(t?.requester_id) await SB.from('notifications').insert({ user_id:t.requester_id, title:'⚡ Ticket In Progress: '+ticketId, body:S.user.full_name+' is now working on: '+t.subject, type:'info', source_system:'it' })
+  showToast('success','⚡ Started!',ticketId+' claimed and started.')
+  refreshOpenTicketBadge()
+  if(S.page==='kanban')renderKanban()
+  else showPage(S.page)
+}
+
+async function quickClaimIT(ticketId) {
+  if (!(await ensureAuth())) { handleAuthLost(); return }
+  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'assigned', updated_at:new Date().toISOString() }).eq('id',ticketId)
+  if (e1) { showToast('error','Error', e1.message); return }
+  const{data:t}=await SB.from('it_tickets').select('requester_id,subject').eq('id',ticketId).single()
+  if(t?.requester_id) await SB.from('notifications').insert({ user_id:t.requester_id, title:'👤 Ticket Assigned: '+ticketId, body:S.user.full_name+' will handle: '+t.subject, type:'info', source_system:'it' })
+  showToast('success','Claimed ✅',ticketId+' assigned to you.')
+  refreshOpenTicketBadge()
+  if(S.page==='kanban')renderKanban()
+  else showPage(S.page)
+}
+
+async function quickStartIT(ticketId) {
+  await SB.from('it_tickets').update({ status:'in_progress', updated_at:new Date().toISOString() }).eq('id',ticketId)
+  await SB.from('it_ticket_replies').insert({ ticket_id:ticketId, author_id:S.user.id, body:'▶ Started working on this ticket.', is_internal:true })
+  showToast('success','Started ▶',ticketId+' is now in progress.')
+  if(S.page==='kanban')renderKanban()
+  else showPage(S.page)
+}
+
+// ═══════════════════════════════════════════
+// CLOSE GUARD — block resolve/close while parts requests are still open
+// ═══════════════════════════════════════════
+// Open request statuses = parts not yet released.
+const IT_OPEN_REQ_STATUSES = ['pending_approval','pending_evaluation','approved','for_po','for_supply_check','ordered']
+const IT_DONE_REQ_STATUSES = ['issued','cancelled','rejected','completed','closed']
+
+async function checkPartsBeforeClose(ticketId) {
+  // Find all parts requests linked to this ticket
+  const { data: reqs } = await SB.from('requests')
+    .select('id,request_no,status')
+    .eq('source_system', 'it')
+    .eq('source_ref_text', ticketId)
+  if (!reqs || reqs.length === 0) {
+    return { allowed: true }  // no parts requests — free to close
+  }
+
+  // Classify each request
+  const stillOpen = []       // hard block: no parts yet
+  const deliveredUnconfirmed = []  // soft warning: parts arrived, not confirmed received
+  for (const r of reqs) {
+    if (IT_DONE_REQ_STATUSES.includes(r.status)) continue  // finished/cancelled — fine
+    if (r.status === 'delivered') {
+      // Check if the issuance was actually confirmed received
+      const { data: iss } = await SB.from('issuances')
+        .select('confirmed_at').eq('request_id', r.id).order('created_at', { ascending: false }).limit(1)
+      if (iss && iss[0] && iss[0].confirmed_at) continue  // received — fine
+      deliveredUnconfirmed.push(r)
+    } else if (IT_OPEN_REQ_STATUSES.includes(r.status)) {
+      stillOpen.push(r)
+    } else {
+      // Unknown status — treat as open to be safe
+      stillOpen.push(r)
+    }
+  }
+
+  const role = S.user.it_role
+  const canOverride = ['supervisor','admin'].includes(role)
+
+  if (stillOpen.length > 0) {
+    const nos = stillOpen.map(r => r.request_no).join(', ')
+    return {
+      allowed: false,
+      needsOverride: true,
+      canOverride,
+      reason: 'May hindi pa natatapos na parts request (' + nos + '). Hindi pa na-issue ang parts.'
+    }
+  }
+  if (deliveredUnconfirmed.length > 0) {
+    const nos = deliveredUnconfirmed.map(r => r.request_no).join(', ')
+    return {
+      allowed: false,
+      needsOverride: true,
+      canOverride,
+      reason: 'May parts na dumating pero hindi pa na-kumpirma na natanggap (' + nos + ').'
+    }
+  }
+  return { allowed: true }
+}
+
+// Wrapper: run the guard, show a confirm/override dialog if needed.
+// Calls onProceed() when it's OK (or successfully overridden) to close/resolve.
+async function guardedClose(ticketId, actionLabel, onProceed) {
+  const g = await checkPartsBeforeClose(ticketId)
+  if (g.allowed) { onProceed(false); return }
+
+  if (!g.canOverride) {
+    // Hard block for technicians — no override
+    showToast('warning', 'Hindi pwede i-' + actionLabel, g.reason + ' Hintayin ang parts o hilingin sa supervisor/admin na i-override.')
+    return
+  }
+  // Supervisor/admin — override via RPC (sets flag + auto-cancels open parts)
+  const newStatus = (actionLabel === 'close') ? 'closed' : 'resolved'
+  const msg = '⚠️ ' + g.reason + '\n\nBilang admin/supervisor, pwede mong i-override. Aautomatikong ma-cancel ang open parts request. Magpapatuloy ba?'
+  confirm2(msg, async () => {
+    try {
+      const { data, error } = await SB.rpc('admin_override_close_it_ticket', {
+        p_ticket_id: ticketId, p_new_status: newStatus, p_actor: S.user.id
+      })
+      if (error) throw error
+      const cancelled = (data && data.cancelled_requests) || 0
+      // Log an internal note about the override
+      await SB.from('it_ticket_replies').insert({
+        ticket_id: ticketId, author_id: S.user.id,
+        body: '⚠️ ' + (newStatus === 'closed' ? 'Closed' : 'Resolved') + ' via admin override. '
+          + (cancelled > 0 ? cancelled + ' open parts request(s) auto-cancelled.' : ''),
+        is_internal: true
+      })
+      closeModal('ticketDetailModal')
+      showToast('success', newStatus === 'closed' ? 'Closed 🔒' : 'Resolved ✅',
+        ticketId + ' — override applied' + (cancelled > 0 ? ', ' + cancelled + ' parts request cancelled.' : '.'))
+      if (S.page === 'kanban') renderKanban()
+      else showPage(S.page)
+    } catch (e) {
+      showToast('error', 'Override failed', e.message || String(e))
+    }
+  })
+}
+
+// Translate the DB guard's raw exception into a clean toast.
+function isPartsGuardError(e) {
+  const m = (e && (e.message || e.hint || e.details)) || ''
+  return m.indexOf('bukas na parts request') !== -1 || (e && e.code === '23514' && m.indexOf('parts') !== -1)
+}
+
+async function quickResolveIT(ticketId) {
+  if (!(await ensureAuth())) { handleAuthLost(); return }
+  guardedClose(ticketId, 'resolve', async (overridden) => {
+   try {
+    await SB.from('it_tickets').update({ status:'resolved', resolved_at:new Date().toISOString(), updated_at:new Date().toISOString() }).eq('id',ticketId)
+    await SB.from('it_ticket_replies').insert({ ticket_id:ticketId, author_id:S.user.id, body:'✅ Resolved by '+S.user.full_name+'.' + (overridden ? ' (Override: may bukas na parts request.)' : '') + ' Please rate your experience.', is_internal:false })
+    const{data:t}=await SB.from('it_tickets').select('requester_id').eq('id',ticketId).single()
+    if(t?.requester_id) await SB.from('notifications').insert({ user_id:t.requester_id, title:'✅ Ticket Resolved: '+ticketId, body:'Your request has been resolved. Please rate your experience.', type:'success', source_system:'it' })
+    showToast('success','Resolved ✅',ticketId+' marked as done.')
+    if(S.page==='kanban')renderKanban()
+    else showPage(S.page)
+   } catch(e) {
+    if (isPartsGuardError(e)) showToast('warning','Hindi pwede i-resolve','May bukas na parts request. I-issue muna o i-cancel.')
+    else showToast('error','Error', e.message || String(e))
+   }
+  })
+}
+
+// ═══ TICKET DETAIL ═══
+async function viewTicket(ticketId) {
+  const { data: t } = await SB.from('it_tickets').select('*').eq('id', ticketId).single()
+  if (!t) return
+  const { data: replies } = await SB.from('it_ticket_replies').select('*').eq('ticket_id', ticketId).order('created_at')
+  const cat = S.categories.find(c => c.id === t.category_id)
+  const req = S.users.find(u => u.id === t.requester_id)
+  const asgn = S.users.find(u => u.id === t.assigned_to)
+  const dept = S.departments.find(d => d.id === t.dept_id)
+  const role = S.user.it_role
+  const isIT = ['technician','supervisor','admin'].includes(role)
+
+  document.getElementById('ticketDetailTitle').textContent = t.id + ' — ' + t.subject
+
+  let body = ''
+
+  // Linked asset display
+  if (t.asset_id || t.asset_no) {
+    let assetHTML = ''
+    if (t.asset_id) {
+      const { data: linkedAsset } = await SB.from('assets').select('*').eq('id', t.asset_id).single()
+      if (linkedAsset) {
+        const photoHTML = linkedAsset.photo_url
+          ? '<img src="' + linkedAsset.photo_url + '" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0;">'
+          : '<div style="width:44px;height:44px;background:var(--surf3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📦</div>'
+        assetHTML = '<div style="display:flex;align-items:center;gap:10px;">' + photoHTML +
+          '<div><div style="font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--accent);">' + linkedAsset.asset_no + '</div>' +
+          '<div style="font-size:13px;font-weight:600;">' + linkedAsset.asset_name + '</div>' +
+          (linkedAsset.brand||linkedAsset.model ? '<div style="font-size:12px;color:var(--txt2);">' + [linkedAsset.brand,linkedAsset.model].filter(Boolean).join(' / ') + '</div>' : '') +
+          '<div style="margin-top:3px;"><span style="font-size:11px;background:var(--surf3);padding:2px 8px;border-radius:6px;">' + linkedAsset.status + '</span></div>' +
+          '</div></div>'
+      }
+    } else {
+      assetHTML = '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;">' + t.asset_no + '</span>'
+    }
+    body += '<div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:12px 14px;margin-bottom:16px;">'
+    body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🏷️ Linked Asset</div>'
+    body += assetHTML + '</div>'
+  }
+
+  // SLA progress
+  if (t.sla_resolution_due && !['resolved','closed'].includes(t.status)) {
+    const total = t.sla_resolution_due && t.created_at ?
+      new Date(t.sla_resolution_due) - new Date(t.created_at) : 1
+    const elapsed = Date.now() - new Date(t.created_at)
+    const pct = Math.min(100, Math.round((elapsed / total) * 100))
+    const slaColor = pct >= 100 ? 'var(--red)' : pct >= 75 ? 'var(--amber)' : 'var(--green)'
+    body += '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:12px 16px;margin-bottom:16px;">'
+    body += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">'
+    body += '<span style="font-size:12px;font-weight:600;color:var(--txt2);">SLA Resolution</span>'
+    body += '<span style="font-size:11px;color:' + slaColor + ';">' + (pct >= 100 ? '⚠️ Breached' : pct + '%') + ' · Due: ' + formatDate(t.sla_resolution_due) + '</span>'
+    body += '</div>'
+    body += '<div class="sla-bar"><div class="sla-fill" style="width:' + pct + '%;background:' + slaColor + ';"></div></div>'
+    body += '</div>'
+  }
+
+  // Status + priority
+  body += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">'
+  body += '<span class="badge badge-' + t.status + '" style="font-size:13px;padding:5px 12px;">' + formatStatus(t.status) + '</span>'
+  body += '<span class="badge badge-' + t.priority + '" style="font-size:12px;">' + t.priority.toUpperCase() + '</span>'
+  body += '</div>'
+
+  // Info grid
+  body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">'
+  body += iF('Category', cat ? cat.icon + ' ' + cat.name : '—')
+  body += iF('Requester', req ? req.full_name : '—')
+  body += iF('Assigned To', asgn ? asgn.full_name : '<span style="color:var(--txt3);">Unassigned</span>')
+  body += iF('Department', dept ? dept.dept_name : '—')
+  body += iF('Date Filed', formatDate(t.created_at))
+  body += iF('Linked Asset', t.asset_no ? '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;">' + t.asset_no + '</span>' : '—')
+  if (t.first_response_at) body += iF('First Response', formatDate(t.first_response_at))
+  if (t.resolved_at) body += iF('Resolved At', formatDate(t.resolved_at))
+  body += '</div>'
+
+  // Description
+  body += '<div style="margin-bottom:16px;">'
+  body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Description</div>'
+  body += '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;font-size:13px;">' + (t.description || '—') + '</div>'
+  body += '</div>'
+
+  // Assign to (IT only, if unassigned or admin)
+  if (isIT && (!t.assigned_to || ['supervisor','admin'].includes(role)) && !['resolved','closed'].includes(t.status)) {
+    body += '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:16px;">'
+    body += '<div style="font-size:12px;font-weight:600;margin-bottom:8px;">Assign Technician</div>'
+    body += '<div style="display:flex;gap:8px;">'
+    body += '<select id="assign_user" style="flex:1;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;">'
+    body += '<option value="">— Select technician —</option>'
+    S.users.filter(u => ['technician','supervisor','admin'].includes(u.it_role)).forEach(u => {
+      const sel = u.id === t.assigned_to ? ' selected' : ''
+      body += '<option value="' + u.id + '"' + sel + '>' + u.full_name + '</option>'
+    })
+    body += '</select>'
+    body += '<button class="btn btn-primary btn-sm" onclick="assignTicket(\'' + t.id + '\')">Assign</button>'
+    body += '</div></div>'
+  }
+
+  // Request Parts / Replacement (assigned technician + supervisor/admin, active tickets)
+  const canRequestParts = isIT && ['technician','supervisor','admin'].includes(role) &&
+    (t.assigned_to === S.user.id || ['supervisor','admin'].includes(role)) &&
+    !['resolved','closed'].includes(t.status)
+  if (canRequestParts) {
+    body += '<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:14px;margin-bottom:16px;">'
+    body += '<div style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:4px;">🔧 Kailangan ng parts o kapalit?</div>'
+    body += '<div style="font-size:12px;color:var(--txt2);margin-bottom:10px;">Mag-request ng parts o full replacement. Gagawa ng CSR request para sa Supply Officer approval.</div>'
+    body += '<button class="btn btn-amber btn-sm" onclick="openPartsRequest(\'' + t.id + '\')">🔧 Request Parts / Replacement</button>'
+    body += '</div>'
+  }
+
+  // Rating (for resolved tickets, by requester)
+  if (t.status === 'resolved' && t.requester_id === S.user.id && !t.rating) {
+    body += '<div style="background:var(--green-a);border:1px solid var(--green);border-radius:10px;padding:14px;margin-bottom:16px;">'
+    body += '<div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:10px;">⭐ Rate this ticket resolution</div>'
+    body += '<div class="stars" id="ratingStars">'
+    for (let i = 1; i <= 5; i++) {
+      body += '<span class="star" onclick="setRating(' + i + ',\'' + t.id + '\')" onmouseover="hoverRating(' + i + ')" onmouseout="resetRatingHover()" data-val="' + i + '">☆</span>'
+    }
+    body += '</div>'
+    body += '<input type="text" id="ratingComment" placeholder="Optional comment..." style="width:100%;margin-top:10px;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    body += '</div>'
+  } else if (t.rating) {
+    body += '<div style="margin-bottom:16px;"><div style="font-size:11px;color:var(--txt2);margin-bottom:4px;">Rating</div>'
+    body += '<div style="font-size:16px;">' + '⭐'.repeat(t.rating) + '☆'.repeat(5-t.rating) + '</div>'
+    if (t.rating_comment) body += '<div style="font-size:12px;color:var(--txt2);margin-top:4px;">"' + t.rating_comment + '"</div>'
+    body += '</div>'
+  }
+
+  // Reply thread
+  body += '<div style="margin-bottom:14px;">'
+  body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Conversation</div>'
+  if (!replies || replies.length === 0) {
+    body += '<div style="color:var(--txt3);font-size:13px;text-align:center;padding:16px;">No replies yet</div>'
+  } else {
+    body += '<div class="reply-thread">'
+    ;[...replies].reverse().forEach(r => {
+      const author = S.users.find(u => u.id === r.author_id)
+      const initials = author ? author.full_name.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase() : '?'
+      body += '<div class="reply-item">'
+      body += '<div class="reply-avatar">' + initials + '</div>'
+      body += '<div class="reply-body' + (r.is_internal ? ' internal' : '') + '">'
+      body += '<div class="reply-header">'
+      body += '<span class="reply-author">' + (author ? author.full_name : '—') + (r.is_internal ? ' <span style="font-size:10px;color:var(--amber);">[Internal]</span>' : '') + '</span>'
+      body += '<span class="reply-time">' + formatDate(r.created_at) + '</span>'
+      body += '</div>'
+      body += '<div class="reply-text">' + r.body + '</div>'
+      body += '</div></div>'
+    })
+    body += '</div>'
+  }
+  body += '</div>'
+
+  // Add reply
+  if (!['closed'].includes(t.status)) {
+    body += '<div style="border-top:1px solid var(--bdr);padding-top:14px;">'
+    body += '<textarea id="replyBody" placeholder="Type your reply..." rows="3" style="width:100%;padding:9px 13px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;outline:none;resize:none;"></textarea>'
+    body += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'
+    if (isIT) {
+      body += '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt2);cursor:pointer;"><input type="checkbox" id="replyInternal" style="width:14px;height:14px;"> Internal note (hidden from requester)</label>'
+    } else {
+      body += '<div></div>'
+    }
+    body += '<button class="btn btn-primary btn-sm" onclick="addReply(\'' + t.id + '\')">Send Reply</button>'
+    body += '</div></div>'
+  }
+
+  document.getElementById('ticketDetailBody').innerHTML = body
+
+  // Footer actions
+  let footer = '<button class="btn btn-ghost" onclick="closeModal(\'ticketDetailModal\')">Close</button>'
+
+  // Link Asset — if no asset linked yet and ticket is active
+  if (!t.asset_id && !['resolved','closed'].includes(t.status) && isIT) {
+    footer += '<button class="btn btn-ghost btn-sm" onclick="openLinkAssetModal(\'' + t.id + '\')">🏷️ Link Asset</button>'
+  }
+
+  // Retirement recommendation
+  if (isIT && t.asset_id && !t.retirement_recommended && !['resolved','closed'].includes(t.status)) {
+    footer += '<button class="btn btn-danger" onclick="recommendRetirement(\'' + t.id + '\',\'' + t.asset_id + '\')">⚠️ Recommend Retirement</button>'
+  }
+  if (t.retirement_recommended) {
+    footer += '<div style="font-size:11px;color:var(--red);padding:4px 8px;background:var(--red-a);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">⚠️ Retirement Recommended</div>'
+  }
+
+  if (isIT) {
+    if (!['resolved','closed'].includes(t.status)) {
+      if (t.status === 'open' || t.status === 'assigned') {
+        footer += '<button class="btn btn-secondary" onclick="updateTicketStatus(\'' + t.id + '\',\'in_progress\')">▶ Start Working</button>'
+      }
+      if (t.status === 'in_progress') {
+        footer += '<button class="btn btn-ghost" onclick="updateTicketStatus(\'' + t.id + '\',\'pending_user\')">⏳ Pending User</button>'
+      }
+      footer += '<button class="btn btn-success" onclick="resolveTicket(\'' + t.id + '\')">✅ Resolve</button>'
+    }
+    if (t.status === 'resolved') {
+      footer += '<button class="btn btn-primary" onclick="updateTicketStatus(\'' + t.id + '\',\'closed\')">🔒 Close</button>'
+    }
+  }
+  if (['resolved','closed'].includes(t.status) && t.requester_id === S.user.id) {
+    footer += '<button class="btn btn-danger" onclick="reopenTicket(\'' + t.id + '\')">↩ Reopen</button>'
+  }
+
+  document.getElementById('ticketDetailFooter').innerHTML = footer
+  openModal('ticketDetailModal')
+}
+
+function iF(label, value) {
+  return '<div><div style="font-size:11px;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">' + label + '</div><div style="font-size:13px;">' + value + '</div></div>'
+}
+
+// ═══ TICKET ACTIONS ═══
+async function assignTicket(ticketId) {
+  const userId = document.getElementById('assign_user')?.value
+  if (!userId) { showToast('error','Required','Please select a technician.'); return }
+  const tech = S.users.find(u => u.id === userId)
+  await SB.from('it_tickets').update({
+    assigned_to: userId,
+    status: 'assigned',
+    updated_at: new Date().toISOString()
+  }).eq('id', ticketId)
+  // Notify technician via SMS
+  if (tech && tech.phone) {
+    sendSMS([tech.phone], '[TDMH IT] Ticket ' + ticketId + ' has been assigned to you. Please check the IT Helpdesk.')
+  }
+  showToast('success','Assigned', ticketId + ' assigned to ' + tech?.full_name)
+  viewTicket(ticketId)
+}
+
+async function addReply(ticketId) {
+  const body = document.getElementById('replyBody')?.value.trim()
+  const isInternal = document.getElementById('replyInternal')?.checked || false
+  if (!body) { showToast('error','Required','Please enter a reply.'); return }
+  try {
+    await SB.from('it_ticket_replies').insert({
+      ticket_id: ticketId, author_id: S.user.id,
+      body, is_internal: isInternal
+    })
+    // Mark first response time if not set
+    const { data: t } = await SB.from('it_tickets').select('first_response_at,requester_id,status').eq('id', ticketId).single()
+    const updates = { updated_at: new Date().toISOString() }
+    if (!t.first_response_at && ['technician','supervisor','admin'].includes(S.user.it_role)) {
+      updates.first_response_at = new Date().toISOString()
+    }
+    // If status is pending_user and requester replies → back to in_progress
+    if (t.status === 'pending_user' && S.user.id === t.requester_id) {
+      updates.status = 'in_progress'
+    }
+    await SB.from('it_tickets').update(updates).eq('id', ticketId)
+    // SMS notification to other party
+    if (!isInternal) {
+      const ticket = await SB.from('it_tickets').select('requester_id,assigned_to,id').eq('id', ticketId).single()
+      const isRequester = S.user.id === ticket.data?.requester_id
+      const notifyId = isRequester ? ticket.data?.assigned_to : ticket.data?.requester_id
+      if (notifyId) {
+        const notifyUser = S.users.find(u => u.id === notifyId)
+        if (notifyUser?.phone) {
+          sendSMS([notifyUser.phone], '[TDMH IT] New reply on ticket ' + ticketId + ' from ' + S.user.full_name.split(' ')[0] + '.')
+        }
+      }
+    }
+    viewTicket(ticketId)
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
+async function updateTicketStatus(ticketId, newStatus) {
+  const labels = { in_progress:'In Progress', pending_user:'Pending User', closed:'Closed' }
+  // Guard only the terminal 'closed' status; other transitions are unrestricted.
+  if (newStatus === 'closed') {
+    guardedClose(ticketId, 'close', () => doUpdateTicketStatus(ticketId, newStatus, labels))
+    return
+  }
+  doUpdateTicketStatus(ticketId, newStatus, labels)
+}
+
+async function doUpdateTicketStatus(ticketId, newStatus, labels) {
+  confirm2('Update status to "' + (labels[newStatus]||newStatus) + '"?', async () => {
+    await SB.from('it_tickets').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', ticketId)
+    await SB.from('it_ticket_replies').insert({
+      ticket_id: ticketId, author_id: S.user.id,
+      body: 'Status updated to: ' + (labels[newStatus]||newStatus), is_internal: true
+    })
+    closeModal('ticketDetailModal')
+    showToast('success','Updated','Ticket status updated.')
+    if (['dashboard','my_tickets','all_tickets','open_tickets','assigned_me'].includes(S.page)) showPage(S.page)
+  })
+}
+
+async function resolveTicket(ticketId) {
+  guardedClose(ticketId, 'resolve', (overridden) => {
+   confirm2('Mark this ticket as Resolved?', async () => {
+    const { data: t } = await SB.from('it_tickets').select('requester_id').eq('id', ticketId).single()
+    await SB.from('it_tickets').update({
+      status: 'resolved',
+      resolved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }).eq('id', ticketId)
+    await SB.from('it_ticket_replies').insert({
+      ticket_id: ticketId, author_id: S.user.id,
+      body: '✅ Ticket resolved by ' + S.user.full_name + '. Please rate your experience.', is_internal: false
+    })
+    // Notify requester
+    if (t?.requester_id) {
+      const req = S.users.find(u => u.id === t.requester_id)
+      if (req?.phone) {
+        sendSMS([req.phone], '[TDMH IT] Ticket ' + ticketId + ' has been resolved. Please rate your experience in the IT Helpdesk.')
+      }
+    }
+    closeModal('ticketDetailModal')
+    showToast('success','Resolved ✅', ticketId + ' marked as resolved.')
+    if (['dashboard','my_tickets','all_tickets','open_tickets','assigned_me'].includes(S.page)) showPage(S.page)
+   })
+  })
+}
+
+async function reopenTicket(ticketId) {
+  confirm2('Reopen this ticket?', async () => {
+    await SB.from('it_tickets').update({
+      status: 'reopened', resolved_at: null, updated_at: new Date().toISOString()
+    }).eq('id', ticketId)
+    await SB.from('it_ticket_replies').insert({
+      ticket_id: ticketId, author_id: S.user.id,
+      body: '↩ Ticket reopened by ' + S.user.full_name, is_internal: true
+    })
+    closeModal('ticketDetailModal')
+    showToast('warning','Reopened', ticketId + ' has been reopened.')
+    if (['dashboard','my_tickets','all_tickets'].includes(S.page)) showPage(S.page)
+  })
+}
+
+// ═══ RATING ═══
+function hoverRating(val) {
+  document.querySelectorAll('#ratingStars .star').forEach((s, i) => {
+    s.textContent = i < val ? '⭐' : '☆'
+  })
+}
+function resetRatingHover() {
+  const current = parseInt(document.querySelector('#ratingStars .star[data-selected]')?.dataset?.val || '0')
+  document.querySelectorAll('#ratingStars .star').forEach((s, i) => {
+    s.textContent = i < current ? '⭐' : '☆'
+  })
+}
+async function setRating(val, ticketId) {
+  document.querySelectorAll('#ratingStars .star').forEach((s, i) => {
+    s.textContent = i < val ? '⭐' : '☆'
+    if (i === val-1) s.dataset.selected = '1'
+    else delete s.dataset.selected
+  })
+  const comment = document.getElementById('ratingComment')?.value.trim()
+  await SB.from('it_tickets').update({
+    rating: val, rating_comment: comment || null, rated_at: new Date().toISOString()
+  }).eq('id', ticketId)
+  showToast('success','Rating Saved','Thank you for your feedback!')
+  viewTicket(ticketId)
+}
+
+// ═══ ANALYTICS ═══
+async function renderAnalytics() {
+  const content = document.getElementById('mainContent')
+  const tickets = await loadTickets()
+  const total = tickets.length
+  const resolved = tickets.filter(t => ['resolved','closed'].includes(t.status)).length
+  const avgRating = (() => {
+    const rated = tickets.filter(t => t.rating)
+    if (!rated.length) return 0
+    return (rated.reduce((s,t) => s+t.rating, 0) / rated.length).toFixed(1)
+  })()
+
+  // By technician
+  const techMap = {}
+  tickets.filter(t => t.assigned_to).forEach(t => {
+    const u = S.users.find(u => u.id === t.assigned_to)
+    const name = u ? u.full_name : t.assigned_to
+    if (!techMap[name]) techMap[name] = { total:0, resolved:0 }
+    techMap[name].total++
+    if (['resolved','closed'].includes(t.status)) techMap[name].resolved++
+  })
+
+  // By category
+  const catMap = {}
+  tickets.forEach(t => {
+    const cat = S.categories.find(c => c.id === t.category_id)
+    const name = cat ? cat.name : 'Other'
+    catMap[name] = (catMap[name]||0)+1
+  })
+
+  let html = '<div class="page-header"><h2>📈 Analytics</h2></div>'
+  html += '<div class="stat-grid" style="margin-bottom:24px;">'
+  html += sC('🎫','Total Tickets',total,'All time','var(--txt2)')
+  html += sC('✅','Resolved',resolved,Math.round(total>0?resolved/total*100:0)+'% rate','var(--green)')
+  html += sC('⭐','Avg Rating',avgRating + '/5','User satisfaction','var(--amber)')
+  html += sC('⏳','Open',tickets.filter(t=>!['resolved','closed'].includes(t.status)).length,'Needs attention','var(--accent)')
+  html += '</div>'
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+
+  // By category
+  html += '<div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px;">📂 By Category</div><div class="bar-chart">'
+  const maxCat = Math.max(...Object.values(catMap), 1)
+  Object.entries(catMap).sort((a,b)=>b[1]-a[1]).forEach(([name, count]) => {
+    const cat = S.categories.find(c => c.name === name)
+    const pct = Math.round(count/maxCat*100)
+    html += '<div class="bar-row"><div class="bar-label">' + (cat?cat.icon:'') + ' ' + name + '</div>'
+    html += '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:var(--accent);"></div></div>'
+    html += '<div class="bar-val">' + count + '</div></div>'
+  })
+  html += '</div></div>'
+
+  // By technician
+  html += '<div class="card"><div style="font-size:13px;font-weight:600;margin-bottom:14px;">👤 Technician Performance</div><div class="bar-chart">'
+  const maxTech = Math.max(...Object.values(techMap).map(v=>v.total), 1)
+  Object.entries(techMap).sort((a,b)=>b[1].total-a[1].total).slice(0,8).forEach(([name, data]) => {
+    const pct = Math.round(data.total/maxTech*100)
+    html += '<div class="bar-row"><div class="bar-label">' + name.split(' ')[0] + '</div>'
+    html += '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:var(--green);"></div></div>'
+    html += '<div class="bar-val">' + data.total + '</div></div>'
+  })
+  if (!Object.keys(techMap).length) html += '<div style="color:var(--txt3);font-size:13px;">No data yet</div>'
+  html += '</div></div>'
+
+  html += '</div>'
+  content.innerHTML = html
+}
+
+// ═══ SLA REPORT ═══
+async function renderSLAReport() {
+  const content = document.getElementById('mainContent')
+  const tickets = await loadTickets()
+  const now = new Date()
+
+  const breached = tickets.filter(t =>
+    t.sla_resolution_due && new Date(t.sla_resolution_due) < now && !['resolved','closed'].includes(t.status)
+  )
+  const atRisk = tickets.filter(t => {
+    if (!t.sla_resolution_due || ['resolved','closed'].includes(t.status)) return false
+    const due = new Date(t.sla_resolution_due)
+    return due > now && due < new Date(now.getTime() + 2*3600000)
+  })
+
+  let html = '<div class="page-header"><h2>⏱️ SLA Report</h2></div>'
+  html += '<div class="stat-grid" style="margin-bottom:20px;">'
+  html += sC('🔴','SLA Breached',breached.length,'Overdue tickets','var(--red)')
+  html += sC('🟡','At Risk',atRisk.length,'Due in < 2 hours','var(--amber)')
+  html += sC('🟢','On Track',tickets.filter(t=>!['resolved','closed'].includes(t.status)&&t.sla_resolution_due&&new Date(t.sla_resolution_due)>new Date(now.getTime()+2*3600000)).length,'SLA OK','var(--green)')
+  html += '</div>'
+
+  if (breached.length > 0) {
+    html += '<h3 style="font-size:14px;font-weight:600;color:var(--red);margin-bottom:12px;">🔴 Breached SLAs</h3>'
+    html += '<div class="table-wrap" style="margin-bottom:20px;"><table><thead><tr>'
+    html += '<th>Ticket</th><th>Subject</th><th>Priority</th><th>Assigned</th><th>SLA Due</th><th>Overdue By</th>'
+    html += '</tr></thead><tbody>'
+    breached.forEach(t => {
+      const asgn = S.users.find(u => u.id === t.assigned_to)
+      const overdueHrs = Math.floor((now - new Date(t.sla_resolution_due)) / 3600000)
+      html += '<tr onclick="viewTicket(\'' + t.id + '\')" style="cursor:pointer;">'
+      html += '<td class="td-mono">' + t.id + '</td>'
+      html += '<td>' + t.subject + '</td>'
+      html += '<td><span class="badge badge-' + t.priority + '">' + t.priority.toUpperCase() + '</span></td>'
+      html += '<td>' + (asgn ? asgn.full_name : '—') + '</td>'
+      html += '<td style="color:var(--red);">' + formatDate(t.sla_resolution_due) + '</td>'
+      html += '<td style="color:var(--red);font-weight:700;">' + overdueHrs + 'h</td>'
+      html += '</tr>'
+    })
+    html += '</tbody></table></div>'
+  }
+
+  if (atRisk.length > 0) {
+    html += '<h3 style="font-size:14px;font-weight:600;color:var(--amber);margin-bottom:12px;">🟡 At Risk</h3>'
+    html += '<div class="table-wrap"><table><thead><tr>'
+    html += '<th>Ticket</th><th>Subject</th><th>Priority</th><th>Assigned</th><th>Due In</th>'
+    html += '</tr></thead><tbody>'
+    atRisk.forEach(t => {
+      const asgn = S.users.find(u => u.id === t.assigned_to)
+      const dueIn = Math.ceil((new Date(t.sla_resolution_due) - now) / 3600000)
+      html += '<tr onclick="viewTicket(\'' + t.id + '\')" style="cursor:pointer;">'
+      html += '<td class="td-mono">' + t.id + '</td>'
+      html += '<td>' + t.subject + '</td>'
+      html += '<td><span class="badge badge-' + t.priority + '">' + t.priority.toUpperCase() + '</span></td>'
+      html += '<td>' + (asgn ? asgn.full_name : '—') + '</td>'
+      html += '<td style="color:var(--amber);font-weight:700;">' + dueIn + 'h</td>'
+      html += '</tr>'
+    })
+    html += '</tbody></table></div>'
+  }
+
+  if (!breached.length && !atRisk.length) {
+    html += '<div class="empty-state"><div class="empty-icon">✅</div><h3>All SLAs on track!</h3><p>No breached or at-risk tickets.</p></div>'
+  }
+  content.innerHTML = html
+}
+
+// ═══ KNOWLEDGE BASE ═══
+async function renderKnowledgeBase() {
+  const content = document.getElementById('mainContent')
+  const role = S.user.it_role
+  const { data: articles } = await SB.from('it_knowledge_base')
+    .select('*').eq('is_published', true).order('view_count', { ascending: false })
+  const all = articles || []
+
+  let html = '<div class="page-header"><h2>📚 Knowledge Base</h2>'
+  if (['technician','supervisor','admin'].includes(role)) {
+    html += '<button class="btn btn-primary" onclick="openNewArticleModal()">＋ New Article</button>'
+  }
+  html += '</div>'
+
+  html += '<div class="filter-bar">'
+  html += '<input type="text" id="kbsearch" placeholder="🔍 Search articles..." oninput="filterKB()" style="min-width:220px;">'
+  html += '<select id="kbcat" onchange="filterKB()"><option value="">All Categories</option>'
+  S.categories.forEach(c => { html += '<option value="' + c.id + '">' + c.icon + ' ' + c.name + '</option>' })
+  html += '</select></div>'
+
+  if (all.length === 0) {
+    html += '<div class="empty-state"><div class="empty-icon">📚</div><h3>No articles yet</h3><p>Add knowledge base articles to help users resolve common issues.</p></div>'
+  } else {
+    html += '<div id="kbList">' + buildKBList(all) + '</div>'
+  }
+  content.innerHTML = html
+  content._kbArticles = all
+}
+
+function buildKBList(articles) {
+  return articles.map(a => {
+    const cat = S.categories.find(c => c.id === a.category_id)
+    const author = S.users.find(u => u.id === a.author_id)
+    return '<div class="kb-card" onclick="viewArticle(\'' + a.id + '\')">' +
+      '<div style="display:flex;align-items:flex-start;gap:10px;">' +
+      '<div style="font-size:18px;">' + (cat?cat.icon:'📄') + '</div>' +
+      '<div style="flex:1;">' +
+      '<div style="font-size:14px;font-weight:600;margin-bottom:4px;">' + a.title + '</div>' +
+      '<div style="font-size:12px;color:var(--txt2);">' + (cat?cat.name:'—') + ' · ' + (author?author.full_name:'—') + ' · ' + a.view_count + ' views</div>' +
+      (a.tags && a.tags.length ? '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">' + a.tags.map(t=>'<span style="font-size:11px;background:var(--surf3);padding:2px 7px;border-radius:6px;">' + t + '</span>').join('') + '</div>' : '') +
+      '</div></div></div>'
+  }).join('')
+}
+
+function filterKB() {
+  const content = document.getElementById('mainContent')
+  const all = content._kbArticles || []
+  const search = document.getElementById('kbsearch')?.value.toLowerCase()
+  const cat = document.getElementById('kbcat')?.value
+  let filtered = all
+  if (search) filtered = filtered.filter(a => a.title.toLowerCase().includes(search) || (a.content||'').toLowerCase().includes(search))
+  if (cat) filtered = filtered.filter(a => a.category_id === cat)
+  const list = document.getElementById('kbList')
+  if (list) list.innerHTML = buildKBList(filtered)
+}
+
+async function viewArticle(articleId) {
+  const { data: a } = await SB.from('it_knowledge_base').select('*').eq('id', articleId).single()
+  if (!a) return
+  // Increment view count
+  SB.from('it_knowledge_base').update({ view_count: (a.view_count||0)+1 }).eq('id', articleId)
+  const cat = S.categories.find(c => c.id === a.category_id)
+  const author = S.users.find(u => u.id === a.author_id)
+
+  document.getElementById('ticketDetailTitle').textContent = a.title
+  let body = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;">'
+  body += (cat ? '<span style="font-size:18px;">' + cat.icon + '</span><span style="color:var(--txt2);">' + cat.name + '</span>' : '')
+  body += '</div>'
+  body += '<div style="font-size:12px;color:var(--txt2);margin-bottom:16px;">By ' + (author?author.full_name:'—') + ' · ' + formatDate(a.created_at) + '</div>'
+  body += '<div style="line-height:1.8;font-size:14px;">' + (a.content||'').replace(/\n/g,'<br>') + '</div>'
+  if (a.tags && a.tags.length) {
+    body += '<div style="margin-top:16px;display:flex;gap:6px;flex-wrap:wrap;">' + a.tags.map(t=>'<span style="font-size:12px;background:var(--surf3);padding:3px 9px;border-radius:8px;">' + t + '</span>').join('') + '</div>'
+  }
+  document.getElementById('ticketDetailBody').innerHTML = body
+  document.getElementById('ticketDetailFooter').innerHTML = '<button class="btn btn-ghost" onclick="closeModal(\'ticketDetailModal\')">Close</button>'
+  openModal('ticketDetailModal')
+}
+
+async function openNewArticleModal() {
+  let html = '<div class="field"><label>Title <span style="color:var(--red);">*</span></label><input type="text" id="kb_title" placeholder="Article title"></div>'
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Category</label><select id="kb_cat"><option value="">— Select —</option>'
+  S.categories.forEach(c => { html += '<option value="' + c.id + '">' + c.icon + ' ' + c.name + '</option>' })
+  html += '</select></div>'
+  html += '<div class="field"><label>Tags (comma separated)</label><input type="text" id="kb_tags" placeholder="e.g. printer, driver, windows"></div>'
+  html += '</div>'
+  html += '<div class="field"><label>Content <span style="color:var(--red);">*</span></label><textarea id="kb_content" rows="10" placeholder="Write the article content here..."></textarea></div>'
+  document.getElementById('kbArticleBody').innerHTML = html
+  openModal('kbArticleModal')
+}
+
+async function saveArticle() {
+  const title = document.getElementById('kb_title')?.value.trim()
+  const content = document.getElementById('kb_content')?.value.trim()
+  const catId = document.getElementById('kb_cat')?.value
+  const tagsRaw = document.getElementById('kb_tags')?.value.trim()
+  if (!title) { showToast('error','Required','Title is required.'); return }
+  if (!content) { showToast('error','Required','Content is required.'); return }
+  const tags = tagsRaw ? tagsRaw.split(',').map(t=>t.trim()).filter(Boolean) : []
+  try {
+    await SB.from('it_knowledge_base').insert({
+      title, content, category_id: catId||null,
+      author_id: S.user.id, tags, is_published: true
+    })
+    closeModal('kbArticleModal')
+    showToast('success','Published','Article published to knowledge base.')
+    renderKnowledgeBase()
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
+// ═══════════════════════════════════
+// LINK ASSET TO TICKET
+// ═══════════════════════════════════
+let linkAssetState = { ticketId: null, scanner: null, foundAsset: null }
+
+function openLinkAssetModal(ticketId) {
+  linkAssetState.ticketId = ticketId
+  linkAssetState.foundAsset = null
+  document.getElementById('link_asset_input').value = ''
+  document.getElementById('link_asset_preview').style.display = 'none'
+  document.getElementById('linkAssetConfirmBtn').style.display = 'none'
+  document.getElementById('link_scanner_wrap').style.display = 'none'
+  closeModal('ticketDetailModal')
+  openModal('linkAssetModal')
+}
+
+function closeLinkAsset() {
+  stopLinkScanner()
+  closeModal('linkAssetModal')
+}
+
+function toggleLinkScanner() {
+  const wrap = document.getElementById('link_scanner_wrap')
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'block'; startLinkScanner()
+  } else {
+    wrap.style.display = 'none'; stopLinkScanner()
+  }
+}
+
+function startLinkScanner() {
+  if (linkAssetState.scanner) { try { linkAssetState.scanner.stop() } catch(e) {} }
+  try {
+    linkAssetState.scanner = new Html5Qrcode('link_qr_reader')
+    linkAssetState.scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      (decoded) => {
+        stopLinkScanner()
+        document.getElementById('link_scanner_wrap').style.display = 'none'
+        document.getElementById('link_asset_input').value = decoded
+        lookupLinkAsset()
+      }, () => {}
+    ).catch(() => {
+      document.getElementById('link_qr_reader').innerHTML =
+        '<div style="padding:16px;text-align:center;color:#888;">Camera unavailable. Use manual entry.</div>'
+    })
+  } catch(e) {}
+}
+
+function stopLinkScanner() {
+  if (linkAssetState.scanner) {
+    try { linkAssetState.scanner.stop().then(() => { linkAssetState.scanner = null }) }
+    catch(e) { linkAssetState.scanner = null }
+  }
+}
+
+async function lookupLinkAsset() {
+  const code = document.getElementById('link_asset_input').value.trim()
+  if (!code) return
+  const preview = document.getElementById('link_asset_preview')
+  const confirmBtn = document.getElementById('linkAssetConfirmBtn')
+  preview.style.display = 'block'
+  preview.innerHTML = '<div style="color:var(--txt2);font-size:13px;">🔍 Searching...</div>'
+  confirmBtn.style.display = 'none'
+
+  const { data: asset } = await SB.from('assets').select('*')
+    .or('asset_no.eq.' + code + ',qr_code.eq.' + code + ',serial_no.eq.' + code)
+    .single()
+
+  if (!asset) {
+    preview.innerHTML = '<div style="color:var(--red);font-size:13px;">❌ Asset not found: <code>' + code + '</code></div>'
+    linkAssetState.foundAsset = null
+    return
+  }
+
+  linkAssetState.foundAsset = asset
+  const photoHTML = asset.photo_url
+    ? '<img src="' + asset.photo_url + '" style="width:60px;height:60px;object-fit:cover;border-radius:8px;flex-shrink:0;">'
+    : '<div style="width:60px;height:60px;background:var(--surf3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">📦</div>'
+
+  preview.innerHTML =
+    '<div style="display:flex;gap:12px;align-items:center;">' + photoHTML +
+    '<div><div style="font-family:\'JetBrains Mono\',monospace;font-size:12px;color:var(--accent);">' + asset.asset_no + '</div>' +
+    '<div style="font-size:14px;font-weight:600;">' + asset.asset_name + '</div>' +
+    (asset.brand||asset.model ? '<div style="font-size:12px;color:var(--txt2);">' + [asset.brand,asset.model].filter(Boolean).join(' / ') + '</div>' : '') +
+    '<div style="margin-top:4px;"><span style="font-size:11px;background:var(--surf3);padding:2px 8px;border-radius:6px;">' + asset.status + '</span></div>' +
+    '</div></div>'
+
+  confirmBtn.style.display = 'inline-flex'
+}
+
+async function confirmLinkAsset() {
+  const asset = linkAssetState.foundAsset
+  const ticketId = linkAssetState.ticketId
+  if (!asset || !ticketId) return
+  try {
+    await SB.from('it_tickets').update({
+      asset_id: asset.id,
+      asset_no: asset.asset_no,
+      updated_at: new Date().toISOString()
+    }).eq('id', ticketId)
+
+    // Update asset status if ticket is active
+    const { data: ticket } = await SB.from('it_tickets').select('status').eq('id', ticketId).single()
+    if (ticket && ['assigned','in_progress'].includes(ticket.status)) {
+      await SB.from('assets').update({ status: 'under_repair', updated_at: new Date().toISOString() }).eq('id', asset.id)
+    }
+
+    // Log in asset history
+    await SB.from('asset_history').insert({
+      asset_id: asset.id, action: 'updated',
+      from_value: 'unlinked', to_value: 'linked to ' + ticketId,
+      performed_by: S.user.id, reference_type: 'it_ticket',
+      reference_id: ticketId, notes: 'Asset linked to IT ticket ' + ticketId
+    })
+
+    // Reply on ticket
+    await SB.from('it_ticket_replies').insert({
+      ticket_id: ticketId, author_id: S.user.id,
+      body: '🏷️ Asset linked: ' + asset.asset_no + ' — ' + asset.asset_name,
+      is_internal: true
+    })
+
+    closeLinkAsset()
+    showToast('success','Asset Linked 🔗', asset.asset_no + ' linked to ' + ticketId)
+    viewTicket(ticketId)
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
+// ─── Feature 9: IT → Asset Retirement ───
+async function recommendRetirement(ticketId, assetId) {
+  document.getElementById('confirmTitle').textContent = '⚠️ Recommend Asset Retirement'
+  document.getElementById('confirmMsg').innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:10px;">' +
+    '<p style="font-size:13px;color:var(--txt2);">This will flag the asset as "For Disposal" in Asset Inventory and notify the inventory team.</p>' +
+    '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">REASON *</label>' +
+    '<textarea id="retire_reason" rows="3" placeholder="Why should this asset be retired? (e.g., beyond economic repair, obsolete, safety hazard)" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></textarea></div>' +
+    '</div>'
+  document.getElementById('confirmOkBtn').textContent = '⚠️ Confirm Retirement'
+  document.getElementById('confirmOkBtn').onclick = async () => {
+    const reason = document.getElementById('retire_reason')?.value.trim()
+    if (!reason) { showToast('error','Required','Please provide a reason.'); return }
+    await SB.from('it_tickets').update({
+      retirement_recommended: true,
+      retirement_reason: reason,
+      updated_at: new Date().toISOString()
+    }).eq('id', ticketId)
+    // Notify inventory staff
+    const { data: invStaff } = await SB.from('users')
+      .select('id').not('inventory_role','is',null).eq('is_active',true)
+    if (invStaff && invStaff.length > 0) {
+      await sendNotification(
+        invStaff.map(u => u.id),
+        '⚠️ Asset Retirement Recommended',
+        'IT ticket ' + ticketId + ' recommends retiring asset. Reason: ' + reason,
+        'action_required', 'it', 'it_ticket', ticketId,
+        'https://ittdmh.pro/inventory'
+      )
+    }
+    closeModal('confirmModal')
+    showToast('success','Retirement Flagged','Asset flagged for disposal. Inventory team notified.')
+    viewTicket(ticketId)
+  }
+  openModal('confirmModal')
+}
+
+// ─── Feature 7: SLA Escalation ───
+async function checkAndEscalateSLA() {
+  if (!['supervisor','admin'].includes(S.user.it_role)) return
+  const now = new Date()
+  const { data: breached } = await SB.from('it_tickets')
+    .select('id,subject,assigned_to,sla_resolution_due')
+    .not('status','in','("resolved","closed")')
+    .lt('sla_resolution_due', now.toISOString())
+  if (!breached || breached.length === 0) return
+
+  for (const t of breached) {
+    // Check if already escalated in last 4 hours
+    const { data: existing } = await SB.from('sla_escalation_log')
+      .select('id').eq('ticket_id', t.id)
+      .gt('escalated_at', new Date(now - 4*3600000).toISOString())
+      .limit(1)
+    if (existing && existing.length > 0) continue
+
+    // Escalate to supervisors
+    const { data: supervisors } = await SB.from('users')
+      .select('id').in('it_role',['supervisor','admin']).eq('is_active',true)
+    if (supervisors && supervisors.length > 0) {
+      await sendNotification(
+        supervisors.map(u => u.id),
+        '🚨 SLA Breached: ' + t.id,
+        t.subject + ' — SLA resolution deadline has passed.',
+        'error', 'it', 'it_ticket', t.id,
+        'https://ittdmh.pro/it'
+      )
+      await SB.from('sla_escalation_log').insert(
+        supervisors.map(u => ({ ticket_id:t.id, ticket_type:'it', escalated_to:u.id, reason:'SLA resolution breached' }))
+      )
+    }
+  }
+}
+
+// ─── Feature 3: Auto IT Ticket on New Equipment ───
+async function autoCreateSetupTicket(assetNo, assetName, deptId) {
+  const { data: num } = await SB.rpc('generate_it_ticket_no')
+  const ticketId = num || ('IT-' + Date.now())
+  const cat = S.categories.find(c => c.slug === 'new_request' || c.name.includes('New Request'))
+  await SB.from('it_tickets').insert({
+    id: ticketId,
+    subject: '🆕 New Equipment Setup: ' + assetNo + ' — ' + assetName,
+    description: 'New equipment has been issued from CSR. Please configure and set up:\n\nAsset: ' + assetNo + '\nName: ' + assetName + '\n\nPlease install required software, configure network access, and tag the asset.',
+    category_id: cat?.id || null,
+    priority: 'medium', dept_id: deptId || null,
+    requester_id: S.user.id, status: 'open',
+    sla_response_due: new Date(Date.now() + 8*3600000).toISOString(),
+    sla_resolution_due: new Date(Date.now() + 48*3600000).toISOString(),
+    source_system: 'csr_auto'
+  })
+  // Notify IT staff
+  const { data: itStaff } = await SB.from('users')
+    .select('id').not('it_role','is',null).neq('it_role','requester').eq('is_active',true)
+  if (itStaff && itStaff.length > 0) {
+    await sendNotification(
+      itStaff.map(u => u.id),
+      '🆕 New Equipment Setup Required',
+      assetNo + ' — ' + assetName + ' needs IT setup.',
+      'action_required', 'it', 'it_ticket', ticketId,
+      'https://ittdmh.pro/it'
+    )
+  }
+  return ticketId
+}
+function formatStatus(s) {
+  return { open:'Open', assigned:'Assigned', in_progress:'In Progress', pending_user:'Pending User', resolved:'Resolved', closed:'Closed', reopened:'Reopened' }[s] || s
+}
+
+function formatDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' })
+}
+
+async function sendSMS(phones, message) {
+  try {
+    await fetch(SMS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ phones, message }) })
+  } catch(e) { console.warn('[SMS]', e.message) }
+}
+
+function toggleTheme() {
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+  document.documentElement.setAttribute('data-theme', t)
+  localStorage.setItem('tdmh_theme', t)
+}
+// ═══════════════════════════════════════════
+// IT PARTS / REPLACEMENT REQUEST → CSR
+// ═══════════════════════════════════════════
+let _partsReqType = 'parts'
+let _partsItems = []
+
+function openPartsRequest(ticketId) {
+  document.getElementById('pr_ticket_id').value = ticketId
+  _partsReqType = 'parts'
+  setPartsReqType('parts')
+  _partsItems = []
+  document.getElementById('pr_notes').value = ''
+  document.getElementById('pr_urgency').value = 'routine'
+  addPartsItem()
+  openModal('partsReqModal')
+}
+
+function setPartsReqType(type) {
+  _partsReqType = type
+  const bp = document.getElementById('pr_type_parts')
+  const br = document.getElementById('pr_type_replacement')
+  if (type === 'parts') {
+    bp.className = 'btn btn-primary btn-sm'; br.className = 'btn btn-ghost btn-sm'
+  } else {
+    bp.className = 'btn btn-ghost btn-sm'; br.className = 'btn btn-primary btn-sm'
+  }
+}
+
+function renderPartsItems() {
+  const wrap = document.getElementById('pr_items')
+  if (!wrap) return
+  let h = ''
+  _partsItems.forEach((it, idx) => {
+    h += '<div style="display:flex;gap:6px;margin-bottom:6px;">'
+    h += '<input type="text" value="' + (it.name||'').replace(/"/g,'&quot;') + '" placeholder="Item name" oninput="_partsItems[' + idx + '].name=this.value" style="flex:2;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    h += '<input type="number" min="1" value="' + (it.qty||1) + '" oninput="_partsItems[' + idx + '].qty=this.value" style="width:64px;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;text-align:center;">'
+    h += '<input type="text" value="' + (it.unit||'pcs').replace(/"/g,'&quot;') + '" placeholder="unit" oninput="_partsItems[' + idx + '].unit=this.value" style="width:64px;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    h += '<button type="button" onclick="removePartsItem(' + idx + ')" style="width:34px;border:none;border-radius:8px;cursor:pointer;background:var(--red-a);color:var(--red);font-size:14px;">🗑</button>'
+    h += '</div>'
+  })
+  wrap.innerHTML = h
+}
+
+function addPartsItem() {
+  _partsItems.push({ name:'', qty:1, unit:'pcs' })
+  renderPartsItems()
+}
+
+function removePartsItem(idx) {
+  _partsItems.splice(idx, 1)
+  if (_partsItems.length === 0) addPartsItem()
+  else renderPartsItems()
+}
+
+async function submitITPartsRequest() {
+  const ticketId = document.getElementById('pr_ticket_id').value
+  const urgency = document.getElementById('pr_urgency').value
+  const notes = document.getElementById('pr_notes').value.trim()
+  const items = _partsItems.filter(i => i.name && i.name.trim())
+  if (items.length === 0) { showToast('error','Required','Maglagay ng kahit isang item.'); return }
+
+  try {
+    // Get ticket context (dept, subject, asset)
+    const { data: t } = await SB.from('it_tickets')
+      .select('id,subject,dept_id,asset_id,asset_no,requester_id').eq('id', ticketId).single()
+
+    // Generate CSR request number
+    const { data: numData } = await SB.rpc('generate_request_no')
+    const requestNo = numData || ('CSR-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
+
+    const typeLabel = _partsReqType === 'replacement' ? 'Replacement' : 'Parts'
+    const purpose = 'IT ' + typeLabel + ' request for Ticket ' + ticketId + ' — "' + (t?.subject || '') + '"' +
+      (t?.asset_no ? ' [Asset: ' + t.asset_no + ']' : '') + (notes ? ' — ' + notes : '')
+
+    // Create CSR request linked to this IT ticket
+    const { data: req, error } = await SB.from('requests').insert({
+      request_no: requestNo,
+      request_type: 'purchase',
+      dept_id: t?.dept_id || null,
+      requested_by: S.user.id,
+      urgency,
+      purpose,
+      status: 'pending_approval',
+      current_approval_level: 2,
+      source_system: 'it',
+      source_ref_id: null,
+      source_ref_text: ticketId,
+      asset_id: t?.asset_id || null
+    }).select().single()
+    if (error) throw error
+
+    // Audit: log that dept-head (level 1) was auto-skipped for internal IT requests
+    await SB.from('approvals').insert({
+      request_id: req.id,
+      approver_id: S.user.id,
+      approver_role: 'dept_head',
+      level: 1,
+      decision: 'approved',
+      remarks: 'Auto-skipped — internal IT ' + typeLabel + ' request (Ticket ' + ticketId + '). Routed directly to Supply Officer.',
+      decided_at: new Date().toISOString()
+    })
+
+    // Insert request items — replacement => it_hardware (asset), parts => consumable-ish
+    const itemCategory = _partsReqType === 'replacement' ? 'it_hardware' : 'maintenance_material'
+    await SB.from('request_items').insert(items.map(item => ({
+      request_id: req.id,
+      item_name: item.name.trim(),
+      quantity: Number(item.qty) || 1,
+      unit: (item.unit || 'pcs').trim(),
+      estimated_cost: 0,
+      category: itemCategory
+    })))
+
+    // Note on the ticket (internal reply)
+    await SB.from('it_ticket_replies').insert({
+      ticket_id: ticketId, author_id: S.user.id,
+      body: '🔧 ' + typeLabel + ' request submitted to CSR (' + requestNo + '): ' +
+        items.map(i => (i.qty||1) + ' ' + (i.unit||'pcs') + ' ' + i.name).join(', '),
+      is_internal: true
+    })
+
+    // Notify CSR supply officers (correct notification type)
+    const supplyOfficers = S.users.filter(u => u.csr_role === 'supply_officer' || u.csr_role === 'admin')
+    for (const officer of supplyOfficers) {
+      await SB.from('notifications').insert({
+        user_id: officer.id,
+        title: '🔧 IT ' + typeLabel + ' Request — ' + requestNo,
+        body: 'IT ' + typeLabel + ' request ' + requestNo + ' from Ticket ' + ticketId + ' needs your approval.',
+        type: 'action_required',
+        source_system: 'it',
+        source_ref_id: req.id
+      })
+    }
+
+    closeModal('partsReqModal')
+    showToast('success', 'Request Submitted ✅', requestNo + ' sent to CSR for approval.')
+    viewTicket(ticketId)
+  } catch(e) {
+    showToast('error', 'Error', e.message)
+  }
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open') }
+function closeModal(id) { document.getElementById(id).classList.remove('open') }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open') }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open') }
+function showToast(type, title, body) {
+  const c = document.getElementById('toastContainer')
+  const icons = { success:'✅', error:'❌', info:'ℹ️', warning:'⚠️' }
+  const el = document.createElement('div')
+  el.className = 'toast'
+  el.innerHTML = '<div class="toast-icon">' + (icons[type]||'ℹ️') + '</div><div><div class="toast-title">' + title + '</div><div class="toast-body">' + body + '</div></div>'
+  c.appendChild(el)
+  setTimeout(() => { el.style.opacity='0'; el.style.transition='all .3s'; setTimeout(()=>el.remove(),300) }, 3500)
+}
+function confirm2(msg, onOk) {
+  document.getElementById('confirmMsg').textContent = msg
+  document.getElementById('confirmOkBtn').onclick = () => { closeModal('confirmModal'); onOk() }
+  openModal('confirmModal')
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open') })
+})
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
+
+// ═══ INIT ═══
+;(async function init() {
+  const savedTheme = localStorage.getItem('tdmh_theme') || 'dark'
+  document.documentElement.setAttribute('data-theme', savedTheme)
+
+  // Try restore from stored tokens
+  const stored = getSession()
+  if (stored && stored.access_token && stored.refresh_token) {
+    try {
+      const { data: { session: restored }, error } = await SB.auth.setSession({
+        access_token: stored.access_token,
+        refresh_token: stored.refresh_token
+      })
+      if (restored && !error) {
+        const { data: profile } = await SB.from('users').select('*').eq('id', restored.user.id).eq('is_active', true).single()
+        if (profile && profile.it_role) {
+          const session = storeAuthSession({ user: restored.user, session: restored }, profile)
+          await bootApp(session)
+          return
+        }
+      }
+    } catch(e) { console.warn('Session restore failed:', e.message) }
+  }
+
+  // Fallback: check active Supabase session
+  const { data: { session: authSession } } = await SB.auth.getSession()
+  if (authSession) {
+    const { data: profile } = await SB.from('users').select('*').eq('id', authSession.user.id).eq('is_active', true).single()
+    if (profile && profile.it_role) {
+      const session = storeAuthSession({ user: authSession.user, session: authSession }, profile)
+      await bootApp(session)
+      return
+    }
+  }
+
+  clearSession()
+})()
+
+// ═══════════════════════════════════
+// UNIFIED NOTIFICATIONS + PORTAL
+// ═══════════════════════════════════
+async function loadNotifications() {
+  if (!window.S?.user && !window.state?.user) return []
+  const uid = (window.S?.user?.id || window.state?.user?.id)
+  if (!uid) return []
+  const { data } = await SB.from('notifications').select('*').eq('user_id', uid)
+    .order('created_at', { ascending: false }).limit(30)
+  const all = data || []
+  updateNotifBadge(all.filter(n => !n.is_read).length)
+  return all
+}
+function updateNotifBadge(count) {
+  const badge = document.getElementById('notifBadge')
+  if (!badge) return
+  if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = 'flex' }
+  else badge.style.display = 'none'
+}
+function subscribeNotifications() {
+  const uid = (window.S?.user?.id || window.state?.user?.id)
+  if (!uid) return
+  SB.channel('notif-' + uid)
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:'user_id=eq.'+uid }, (payload) => {
+      if (typeof showToast === 'function') showToast('info', payload.new.title, payload.new.body || '')
+      loadNotifications()
+    }).subscribe()
+}
+async function openNotifications() {
+  const notifs = await loadNotifications()
+  const uid = (window.S?.user?.id || window.state?.user?.id)
+  if (notifs && notifs.some(n => !n.is_read)) {
+    await SB.from('notifications').update({ is_read: true }).eq('user_id', uid).eq('is_read', false)
+    updateNotifBadge(0)
+  }
+  const icons = { info:'ℹ️', warning:'⚠️', success:'✅', error:'❌', action_required:'🔔' }
+  const systemIcons = { csr:'📋', maintenance:'🔧', it:'🖥️', inventory:'🏷️', system:'🏥' }
+  let html = ''
+  if (!notifs || notifs.length === 0) {
+    html = '<div style="text-align:center;padding:30px;color:var(--txt2);">🔔 No notifications yet</div>'
+  } else {
+    notifs.forEach(n => {
+      const ago = Math.floor((Date.now() - new Date(n.created_at)) / 60000)
+      const timeStr = ago < 60 ? ago + 'm ago' : ago < 1440 ? Math.floor(ago/60) + 'h ago' : Math.floor(ago/1440) + 'd ago'
+      html += '<div style="display:flex;gap:10px;padding:12px 0;border-bottom:1px solid var(--bdr);">'
+      html += '<div style="font-size:18px;flex-shrink:0;">' + (icons[n.type]||'ℹ️') + '</div>'
+      html += '<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;">' + n.title + '</div>'
+      if (n.body) html += '<div style="font-size:12px;color:var(--txt2);margin-top:2px;">' + n.body + '</div>'
+      html += '<div style="font-size:11px;color:var(--txt3);margin-top:3px;">' + (systemIcons[n.source_system]||'') + ' ' + timeStr + '</div>'
+      html += '</div></div>'
+    })
+  }
+  if (typeof showConfirmModal === 'function') {
+    showConfirmModal('🔔 Notifications', '<div style="max-height:400px;overflow-y:auto;">' + html + '</div>', null)
+  } else {
+    document.getElementById('confirmTitle').textContent = '🔔 Notifications'
+    document.getElementById('confirmMsg').innerHTML = '<div style="max-height:400px;overflow-y:auto;">' + html + '</div>'
+    document.getElementById('confirmOkBtn').style.display = 'none'
+    document.querySelector('#confirmModal .modal-footer .btn-ghost').textContent = 'Close'
+    openModal('confirmModal')
+    setTimeout(() => { document.getElementById('confirmOkBtn').style.display = '' }, 100)
+  }
+}
+async function sendNotification(userIds, title, body, type, sourceSystem, refType, refId, actionUrl) {
+  if (!userIds || userIds.length === 0) return
+  const inserts = userIds.map(uid => ({ user_id:uid, title, body:body||null, type:type||'info', source_system:sourceSystem||null, source_ref_type:refType||null, source_ref_id:refId||null, action_url:actionUrl||null }))
+  await SB.from('notifications').insert(inserts).catch(() => {})
+}
+async function openPortal() {
+  const u = window.S?.user || window.state?.user
+  if (!u) return
+  const systems = [
+    { key:'csr', icon:'📋', label:'CSR System', url:'https://ittdmh.pro/csr', role:u.csr_role },
+    { key:'maintenance', icon:'🔧', label:'Maintenance Hub', url:'https://ittdmh.pro/maintenance', role:u.maintenance_role },
+    { key:'it', icon:'🖥️', label:'IT Helpdesk', url:'https://ittdmh.pro/it', role:u.it_role },
+    { key:'inventory', icon:'🏷️', label:'Asset Inventory', url:'https://ittdmh.pro/inventory', role:u.inventory_role },
+    { key:'scan', icon:'📷', label:'Scan & Request', url:'https://ittdmh.pro/scan', role:'any' },
+  ]
+  const { data: notifs } = await SB.from('notifications').select('source_system').eq('user_id', u.id).eq('is_read', false)
+  const unreadBySystem = {}
+  ;(notifs||[]).forEach(n => { unreadBySystem[n.source_system] = (unreadBySystem[n.source_system]||0)+1 })
+  let html = '<div style="display:flex;flex-direction:column;gap:10px;">'
+  systems.forEach(s => {
+    if (!s.role) return
+    const unread = unreadBySystem[s.key] || 0
+    html += '<a href="' + s.url + '" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:12px;text-decoration:none;color:var(--txt);">'
+    html += '<div style="font-size:24px;">' + s.icon + '</div>'
+    html += '<div style="flex:1;"><div style="font-size:14px;font-weight:600;">' + s.label + '</div></div>'
+    if (unread > 0) html += '<div style="background:var(--red);color:#fff;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;">' + unread + '</div>'
+    html += '<span style="color:var(--txt3);">→</span></a>'
+  })
+  html += '</div>'
+  document.getElementById('confirmTitle').textContent = '🏥 TDMH Systems'
+  document.getElementById('confirmMsg').innerHTML = html
+  document.getElementById('confirmOkBtn').style.display = 'none'
+  document.querySelector('#confirmModal .modal-footer .btn-ghost').textContent = 'Close'
+  openModal('confirmModal')
+  setTimeout(() => { document.getElementById('confirmOkBtn').style.display = '' }, 100)
+}
+
+// ─── Concurrent-safe insert with retry ───
+// Handles rare race conditions on unique constraints
+async function insertWithRetry(table, payload, maxRetries) {
+  maxRetries = maxRetries || 3
+  let lastError = null
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const { data, error } = await SB.from(table).insert(payload).select().single()
+    if (!error) return { data, error: null }
+    // If unique violation on the ID field, regenerate and retry
+    if (error.code === '23505' && error.message.includes('_pkey')) {
+      console.warn('[Retry ' + (attempt+1) + '] Unique conflict on ' + table + ', regenerating ID...')
+      lastError = error
+      // Small random delay before retry
+      await new Promise(r => setTimeout(r, Math.random() * 100 + 50))
+    } else {
+      return { data: null, error }
+    }
+  }
+  return { data: null, error: lastError }
+}
+</script>
+</body>
+</html>
