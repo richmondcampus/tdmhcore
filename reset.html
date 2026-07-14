@@ -136,6 +136,7 @@ const params = new URLSearchParams(window.location.search)
 const fromSystem = params.get('from') || 'csr'
 
 const SYSTEMS = {
+  core:        { label: 'Command Center',    url: 'https://tdmhcore.io/',           icon: '🏥' },
   csr:         { label: 'CSR System',        url: 'https://tdmhcore.io/csr',         icon: '📋' },
   maintenance: { label: 'Maintenance Hub',   url: 'https://tdmhcore.io/maintenance',  icon: '🔧' },
   it:          { label: 'IT Helpdesk',       url: 'https://tdmhcore.io/helpdesk',          icon: '🖥️' },
