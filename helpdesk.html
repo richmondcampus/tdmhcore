@@ -257,7 +257,7 @@ tr:hover td{background:var(--surf2);}
     </div>
     <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
     <div style="text-align:center;margin-top:12px;">
-      <a href="https://ittdmh.pro/reset?from=it" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
+      <a href="https://tdmhcore.io/reset?from=it" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
     </div>
     <p style="font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;">Taytay Doctors Multispecialty Hospital · IT Department</p>
   </div>
@@ -521,7 +521,7 @@ async function doLogin() {
     const { data: authData, error } = await SB.auth.signInWithPassword({ email: loginEmail, password: pass })
     if (error || !authData.user) { showLoginErr('Invalid credentials.'); return }
     let profile = null
-    const { data: dp } = await SB.from('users').select('*').eq('id', authData.user.id).eq('is_active', true).single()
+    const { data: dp } = await SB.from('users').select('*').eq('auth_id', authData.user.id).eq('is_active', true).single()
     if (dp) profile = dp
     else {
       const { data: alias } = await SB.from('user_auth_aliases').select('primary_user_id').eq('alias_auth_id', authData.user.id).single()
@@ -2220,7 +2220,7 @@ async function recommendRetirement(ticketId, assetId) {
         '⚠️ Asset Retirement Recommended',
         'IT ticket ' + ticketId + ' recommends retiring asset. Reason: ' + reason,
         'action_required', 'it', 'it_ticket', ticketId,
-        'https://ittdmh.pro/inventory'
+        'https://tdmhcore.io/inventory'
       )
     }
     closeModal('confirmModal')
@@ -2257,7 +2257,7 @@ async function checkAndEscalateSLA() {
         '🚨 SLA Breached: ' + t.id,
         t.subject + ' — SLA resolution deadline has passed.',
         'error', 'it', 'it_ticket', t.id,
-        'https://ittdmh.pro/it'
+        'https://tdmhcore.io/helpdesk'
       )
       await SB.from('sla_escalation_log').insert(
         supervisors.map(u => ({ ticket_id:t.id, ticket_type:'it', escalated_to:u.id, reason:'SLA resolution breached' }))
@@ -2291,7 +2291,7 @@ async function autoCreateSetupTicket(assetNo, assetName, deptId) {
       '🆕 New Equipment Setup Required',
       assetNo + ' — ' + assetName + ' needs IT setup.',
       'action_required', 'it', 'it_ticket', ticketId,
-      'https://ittdmh.pro/it'
+      'https://tdmhcore.io/helpdesk'
     )
   }
   return ticketId
@@ -2496,7 +2496,7 @@ document.getElementById('loginPass').addEventListener('keydown', e => { if (e.ke
         refresh_token: stored.refresh_token
       })
       if (restored && !error) {
-        const { data: profile } = await SB.from('users').select('*').eq('id', restored.user.id).eq('is_active', true).single()
+        const { data: profile } = await SB.from('users').select('*').eq('auth_id', restored.user.id).eq('is_active', true).single()
         if (profile && profile.it_role) {
           const session = storeAuthSession({ user: restored.user, session: restored }, profile)
           await bootApp(session)
@@ -2509,7 +2509,7 @@ document.getElementById('loginPass').addEventListener('keydown', e => { if (e.ke
   // Fallback: check active Supabase session
   const { data: { session: authSession } } = await SB.auth.getSession()
   if (authSession) {
-    const { data: profile } = await SB.from('users').select('*').eq('id', authSession.user.id).eq('is_active', true).single()
+    const { data: profile } = await SB.from('users').select('*').eq('auth_id', authSession.user.id).eq('is_active', true).single()
     if (profile && profile.it_role) {
       const session = storeAuthSession({ user: authSession.user, session: authSession }, profile)
       await bootApp(session)
@@ -2592,11 +2592,11 @@ async function openPortal() {
   const u = window.S?.user || window.state?.user
   if (!u) return
   const systems = [
-    { key:'csr', icon:'📋', label:'CSR System', url:'https://ittdmh.pro/csr', role:u.csr_role },
-    { key:'maintenance', icon:'🔧', label:'Maintenance Hub', url:'https://ittdmh.pro/maintenance', role:u.maintenance_role },
-    { key:'it', icon:'🖥️', label:'IT Helpdesk', url:'https://ittdmh.pro/it', role:u.it_role },
-    { key:'inventory', icon:'🏷️', label:'Asset Inventory', url:'https://ittdmh.pro/inventory', role:u.inventory_role },
-    { key:'scan', icon:'📷', label:'Scan & Request', url:'https://ittdmh.pro/scan', role:'any' },
+    { key:'csr', icon:'📋', label:'CSR System', url:'https://tdmhcore.io/csr', role:u.csr_role },
+    { key:'maintenance', icon:'🔧', label:'Maintenance Hub', url:'https://tdmhcore.io/maintenance', role:u.maintenance_role },
+    { key:'it', icon:'🖥️', label:'IT Helpdesk', url:'https://tdmhcore.io/helpdesk', role:u.it_role },
+    { key:'inventory', icon:'🏷️', label:'Asset Inventory', url:'https://tdmhcore.io/inventory', role:u.inventory_role },
+    { key:'scan', icon:'📷', label:'Scan & Request', url:'https://tdmhcore.io/scan', role:'any' },
   ]
   const { data: notifs } = await SB.from('notifications').select('source_system').eq('user_id', u.id).eq('is_read', false)
   const unreadBySystem = {}
