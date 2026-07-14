@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TDMH — Reset Password</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+[data-theme="dark"]{
+  --bg:#080e14;--surf1:#0d1520;--surf2:#111d2b;
+  --bdr:rgba(255,255,255,0.06);--bdr2:rgba(255,255,255,0.11);
+  --txt:#e2edf8;--txt2:#5f8099;--txt3:#324f66;
+  --shadow2:0 8px 32px rgba(0,0,0,0.6);
+  --accent:#4d9fff;--accent-a:rgba(77,159,255,0.12);--accent-b:rgba(77,159,255,0.22);
+  --red:#f04060;--red-a:rgba(240,64,96,0.12);
+  --green:#22c55e;--green-a:rgba(34,197,94,0.12);
+}
+[data-theme="light"]{
+  --bg:#f0f5fb;--surf1:#fff;--surf2:#f7fafd;
+  --bdr:rgba(0,0,0,0.07);--bdr2:rgba(0,0,0,0.13);
+  --txt:#0c1e2e;--txt2:#4a6a80;--txt3:#9ab8cc;
+  --shadow2:0 8px 28px rgba(0,0,0,0.12);
+  --accent:#2070d0;--accent-a:rgba(32,112,208,0.10);--accent-b:rgba(32,112,208,0.20);
+  --red:#d03050;--red-a:rgba(208,48,80,0.09);
+  --green:#16a34a;--green-a:rgba(22,163,74,0.10);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;line-height:1.55;display:flex;align-items:center;justify-content:center;}
+h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;}
+
+.card{width:100%;max-width:420px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:20px;padding:40px;box-shadow:var(--shadow2);margin:20px;}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+.logo-mark{width:44px;height:44px;background:var(--accent-a);border:1px solid var(--accent-b);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.logo-text h1{font-size:18px;font-weight:700;}
+.logo-text p{font-size:12px;color:var(--txt2);}
+
+.step{display:none;}
+.step.active{display:block;}
+
+h2{font-size:22px;font-weight:700;margin-bottom:6px;}
+.sub{color:var(--txt2);font-size:13px;margin-bottom:24px;}
+
+.alert{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none;}
+.alert-error{background:var(--red-a);border:1px solid var(--red);color:var(--red);}
+.alert-success{background:var(--green-a);border:1px solid var(--green);color:var(--green);}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.field input{width:100%;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;color:var(--txt);font-family:inherit;font-size:14px;outline:none;}
+.field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-a);}
+
+.btn{display:flex;align-items:center;justify-content:center;width:100%;padding:11px 18px;border-radius:10px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:none;background:var(--accent);color:#fff;margin-top:4px;}
+.btn:hover{opacity:.88;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--txt2);border:1px solid var(--bdr2);margin-top:10px;}
+.btn-ghost:hover{background:var(--surf2);}
+
+.strength-bar{height:4px;background:var(--surf2);border-radius:2px;overflow:hidden;margin-top:6px;}
+.strength-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;}
+.strength-label{font-size:11px;margin-top:4px;}
+
+.back-link{text-align:center;margin-top:16px;font-size:13px;color:var(--txt2);}
+.back-link a{color:var(--accent);text-decoration:none;}
+.back-link a:hover{text-decoration:underline;}
+
+p{font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-mark">🏥</div>
+    <div class="logo-text">
+      <h1>TDMH Systems</h1>
+      <p>Taytay Doctors Multispecialty Hospital</p>
+    </div>
+  </div>
+
+  <!-- STEP 1: Request Reset -->
+  <div class="step active" id="stepRequest">
+    <h2>Forgot Password</h2>
+    <p class="sub">Enter your email address and we'll send you a reset link valid for 1 hour.</p>
+    <div class="alert alert-error" id="reqErr"></div>
+    <div class="alert alert-success" id="reqOk"></div>
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="resetEmail" placeholder="you@tdmh.com or employee@tdmh.local" autocomplete="email">
+    </div>
+    <button class="btn" id="sendBtn" onclick="sendResetLink()">Send Reset Link</button>
+    <div class="back-link"><a href="#" onclick="goBack()">← Back to Login</a></div>
+    <p>Taytay Doctors Multispecialty Hospital</p>
+  </div>
+
+  <!-- STEP 2: Set New Password (after clicking email link) -->
+  <div class="step" id="stepReset">
+    <h2>Set New Password</h2>
+    <p class="sub">Enter your new password below.</p>
+    <div class="alert alert-error" id="resetErr"></div>
+    <div class="alert alert-success" id="resetOk"></div>
+    <div class="field">
+      <label>New Password</label>
+      <input type="password" id="newPass" placeholder="Minimum 8 characters" oninput="checkStrength(this.value)" autocomplete="new-password">
+      <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+      <div class="strength-label" id="strengthLabel" style="color:var(--txt3);"></div>
+    </div>
+    <div class="field">
+      <label>Confirm Password</label>
+      <input type="password" id="confirmPass" placeholder="Re-enter new password" autocomplete="new-password">
+    </div>
+    <button class="btn" id="resetBtn" onclick="setNewPassword()">Update Password</button>
+    <p>Taytay Doctors Multispecialty Hospital</p>
+  </div>
+
+  <!-- STEP 3: Done -->
+  <div class="step" id="stepDone">
+    <div style="text-align:center;padding:20px 0;">
+      <div style="font-size:48px;margin-bottom:16px;">✅</div>
+      <h2 style="margin-bottom:8px;">Password Updated!</h2>
+      <p class="sub" style="display:block;margin-bottom:24px;">Your password has been changed successfully. You can now log in with your new password.</p>
+      <div id="systemLinks" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <p>Taytay Doctors Multispecialty Hospital</p>
+  </div>
+</div>
+
+<script>
+const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeWh3ZHVsaXpvcmduZ2F5eHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjU0NTgsImV4cCI6MjA5NDg0MTQ1OH0.xLdKGNqjNZNRfjAf5NmXGI1GyTbQZAmbZiKokpgAhUo'
+const SB = supabase.createClient(SUPA_URL, SUPA_KEY)
+
+// Detect which system sent the user here (via URL param)
+const params = new URLSearchParams(window.location.search)
+const fromSystem = params.get('from') || 'csr'
+
+const SYSTEMS = {
+  csr:         { label: 'CSR System',        url: 'https://ittdmh.pro/csr',         icon: '📋' },
+  maintenance: { label: 'Maintenance Hub',   url: 'https://ittdmh.pro/maintenance',  icon: '🔧' },
+  it:          { label: 'IT Helpdesk',       url: 'https://ittdmh.pro/it',          icon: '🖥️' },
+  inventory:   { label: 'Asset Inventory',   url: 'https://ittdmh.pro/inventory',   icon: '🏷️' },
+}
+
+function showStep(id) {
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+}
+
+function showAlert(id, msg) {
+  const el = document.getElementById(id)
+  el.textContent = msg
+  el.style.display = 'block'
+}
+
+function hideAlert(id) {
+  document.getElementById(id).style.display = 'none'
+}
+
+// ─── SEND RESET LINK ───
+async function sendResetLink() {
+  const email = document.getElementById('resetEmail').value.trim()
+  hideAlert('reqErr'); hideAlert('reqOk')
+  if (!email) { showAlert('reqErr','Please enter your email address.'); return }
+
+  const btn = document.getElementById('sendBtn')
+  btn.disabled = true; btn.textContent = 'Sending...'
+
+  try {
+    // Build redirect URL pointing back to this page
+    const redirectTo = window.location.origin + window.location.pathname + '?from=' + fromSystem
+
+    const { error } = await SB.auth.resetPasswordForEmail(email, {
+      redirectTo
+    })
+
+    if (error) {
+      // Don't reveal if email exists — always show success for security
+      console.warn(error.message)
+    }
+
+    // Always show success (security: don't confirm if email exists)
+    showAlert('reqOk', '✅ If that email is registered, a reset link has been sent. Please check your inbox (and spam folder). Link expires in 1 hour.')
+    btn.textContent = 'Link Sent'
+    document.getElementById('resetEmail').disabled = true
+
+  } catch(e) {
+    showAlert('reqErr', 'Connection error. Please try again.')
+    btn.disabled = false; btn.textContent = 'Send Reset Link'
+  }
+}
+
+// ─── PASSWORD STRENGTH ───
+function checkStrength(pass) {
+  const fill = document.getElementById('strengthFill')
+  const label = document.getElementById('strengthLabel')
+  let score = 0
+  if (pass.length >= 8) score++
+  if (pass.length >= 12) score++
+  if (/[A-Z]/.test(pass)) score++
+  if (/[0-9]/.test(pass)) score++
+  if (/[^A-Za-z0-9]/.test(pass)) score++
+
+  const levels = [
+    { pct: 0,   color: 'var(--surf2)', label: '' },
+    { pct: 20,  color: 'var(--red)',   label: 'Very Weak' },
+    { pct: 40,  color: 'var(--red)',   label: 'Weak' },
+    { pct: 60,  color: 'var(--amber, #f0a500)', label: 'Fair' },
+    { pct: 80,  color: 'var(--accent)', label: 'Strong' },
+    { pct: 100, color: 'var(--green)', label: 'Very Strong' },
+  ]
+  const lvl = levels[score] || levels[0]
+  fill.style.width = lvl.pct + '%'
+  fill.style.background = lvl.color
+  label.textContent = lvl.label
+  label.style.color = lvl.color
+}
+
+// ─── SET NEW PASSWORD ───
+async function setNewPassword() {
+  const pass = document.getElementById('newPass').value
+  const confirm = document.getElementById('confirmPass').value
+  hideAlert('resetErr'); hideAlert('resetOk')
+
+  if (pass.length < 8) { showAlert('resetErr','Password must be at least 8 characters.'); return }
+  if (pass !== confirm) { showAlert('resetErr','Passwords do not match.'); return }
+
+  const btn = document.getElementById('resetBtn')
+  btn.disabled = true; btn.textContent = 'Updating...'
+
+  try {
+    const { error } = await SB.auth.updateUser({ password: pass })
+    if (error) throw error
+
+    // Sign out after password change for security
+    await SB.auth.signOut()
+
+    // Show done screen with links to systems
+    const linksEl = document.getElementById('systemLinks')
+    Object.entries(SYSTEMS).forEach(([key, sys]) => {
+      const btn = document.createElement('a')
+      btn.href = sys.url
+      btn.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;color:var(--txt);text-decoration:none;font-size:13px;'
+      btn.innerHTML = '<span>' + sys.icon + '</span><span>Go to ' + sys.label + '</span><span style="margin-left:auto;color:var(--txt3);">→</span>'
+      if (key === fromSystem) btn.style.borderColor = 'var(--accent)'
+      linksEl.appendChild(btn)
+    })
+
+    showStep('stepDone')
+
+  } catch(e) {
+    showAlert('resetErr', e.message || 'Failed to update password. Please try again.')
+    btn.disabled = false; btn.textContent = 'Update Password'
+  }
+}
+
+// ─── BACK BUTTON ───
+function goBack() {
+  const sys = SYSTEMS[fromSystem]
+  if (sys) window.location.href = sys.url
+  else history.back()
+}
+
+// ─── INIT: Check if came from reset email link ───
+;(async function init() {
+  const savedTheme = localStorage.getItem('tdmh_theme') || 'dark'
+  document.documentElement.setAttribute('data-theme', savedTheme)
+
+  // Supabase puts tokens in URL hash after email link click
+  const hash = window.location.hash
+  if (hash.includes('access_token') && hash.includes('type=recovery')) {
+    // User clicked the reset link — show password form
+    // Supabase SDK automatically handles the session from hash
+    const { data: { session } } = await SB.auth.getSession()
+    if (session) {
+      showStep('stepReset')
+    } else {
+      // Wait a moment for Supabase to process the hash
+      setTimeout(async () => {
+        const { data: { session: s2 } } = await SB.auth.getSession()
+        if (s2) showStep('stepReset')
+        else showStep('stepRequest')
+      }, 1000)
+    }
+  } else {
+    showStep('stepRequest')
+  }
+
+  // Listen for auth state change (Supabase fires this after processing hash)
+  SB.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      showStep('stepReset')
+    }
+  })
+})()
+</script>
+</body>
+</html>
