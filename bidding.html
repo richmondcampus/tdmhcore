@@ -823,10 +823,36 @@ function renderImgPreviews(){document.getElementById('img-preview-grid').innerHT
 function removeImg(i){modalImages.splice(i,1);renderImgPreviews();}
 
 async function uploadImage(file){
-  const ext=file.name.split('.').pop();
-  const path=`items/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const{error}=await sb.storage.from('item-images').upload(path,file,{contentType:file.type});
-  if(error)throw error;
+  const ext=file.name.split('.').pop().toLowerCase();
+  const safeName=`${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const path=`items/${safeName}`;
+
+  // Try Supabase JS client first
+  const{data,error}=await sb.storage.from('item-images').upload(path,file,{
+    contentType:file.type,
+    upsert:false,
+    cacheControl:'3600'
+  });
+
+  if(error){
+    // Fallback: direct fetch to storage API
+    const uploadUrl=`${SB_URL}/storage/v1/object/item-images/${path}`;
+    const res=await fetch(uploadUrl,{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${SB_KEY}`,
+        'apikey':SB_KEY,
+        'Content-Type':file.type,
+        'x-upsert':'false'
+      },
+      body:file
+    });
+    if(!res.ok){
+      const errText=await res.text().catch(()=>'Unknown error');
+      throw new Error(`Upload failed (${res.status}): ${errText}`);
+    }
+  }
+
   const{data:pub}=sb.storage.from('item-images').getPublicUrl(path);
   return pub.publicUrl;
 }
