@@ -4450,6 +4450,7 @@ async function autoCreateITSetupTicket(assetNo, assetName, deptId) {
 
   const { data: num } = await SB.rpc('generate_it_ticket_no')
   const ticketId = num || ('IT-' + Date.now())
+  try {
   await SB.from('it_tickets').insert({
     id: ticketId,
     subject: '🆕 New Equipment Setup: ' + assetNo + ' — ' + assetName,
@@ -4459,7 +4460,8 @@ async function autoCreateITSetupTicket(assetNo, assetName, deptId) {
     sla_response_due: new Date(Date.now() + 8*3600000).toISOString(),
     sla_resolution_due: new Date(Date.now() + 48*3600000).toISOString(),
     source_system: 'csr_auto'
-  }).catch(() => {})
+  })
+  } catch (_) { /* non-critical */ }
 
   await sendNotification(
     itStaff.map(u => u.id),
@@ -9075,7 +9077,9 @@ async function openNotifications() {
 async function sendNotification(userIds, title, body, type, sourceSystem, refType, refId, actionUrl) {
   if (!userIds || userIds.length === 0) return
   const inserts = userIds.map(uid => ({ user_id:uid, title, body:body||null, type:type||'info', source_system:sourceSystem||null, source_ref_type:refType||null, source_ref_id:refId||null, action_url:actionUrl||null }))
-  await SB.from('notifications').insert(inserts).catch(() => {})
+  try {
+    await SB.from('notifications').insert(inserts)
+  } catch (_) { /* non-critical */ }
 }
 async function openPortal() {
   const u = window.S?.user || window.state?.user
