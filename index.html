@@ -1837,10 +1837,15 @@ function drawUserMgmt(){
 }
 
 function roleSelect(sys, current){
-  let h = '<div class="field"><label>'+ROLE_LABELS[sys]+' Role</label><select id="uf_'+sys+'"><option value="">— None (no access) —</option>'
+  const onChange = sys==='csr' ? ' onchange="toggleDeptHeadField(this.value)"' : ''
+  let h = '<div class="field"><label>'+ROLE_LABELS[sys]+' Role</label><select id="uf_'+sys+'"'+onChange+'><option value="">— None (no access) —</option>'
   ROLE_OPTS[sys].forEach(r=>{ h += '<option value="'+r+'"'+(current===r?' selected':'')+'>'+r+'</option>' })
   h += '</select></div>'
   return h
+}
+function toggleDeptHeadField(role){
+  const wrap = document.getElementById('deptHeadAssignWrap')
+  if(wrap) wrap.style.display = role==='dept_head' ? 'block' : 'none'
 }
 
 function openUserForm(userId){
@@ -1866,6 +1871,17 @@ function openUserForm(userId){
   html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 6px;">System Roles</div>'
   html += '<div class="field-row">'+roleSelect('csr', u?.csr_role)+roleSelect('maintenance', u?.maintenance_role)+'</div>'
   html += '<div class="field-row">'+roleSelect('it', u?.it_role)+roleSelect('inventory', u?.inventory_role)+'</div>'
+
+  // Department Head assignment — shown only when CSR role = dept_head
+  const isDeptHead = u?.csr_role === 'dept_head'
+  html += '<div id="deptHeadAssignWrap" style="margin-top:10px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:12px;'+(isDeptHead?'':'display:none;')+'">'
+  html += '<div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:8px;">👤 Department Head Assignment</div>'
+  html += '<div class="field"><label>Head of which Department?</label><select id="uf_head_of_dept"><option value="">— Not assigned as head —</option>'
+  S.departments.forEach(d=>{
+    const isCurrent = u && d.dept_head_id===u.id
+    html += '<option value="'+d.id+'"'+(isCurrent?' selected':'')+'>'+esc(d.dept_name)+(isCurrent?' (current)':'')+'</option>'
+  })
+  html += '</select><div style="font-size:11px;color:var(--txt3);margin-top:4px;">Ang user na ito ang magiging approver ng mga request mula sa napiling department.</div></div></div>'
 
   if(!editing){
     html += '<div class="field"><label>Initial Password *</label><input type="text" id="uf_pass" placeholder="At least 6 characters"></div>'
@@ -1917,7 +1933,19 @@ async function saveUser(userId){
   const btn = document.getElementById('ufSaveBtn')
   if(btn){ btn.disabled=true; btn.textContent='Saving...' }
   try{
-    await callUserFn(payload)
+    const result = await callUserFn(payload)
+    // Department Head assignment (only relevant when CSR role = dept_head)
+    const targetUserId = editing ? userId : (result && result.user_id)
+    if(payload.csr_role === 'dept_head' && targetUserId){
+      const headOfDept = g('uf_head_of_dept')
+      // Clear this user from any dept they previously headed
+      await SB.from('departments').update({dept_head_id:null}).eq('dept_head_id',targetUserId)
+      // Assign as head of the selected dept (if one chosen)
+      if(headOfDept) await SB.from('departments').update({dept_head_id:targetUserId}).eq('id',headOfDept)
+      // Refresh departments cache
+      const{data:depts}=await SB.from('departments').select('*').order('dept_name')
+      if(depts) S.departments = depts
+    }
     closeModal('mainModal')
     showToast('success', editing?'User Updated':'User Created', editing?'✅ Na-save ang pagbabago.':'✅ Nagawa ang bagong user.')
     // refresh global users cache too
