@@ -7406,7 +7406,16 @@ async function viewDerp(id) {
     footer += '<button class="btn btn-primary" onclick="closeDerp(\'' + req.id + '\')">Close DERP</button>'
   }
   if (req.status === 'for_replacement' && ['admin','supply_officer'].includes(role)) {
-    footer += '<button class="btn btn-primary" onclick="triggerDerpCSR(\'' + req.id + '\')">Generate CSR Request →</button>'
+    // Evaluated DERPs generate their replacement request automatically (DB trigger).
+    // The button remains only for DERPs that reached this state without an evaluation.
+    if (req.derp_evaluator_id) {
+      footer += '<div style="font-size:11px;color:var(--txt2);padding:4px 8px;background:var(--surf2);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">⏳ Awtomatikong gagawa ng replacement request...</div>'
+    } else {
+      footer += '<button class="btn btn-primary" onclick="triggerDerpCSR(\'' + req.id + '\')">Generate CSR Request →</button>'
+    }
+  }
+  if (req.status === 'csr_triggered' && req.derp_csr_request_id) {
+    footer += '<div style="font-size:11px;color:var(--green,#12a62f);padding:4px 8px;background:var(--surf2);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">✅ May replacement request na — nasa Supply Officer para sa stock check</div>'
   }
 
   document.getElementById('requestDetailFooter').innerHTML = footer
