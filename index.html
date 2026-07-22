@@ -1743,7 +1743,7 @@ async function deleteDocument(id){
 // ═══════════════════════════════════════════════
 // USER MANAGEMENT (admin-only) — Command Center
 // ═══════════════════════════════════════════════
-const UM = { users: [], filter: '', roleFilter: '', statusFilter: 'active' }
+const UM = { users: [], headMap: {}, filter: '', roleFilter: '', statusFilter: 'active' }
 
 const ROLE_OPTS = {
   csr: ['requester','dept_head','supply_officer','purchasing_officer','admin'],
@@ -1774,6 +1774,10 @@ async function renderUserMgmt(){
     .order('full_name')
   if(error){ content.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Error</h3><p>'+esc(error.message)+'</p></div>'; return }
   UM.users = data || []
+  // Map of user_id -> [dept_id,...] for multi-department heads
+  UM.headMap = {}
+  const{data:heads}=await SB.from('dept_heads').select('user_id,dept_id')
+  ;(heads||[]).forEach(h=>{ (UM.headMap[h.user_id] = UM.headMap[h.user_id] || []).push(h.dept_id) })
   drawUserMgmt()
 }
 
@@ -1823,7 +1827,13 @@ function drawUserMgmt(){
       html += '<tr>'
       html += '<td><div style="font-weight:600;">'+esc(u.full_name)+'</div>'+(u.employee_no?'<div style="font-size:11px;color:var(--txt3);">#'+esc(u.employee_no)+'</div>':'')+'</td>'
       html += '<td>'+(hasRealEmail?'<span style="font-size:12px;">'+esc(u.email)+'</span>':'<span style="font-size:11px;color:var(--txt3);">'+esc(u.employee_no||'—')+' (no email)</span>')+'</td>'
-      html += '<td style="font-size:12px;">'+(dept?esc(dept.dept_name):'—')+'</td>'
+      html += '<td style="font-size:12px;">'+(dept?esc(dept.dept_name):'—')
+      const heads = UM.headMap[u.id] || []
+      if(heads.length){
+        const hn = heads.map(id=>S.departments.find(d=>d.id===id)?.dept_name).filter(Boolean)
+        if(hn.length) html += '<div style="font-size:10px;color:var(--accent);margin-top:2px;">🏢 Head: '+esc(hn.join(', '))+'</div>'
+      }
+      html += '</td>'
       html += '<td><div style="display:flex;flex-wrap:wrap;gap:3px;max-width:280px;">'+(roleChips.join('')||'<span style="color:var(--txt3);font-size:11px;">no roles</span>')+'</div></td>'
       html += '<td>'+(u.is_active?'<span class="badge badge-active">Active</span>':'<span class="badge badge-closed">Inactive</span>')+'</td>'
       html += '<td style="white-space:nowrap;text-align:right;">'
@@ -1872,16 +1882,20 @@ function openUserForm(userId){
   html += '<div class="field-row">'+roleSelect('csr', u?.csr_role)+roleSelect('maintenance', u?.maintenance_role)+'</div>'
   html += '<div class="field-row">'+roleSelect('it', u?.it_role)+roleSelect('inventory', u?.inventory_role)+'</div>'
 
-  // Department Head assignment — shown only when CSR role = dept_head
+  // Department Head assignment — shown only when CSR role = dept_head (supports MULTIPLE depts)
   const isDeptHead = u?.csr_role === 'dept_head'
+  const headedIds = u ? (UM.headMap[u.id] || []) : []
   html += '<div id="deptHeadAssignWrap" style="margin-top:10px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:12px;'+(isDeptHead?'':'display:none;')+'">'
-  html += '<div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:8px;">👤 Department Head Assignment</div>'
-  html += '<div class="field"><label>Head of which Department?</label><select id="uf_head_of_dept"><option value="">— Not assigned as head —</option>'
+  html += '<div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;">👤 Department Head Assignment</div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-bottom:10px;">Piliin lahat ng department na hinehead niya. Makikita niya ang requests mula sa lahat ng napili.</div>'
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:190px;overflow-y:auto;">'
   S.departments.forEach(d=>{
-    const isCurrent = u && d.dept_head_id===u.id
-    html += '<option value="'+d.id+'"'+(isCurrent?' selected':'')+'>'+esc(d.dept_name)+(isCurrent?' (current)':'')+'</option>'
+    const chk = headedIds.includes(d.id) ? ' checked' : ''
+    html += '<label style="display:flex;align-items:center;gap:7px;font-size:12px;padding:5px 7px;border-radius:7px;cursor:pointer;background:var(--surf1);">'
+    html += '<input type="checkbox" class="uf_head_dept" value="'+d.id+'"'+chk+' style="cursor:pointer;">'
+    html += '<span>'+esc(d.dept_name)+'</span></label>'
   })
-  html += '</select><div style="font-size:11px;color:var(--txt3);margin-top:4px;">Ang user na ito ang magiging approver ng mga request mula sa napiling department.</div></div></div>'
+  html += '</div></div>'
 
   if(!editing){
     html += '<div class="field"><label>Initial Password *</label><input type="text" id="uf_pass" placeholder="At least 6 characters"></div>'
@@ -1934,15 +1948,18 @@ async function saveUser(userId){
   if(btn){ btn.disabled=true; btn.textContent='Saving...' }
   try{
     const result = await callUserFn(payload)
-    // Department Head assignment (only relevant when CSR role = dept_head)
+    // Department Head assignments (multi-dept) — only when CSR role = dept_head
     const targetUserId = editing ? userId : (result && result.user_id)
-    if(payload.csr_role === 'dept_head' && targetUserId){
-      const headOfDept = g('uf_head_of_dept')
-      // Clear this user from any dept they previously headed
-      await SB.from('departments').update({dept_head_id:null}).eq('dept_head_id',targetUserId)
-      // Assign as head of the selected dept (if one chosen)
-      if(headOfDept) await SB.from('departments').update({dept_head_id:targetUserId}).eq('id',headOfDept)
-      // Refresh departments cache
+    if(targetUserId){
+      const selected = payload.csr_role === 'dept_head'
+        ? Array.from(document.querySelectorAll('.uf_head_dept:checked')).map(c=>c.value)
+        : []   // role changed away from dept_head → clear all assignments
+      // Replace this user's assignments with the current selection
+      await SB.from('dept_heads').delete().eq('user_id', targetUserId)
+      if(selected.length){
+        await SB.from('dept_heads').insert(selected.map(d=>({user_id:targetUserId, dept_id:d})))
+      }
+      // Refresh departments cache (dept_head_id is kept in sync by a DB trigger)
       const{data:depts}=await SB.from('departments').select('*').order('dept_name')
       if(depts) S.departments = depts
     }
