@@ -2215,13 +2215,34 @@ async function convertToDerp(ticketId) {
     '</select></div>' +
     '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">FINDINGS / REASON *</label>' +
     '<textarea id="derp_findings" rows="3" placeholder="Ano ang nakita mo? (hal. burnt motherboard, walang available na parts, mas mahal ang repair kaysa bago)" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></textarea></div>' +
-    (t.asset_id ? '' : '<div style="font-size:11px;color:var(--amber,#f0c838);background:var(--surf2);padding:8px 10px;border-radius:8px;">⚠️ Walang naka-link na asset sa ticket na ito. Mas maganda kung i-link mo muna ang asset bago i-convert.</div>') +
+    (t.asset_id
+      ? '<div style="font-size:11px;color:var(--txt2);background:var(--surf2);padding:8px 10px;border-radius:8px;border:1px solid var(--bdr2);">🏷️ May naka-link na asset — awtomatikong kukunin ang brand, model, at presyo nito para sa replacement request.</div>'
+      : '<div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;">' +
+        '<div style="font-size:11px;font-weight:600;color:var(--accent);">📦 Ano ang kapalit?</div>' +
+        '<div style="font-size:11px;color:var(--txt3);">Walang naka-link na asset, kaya kailangan naming malaman kung ano ang ipapalit. Ang presyo ay hahanapin na ng sistema sa purchase history — hindi mo na kailangang hulaan.</div>' +
+        '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">EQUIPMENT / ITEM *</label>' +
+        '<input type="text" id="derp_item_name" placeholder="hal. Epson L3210 Printer" style="width:100%;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></div>' +
+        '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">SPECS / KAILANGAN</label>' +
+        '<input type="text" id="derp_item_spec" placeholder="hal. A4, may scanner, wired (opsyonal)" style="width:100%;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></div>' +
+        '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">DAMI</label>' +
+        '<input type="number" id="derp_item_qty" value="1" min="1" style="width:100px;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></div>' +
+        '</div>') +
     '</div>'
   document.getElementById('confirmOkBtn').textContent = '🚫 Create DERP'
   document.getElementById('confirmOkBtn').onclick = async () => {
     const condition = document.getElementById('derp_condition')?.value
     const findings = document.getElementById('derp_findings')?.value.trim()
     if (!findings) { showToast('error','Required','Please describe your findings.'); return }
+
+    // When no asset is linked, the technician tells us WHAT to replace.
+    // Price is deliberately NOT asked — the system derives it from purchase history.
+    const itemName = (document.getElementById('derp_item_name')?.value || '').trim()
+    const itemSpec = (document.getElementById('derp_item_spec')?.value || '').trim()
+    const itemQty  = parseFloat(document.getElementById('derp_item_qty')?.value || '1') || 1
+    if (!t.asset_id && !itemName) {
+      showToast('error','Required','Ano ang kapalit? Pakilagay ang equipment/item.')
+      return
+    }
 
     const btn = document.getElementById('confirmOkBtn')
     if (btn) { btn.disabled = true; btn.textContent = 'Creating...' }
@@ -2255,6 +2276,11 @@ async function convertToDerp(ticketId) {
       const derpDecision = isRepairable ? 'for_repair' : 'for_replacement'
       const purpose = 'DERP mula sa IT Ticket ' + ticketId + ' — ' + (t.subject || '')
       const notes = 'Findings ni ' + (S.user.full_name || 'IT staff') + ':\n' + findings
+      // Structured replacement spec for the auto-generated purchase request.
+      // Parsed by create_derp_replacement_item() when no asset is linked.
+      const itemSpecLine = itemName
+        ? ('REPLACEMENT_ITEM: ' + itemName + (itemSpec ? ' | SPEC: ' + itemSpec : '') + ' | QTY: ' + itemQty)
+        : null
       const { data: derp, error: derpErr } = await SB.from('requests').insert({
         request_no: requestNo,
         request_type: 'derp',
@@ -2273,7 +2299,7 @@ async function convertToDerp(ticketId) {
         derp_evaluation_date: new Date().toISOString(),
         derp_evaluation_notes: notes,
         derp_decision: derpDecision,
-        derp_recommendation: findings
+        derp_recommendation: itemSpecLine ? (findings + '\n' + itemSpecLine) : findings
       }).select().single()
       if (derpErr) throw derpErr
 
