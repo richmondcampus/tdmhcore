@@ -2520,9 +2520,11 @@ async function checkMaintSLAEscalation() {
         'error', 'maintenance', 'ticket', t.id,
         'https://tdmhcore.io/maintenance'
       )
-      await SB.from('sla_escalation_log').insert(
-        supervisors.map(u => ({ ticket_id:t.id, ticket_type:'maintenance', escalated_to:u.id, reason:'SLA resolution breached' }))
-      ).catch(() => {})
+      try {
+        await SB.from('sla_escalation_log').insert(
+          supervisors.map(u => ({ ticket_id:t.id, ticket_type:'maintenance', escalated_to:u.id, reason:'SLA resolution breached' }))
+        )
+      } catch (_) { /* non-critical */ }
     }
   }
 }
@@ -2908,7 +2910,9 @@ async function openNotifications() {
 async function sendNotification(userIds, title, body, type, sourceSystem, refType, refId, actionUrl) {
   if (!userIds || userIds.length === 0) return
   const inserts = userIds.map(uid => ({ user_id:uid, title, body:body||null, type:type||'info', source_system:sourceSystem||null, source_ref_type:refType||null, source_ref_id:refId||null, action_url:actionUrl||null }))
-  await SB.from('notifications').insert(inserts).catch(() => {})
+  try {
+    await SB.from('notifications').insert(inserts)
+  } catch (_) { /* non-critical */ }
 }
 
 // ═══════════════════════════════════
