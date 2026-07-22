@@ -1639,12 +1639,12 @@ async function viewTicket(ticketId) {
     footer += '<button class="btn btn-ghost btn-sm" onclick="openLinkAssetModal(\'' + t.id + '\')">🏷️ Link Asset</button>'
   }
 
-  // Retirement recommendation
-  if (isIT && t.asset_id && !t.retirement_recommended && !['resolved','closed'].includes(t.status)) {
-    footer += '<button class="btn btn-danger" onclick="recommendRetirement(\'' + t.id + '\',\'' + t.asset_id + '\')">⚠️ Recommend Retirement</button>'
+  // Convert to DERP — equipment beyond repair, hand off to CSR
+  if (isIT && !t.retirement_recommended && !['resolved','closed'].includes(t.status)) {
+    footer += '<button class="btn btn-danger" onclick="convertToDerp(\'' + t.id + '\')">🚫 Convert to DERP</button>'
   }
   if (t.retirement_recommended) {
-    footer += '<div style="font-size:11px;color:var(--red);padding:4px 8px;background:var(--red-a);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">⚠️ Retirement Recommended</div>'
+    footer += '<div style="font-size:11px;color:var(--red);padding:4px 8px;background:var(--red-a);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">🚫 Converted to DERP</div>'
   }
 
   if (isIT) {
@@ -2194,38 +2194,126 @@ async function confirmLinkAsset() {
 }
 
 // ─── Feature 9: IT → Asset Retirement ───
-async function recommendRetirement(ticketId, assetId) {
-  document.getElementById('confirmTitle').textContent = '⚠️ Recommend Asset Retirement'
+// ═══ CONVERT TICKET → DERP (CSR) ═══
+// Technician/IT staff found the equipment is beyond repair. This creates a real
+// DERP request in CSR, links it to this ticket, and closes the ticket.
+async function convertToDerp(ticketId) {
+  const t = S.tickets.find(x => x.id === ticketId)
+  if (!t) { showToast('error','Error','Ticket not found.'); return }
+
+  document.getElementById('confirmTitle').textContent = '🚫 Convert to DERP'
   document.getElementById('confirmMsg').innerHTML =
     '<div style="display:flex;flex-direction:column;gap:10px;">' +
-    '<p style="font-size:13px;color:var(--txt2);">This will flag the asset as "For Disposal" in Asset Inventory and notify the inventory team.</p>' +
-    '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">REASON *</label>' +
-    '<textarea id="retire_reason" rows="3" placeholder="Why should this asset be retired? (e.g., beyond economic repair, obsolete, safety hazard)" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></textarea></div>' +
+    '<p style="font-size:13px;color:var(--txt2);">Gagawa ito ng <strong>DERP request</strong> sa CSR para sa equipment na hindi na kayang ayusin. Isasara ang ticket na ito at ilalagay ang link sa DERP.</p>' +
+    '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">CONDITION *</label>' +
+    '<select id="derp_condition" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">' +
+    '<option value="beyond_repair">Beyond Repair — hindi na kayang ayusin</option>' +
+    '<option value="poor">Poor — sira na, mahal ang repair</option>' +
+    '<option value="obsolete">Obsolete — luma na, walang parts</option>' +
+    '<option value="end_of_life">End of Life — lampas na sa useful life</option>' +
+    '</select></div>' +
+    '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">FINDINGS / REASON *</label>' +
+    '<textarea id="derp_findings" rows="3" placeholder="Ano ang nakita mo? (hal. burnt motherboard, walang available na parts, mas mahal ang repair kaysa bago)" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></textarea></div>' +
+    (t.asset_id ? '' : '<div style="font-size:11px;color:var(--amber,#f0c838);background:var(--surf2);padding:8px 10px;border-radius:8px;">⚠️ Walang naka-link na asset sa ticket na ito. Mas maganda kung i-link mo muna ang asset bago i-convert.</div>') +
     '</div>'
-  document.getElementById('confirmOkBtn').textContent = '⚠️ Confirm Retirement'
+  document.getElementById('confirmOkBtn').textContent = '🚫 Create DERP'
   document.getElementById('confirmOkBtn').onclick = async () => {
-    const reason = document.getElementById('retire_reason')?.value.trim()
-    if (!reason) { showToast('error','Required','Please provide a reason.'); return }
-    await SB.from('it_tickets').update({
-      retirement_recommended: true,
-      retirement_reason: reason,
-      updated_at: new Date().toISOString()
-    }).eq('id', ticketId)
-    // Notify inventory staff
-    const { data: invStaff } = await SB.from('users')
-      .select('id').not('inventory_role','is',null).eq('is_active',true)
-    if (invStaff && invStaff.length > 0) {
-      await sendNotification(
-        invStaff.map(u => u.id),
-        '⚠️ Asset Retirement Recommended',
-        'IT ticket ' + ticketId + ' recommends retiring asset. Reason: ' + reason,
-        'action_required', 'it', 'it_ticket', ticketId,
-        'https://tdmhcore.io/inventory'
-      )
+    const condition = document.getElementById('derp_condition')?.value
+    const findings = document.getElementById('derp_findings')?.value.trim()
+    if (!findings) { showToast('error','Required','Please describe your findings.'); return }
+
+    const btn = document.getElementById('confirmOkBtn')
+    if (btn) { btn.disabled = true; btn.textContent = 'Creating...' }
+
+    try {
+      // 1) Request number
+      const { data: numData } = await SB.rpc('generate_request_no')
+      const requestNo = numData || ('CSR-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
+
+      // 2) Create the DERP request in CSR.
+      //    requested_by = original requester (their dept owns the equipment);
+      //    the technician who assessed it is recorded as the evaluator.
+      const purpose = 'DERP mula sa IT Ticket ' + ticketId + ' — ' + (t.subject || '')
+      const notes = 'Findings ni ' + (S.user.full_name || 'IT staff') + ':\n' + findings
+      const { data: derp, error: derpErr } = await SB.from('requests').insert({
+        request_no: requestNo,
+        request_type: 'derp',
+        derp_category: 'it',
+        dept_id: t.dept_id || null,
+        requested_by: t.requester_id || S.user.id,
+        urgency: (t.priority === 'critical' || t.priority === 'high') ? 'urgent' : 'routine',
+        purpose: purpose,
+        status: 'pending_evaluation',
+        source_system: 'it',
+        source_ref_id: null,
+        source_ref_text: ticketId,
+        asset_id: t.asset_id || null,
+        asset_condition: condition,
+        asset_condition_notes: notes,
+        derp_evaluator_id: S.user.id,
+        derp_evaluation_date: new Date().toISOString(),
+        derp_evaluation_notes: notes
+      }).select().single()
+      if (derpErr) throw derpErr
+
+      // 3) Close the ticket, keeping the link for traceability
+      await SB.from('it_tickets').update({
+        status: 'closed',
+        closed_at: new Date().toISOString(),
+        retirement_recommended: true,
+        retirement_reason: findings,
+        source_ref_id: derp.id,
+        updated_at: new Date().toISOString()
+      }).eq('id', ticketId)
+
+      // 4) Audit trail on the ticket thread
+      await SB.from('it_ticket_replies').insert({
+        ticket_id: ticketId,
+        author_id: S.user.id,
+        body: '🚫 Converted to DERP ' + requestNo + ' (' + condition.replace(/_/g,' ') + ').\n' + findings,
+        is_internal: false
+      }).catch(() => {})
+
+      // 5) Flag the asset for disposal
+      if (t.asset_id) {
+        await SB.from('assets').update({ status: 'for_disposal', condition: (condition === 'obsolete' || condition === 'end_of_life') ? 'poor' : condition, updated_at: new Date().toISOString() }).eq('id', t.asset_id).catch(() => {})
+        await SB.from('asset_history').insert({
+          asset_id: t.asset_id, action: 'derp_flagged',
+          to_value: 'for_disposal', performed_by: S.user.id,
+          reference_type: 'it_ticket', reference_id: ticketId,
+          notes: 'DERP ' + requestNo + ' — ' + findings
+        }).catch(() => {})
+      }
+
+      // 6) Notify: original requester + every head of that department
+      const notifyIds = new Set()
+      if (t.requester_id) notifyIds.add(t.requester_id)
+      if (t.dept_id) {
+        const { data: heads } = await SB.from('dept_heads').select('user_id').eq('dept_id', t.dept_id)
+        ;(heads || []).forEach(h => notifyIds.add(h.user_id))
+        if (!heads || heads.length === 0) {
+          const { data: dept } = await SB.from('departments').select('dept_head_id').eq('id', t.dept_id).maybeSingle()
+          if (dept?.dept_head_id) notifyIds.add(dept.dept_head_id)
+        }
+      }
+      notifyIds.delete(S.user.id)
+      if (notifyIds.size) {
+        await sendNotification(
+          Array.from(notifyIds),
+          '🚫 Equipment for DERP — ' + requestNo,
+          'Ang IT ticket ' + ticketId + ' ay na-convert sa DERP. Kondisyon: ' + condition.replace(/_/g,' ') + '. ' + findings,
+          'action_required', 'it', 'derp_request', derp.id,
+          'https://tdmhcore.io/csr'
+        )
+      }
+
+      closeModal('confirmModal')
+      showToast('success','DERP Created ✅', requestNo + ' — nagawa ang DERP request. Nasara na ang ticket.')
+      loadTickets().then(() => viewTicket(ticketId)).catch(() => {})
+    } catch (e) {
+      showToast('error','Error', e.message || 'Hindi nagawa ang DERP.')
+      if (btn) { btn.disabled = false; btn.textContent = '🚫 Create DERP' }
     }
-    closeModal('confirmModal')
-    showToast('success','Retirement Flagged','Asset flagged for disposal. Inventory team notified.')
-    viewTicket(ticketId)
   }
   openModal('confirmModal')
 }
