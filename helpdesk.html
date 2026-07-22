@@ -2267,22 +2267,30 @@ async function convertToDerp(ticketId) {
       }).eq('id', ticketId)
 
       // 4) Audit trail on the ticket thread
-      await SB.from('it_ticket_replies').insert({
-        ticket_id: ticketId,
-        author_id: S.user.id,
-        body: '🚫 Converted to DERP ' + requestNo + ' (' + condition.replace(/_/g,' ') + ').\n' + findings,
-        is_internal: false
-      }).catch(() => {})
+      try {
+        await SB.from('it_ticket_replies').insert({
+          ticket_id: ticketId,
+          author_id: S.user.id,
+          body: '🚫 Converted to DERP ' + requestNo + ' (' + condition.replace(/_/g,' ') + ').\n' + findings,
+          is_internal: false
+        })
+      } catch (_) { /* non-critical */ }
 
       // 5) Flag the asset for disposal
       if (t.asset_id) {
-        await SB.from('assets').update({ status: 'for_disposal', condition: (condition === 'obsolete' || condition === 'end_of_life') ? 'poor' : condition, updated_at: new Date().toISOString() }).eq('id', t.asset_id).catch(() => {})
-        await SB.from('asset_history').insert({
-          asset_id: t.asset_id, action: 'derp_flagged',
-          to_value: 'for_disposal', performed_by: S.user.id,
-          reference_type: 'it_ticket', reference_id: ticketId,
-          notes: 'DERP ' + requestNo + ' — ' + findings
-        }).catch(() => {})
+        try {
+          await SB.from('assets').update({
+            status: 'for_disposal',
+            condition: (condition === 'obsolete' || condition === 'end_of_life') ? 'poor' : condition,
+            updated_at: new Date().toISOString()
+          }).eq('id', t.asset_id)
+          await SB.from('asset_history').insert({
+            asset_id: t.asset_id, action: 'derp_flagged',
+            to_value: 'for_disposal', performed_by: S.user.id,
+            reference_type: 'it_ticket', reference_id: ticketId,
+            notes: 'DERP ' + requestNo + ' — ' + findings
+          })
+        } catch (_) { /* non-critical */ }
       }
 
       // 6) Notify: original requester + every head of that department
@@ -2309,7 +2317,7 @@ async function convertToDerp(ticketId) {
 
       closeModal('confirmModal')
       showToast('success','DERP Created ✅', requestNo + ' — nagawa ang DERP request. Nasara na ang ticket.')
-      loadTickets().then(() => viewTicket(ticketId)).catch(() => {})
+      try { await loadTickets(); viewTicket(ticketId) } catch (_) {}
     } catch (e) {
       showToast('error','Error', e.message || 'Hindi nagawa ang DERP.')
       if (btn) { btn.disabled = false; btn.textContent = '🚫 Create DERP' }
@@ -2674,7 +2682,9 @@ async function openNotifications() {
 async function sendNotification(userIds, title, body, type, sourceSystem, refType, refId, actionUrl) {
   if (!userIds || userIds.length === 0) return
   const inserts = userIds.map(uid => ({ user_id:uid, title, body:body||null, type:type||'info', source_system:sourceSystem||null, source_ref_type:refType||null, source_ref_id:refId||null, action_url:actionUrl||null }))
-  await SB.from('notifications').insert(inserts).catch(() => {})
+  try {
+    await SB.from('notifications').insert(inserts)
+  } catch (_) { /* non-critical */ }
 }
 async function openPortal() {
   const u = window.S?.user || window.state?.user
