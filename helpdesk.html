@@ -1640,10 +1640,11 @@ async function viewTicket(ticketId) {
   }
 
   // Convert to DERP — equipment beyond repair, hand off to CSR
-  if (isIT && !t.retirement_recommended && !['resolved','closed'].includes(t.status)) {
+  const hasDerp = !!t.source_ref_id || t.retirement_recommended
+  if (isIT && !hasDerp && !['resolved','closed'].includes(t.status)) {
     footer += '<button class="btn btn-danger" onclick="convertToDerp(\'' + t.id + '\')">🚫 Convert to DERP</button>'
   }
-  if (t.retirement_recommended) {
+  if (hasDerp) {
     footer += '<div style="font-size:11px;color:var(--red);padding:4px 8px;background:var(--red-a);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">🚫 Converted to DERP</div>'
   }
 
@@ -2226,6 +2227,18 @@ async function convertToDerp(ticketId) {
     if (btn) { btn.disabled = true; btn.textContent = 'Creating...' }
 
     try {
+      // GUARD: don't create a second DERP for the same ticket
+      const { data: existing } = await SB.from('requests')
+        .select('request_no')
+        .eq('request_type','derp')
+        .eq('source_ref_text', ticketId)
+        .limit(1)
+      if (existing && existing.length) {
+        showToast('error','May DERP na', 'Ang ticket na ito ay may DERP na: ' + existing[0].request_no)
+        closeModal('confirmModal')
+        return
+      }
+
       // 1) Request number
       const { data: numData } = await SB.rpc('generate_request_no')
       const requestNo = numData || ('CSR-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
@@ -2245,7 +2258,6 @@ async function convertToDerp(ticketId) {
         purpose: purpose,
         status: 'pending_evaluation',
         source_system: 'it',
-        source_ref_id: null,
         source_ref_text: ticketId,
         asset_id: t.asset_id || null,
         asset_condition: condition,
@@ -2256,15 +2268,22 @@ async function convertToDerp(ticketId) {
       }).select().single()
       if (derpErr) throw derpErr
 
-      // 3) Close the ticket, keeping the link for traceability
-      await SB.from('it_tickets').update({
+      // 3) Close the ticket and link it to the DERP.
+      //    NOTE: we deliberately do NOT set retirement_recommended here — that column
+      //    fires fn_it_ticket_to_csr, which auto-creates a PURCHASE request. The
+      //    replacement decision belongs to the DERP evaluation, not to this step.
+      let ticketClosed = true
+      let ticketErrMsg = ''
+      const { data: updRows, error: updErr } = await SB.from('it_tickets').update({
         status: 'closed',
         closed_at: new Date().toISOString(),
-        retirement_recommended: true,
-        retirement_reason: findings,
         source_ref_id: derp.id,
         updated_at: new Date().toISOString()
-      }).eq('id', ticketId)
+      }).eq('id', ticketId).select()
+      if (updErr || !updRows || updRows.length === 0) {
+        ticketClosed = false
+        ticketErrMsg = updErr ? updErr.message : 'walang na-update na row (baka may bukas na parts request)'
+      }
 
       // 4) Audit trail on the ticket thread
       try {
@@ -2294,29 +2313,35 @@ async function convertToDerp(ticketId) {
       }
 
       // 6) Notify: original requester + every head of that department
-      const notifyIds = new Set()
-      if (t.requester_id) notifyIds.add(t.requester_id)
-      if (t.dept_id) {
-        const { data: heads } = await SB.from('dept_heads').select('user_id').eq('dept_id', t.dept_id)
-        ;(heads || []).forEach(h => notifyIds.add(h.user_id))
-        if (!heads || heads.length === 0) {
-          const { data: dept } = await SB.from('departments').select('dept_head_id').eq('id', t.dept_id).maybeSingle()
-          if (dept?.dept_head_id) notifyIds.add(dept.dept_head_id)
+      try {
+        const notifyIds = new Set()
+        if (t.requester_id) notifyIds.add(t.requester_id)
+        if (t.dept_id) {
+          const { data: heads } = await SB.from('dept_heads').select('user_id').eq('dept_id', t.dept_id)
+          ;(heads || []).forEach(h => notifyIds.add(h.user_id))
+          if (!heads || heads.length === 0) {
+            const { data: dept } = await SB.from('departments').select('dept_head_id').eq('id', t.dept_id).maybeSingle()
+            if (dept?.dept_head_id) notifyIds.add(dept.dept_head_id)
+          }
         }
-      }
-      notifyIds.delete(S.user.id)
-      if (notifyIds.size) {
-        await sendNotification(
-          Array.from(notifyIds),
-          '🚫 Equipment for DERP — ' + requestNo,
-          'Ang IT ticket ' + ticketId + ' ay na-convert sa DERP. Kondisyon: ' + condition.replace(/_/g,' ') + '. ' + findings,
-          'action_required', 'it', 'derp_request', derp.id,
-          'https://tdmhcore.io/csr'
-        )
-      }
+        notifyIds.delete(S.user.id)
+        if (notifyIds.size) {
+          await sendNotification(
+            Array.from(notifyIds),
+            '🚫 Equipment for DERP — ' + requestNo,
+            'Ang IT ticket ' + ticketId + ' ay na-convert sa DERP. Kondisyon: ' + condition.replace(/_/g,' ') + '. ' + findings,
+            'action_required', 'it', 'derp_request', derp.id,
+            'https://tdmhcore.io/csr'
+          )
+        }
+      } catch (_) { /* non-critical */ }
 
       closeModal('confirmModal')
-      showToast('success','DERP Created ✅', requestNo + ' — nagawa ang DERP request. Nasara na ang ticket.')
+      if (ticketClosed) {
+        showToast('success','DERP Created ✅', requestNo + ' — nagawa ang DERP request. Nasara na ang ticket.')
+      } else {
+        showToast('warning','DERP Created ⚠️', requestNo + ' — nagawa ang DERP, pero HINDI nagsara ang ticket: ' + ticketErrMsg + '. I-close mo nang manual.')
+      }
       try { await loadTickets(); viewTicket(ticketId) } catch (_) {}
     } catch (e) {
       showToast('error','Error', e.message || 'Hindi nagawa ang DERP.')
