@@ -483,7 +483,8 @@ function handleAuthLost() {
 
 let S = {
   user: null, page: 'dashboard',
-  tickets: [], categories: [], users: [], departments: []
+  tickets: [], categories: [], users: [], departments: [],
+  derpByTicket: {}
 }
 
 // ═══ AUTH ═══
@@ -566,7 +567,7 @@ async function bootApp(session) {
   document.getElementById('userAvatar').textContent = initials
   document.getElementById('userName').textContent = session.full_name
   document.getElementById('userRoleLabel').textContent = formatItRole(session.it_role)
-  await Promise.all([loadCategories(), loadDepartments(), loadUsers()])
+  await Promise.all([loadCategories(), loadDepartments(), loadUsers(), loadDerpLinks()])
   renderSidebarNav()
   subscribeTickets()
   showPage('dashboard')
@@ -599,6 +600,20 @@ async function loadTickets(filter = {}) {
   if (filter.open) q = q.not('status', 'in', '("resolved","closed")')
   const { data } = await q
   return data || []
+}
+
+// Which tickets already have a DERP? Sourced from the DERP requests themselves,
+// not from a ticket column — if closing the ticket ever fails, the guard still holds.
+async function loadDerpLinks() {
+  try {
+    const { data } = await SB.from('requests')
+      .select('request_no, source_ref_text, status')
+      .eq('request_type','derp')
+      .eq('source_system','it')
+      .not('source_ref_text','is',null)
+    S.derpByTicket = {}
+    ;(data || []).forEach(r => { if (r.source_ref_text) S.derpByTicket[r.source_ref_text] = r })
+  } catch (_) { S.derpByTicket = S.derpByTicket || {} }
 }
 
 function subscribeTickets() {
@@ -1640,12 +1655,14 @@ async function viewTicket(ticketId) {
   }
 
   // Convert to DERP — equipment beyond repair, hand off to CSR
-  const hasDerp = !!t.source_ref_id || t.retirement_recommended
+  const derpLink = (S.derpByTicket || {})[t.id]
+  const hasDerp = !!derpLink || !!t.source_ref_id || t.retirement_recommended
   if (isIT && !hasDerp && !['resolved','closed'].includes(t.status)) {
     footer += '<button class="btn btn-danger" onclick="convertToDerp(\'' + t.id + '\')">🚫 Convert to DERP</button>'
   }
   if (hasDerp) {
-    footer += '<div style="font-size:11px;color:var(--red);padding:4px 8px;background:var(--red-a);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">🚫 Converted to DERP</div>'
+    footer += '<div style="font-size:11px;color:var(--red);padding:4px 8px;background:var(--red-a);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">🚫 Converted to DERP'
+      + (derpLink ? ' — ' + derpLink.request_no : '') + '</div>'
   }
 
   if (isIT) {
@@ -2377,7 +2394,7 @@ async function convertToDerp(ticketId) {
       } else {
         showToast('warning','DERP Created ⚠️', requestNo + ' — nagawa ang DERP, pero HINDI nagsara ang ticket: ' + ticketErrMsg + '. I-close mo nang manual.')
       }
-      try { await loadTickets(); viewTicket(ticketId) } catch (_) {}
+      try { await loadDerpLinks(); await loadTickets(); viewTicket(ticketId) } catch (_) {}
     } catch (e) {
       showToast('error','Error', e.message || 'Hindi nagawa ang DERP.')
       if (btn) { btn.disabled = false; btn.textContent = '🚫 Create DERP' }
