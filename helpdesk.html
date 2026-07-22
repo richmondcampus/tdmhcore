@@ -2244,8 +2244,15 @@ async function convertToDerp(ticketId) {
       const requestNo = numData || ('CSR-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
 
       // 2) Create the DERP request in CSR.
-      //    requested_by = original requester (their dept owns the equipment);
-      //    the technician who assessed it is recorded as the evaluator.
+      //    The IT technician has ALREADY assessed the equipment, so this DERP arrives
+      //    pre-evaluated: their findings are the evaluation, and the condition they
+      //    chose sets the decision. It goes straight into the CSR decision stage —
+      //    no second evaluation by someone who never saw the unit.
+      //      poor            → still repairable  → for_repair
+      //      beyond_repair / obsolete / end_of_life → for_replacement
+      const isRepairable = (condition === 'poor')
+      const derpStatus = isRepairable ? 'for_repair' : 'for_replacement'
+      const derpDecision = isRepairable ? 'for_repair' : 'for_replacement'
       const purpose = 'DERP mula sa IT Ticket ' + ticketId + ' — ' + (t.subject || '')
       const notes = 'Findings ni ' + (S.user.full_name || 'IT staff') + ':\n' + findings
       const { data: derp, error: derpErr } = await SB.from('requests').insert({
@@ -2256,7 +2263,7 @@ async function convertToDerp(ticketId) {
         requested_by: t.requester_id || S.user.id,
         urgency: (t.priority === 'critical' || t.priority === 'high') ? 'urgent' : 'routine',
         purpose: purpose,
-        status: 'pending_evaluation',
+        status: derpStatus,
         source_system: 'it',
         source_ref_text: ticketId,
         asset_id: t.asset_id || null,
@@ -2264,7 +2271,9 @@ async function convertToDerp(ticketId) {
         asset_condition_notes: notes,
         derp_evaluator_id: S.user.id,
         derp_evaluation_date: new Date().toISOString(),
-        derp_evaluation_notes: notes
+        derp_evaluation_notes: notes,
+        derp_decision: derpDecision,
+        derp_recommendation: findings
       }).select().single()
       if (derpErr) throw derpErr
 
