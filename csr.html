@@ -800,6 +800,7 @@ let state = {
   page: 'dashboard',
   requests: [],
   departments: [],
+  myHeadedDeptIds: [],
   users: [],
   notifications: [],
   stats: {},
@@ -959,7 +960,7 @@ async function bootApp(session) {
   // Build sidebar nav
   renderSidebarNav()
   // Load base data
-  await Promise.all([loadDepartments(), loadUsers()])
+  await Promise.all([loadDepartments(), loadUsers(), loadMyHeadedDepts()])
   // Subscribe realtime
   subscribeNotifications()
   // Show page
@@ -1186,6 +1187,21 @@ async function loadDepartments() {
   } catch(e) { console.error('loadDepartments', e) }
 }
 
+// Departments this user is head of (supports multiple depts per head)
+async function loadMyHeadedDepts() {
+  try {
+    if (!state.user?.id) { state.myHeadedDeptIds = []; return }
+    const { data } = await SB.from('dept_heads').select('dept_id').eq('user_id', state.user.id)
+    let ids = (data || []).map(r => r.dept_id)
+    // Fallback: if no rows yet, fall back to their own dept (legacy behavior)
+    if (ids.length === 0 && state.user.dept_id) ids = [state.user.dept_id]
+    state.myHeadedDeptIds = ids
+  } catch(e) {
+    console.error('loadMyHeadedDepts', e)
+    state.myHeadedDeptIds = state.user?.dept_id ? [state.user.dept_id] : []
+  }
+}
+
 async function loadUsers() {
   try {
     const { data } = await SB.from('users').select('id,full_name,dept_id,csr_role,maintenance_role,it_role,phone,email').eq('is_active', true)
@@ -1204,6 +1220,16 @@ async function loadRequests(filters = {}) {
     if (error) throw error
     return data || []
   } catch(e) { console.error('loadRequests', e); return [] }
+}
+
+async function loadRequestsByDepts(deptIds) {
+  try {
+    if (!deptIds || !deptIds.length) return []
+    const { data, error } = await SB.from('requests').select('*')
+      .in('dept_id', deptIds).order('created_at', { ascending: false })
+    if (error) throw error
+    return data || []
+  } catch(e) { console.error('loadRequestsByDepts', e); return [] }
 }
 
 async function loadRequestItems(requestId) {
@@ -1570,10 +1596,15 @@ async function renderMyRequests() {
     title = '🗂 All Requests'
     subtitle = 'Complete view of all requests across all departments'
   } else if (role === 'dept_head') {
-    requests = await loadRequests({ dept_id: state.user.dept_id })
-    const dept = state.departments.find(d => d.id === state.user.dept_id)
-    title = '🏢 ' + (dept?.dept_name || 'Department') + ' Requests'
-    subtitle = 'All requests filed by your department — for monitoring and control'
+    const myDepts = (state.myHeadedDeptIds && state.myHeadedDeptIds.length)
+      ? state.myHeadedDeptIds
+      : (state.user.dept_id ? [state.user.dept_id] : [])
+    requests = await loadRequestsByDepts(myDepts)
+    const names = myDepts.map(id => state.departments.find(d => d.id === id)?.dept_name).filter(Boolean)
+    title = '🏢 ' + (names.length === 1 ? names[0] + ' Requests' : 'Department Requests')
+    subtitle = names.length > 1
+      ? 'Requests from: ' + names.join(', ')
+      : 'All requests filed by your department — for monitoring and control'
   } else {
     // requester, purchasing_officer — sarili lang makikita
     requests = await loadRequests({ requested_by: state.user.id })
@@ -1699,10 +1730,13 @@ async function renderApprovalQueue() {
 
   let myQueue
   if (role === 'dept_head') {
-    // Dept head: only their dept's requests at Level 1 (excluding their own)
+    // Dept head: Level 1 requests from ALL departments they head (excluding their own requests)
+    const myDepts = (state.myHeadedDeptIds && state.myHeadedDeptIds.length)
+      ? state.myHeadedDeptIds
+      : (state.user.dept_id ? [state.user.dept_id] : [])
     myQueue = pendingRequests.filter(r =>
       r.current_approval_level === 1 &&
-      r.dept_id === state.user.dept_id &&
+      myDepts.includes(r.dept_id) &&
       r.requested_by !== state.user.id &&
       r.request_type !== 'derp'
     )
@@ -1738,6 +1772,18 @@ async function renderApprovalQueue() {
     html += '<span style="background:var(--red-a);color:var(--red);padding:2px 8px;border-radius:8px;font-size:12px;font-weight:700;">' + myQueue.length + ' action(s) needed</span>'
   }
   html += '</p></div></div>'
+
+  // Multi-department heads: show which departments this queue covers
+  if (role === 'dept_head' && (state.myHeadedDeptIds||[]).length > 1) {
+    const covered = state.myHeadedDeptIds
+      .map(id => state.departments.find(d => d.id === id)?.dept_name)
+      .filter(Boolean)
+    if (covered.length) {
+      html += '<div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--txt2);">'
+      html += '🏢 Approver ka para sa: <strong style="color:var(--txt);">' + covered.join(', ') + '</strong>'
+      html += '</div>'
+    }
+  }
 
   // Approval flow indicator — show user's position
   if (role !== 'admin') {
@@ -2736,15 +2782,16 @@ async function saveRequest(action) {
         payload.status = 'approved'
         payload.current_approval_level = 99
       } else {
-        // If requester IS the dept head — skip Level 1, go straight to Supply Officer
+        // If requester IS the dept head (or OIC) of the target dept — skip Level 1
         const { data: deptInfo } = await SB.from('departments')
           .select('dept_head_id, dept_oic_id')
           .eq('id', payload.dept_id)
           .maybeSingle()
-        const isOwnDeptHead = deptInfo && (
+        const headsThisDept = (state.myHeadedDeptIds || []).includes(payload.dept_id)
+        const isOwnDeptHead = headsThisDept || (deptInfo && (
           deptInfo.dept_head_id === state.user.id ||
           deptInfo.dept_oic_id === state.user.id
-        )
+        ))
         if (isOwnDeptHead) {
           payload.current_approval_level = 2 // skip to Supply Officer
         }
@@ -4993,11 +5040,14 @@ async function renderIssuance() {
       .order('created_at', { ascending: false })
   ])
 
-  // For dept head — filter issuances by their dept's requests
+  // For dept head — filter issuances by requests from ALL departments they head
   let allIssuances = issRes.data || []
-  if (isDeptHead && state.user.dept_id) {
+  const issMyDepts = (state.myHeadedDeptIds && state.myHeadedDeptIds.length)
+    ? state.myHeadedDeptIds
+    : (state.user.dept_id ? [state.user.dept_id] : [])
+  if (isDeptHead && issMyDepts.length) {
     const deptRequestIds = state.requests
-      ?.filter(r => r.dept_id === state.user.dept_id)
+      ?.filter(r => issMyDepts.includes(r.dept_id))
       .map(r => r.id) || []
     allIssuances = allIssuances.filter(i => deptRequestIds.includes(i.request_id))
   }
@@ -6722,8 +6772,14 @@ async function renderDerp() {
     .select('*').eq('request_type', 'derp').order('created_at', { ascending: false })
   const deptScopedRoles = ['requester', 'dept_head']
   if (deptScopedRoles.includes(role)) {
-    if (state.user.dept_id) {
-      derpQuery = derpQuery.eq('dept_id', state.user.dept_id)
+    // Dept heads see DERPs from every department they head; requesters stay on their own dept
+    const derpDepts = (role === 'dept_head' && state.myHeadedDeptIds && state.myHeadedDeptIds.length)
+      ? state.myHeadedDeptIds
+      : (state.user.dept_id ? [state.user.dept_id] : [])
+    if (derpDepts.length > 1) {
+      derpQuery = derpQuery.in('dept_id', derpDepts)
+    } else if (derpDepts.length === 1) {
+      derpQuery = derpQuery.eq('dept_id', derpDepts[0])
     } else {
       // No department assigned → show only own requests as a safe fallback
       derpQuery = derpQuery.eq('requested_by', state.user.id)
