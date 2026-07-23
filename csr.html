@@ -2451,6 +2451,7 @@ async function directIssueFromStock() {
     if (iss) sendIssuanceEmail(iss, req, items)
 
     // Deduct from stock + create issuance items
+    const shortItems = []
     for (const item of items) {
       const { data: stockItems } = await SB.from('stock_items')
         .select('id,quantity_on_hand,unit')
@@ -2460,22 +2461,32 @@ async function directIssueFromStock() {
         .limit(1)
 
       const stockItem = stockItems?.[0]
+      const wantQty = Number(item.quantity) || 1
+
+      // Only issue from stock when there is genuinely enough on hand.
+      // A partial match would otherwise be recorded as fully issued.
+      const enoughStock = stockItem && Number(stockItem.quantity_on_hand) >= wantQty
+      if (stockItem && !enoughStock) {
+        shortItems.push(item.item_name + ' (meron: ' + stockItem.quantity_on_hand + ', kailangan: ' + wantQty + ')')
+        continue
+      }
 
       await SB.from('issuance_items').insert({
         issuance_id: iss.id,
-        quantity_issued: Number(item.quantity) || 1,
+        quantity_issued: wantQty,
         from_stock: !!stockItem,
         stock_item_id: stockItem?.id || null
       })
 
       if (stockItem) {
-        const newQty = Math.max(0, Number(stockItem.quantity_on_hand) - (Number(item.quantity) || 1))
+        const before = Number(stockItem.quantity_on_hand)
+        const newQty = before - wantQty
         await SB.from('stock_items').update({ quantity_on_hand: newQty, last_updated: new Date().toISOString() }).eq('id', stockItem.id)
         await SB.from('stock_movements').insert({
           stock_item_id: stockItem.id,
           movement_type: 'issue',
-          quantity: -(Number(item.quantity) || 1),
-          quantity_before: Number(stockItem.quantity_on_hand),
+          quantity: -wantQty,
+          quantity_before: before,
           quantity_after: newQty,
           performed_by: state.user.id,
           remarks: 'Direct issuance — ' + requestNo,
@@ -2495,7 +2506,11 @@ async function directIssueFromStock() {
     }
 
     closeModal('newRequestModal')
-    showToast('success','⚡ Issued Directly!', requestNo + ' — ' + issNo + ' generated. Stock deducted. SMS sent for confirmation.')
+    if (shortItems.length) {
+      showToast('warning','⚠️ May Kulang na Stock', requestNo + ' — ' + issNo + ' generated, pero HINDI naisyu: ' + shortItems.join(', ') + '. Kailangan ng purchase request para dito.')
+    } else {
+      showToast('success','⚡ Issued Directly!', requestNo + ' — ' + issNo + ' generated. Stock deducted. SMS sent for confirmation.')
+    }
     if (state.page === 'dashboard') renderDashboard()
     else showPage('all_requests')
 
@@ -5384,6 +5399,33 @@ async function saveIssuance() {
 
   if (issItems.length === 0) { showToast('error','Validation','Please add items to issue.'); return }
 
+  // Stock check BEFORE anything is written. Issuing more than what's on hand used to
+  // clamp the balance to 0 and quietly lose the difference, so this stops here instead.
+  const stockLines = issItems.filter(i => i.from_stock && i.stock_item_id)
+  if (stockLines.length) {
+    const ids = [...new Set(stockLines.map(i => i.stock_item_id))]
+    const { data: stockRows } = await SB.from('stock_items')
+      .select('id,item_name,quantity_on_hand,unit').in('id', ids)
+    const byId = {}
+    ;(stockRows || []).forEach(s => { byId[s.id] = s })
+    // Sum per item, in case the same stock item appears on several lines
+    const wanted = {}
+    stockLines.forEach(i => { wanted[i.stock_item_id] = (wanted[i.stock_item_id] || 0) + Number(i.quantity_issued) })
+    const short = []
+    Object.entries(wanted).forEach(([sid, qty]) => {
+      const s = byId[sid]
+      if (!s) { short.push('Hindi mahanap ang stock item'); return }
+      const onHand = Number(s.quantity_on_hand)
+      if (qty > onHand) {
+        short.push(s.item_name + ': meron lang ' + onHand + ' ' + (s.unit || 'pcs') + ', hinihingi ay ' + qty)
+      }
+    })
+    if (short.length) {
+      showToast('error','Kulang ang Stock', short.join(' • ') + '. I-adjust ang dami, o gawing purchase request para sa kulang.')
+      return
+    }
+  }
+
   try {
     const { data: numData } = await SB.rpc('generate_issuance_no')
     const issuanceNo = numData || ('ISS-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
@@ -5422,13 +5464,19 @@ async function saveIssuance() {
       if (item.stock_item_id && item.from_stock) {
         const { data: si } = await SB.from('stock_items').select('quantity_on_hand').eq('id', item.stock_item_id).single()
         if (si) {
-          const newQty = Math.max(0, Number(si.quantity_on_hand) - item.quantity_issued)
+          const before = Number(si.quantity_on_hand)
+          const newQty = before - item.quantity_issued
+          if (newQty < 0) {
+            // Should be unreachable — the pre-check and DB guard both cover this.
+            // Surface it rather than clamping to 0 and losing the difference.
+            throw new Error('Kulang ang stock habang nag-iisyu (meron: ' + before + ', hinihingi: ' + item.quantity_issued + '). Na-cancel ang issuance.')
+          }
           await SB.from('stock_items').update({ quantity_on_hand: newQty, last_updated: new Date().toISOString() }).eq('id', item.stock_item_id)
           await SB.from('stock_movements').insert({
             stock_item_id: item.stock_item_id,
             movement_type: 'issue',
             quantity: -item.quantity_issued,
-            quantity_before: Number(si.quantity_on_hand),
+            quantity_before: before,
             quantity_after: newQty,
             performed_by: state.user.id,
             remarks: 'Issued — ' + issuanceNo,
