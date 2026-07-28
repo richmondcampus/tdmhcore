@@ -609,7 +609,17 @@ async function loadEmployees(){
 let publicItems=[];
 let publicBidMap={};
 
+async function checkAndCloseExpired(){
+  // Public-side silent check — just closes expired items, no winner declaration (admin only)
+  const now=new Date().toISOString();
+  await sb.from('items').update({status:'closed'})
+    .eq('status','active')
+    .lt('bid_close_at',now)
+    .not('bid_close_at','is',null);
+}
+
 async function loadPublicItems(){
+  await checkAndCloseExpired();
   const{data:items,error}=await sb.from('items').select('*').eq('status','active').order('created_at',{ascending:false});
   const pill=document.getElementById('status-pill');
   if(error){pill.classList.add('error');pill.title='Connection error';document.getElementById('items-container').innerHTML='<div class="empty-state"><div class="empty-title">Failed to load items</div></div>';return;}
@@ -722,7 +732,10 @@ function closeLightbox(){document.getElementById('lightbox').classList.add('hidd
 function lbNav(d){lbIdx=(lbIdx+d+lbImages.length)%lbImages.length;document.getElementById('lb-img').src=lbImages[lbIdx];document.getElementById('lb-counter').textContent=(lbIdx+1)+' / '+lbImages.length;}
 
 // ---- ADMIN ----
-async function loadAdminData(){await Promise.all([loadAdminItems(),loadAdminBids(),loadAdminEmployees(),loadAdminCategories()]);}
+async function loadAdminData(){
+  await autoCloseExpiredItems();
+  await Promise.all([loadAdminItems(),loadAdminBids(),loadAdminEmployees(),loadAdminCategories()]);
+}
 
 async function loadAdminItems(){
   const{data}=await sb.from('items').select('*').order('created_at',{ascending:false});
@@ -743,7 +756,7 @@ async function loadAdminItems(){
     <td style="font-size:12px">${fmtDate(item.bid_close_at)}</td>
     <td><div class="action-btns">
       <button class="btn-sm gold" onclick="editItem('${item.id}')">Edit</button>
-      ${item.status==='closed'?`<button class="btn-sm" onclick="declareWinner('${item.id}')">Winner</button>`:''}
+      ${item.status!=='draft'?`<button class="btn-sm gold" onclick="declareWinner('${item.id}')">Winner</button>`:''}
       <button class="btn-sm danger" onclick="deleteItem('${item.id}')">Delete</button>
     </div></td>
   </tr>`).join('');
@@ -885,20 +898,29 @@ async function deleteItem(id){if(!confirm('Delete this item and all its bids?'))
 async function deleteBid(id){if(!confirm('Delete this bid?'))return;await sb.from('bids').delete().eq('id',id);toast('Bid deleted');loadAdminBids();}
 
 async function declareWinner(itemId){
-  const{data:bids}=await sb.from('bids').select('*').eq('item_id',itemId).eq('is_valid',true).order('amount',{ascending:false}).limit(1);
-  if(!bids||!bids.length){toast('No valid bids for this item.',true);return;}
+  const{data:bids}=await sb.from('bids')
+    .select('*')
+    .eq('item_id',itemId)
+    .eq('is_valid',true)
+    .eq('backed_out',false)
+    .order('amount',{ascending:false})
+    .limit(1);
+  if(!bids||!bids.length){toast('No valid bids for this item yet.',true);return;}
   const top=bids[0];
   const winnerName=employeeMap[top.employee_number_input.toString().trim()]||'';
-  if(!confirm(`Declare winner?\n\nEmployee No: ${top.employee_number_input}${winnerName?'\nName: '+winnerName:''}\nBid Amount: ${peso(top.amount)}\n\nThis will close the bidding.`))return;
-  await sb.from('items').update({winner_bid_id:top.id,status:'closed'}).eq('id',itemId);
-  toast(`✓ Winner declared — Employee ${top.employee_number_input}: ${peso(top.amount)}`);loadAdminItems();
+  if(!confirm(`Declare winner?\n\nEmployee No: ${top.employee_number_input}${winnerName?'\nName: '+winnerName:''}\nBid Amount: ${peso(top.amount)}\n\nThe item will be marked as Closed.`))return;
+  const{error}=await sb.from('items').update({winner_bid_id:top.id,status:'closed'}).eq('id',itemId);
+  if(error){toast('Error: '+error.message,true);return;}
+  toast(`✓ Winner declared — ${winnerName||top.employee_number_input}: ${peso(top.amount)}`);
+  loadAdminItems();
+  loadAdminWinners();
 }
 
 function switchTab(tab){
   ['items','bids','winners','employees','categories'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==tab));
   document.querySelectorAll('.tab-btn').forEach((btn,i)=>btn.classList.toggle('active',['items','bids','winners','employees','categories'][i]===tab));
   if(tab==='bids')loadAdminBids();
-  if(tab==='winners')loadAdminWinners();
+  if(tab==='winners'){autoCloseExpiredItems().then(()=>loadAdminWinners());}
   if(tab==='employees')loadAdminEmployees();
   if(tab==='categories')loadAdminCategories();
 }
@@ -942,6 +964,48 @@ async function loadAdminWinners(){
       <td>${!backedOut?`<button class="btn-sm danger" onclick="handleBackout('${item.id}','${wb.id}')">Backout</button>`:'<span style="font-size:11px;color:var(--text3)">—</span>'}</td>
     </tr>`;
   }).join('');
+}
+
+async function autoCloseExpiredItems(){
+  // Find active items where bid_close_at has passed and no winner yet
+  const now = new Date().toISOString();
+  const{data:expired}=await sb.from('items')
+    .select('id,name,lot_number')
+    .eq('status','active')
+    .is('winner_bid_id',null)
+    .lt('bid_close_at', now);
+
+  if(!expired||!expired.length) return;
+
+  let declared=0;
+  for(const item of expired){
+    // Get highest valid non-backed-out bid
+    const{data:bids}=await sb.from('bids')
+      .select('*')
+      .eq('item_id',item.id)
+      .eq('is_valid',true)
+      .eq('backed_out',false)
+      .order('amount',{ascending:false})
+      .limit(1);
+
+    if(bids&&bids.length){
+      const top=bids[0];
+      await sb.from('items').update({
+        winner_bid_id:top.id,
+        status:'closed'
+      }).eq('id',item.id);
+      declared++;
+    } else {
+      // No valid bids — just close it
+      await sb.from('items').update({status:'closed'}).eq('id',item.id);
+    }
+  }
+
+  if(declared>0){
+    toast(`✓ ${declared} item${declared>1?'s':''} auto-closed and winner${declared>1?'s':''} declared.`);
+    loadAdminItems();
+    loadAdminWinners();
+  }
 }
 
 async function handleBackout(itemId, bidId){
