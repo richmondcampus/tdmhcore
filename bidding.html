@@ -620,7 +620,7 @@ async function checkAndCloseExpired(){
 
 async function loadPublicItems(){
   await checkAndCloseExpired();
-  const{data:items,error}=await sb.from('items').select('*').eq('status','active').order('created_at',{ascending:false});
+  const{data:items,error}=await sb.from('items').select('*').in('status',['active','closed']).order('created_at',{ascending:false});
   const pill=document.getElementById('status-pill');
   if(error){pill.classList.add('error');pill.title='Connection error';document.getElementById('items-container').innerHTML='<div class="empty-state"><div class="empty-title">Failed to load items</div></div>';return;}
   pill.classList.remove('error');pill.title='System online';
@@ -656,7 +656,7 @@ function renderPublicItems(){
     const closeDate=item.bid_close_at?new Date(item.bid_close_at):null;
     const isExpired=closeDate&&new Date()>closeDate;
     const isLive=item.status==='active'&&!isExpired;
-    return`<div class="item-card${!isLive?' closed':''}">
+    return`<div class="item-card">
       <div class="item-imgs" onclick="openLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')},0)">
         ${imgs[0]?`<img src="${imgs[0]}" alt="${item.name}">${imgs.length>1?`<div class="img-count">${imgs.length} photos</div>`:''}`:`<div class="no-img"><div class="no-img-icon">📷</div><div>No photos</div></div>`}
       </div>
@@ -691,7 +691,7 @@ function renderPublicItems(){
             <div class="hint">Min next bid: ${peso(minNext)}</div>
           </div>
           <button class="btn-bid" onclick="placeBid('${item.id}',${minNext})">Place Bid →</button>
-        </div>`:`<div class="closed-note">${isExpired||item.status==='closed'?'This bidding event has ended.':'Bidding not yet open.'}</div>`}
+        </div>`:`<div class="closed-note">${isExpired||item.status==='closed'?'🏁 Bidding has ended.':'Bidding not yet open.'}</div>`}
         ${isBids.length>0?`
         <div class="bids-feed-section">
           <div class="feed-title">Bid History</div>
