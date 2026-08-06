@@ -2678,6 +2678,32 @@ async function sendIssuanceEmail(iss, req, items) {
 
 const _priceTimers = {}
 
+// Rebuild the items table WITHOUT stealing the cursor. Remembers which field was
+// focused (and the caret position) and restores it after the re-render — so a
+// background price lookup can't knock you out of the box you're typing in.
+function rebuildItemsPreservingFocus() {
+  const active = document.activeElement
+  let rowId, selector, start, end
+  if (active && active.closest) {
+    const tr = active.closest('tr[id^="row_"]')
+    if (tr) {
+      rowId = tr.id
+      selector = active.tagName.toLowerCase() + (active.type ? '[type="' + active.type + '"]' : '')
+      try { start = active.selectionStart; end = active.selectionEnd } catch (_) {}
+    }
+  }
+  document.getElementById('itemsBody').innerHTML = buildItemRows()
+  if (rowId) {
+    requestAnimationFrame(() => {
+      const el = document.querySelector('#' + rowId + ' ' + selector)
+      if (el) {
+        el.focus()
+        if (start != null && el.setSelectionRange) { try { el.setSelectionRange(start, end) } catch (_) {} }
+      }
+    })
+  }
+}
+
 function scheduleSmartPrice(rowId, itemName) {
   clearTimeout(_priceTimers[rowId])
   if (!itemName || itemName.trim().length < 3) return
@@ -2688,7 +2714,7 @@ async function fetchSmartPrice(rowId, itemName) {
   const row = state.itemRows.find(r => r.id === rowId)
   if (!row || row.manually_edited) return
   row.price_loading = true
-  document.getElementById('itemsBody').innerHTML = buildItemRows()
+  rebuildItemsPreservingFocus()
   try {
     const { data: { session } } = await SB.auth.getSession()
     if (!session) { row.price_loading = false; return }
@@ -2716,11 +2742,11 @@ async function fetchSmartPrice(rowId, itemName) {
     } else {
       r.price_loading = false
     }
-    document.getElementById('itemsBody').innerHTML = buildItemRows()
+    rebuildItemsPreservingFocus()
     updateAutoApproveHint()
   } catch(e) {
     const r = state.itemRows.find(r => r.id === rowId)
-    if (r) { r.price_loading = false; document.getElementById('itemsBody').innerHTML = buildItemRows() }
+    if (r) { r.price_loading = false; rebuildItemsPreservingFocus() }
   }
 }
 
@@ -2759,8 +2785,11 @@ function addItemRow(focusNew) {
   state.itemRows.push({ id: newId, item_name:'', item_description:'', quantity:1, unit:'pcs', estimated_cost:0, unit_price:0, category:'equipment', image_file:null, image_preview:null })
   document.getElementById('itemsBody').innerHTML = buildItemRows()
   if (focusNew) {
-    const el = document.querySelector('#row_' + newId + ' input[type="text"]')
-    if (el) el.focus()
+    // Wait for the re-rendered rows to be in the DOM before focusing.
+    requestAnimationFrame(() => {
+      const el = document.querySelector('#row_' + newId + ' input[type="text"]')
+      if (el) { el.focus(); el.select && el.select() }
+    })
   }
 }
 
@@ -2776,8 +2805,10 @@ function handleItemEnter(id) {
   } else {
     // Jump to the next row's name field
     const next = state.itemRows[idx + 1]
-    const el = document.querySelector('#row_' + next.id + ' input[type="text"]')
-    if (el) el.focus()
+    requestAnimationFrame(() => {
+      const el = document.querySelector('#row_' + next.id + ' input[type="text"]')
+      if (el) { el.focus(); el.select && el.select() }
+    })
   }
 }
 
