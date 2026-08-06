@@ -757,7 +757,20 @@ const SB = supabase.createClient(SUPA_URL, SUPA_KEY, {
   }
 })
 
-// Ensure a live, non-expired auth session before critical writes.
+// ═══ Re-entrancy guard ═══
+// A slow network let a double-click fire the same write twice (e.g. a duplicate
+// issuance). guardClick() blocks a second call to the same action within a short
+// window and while an earlier call is still running.
+const _busyActions = new Set()
+function guardClick(key, ms) {
+  if (_busyActions.has(key)) return false      // still in flight — reject
+  _busyActions.add(key)
+  // Safety auto-release so a thrown error can't wedge the action permanently.
+  setTimeout(() => _busyActions.delete(key), ms || 6000)
+  return true
+}
+function releaseClick(key) { _busyActions.delete(key) }
+function releaseAllClicks() { _busyActions.clear() }
 async function ensureAuth() {
   try {
     const { data: { session } } = await SB.auth.getSession()
@@ -2173,8 +2186,8 @@ function renderNewRequestForm(reqType) {
   html += '</div>'
 
   // Purpose
-  html += '<div class="field"><label>Purpose / Justification</label>'
-  html += '<textarea id="f_purpose" placeholder="Describe why this request is needed..." rows="3"></textarea></div>'
+  html += '<div class="field"><label>Purpose / Justification <span style="color:var(--txt3);font-weight:400;">(optional)</span></label>'
+  html += '<textarea id="f_purpose" placeholder="Describe why this request is needed... (optional)" rows="3"></textarea></div>'
 
   // DERP-specific fields
   if (reqType === 'derp') {
@@ -2394,6 +2407,8 @@ async function checkStockAvailability() {
 }
 
 async function directIssueFromStock() {
+  if (!guardClick('directIssue')) return
+
   const dept = document.getElementById('f_dept')?.value
   const urgency = document.getElementById('f_urgency')?.value || 'routine'
   const purpose = document.getElementById('f_purpose')?.value.trim() || 'Direct issuance from stock'
@@ -2531,11 +2546,12 @@ function buildItemRows() {
 
     html += '<tr id="row_' + row.id + '">'
     html += '<td><input type="text" placeholder="Item name" value="' + (row.item_name||'') + '"'
-    html += ' oninput="updateItemRow(' + row.id + ',\'item_name\',this.value);scheduleSmartPrice(' + row.id + ',this.value)"></td>'
+    html += ' oninput="updateItemRow(' + row.id + ',\'item_name\',this.value);scheduleSmartPrice(' + row.id + ',this.value)"'
+    html += ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();handleItemEnter(' + row.id + ')}"></td>'
     html += '<td><input type="text" placeholder="Description" value="' + (row.item_description||'') + '" oninput="updateItemRow(' + row.id + ',\'item_description\',this.value)"></td>'
     html += '<td><input type="number" min="1" value="' + (row.quantity||1) + '" oninput="updateItemRow(' + row.id + ',\'quantity\',this.value);recomputeItemTotal(' + row.id + ')"></td>'
     html += '<td><select onchange="updateItemRow(' + row.id + ',\'unit\',this.value);clearItemPrice(' + row.id + ',this.value)" style="font-size:12px;padding:4px 2px;">'
-    ;['pcs','box','ream','liters','sets','kg','meters','rolls','packs','bottles'].forEach(u => {
+    ;['pcs','box','ream','liters','sets','meters','rolls','packs','bottles','kit','bundle','gal','tray'].forEach(u => {
       html += '<option value="' + u + '"' + (row.unit===u?' selected':'') + '>' + u + '</option>'
     })
     html += '</select></td>'
@@ -2553,7 +2569,7 @@ function buildItemRows() {
     }
     html += '</td>'
     html += '<td><select onchange="updateItemRow(' + row.id + ',\'category\',this.value)" style="font-size:12px;padding:4px 2px;">'
-    const catLabels = { consumable:'Consumable', equipment:'Equipment', it_hardware:'IT', medical:'Medical', office:'Office', maintenance_material:'Maint.' }
+    const catLabels = { equipment:'Equipment', it_hardware:'IT', medical:'Medical', office:'Office', maintenance_material:'Maint.' }
     Object.entries(catLabels).forEach(([v, l]) => {
       html += '<option value="' + v + '"' + (row.category===v?' selected':'') + '>' + l + '</option>'
     })
@@ -2738,9 +2754,31 @@ function viewItemImage(src) {
   setTimeout(() => { document.getElementById('confirmOkBtn').style.display = '' }, 100)
 }
 
-function addItemRow() {
-  state.itemRows.push({ id: Date.now(), item_name:'', item_description:'', quantity:1, unit:'pcs', estimated_cost:0, unit_price:0, category:'consumable', image_file:null, image_preview:null })
+function addItemRow(focusNew) {
+  const newId = Date.now()
+  state.itemRows.push({ id: newId, item_name:'', item_description:'', quantity:1, unit:'pcs', estimated_cost:0, unit_price:0, category:'equipment', image_file:null, image_preview:null })
   document.getElementById('itemsBody').innerHTML = buildItemRows()
+  if (focusNew) {
+    const el = document.querySelector('#row_' + newId + ' input[type="text"]')
+    if (el) el.focus()
+  }
+}
+
+function handleItemEnter(id) {
+  const idx = state.itemRows.findIndex(r => r.id === id)
+  if (idx === -1) return
+  const row = state.itemRows[idx]
+  // Only spawn a new row from a row that actually has a name
+  if (!row.item_name || !row.item_name.trim()) return
+  const isLast = idx === state.itemRows.length - 1
+  if (isLast) {
+    addItemRow(true)  // add + focus the new row's name field
+  } else {
+    // Jump to the next row's name field
+    const next = state.itemRows[idx + 1]
+    const el = document.querySelector('#row_' + next.id + ' input[type="text"]')
+    if (el) el.focus()
+  }
 }
 
 function removeItemRow(id) {
@@ -2755,6 +2793,8 @@ function updateItemRow(id, field, value) {
 }
 
 async function saveRequest(action) {
+  if (!guardClick('saveRequest')) return
+
   const dept = document.getElementById('f_dept') ? document.getElementById('f_dept').value : state.user.dept_id
   const urgency = document.getElementById('f_urgency') ? document.getElementById('f_urgency').value : 'routine'
   const purpose = document.getElementById('f_purpose') ? document.getElementById('f_purpose').value.trim() : ''
@@ -2765,7 +2805,6 @@ async function saveRequest(action) {
   // Validate items
   const validItems = state.itemRows.filter(r => r.item_name && r.item_name.trim())
   if (validItems.length === 0) { showToast('error', 'Validation', 'Please add at least one item.'); return }
-  if (action === 'submit' && !purpose) { showToast('error', 'Validation', 'Please enter a purpose/justification.'); return }
 
   try {
     // Generate request number
@@ -4083,6 +4122,8 @@ function fillSupplierDetails(suppId) {
 }
 
 async function savePO(action) {
+  if (!guardClick('savePO')) return
+
   const suppId = document.getElementById('po_supplier').value
   const terms = document.getElementById('po_terms').value
   const delivery = document.getElementById('po_delivery').value
@@ -4344,6 +4385,8 @@ async function openIssueFromPO(poId) {
 }
 
 async function confirmIssueFromPO() {
+  if (!guardClick('confirmIssueFromPO')) return
+
   const poId = document.getElementById('newRequestBody').dataset.poId
   const reqId = document.getElementById('newRequestBody').dataset.reqId
   const items = JSON.parse(document.getElementById('newRequestBody').dataset.items || '[]')
@@ -4891,6 +4934,8 @@ async function viewCanvass(id) {
 }
 
 async function createPOFromCanvass(canvassId) {
+  if (!guardClick('createPOFromCanvass')) return
+
   const { data: cvs } = await SB.from('canvass_sheets').select('*').eq('id',canvassId).single()
   const { data: items } = await SB.from('canvass_items').select('*').eq('canvass_id',canvassId)
   closeModal('requestDetailModal')
@@ -5373,6 +5418,8 @@ function toggleIssScenario() {
 }
 
 async function saveIssuance() {
+  if (!guardClick('saveIssuance')) return
+
   const receiverId = document.getElementById('iss_receiver')?.value
   const phone = document.getElementById('iss_phone')?.value.trim()
   const csrId = document.getElementById('iss_csr')?.value
@@ -5399,32 +5446,46 @@ async function saveIssuance() {
 
   if (issItems.length === 0) { showToast('error','Validation','Please add items to issue.'); return }
 
-  // Stock check BEFORE anything is written. Issuing more than what's on hand used to
-  // clamp the balance to 0 and quietly lose the difference, so this stops here instead.
-  const stockLines = issItems.filter(i => i.from_stock && i.stock_item_id)
-  if (stockLines.length) {
-    const ids = [...new Set(stockLines.map(i => i.stock_item_id))]
-    const { data: stockRows } = await SB.from('stock_items')
-      .select('id,item_name,quantity_on_hand,unit').in('id', ids)
-    const byId = {}
-    ;(stockRows || []).forEach(s => { byId[s.id] = s })
-    // Sum per item, in case the same stock item appears on several lines
-    const wanted = {}
-    stockLines.forEach(i => { wanted[i.stock_item_id] = (wanted[i.stock_item_id] || 0) + Number(i.quantity_issued) })
-    const short = []
-    Object.entries(wanted).forEach(([sid, qty]) => {
-      const s = byId[sid]
-      if (!s) { short.push('Hindi mahanap ang stock item'); return }
-      const onHand = Number(s.quantity_on_hand)
-      if (qty > onHand) {
-        short.push(s.item_name + ': meron lang ' + onHand + ' ' + (s.unit || 'pcs') + ', hinihingi ay ' + qty)
+  // Stock check BEFORE anything is written. Instead of blocking the WHOLE issuance
+  // when one item is short, we issue what's available and leave the short items on
+  // the request as still-pending (for a later purchase or restock). Only the short
+  // lines stay pending — not the entire issuance.
+  const shortNotes = []
+  {
+    const stockLines = issItems.filter(i => i.from_stock && i.stock_item_id)
+    if (stockLines.length) {
+      const ids = [...new Set(stockLines.map(i => i.stock_item_id))]
+      const { data: stockRows } = await SB.from('stock_items')
+        .select('id,item_name,quantity_on_hand,unit').in('id', ids)
+      const byId = {}
+      ;(stockRows || []).forEach(s => { byId[s.id] = s })
+      // Sum requested per stock item (same item may appear on multiple lines)
+      const wanted = {}
+      stockLines.forEach(i => { wanted[i.stock_item_id] = (wanted[i.stock_item_id] || 0) + Number(i.quantity_issued) })
+      const shortIds = new Set()
+      Object.entries(wanted).forEach(([sid, qty]) => {
+        const s = byId[sid]
+        const onHand = s ? Number(s.quantity_on_hand) : 0
+        if (!s || qty > onHand) {
+          shortIds.add(sid)
+          shortNotes.push((s ? s.item_name : 'Item') + ': meron lang ' + onHand + ' ' + (s?.unit || 'pcs') + ', hinihingi ay ' + qty)
+        }
+      })
+      // Drop short lines from this issuance — they remain pending on the request
+      if (shortIds.size) {
+        for (let i = issItems.length - 1; i >= 0; i--) {
+          if (issItems[i].stock_item_id && shortIds.has(issItems[i].stock_item_id)) issItems.splice(i, 1)
+        }
       }
-    })
-    if (short.length) {
-      showToast('error','Kulang ang Stock', short.join(' • ') + '. I-adjust ang dami, o gawing purchase request para sa kulang.')
-      return
     }
   }
+
+  if (issItems.length === 0) {
+    showToast('warning','Walang Ma-issue', 'Lahat ng item ay kulang sa stock: ' + shortNotes.join(' • ') + '. Gawing purchase request.')
+    releaseClick('saveIssuance')
+    return
+  }
+
 
   try {
     const { data: numData } = await SB.rpc('generate_issuance_no')
@@ -5518,9 +5579,13 @@ async function saveIssuance() {
     })
 
     closeModal('newRequestModal')
-    showToast('success', 'Issued ✅', issuanceNo + (phone ? ' — SMS sent to ' + phone : '') )
+    if (shortNotes.length) {
+      showToast('warning', 'Partial Issued ⚠️', issuanceNo + ' — naisyu ang available. NANATILING PENDING (kulang sa stock): ' + shortNotes.join(' • ') + '. Gawing purchase request para sa kulang.')
+    } else {
+      showToast('success', 'Issued ✅', issuanceNo + (phone ? ' — SMS sent to ' + phone : '') )
+    }
     renderIssuance()
-  } catch(e) { if (handleSupabaseError(e, 'action')) return; showToast('error','Error', e.message); console.error(e) }
+  } catch(e) { releaseClick('saveIssuance'); if (handleSupabaseError(e, 'action')) return; showToast('error','Error', e.message); console.error(e) }
 }
 
 function generateToken() {
@@ -7486,6 +7551,8 @@ async function startDerpEvaluation(id) {
 }
 
 async function submitDerpEvaluation(id) {
+  if (!guardClick('submitDerpEval')) return
+
   const notes = document.getElementById('eval_notes') ? document.getElementById('eval_notes').value.trim() : ''
   const decisionEl = document.querySelector('input[name="eval_decision"]:checked')
   const decision = decisionEl ? decisionEl.value : 'for_repair'
@@ -8550,6 +8617,8 @@ function toggleDeptHeadAssign(role) {
 }
 
 async function saveUser() {
+  if (!guardClick('saveUser')) return
+
   if (!(await ensureAuth())) { handleAuthLost(); return }
   const name = document.getElementById('u_name').value.trim()
   const empNo = document.getElementById('u_empno').value.trim()
@@ -8966,7 +9035,7 @@ function toggleTheme() {
 }
 
 function openModal(id) { document.getElementById(id).classList.add('open') }
-function closeModal(id) { document.getElementById(id).classList.remove('open') }
+function closeModal(id) { releaseAllClicks(); document.getElementById(id).classList.remove('open') }
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open')
@@ -9273,6 +9342,7 @@ async function tryRefreshSession() {
 // Pag permission denied o JWT error → show re-login banner agad
 function handleSupabaseError(error, context) {
   if (!error) return false
+  releaseAllClicks()  // free any in-flight action guard so the user can retry
   const msg = error.message || error.code || ''
   const isAuthError = msg.includes('permission denied') ||
     msg.includes('JWT') || msg.includes('invalid') ||
