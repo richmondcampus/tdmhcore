@@ -114,6 +114,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
 .gate-card{background:var(--card);border-radius:12px;box-shadow:0 20px 60px rgba(16,20,37,.28);width:100%;max-width:370px;padding:26px}
 .gate-card h2{font-family:Archivo,sans-serif;font-size:19px;margin:8px 0 4px}
 .gate-err{font-size:12.5px;color:var(--bad);min-height:18px;margin:6px 0 0}
+.linky{background:none;border:0;padding:6px 0 0;cursor:pointer;font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate)}
+.linky:hover{color:var(--navy);text-decoration:underline}
+.linky:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
 [data-readonly] input,[data-readonly] select,[data-readonly] textarea,[data-readonly] .btn{opacity:.5;pointer-events:none}
 
 @media (max-width:760px){
@@ -134,12 +138,24 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
 <div class="gate" id="gate" hidden>
   <div class="gate-card">
     <div class="eyebrow">tdmhcore.io / claims</div>
-    <h2>Sign in</h2>
-    <p class="hint">Use your TDMH Core account.</p>
-    <div class="field"><label for="gEmail">Email</label><input type="text" id="gEmail" autocomplete="username"></div>
-    <div class="field"><label for="gPass">Password</label><input type="password" id="gPass" autocomplete="current-password"></div>
-    <button class="btn" id="gSubmit" style="width:100%">Sign in</button>
+    <h2 id="gTitle">Enter your PIN</h2>
+    <p class="hint" id="gHint">Ask IT if you have not been given one.</p>
+
+    <div id="pinMode">
+      <div class="field"><label for="gPin">PIN</label>
+        <input type="password" id="gPin" inputmode="numeric" autocomplete="one-time-code"
+               maxlength="10" placeholder="••••••" style="font-size:22px;letter-spacing:.4em;text-align:center"></div>
+      <button class="btn" id="gPinGo" style="width:100%">Sign in</button>
+    </div>
+
+    <div id="emailMode" hidden>
+      <div class="field"><label for="gEmail">Email</label><input type="text" id="gEmail" autocomplete="username"></div>
+      <div class="field"><label for="gPass">Password</label><input type="password" id="gPass" autocomplete="current-password"></div>
+      <button class="btn" id="gSubmit" style="width:100%">Sign in</button>
+    </div>
+
     <p class="gate-err" id="gErr"></p>
+    <button class="linky" id="gSwap" type="button">Staff sign-in</button>
   </div>
 </div>
 
@@ -207,6 +223,11 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
 <script>
 /* ===== settings — edit here, no UI needed ===== */
 const BANDS = [[5,'A','Excellent'],[10,'B','Good'],[15,'C','Fair'],[25,'D','Poor'],[Infinity,'F','Critical']];
+
+/* The PIN is the password of this one read-only account. Only the PIN is
+   typed; the address never appears on screen. A role address rather than a
+   person's, so the doctor can change without touching this file. */
+const VIEWER_EMAIL = 'claims.viewer@taytaydoctorshospital.com';
 
 const SB_URL = 'https://zcyhwdulizorgngayxya.supabase.co';
 const SB_KEY = 'sb_publishable_OLvJELZuF2pTxE-ihM25Hg_5Ywq7ylq';
@@ -449,10 +470,10 @@ async function resolveProfile(authId){
 }
 async function startSession(){
   const {data:{session}} = await sb.auth.getSession();
-  if(!session){ $('#gate').hidden=false; setLive('off','Offline preview'); return; }
+  if(!session){ $('#gate').hidden=false; setLive('off','Offline preview'); $('#gPin').focus(); return; }
   PROFILE = await resolveProfile(session.user.id);
   if(!PROFILE?.claims_role){
-    $('#gate').hidden=false; $('#gErr').textContent='This account has no claims access yet. Ask IT.';
+    $('#gate').hidden=false; $('#gErr').textContent='That account has no claims access yet. Ask IT.';
     await sb.auth.signOut(); setLive('err','No access'); return;
   }
   $('#gate').hidden=true;
@@ -464,18 +485,41 @@ async function startSession(){
   LIVE = await loadAll();
   if(LIVE){ selected=null; render(); renderSync(); subscribe(); }
 }
-$('#gSubmit').onclick = async ()=>{
-  $('#gErr').textContent='';
-  const {error} = await sb.auth.signInWithPassword({email:$('#gEmail').value.trim(), password:$('#gPass').value});
-  if(error){ $('#gErr').textContent=error.message; return; }
-  $('#gPass').value=''; await startSession();
+async function signIn(email, password, clear){
+  $('#gErr').textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){
+    // Supabase reports "Invalid login credentials" either way. On the PIN path
+    // the address is not the reader's problem, so name what they can fix.
+    $('#gErr').textContent = /invalid login/i.test(error.message)
+      ? 'That PIN was not recognised.' : error.message;
+    return;
+  }
+  clear.forEach(id => { $(id).value = ''; });
+  await startSession();
+}
+
+$('#gPinGo').onclick  = ()=> signIn(VIEWER_EMAIL, $('#gPin').value.trim(), ['#gPin']);
+$('#gSubmit').onclick = ()=> signIn($('#gEmail').value.trim(), $('#gPass').value, ['#gPass']);
+
+$('#gPin').addEventListener('keydown',  e=>{ if(e.key==='Enter') $('#gPinGo').click(); });
+$('#gPass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#gSubmit').click(); });
+
+$('#gSwap').onclick = ()=>{
+  const toEmail = $('#emailMode').hidden;
+  $('#pinMode').hidden   = toEmail;
+  $('#emailMode').hidden = !toEmail;
+  $('#gTitle').textContent = toEmail ? 'Staff sign-in' : 'Enter your PIN';
+  $('#gHint').textContent  = toEmail ? 'Use your TDMH Core account.' : 'Ask IT if you have not been given one.';
+  $('#gSwap').textContent  = toEmail ? 'Sign in with a PIN' : 'Staff sign-in';
+  $('#gErr').textContent   = '';
+  (toEmail ? $('#gEmail') : $('#gPin')).focus();
 };
+
 $('#whoami').onclick = async ()=>{
   if(!sb) return;
   await sb.auth.signOut();          // onAuthStateChange reloads the page
 };
-
-$('#gPass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#gSubmit').click(); });
 
 /* ===== boot ===== */
 SEED_DAILY.split('|').forEach(p=>{ const [d,t]=p.split(','); DAILY.set(d,+t); });
