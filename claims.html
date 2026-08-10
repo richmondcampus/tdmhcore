@@ -90,6 +90,7 @@ input,select,textarea{font-family:"IBM Plex Mono",monospace;font-size:13px;paddi
 textarea{font-size:12px;min-height:110px;resize:vertical}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-color:var(--navy)}
 .row3{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end}
+.row4{display:grid;grid-template-columns:1fr 1fr 1.3fr auto;gap:14px;align-items:end}
 .btn{font-family:Inter,sans-serif;font-size:13px;font-weight:600;padding:9px 16px;border-radius:7px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer;white-space:nowrap}
 .btn:hover{background:#182474}
 .btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
@@ -112,7 +113,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
 @media (max-width:760px){
   .result-top{grid-template-columns:1fr}
   .grade-cell{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:baseline;gap:16px}
-  .cols,.row3{grid-template-columns:1fr}
+  .cols,.row3,.row4{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:no-preference){
   .result{animation:rise .35s cubic-bezier(.2,.7,.3,1) both}
@@ -154,7 +155,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
     <div class="sec-head"><h3>Monthly ledger</h3><span class="note" id="ledgerNote"></span></div>
     <table id="ledger"><thead><tr>
       <th>Month</th><th class="num">Filed</th><th class="num">Returned</th>
-      <th class="num">Return rate</th><th style="width:150px">&nbsp;</th><th>Grade</th>
+      <th class="num">Return rate</th><th class="num" id="thAmount">Value returned</th><th style="width:150px">&nbsp;</th><th>Grade</th>
     </tr></thead><tbody></tbody></table>
   </section>
 
@@ -176,9 +177,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
     <summary>Record a month's RTH</summary>
     <div class="panel-body">
       <p class="hint">The count from the PhilHealth return listing. One number per month.</p>
-      <div class="row3">
+      <div class="row4">
         <div class="field"><label for="rMonth">Month</label><input type="month" id="rMonth"></div>
         <div class="field"><label for="rCount">Claims returned</label><input type="number" id="rCount" min="0" step="1"></div>
+        <div class="field"><label for="rAmount">Value returned ₱ <span style="text-transform:none;letter-spacing:0">(optional)</span></label><input type="number" id="rAmount" min="0" step="0.01" placeholder="leave blank if unknown"></div>
         <div class="field"><button class="btn" id="saveRth">Save month</button></div>
       </div>
       <span class="toast" id="rthToast"></span>
@@ -189,7 +191,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
     <h3>How the grade works</h3>
     <p>One number decides it: <b>claims returned this month ÷ claims filed the month before</b>. The previous month is the denominator because a claim returned in June was filed in May — PhilHealth takes weeks to send them back, so dividing by the same month compares June's returns against work that hasn't been reviewed yet.</p>
     <p><span class="formula">≤5% = A</span> <span class="formula">≤10% = B</span> <span class="formula">≤15% = C</span> <span class="formula">≤25% = D</span> <span class="formula">above 25% = F</span></p>
-    <p>Value on hold is the returned count multiplied by the hospital's average case rate. It is an estimate of what is stuck outside the collection cycle, not a receivable figure — change <span class="formula">CASE_RATE</span> in the file once Billing gives you the real average.</p>
+    <p>Value returned is optional and is never estimated. It appears only for months where the figure was taken from the PhilHealth return listing, and stays blank otherwise — a returned claim is a delay in collection, not a loss, and its amount cannot be worked out from a count.</p>
   </div>
 
 </div>
@@ -197,7 +199,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 /* ===== settings — edit here, no UI needed ===== */
-const CASE_RATE = 18000;                 // ₱ per claim, ask Billing for the real one
 const BANDS = [[5,'A','Excellent'],[10,'B','Good'],[15,'C','Fair'],[25,'D','Poor'],[Infinity,'F','Critical']];
 
 const SB_URL = 'https://zcyhwdulizorgngayxya.supabase.co';
@@ -209,14 +210,14 @@ const SEED_DAILY = `2026-02-26,5|2026-02-27,6|2026-03-02,10|2026-03-03,36|2026-0
 const SEED_RTH = {'2026-01':22,'2026-02':56,'2026-03':3,'2026-04':10,'2026-05':106,'2026-06':673,'2026-07':263};
 
 let DAILY = new Map();   // 'YYYY-MM-DD' -> total
-let RTH   = new Map();   // 'YYYY-MM'    -> returned
+let RTH   = new Map();   // 'YYYY-MM'    -> {n, amount|null}
 let SYNC = null;
 let selected = null, sb = null, LIVE = false, PROFILE = null, channel = null, timer = null;
 
 /* ===== helpers ===== */
 const $ = s => document.querySelector(s);
+const peso = n => '\u20B1' + Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const peso = n => '₱' + Math.round(n).toLocaleString();
 const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
 const MON3 = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
 const mk = d => d.slice(0,7);
@@ -245,12 +246,14 @@ function band(rate){ for(const [max,g,w] of BANDS) if(rate<=max) return {grade:g
 function gradeColor(g){ return !g ? 'var(--slate)' : g==='A' ? 'var(--ok)' : g==='B' ? '#2C7A4B' : g==='C' ? 'var(--warn)' : 'var(--bad)'; }
 
 function assess(k){
-  const ret = RTH.has(k) ? RTH.get(k) : null;
+  const rec = RTH.get(k) || null;
+  const ret = rec ? rec.n : null;
   const base = filed(prev(k));
   const rate = (ret!==null && base>0) ? ret/base*100 : null;
   const b = rate===null ? null : band(rate);
-  return { k, filed:filed(k), ret, base, rate, grade:b?.grade||null, word:b?.word||null,
-           atRisk: ret ? ret*CASE_RATE : 0, last:lastDay(k), full:lastDay(k)>=daysIn(k)-1 };
+  return { k, filed:filed(k), ret, amount: rec ? rec.amount : null, base, rate,
+           grade:b?.grade||null, word:b?.word||null,
+           last:lastDay(k), full:lastDay(k)>=daysIn(k)-1 };
 }
 
 /* ===== render ===== */
@@ -291,7 +294,7 @@ function render(){
   let verdict;
   if(a.rate===null && a.ret===null) verdict = `${a.filed.toLocaleString()} claims filed. No return count recorded for this month yet.`;
   else if(a.rate===null) verdict = `${a.ret.toLocaleString()} claims came back, but there are no filings recorded for ${label(prev(selected))} to measure them against.`;
-  else verdict = `${a.ret.toLocaleString()} claims came back against ${a.base.toLocaleString()} filed in ${MONTHS[+prev(selected).slice(5)]}. That holds roughly ${peso(a.atRisk)} outside the collection cycle until each one is corrected and refiled.`;
+  else verdict = `${a.ret.toLocaleString()} claims came back against ${a.base.toLocaleString()} filed in ${MONTHS[+prev(selected).slice(5)]}. Each one has to be corrected and refiled before it can be paid${a.amount!==null ? `, holding ${peso(a.amount)}` : ''}.`;
 
   $('#result').innerHTML = `
     <div class="result-top">
@@ -311,8 +314,16 @@ function render(){
       <div class="stat"><div class="k">Filed this month</div><div class="v">${a.filed.toLocaleString()}</div></div>
       <div class="stat"><div class="k">Returned</div><div class="v" style="color:${a.ret?'var(--bad)':'inherit'}">${a.ret===null?'—':a.ret.toLocaleString()}</div></div>
       <div class="stat"><div class="k">Return rate</div><div class="v">${a.rate===null?'—':a.rate.toFixed(1)+'%'}</div></div>
-      <div class="stat"><div class="k">Value on hold</div><div class="v">${a.atRisk?peso(a.atRisk):'—'}</div></div>
+      <div class="stat"><div class="k">Filed last month</div><div class="v">${a.base?a.base.toLocaleString():'—'}</div></div>
+      ${a.amount!==null ? `<div class="stat"><div class="k">Value returned</div><div class="v">${peso(a.amount)}</div></div>` : ''}
     </div>`;
+
+  const cur = RTH.get(selected);
+  if(document.activeElement !== $('#rCount') && document.activeElement !== $('#rAmount')){
+    $('#rMonth').value  = selected;
+    $('#rCount').value  = cur ? cur.n : '';
+    $('#rAmount').value = cur && cur.amount!==null ? cur.amount : '';
+  }
 
   $('#caveat').innerHTML = (a.last && !a.full)
     ? `<div class="note-line">Daily filings for ${label(selected)} are recorded only through day ${a.last}. The grade itself is unaffected — it is measured against ${label(prev(selected))} — but the "filed this month" figure will keep rising.</div>` : '';
@@ -320,7 +331,7 @@ function render(){
 
 function renderLedger(){
   const ks = months();
-  const max = Math.max(1, ...ks.map(k=>Math.max(filed(k), RTH.get(k)||0)));
+  const max = Math.max(1, ...ks.map(k=>Math.max(filed(k), RTH.get(k)?.n||0)));
   $('#ledger').querySelector('tbody').innerHTML = ks.map(k=>{
     const a = assess(k);
     return `<tr class="${k===selected?'is-current':''}">
@@ -328,10 +339,17 @@ function renderLedger(){
       <td class="num mono">${a.filed.toLocaleString()}</td>
       <td class="num mono">${a.ret===null?'—':a.ret.toLocaleString()}</td>
       <td class="num mono">${a.rate===null?'—':a.rate.toFixed(1)+'%'}</td>
-      <td><span class="bar" style="width:${filed(k)/max*100}%"></span><br><span class="bar rth" style="width:${(RTH.get(k)||0)/max*100}%"></span></td>
+      <td class="num mono">${a.amount===null?'—':peso(a.amount)}</td>
+      <td><span class="bar" style="width:${filed(k)/max*100}%"></span><br><span class="bar rth" style="width:${(RTH.get(k)?.n||0)/max*100}%"></span></td>
       <td style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${gradeColor(a.grade)}">${a.grade||'—'}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="6" class="tiny">Nothing recorded yet.</td></tr>`;
+  }).join('') || `<tr><td colspan="7" class="tiny">Nothing recorded yet.</td></tr>`;
+  // The column only earns its place once a real figure exists.
+  const anyAmount = [...RTH.values()].some(v=>v.amount!==null);
+  $('#ledger').querySelectorAll('tr').forEach(tr=>{
+    const cells = tr.children;
+    if(cells.length >= 5) cells[4].style.display = anyAmount ? '' : 'none';
+  });
   const ds=[...DAILY.keys()].sort();
   $('#ledgerNote').textContent = ds.length ? `Daily filings recorded through ${ds[ds.length-1]}.` : '';
 }
@@ -372,10 +390,14 @@ const say=(id,m,ms=2400)=>{ $(id).textContent=m; if(ms) setTimeout(()=>{ if($(id
 $('#saveRth').onclick = async ()=>{
   const k = $('#rMonth').value, n = parseInt($('#rCount').value,10);
   if(!k || !(n>=0)){ say('#rthToast','Need a month and a count.'); return; }
+  const raw = $('#rAmount').value.trim();
+  const amount = raw === '' ? null : Number(raw);          // blank clears the figure
+  if(amount !== null && !(amount >= 0)){ say('#rthToast','Value has to be a number.'); return; }
   if(LIVE){
-    const { error } = await sb.from('pc_rth').upsert({period:k+'-01', returned:n}, {onConflict:'period'});
+    const { error } = await sb.from('pc_rth')
+      .upsert({period:k+'-01', returned:n, returned_amount:amount}, {onConflict:'period'});
     say('#rthToast', error ? 'Failed: '+error.message : 'Saved', error?6000:2400);
-  } else { RTH.set(k,n); selected=k; render(); say('#rthToast','Saved'); }
+  } else { RTH.set(k,{n, amount}); selected=k; render(); say('#rthToast','Saved'); }
 };
 
 /* ===== live layer ===== */
@@ -385,12 +407,12 @@ const stamp = () => setLive('on','Live · '+new Date().toLocaleTimeString([], {h
 async function loadAll(){
   const [d,r,y] = await Promise.all([
     sb.from('pc_daily').select('submitted_on,total').order('submitted_on'),
-    sb.from('pc_rth').select('period,returned'),
+    sb.from('pc_rth').select('period,returned,returned_amount'),
     sb.from('pc_sync').select('*').eq('id',1).maybeSingle()
   ]);
   if(d.error||r.error){ setLive('err','Load failed'); return false; }
   DAILY = new Map((d.data||[]).map(x=>[x.submitted_on, x.total]));
-  RTH   = new Map((r.data||[]).map(x=>[String(x.period).slice(0,7), x.returned]));
+  RTH   = new Map((r.data||[]).map(x=>[String(x.period).slice(0,7), {n:x.returned, amount:x.returned_amount===null?null:+x.returned_amount}]));
   SYNC  = y.data || null;
   return true;
 }
@@ -443,9 +465,8 @@ $('#gPass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#gSubmit').c
 
 /* ===== boot ===== */
 SEED_DAILY.split('|').forEach(p=>{ const [d,t]=p.split(','); DAILY.set(d,+t); });
-Object.entries(SEED_RTH).forEach(([k,v])=>RTH.set(k,v));
+Object.entries(SEED_RTH).forEach(([k,v])=>RTH.set(k,{n:v, amount:null}));
 selected = '2026-06';
-$('#rMonth').value = '2026-06';
 render();
 renderSync();
 
