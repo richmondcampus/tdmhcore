@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhilHealth Claims Performance — TDMH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1E2D8A; --ink:#101425; --paper:#F4F6FB; --card:#fff;
+  --line:#DDE2EF; --line-2:#EDF0F7;
+  --ok:#0F7B33; --warn:#B8720B; --bad:#AF1F2D; --slate:#5C6684;
+  --shadow:0 1px 2px rgba(16,20,37,.06), 0 8px 24px rgba(16,20,37,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px 72px}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--slate)}
+
+.mast{background:var(--navy);color:#fff}
+.mast-in{max-width:960px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mark{width:26px;height:26px;border:1.5px solid rgba(255,255,255,.55);border-radius:5px;display:grid;place-items:center;font-family:Archivo,sans-serif;font-weight:700;font-size:12px}
+.mast h1{font-family:Archivo,sans-serif;font-size:15px;font-weight:600;margin:0;letter-spacing:-.01em}
+.live{display:flex;align-items:center;gap:7px;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:4px 11px;margin-left:auto}
+.dot{width:7px;height:7px;border-radius:50%;background:#7C86B8;flex:none}
+.live.on .dot{background:#4ADE80} .live.on{color:#fff;border-color:rgba(122,255,170,.45)}
+.live.err .dot{background:#FF8A93}
+.who{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+
+.rail{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.rail-in{max-width:960px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto}
+.mtab{flex:none;background:none;border:0;border-bottom:2px solid transparent;padding:12px 14px;cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--slate)}
+.mtab:hover{color:var(--ink);background:var(--line-2)}
+.mtab[aria-selected="true"]{color:var(--navy);border-bottom-color:var(--navy);font-weight:600}
+.mtab:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
+
+.result{background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);margin-top:22px;overflow:hidden}
+.result-top{display:grid;grid-template-columns:180px 1fr}
+.grade-cell{border-right:1px solid var(--line);padding:22px 20px;display:flex;flex-direction:column;justify-content:center}
+.grade-letter{font-family:Archivo,sans-serif;font-size:76px;line-height:.82;font-weight:700;letter-spacing:-.04em}
+.grade-band{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;margin-top:12px}
+.head-cell{padding:22px}
+.head-cell h2{font-family:Archivo,sans-serif;font-size:20px;font-weight:600;margin:6px 0;letter-spacing:-.015em}
+.verdict{color:var(--slate);max-width:58ch;margin:0}
+
+/* the one thing worth staring at: the rate against its bands */
+.scale{padding:18px 22px;border-top:1px solid var(--line);background:#FAFBFE}
+.scale-track{height:22px;border-radius:4px;display:flex;overflow:hidden;position:relative}
+.scale-seg{height:100%;display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;color:rgba(255,255,255,.9)}
+.needle{position:absolute;top:-7px;bottom:-7px;width:2px;background:var(--ink)}
+.needle::after{content:attr(data-v);position:absolute;top:-19px;left:50%;transform:translateX(-50%);white-space:nowrap;font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;color:var(--ink)}
+.scale-cap{display:flex;justify-content:space-between;margin-top:9px}
+.scale-cap span{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--slate)}
+
+.stat-strip{display:flex;flex-wrap:wrap;gap:26px;border-top:1px solid var(--line);padding:14px 22px}
+.stat .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate)}
+.stat .v{font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+
+.note-line{margin:14px 0 0;padding:10px 13px;border-radius:8px;font-size:13px;border:1px solid #F0DCB4;background:#FEF8EC;color:#7A4B06}
+
+.sec{margin-top:34px}
+.sec-head{display:flex;align-items:baseline;gap:12px;border-bottom:1.5px solid var(--ink);padding-bottom:7px}
+.sec-head h3{font-family:Archivo,sans-serif;font-size:15px;font-weight:600;margin:0}
+.sec-head .note{margin-left:auto;font-size:12px;color:var(--slate)}
+table{width:100%;border-collapse:collapse}
+th{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--slate);text-align:left;font-weight:500;padding:9px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line-2)}
+th.num,td.num{text-align:right}
+tbody tr:hover{background:#FAFBFE}
+tr.is-current{background:#F2F5FF}
+.bar{height:9px;border-radius:2px;background:var(--navy);opacity:.85;min-width:1px;display:inline-block;vertical-align:middle}
+.bar.rth{background:var(--bad)}
+.tiny{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--slate)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+
+details.panel{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+details.panel>summary{cursor:pointer;padding:15px 18px;font-family:Archivo,sans-serif;font-weight:600;font-size:14px;list-style:none;display:flex;gap:10px;align-items:center}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary::before{content:"+";font-family:"IBM Plex Mono",monospace;color:var(--navy)}
+details.panel[open]>summary::before{content:"–"}
+details.panel>summary:focus-visible{outline:2px solid var(--navy);outline-offset:-2px}
+.panel-body{padding:4px 18px 20px;border-top:1px solid var(--line-2)}
+.field{display:grid;gap:5px;margin-bottom:14px}
+.field label{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate)}
+input,select,textarea{font-family:"IBM Plex Mono",monospace;font-size:13px;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);width:100%}
+textarea{font-size:12px;min-height:110px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-color:var(--navy)}
+.row3{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end}
+.btn{font-family:Inter,sans-serif;font-size:13px;font-weight:600;padding:9px 16px;border-radius:7px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#182474}
+.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.hint{font-size:12px;color:var(--slate);margin:0 0 14px}
+.toast{font-family:"IBM Plex Mono",monospace;font-size:12px;margin-left:10px}
+
+.method{margin-top:34px;border-top:1.5px solid var(--ink);padding-top:14px;color:var(--slate);max-width:76ch}
+.method h3{font-family:Archivo,sans-serif;font-size:15px;margin:0 0 10px;color:var(--ink)}
+.method p{margin:0 0 10px}
+.method b{color:var(--ink)}
+.formula{font-family:"IBM Plex Mono",monospace;font-size:12px;background:#EEF1F8;padding:2px 6px;border-radius:4px;color:var(--ink)}
+
+.gate{position:fixed;inset:0;z-index:60;background:rgba(16,20,37,.55);backdrop-filter:blur(3px);display:grid;place-items:center;padding:20px}
+.gate[hidden]{display:none}
+.gate-card{background:var(--card);border-radius:12px;box-shadow:0 20px 60px rgba(16,20,37,.28);width:100%;max-width:370px;padding:26px}
+.gate-card h2{font-family:Archivo,sans-serif;font-size:19px;margin:8px 0 4px}
+.gate-err{font-size:12.5px;color:var(--bad);min-height:18px;margin:6px 0 0}
+[data-readonly] input,[data-readonly] select,[data-readonly] textarea,[data-readonly] .btn{opacity:.5;pointer-events:none}
+
+@media (max-width:760px){
+  .result-top{grid-template-columns:1fr}
+  .grade-cell{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:baseline;gap:16px}
+  .cols,.row3{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){
+  .result{animation:rise .35s cubic-bezier(.2,.7,.3,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .live.on .dot{animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate" hidden>
+  <div class="gate-card">
+    <div class="eyebrow">tdmhcore.io / claims</div>
+    <h2>Sign in</h2>
+    <p class="hint">Use your TDMH Core account.</p>
+    <div class="field"><label for="gEmail">Email</label><input type="text" id="gEmail" autocomplete="username"></div>
+    <div class="field"><label for="gPass">Password</label><input type="password" id="gPass" autocomplete="current-password"></div>
+    <button class="btn" id="gSubmit" style="width:100%">Sign in</button>
+    <p class="gate-err" id="gErr"></p>
+  </div>
+</div>
+
+<div class="mast"><div class="mast-in">
+  <div class="mark">T</div>
+  <h1>PhilHealth Claims Performance</h1>
+  <div class="live" id="live"><span class="dot"></span><span id="liveTxt">Offline preview</span></div>
+  <div class="who" id="whoami">tdmhcore.io / claims</div>
+</div></div>
+
+<div class="rail"><div class="rail-in" id="rail" role="tablist" aria-label="Month"></div></div>
+
+<div class="wrap">
+
+  <section class="result" id="result"></section>
+  <div id="caveat"></div>
+
+  <section class="sec">
+    <div class="sec-head"><h3>Monthly ledger</h3><span class="note" id="ledgerNote"></span></div>
+    <table id="ledger"><thead><tr>
+      <th>Month</th><th class="num">Filed</th><th class="num">Returned</th>
+      <th class="num">Return rate</th><th style="width:150px">&nbsp;</th><th>Grade</th>
+    </tr></thead><tbody></tbody></table>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head"><h3>Daily filings</h3><span class="note" id="dailyNote"></span></div>
+    <table id="daily"><thead><tr><th>Date</th><th class="num">Claims filed</th><th style="width:180px">&nbsp;</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <details class="panel" id="pSync">
+    <summary>Sheet sync</summary>
+    <div class="panel-body">
+      <p class="hint">Daily filings are read straight from the tracking sheet every 15 minutes. Nothing is typed here — edit the sheet and it lands on this page within the quarter hour.</p>
+      <div class="tiny" id="syncBox" style="margin-bottom:14px">—</div>
+      <button class="btn" id="syncNow">Sync now</button><span class="toast" id="syncToast"></span>
+    </div>
+  </details>
+
+  <details class="panel" id="pRth">
+    <summary>Record a month's RTH</summary>
+    <div class="panel-body">
+      <p class="hint">The count from the PhilHealth return listing. One number per month.</p>
+      <div class="row3">
+        <div class="field"><label for="rMonth">Month</label><input type="month" id="rMonth"></div>
+        <div class="field"><label for="rCount">Claims returned</label><input type="number" id="rCount" min="0" step="1"></div>
+        <div class="field"><button class="btn" id="saveRth">Save month</button></div>
+      </div>
+      <span class="toast" id="rthToast"></span>
+    </div>
+  </details>
+
+  <div class="method">
+    <h3>How the grade works</h3>
+    <p>One number decides it: <b>claims returned this month ÷ claims filed the month before</b>. The previous month is the denominator because a claim returned in June was filed in May — PhilHealth takes weeks to send them back, so dividing by the same month compares June's returns against work that hasn't been reviewed yet.</p>
+    <p><span class="formula">≤5% = A</span> <span class="formula">≤10% = B</span> <span class="formula">≤15% = C</span> <span class="formula">≤25% = D</span> <span class="formula">above 25% = F</span></p>
+    <p>Value on hold is the returned count multiplied by the hospital's average case rate. It is an estimate of what is stuck outside the collection cycle, not a receivable figure — change <span class="formula">CASE_RATE</span> in the file once Billing gives you the real average.</p>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* ===== settings — edit here, no UI needed ===== */
+const CASE_RATE = 18000;                 // ₱ per claim, ask Billing for the real one
+const BANDS = [[5,'A','Excellent'],[10,'B','Good'],[15,'C','Fair'],[25,'D','Poor'],[Infinity,'F','Critical']];
+
+const SB_URL = 'https://zcyhwdulizorgngayxya.supabase.co';
+const SB_KEY = 'sb_publishable_OLvJELZuF2pTxE-ihM25Hg_5Ywq7ylq';
+
+/* ===== seed: read from the tracking sheet through Jun-10-26,
+        plus the posted monthly RTH counts. Used until sign-in. ===== */
+const SEED_DAILY = `2026-02-26,5|2026-02-27,6|2026-03-02,10|2026-03-03,36|2026-03-04,13|2026-03-05,35|2026-03-06,17|2026-03-07,16|2026-03-09,12|2026-03-10,7|2026-03-11,9|2026-03-12,20|2026-03-13,23|2026-03-14,18|2026-03-15,15|2026-03-16,44|2026-03-17,16|2026-03-18,63|2026-03-19,28|2026-03-20,15|2026-03-21,7|2026-03-22,0|2026-03-23,16|2026-03-24,18|2026-03-25,56|2026-03-26,31|2026-03-27,27|2026-03-28,8|2026-03-29,0|2026-03-30,22|2026-03-31,194|2026-04-01,21|2026-04-02,45|2026-04-03,21|2026-04-04,19|2026-04-05,0|2026-04-06,24|2026-04-07,18|2026-04-08,11|2026-04-09,8|2026-04-10,13|2026-04-11,26|2026-04-12,0|2026-04-13,32|2026-04-14,14|2026-04-15,14|2026-04-16,20|2026-04-17,14|2026-04-18,13|2026-04-19,0|2026-04-20,22|2026-04-21,29|2026-04-22,13|2026-04-23,15|2026-04-24,17|2026-04-25,25|2026-04-26,0|2026-04-27,14|2026-04-28,22|2026-04-29,21|2026-04-30,40|2026-05-01,28|2026-05-02,16|2026-05-03,0|2026-05-04,31|2026-05-05,62|2026-05-06,22|2026-05-07,70|2026-05-08,65|2026-05-09,41|2026-05-10,0|2026-05-11,70|2026-05-12,63|2026-05-13,16|2026-05-14,49|2026-05-15,23|2026-05-16,40|2026-05-17,0|2026-05-18,15|2026-05-19,68|2026-05-20,44|2026-05-21,41|2026-05-22,34|2026-05-23,11|2026-05-24,0|2026-05-25,24|2026-05-26,41|2026-05-28,30|2026-05-29,28|2026-05-30,18|2026-06-01,17|2026-06-02,29|2026-06-03,29|2026-06-04,15|2026-06-05,18|2026-06-08,29|2026-06-09,5|2026-06-10,0|2026-06-11,26|2026-06-15,18|2026-06-16,40|2026-06-17,25|2026-06-18,21|2026-06-19,19|2026-06-20,0|2026-06-21,0|2026-06-22,4|2026-06-23,0|2026-06-24,14|2026-06-25,38|2026-06-26,11|2026-06-27,8|2026-06-29,5|2026-07-06,12|2026-07-07,31|2026-07-08,13|2026-07-09,41|2026-07-10,29|2026-07-16,2|2026-07-17,36|2026-07-18,8|2026-07-20,53|2026-07-21,18|2026-07-22,8|2026-07-23,0|2026-07-24,1|2026-07-25,10|2026-07-26,0|2026-07-27,5|2026-07-28,35|2026-07-29,22|2026-07-30,28|2026-07-31,22|2026-08-01,16|2026-08-02,0|2026-08-03,21|2026-08-04,6|2026-08-05,17|2026-08-06,5|2026-08-07,7|2026-08-08,0|2026-08-09,0|2026-08-10,10`;
+const SEED_RTH = {'2026-01':22,'2026-02':56,'2026-03':3,'2026-04':10,'2026-05':106,'2026-06':673,'2026-07':263};
+
+let DAILY = new Map();   // 'YYYY-MM-DD' -> total
+let RTH   = new Map();   // 'YYYY-MM'    -> returned
+let SYNC = null;
+let selected = null, sb = null, LIVE = false, PROFILE = null, channel = null, timer = null;
+
+/* ===== helpers ===== */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const peso = n => '₱' + Math.round(n).toLocaleString();
+const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+const MON3 = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+const mk = d => d.slice(0,7);
+const label = k => MONTHS[+k.slice(5)] + ' ' + k.slice(0,4);
+const short = k => MONTHS[+k.slice(5)].slice(0,3) + " '" + k.slice(2,4);
+const prev = k => { let y=+k.slice(0,4), m=+k.slice(5); m--; if(!m){m=12;y--} return y+'-'+String(m).padStart(2,'0') };
+
+function parseDate(s){
+  s = String(s||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^([A-Za-z]{3,9})[-\/\s](\d{1,2})[-\/\s](\d{2,4})$/);
+  if(!m) return null;
+  const mo = MON3[m[1].slice(0,3).toLowerCase()]; if(!mo) return null;
+  const y = m[3].length===2 ? '20'+m[3] : m[3];
+  return `${y}-${mo}-${String(m[2]).padStart(2,'0')}`;
+}
+
+const months = () => [...new Set([...[...DAILY.keys()].map(mk), ...RTH.keys()])].sort();
+const filed = k => [...DAILY].reduce((a,[d,t])=> mk(d)===k ? a+t : a, 0);
+const daysIn = k => new Date(+k.slice(0,4), +k.slice(5), 0).getDate();
+function lastDay(k){
+  const ds = [...DAILY.keys()].filter(d=>mk(d)===k).sort();
+  return ds.length ? +ds[ds.length-1].slice(8) : 0;
+}
+function band(rate){ for(const [max,g,w] of BANDS) if(rate<=max) return {grade:g, word:w}; }
+function gradeColor(g){ return !g ? 'var(--slate)' : g==='A' ? 'var(--ok)' : g==='B' ? '#2C7A4B' : g==='C' ? 'var(--warn)' : 'var(--bad)'; }
+
+function assess(k){
+  const ret = RTH.has(k) ? RTH.get(k) : null;
+  const base = filed(prev(k));
+  const rate = (ret!==null && base>0) ? ret/base*100 : null;
+  const b = rate===null ? null : band(rate);
+  return { k, filed:filed(k), ret, base, rate, grade:b?.grade||null, word:b?.word||null,
+           atRisk: ret ? ret*CASE_RATE : 0, last:lastDay(k), full:lastDay(k)>=daysIn(k)-1 };
+}
+
+/* ===== render ===== */
+function renderRail(){
+  $('#rail').innerHTML='';
+  months().forEach(k=>{
+    const b=document.createElement('button');
+    b.className='mtab'; b.type='button'; b.setAttribute('role','tab');
+    b.setAttribute('aria-selected', String(k===selected));
+    b.textContent=short(k); b.onclick=()=>{selected=k; render();};
+    $('#rail').appendChild(b);
+  });
+}
+
+function scale(rate){
+  if(rate===null) return '';
+  const segs=[[5,'A','#0F7B33'],[10,'B','#2C7A4B'],[15,'C','#B8720B'],[25,'D','#D0553F'],[40,'F','#AF1F2D']];
+  const max=Math.max(40, Math.ceil(rate/10)*10);
+  let prevEdge=0;
+  const bar = segs.map(([edge,g,c],i)=>{
+    const to = i===segs.length-1 ? max : edge;
+    const w = (to-prevEdge)/max*100; prevEdge = to;
+    return `<div class="scale-seg" style="width:${w}%;background:${c}">${g}</div>`;
+  }).join('');
+  const pos = Math.min(rate/max*100, 99.6);
+  return `<div class="scale">
+    <div class="scale-track">${bar}<span class="needle" style="left:${pos}%" data-v="${rate.toFixed(1)}%"></span></div>
+    <div class="scale-cap"><span>0%</span><span>return rate</span><span>${max}%</span></div>
+  </div>`;
+}
+
+function render(){
+  if(!selected || !months().includes(selected)) selected = months().slice(-1)[0] || null;
+  renderRail(); renderLedger(); renderDaily();
+  if(!selected){ $('#result').innerHTML=''; $('#caveat').innerHTML=''; return; }
+  const a = assess(selected);
+
+  let verdict;
+  if(a.rate===null && a.ret===null) verdict = `${a.filed.toLocaleString()} claims filed. No return count recorded for this month yet.`;
+  else if(a.rate===null) verdict = `${a.ret.toLocaleString()} claims came back, but there are no filings recorded for ${label(prev(selected))} to measure them against.`;
+  else verdict = `${a.ret.toLocaleString()} claims came back against ${a.base.toLocaleString()} filed in ${MONTHS[+prev(selected).slice(5)]}. That holds roughly ${peso(a.atRisk)} outside the collection cycle until each one is corrected and refiled.`;
+
+  $('#result').innerHTML = `
+    <div class="result-top">
+      <div class="grade-cell">
+        <div class="eyebrow">Grade</div>
+        <div class="grade-letter" style="color:${gradeColor(a.grade)}">${a.grade||'—'}</div>
+        <div class="grade-band" style="color:${gradeColor(a.grade)}">${esc(a.word||'not scored')}</div>
+      </div>
+      <div class="head-cell">
+        <div class="eyebrow">Reporting month</div>
+        <h2>${esc(label(selected))}</h2>
+        <p class="verdict">${esc(verdict)}</p>
+      </div>
+    </div>
+    ${scale(a.rate)}
+    <div class="stat-strip">
+      <div class="stat"><div class="k">Filed this month</div><div class="v">${a.filed.toLocaleString()}</div></div>
+      <div class="stat"><div class="k">Returned</div><div class="v" style="color:${a.ret?'var(--bad)':'inherit'}">${a.ret===null?'—':a.ret.toLocaleString()}</div></div>
+      <div class="stat"><div class="k">Return rate</div><div class="v">${a.rate===null?'—':a.rate.toFixed(1)+'%'}</div></div>
+      <div class="stat"><div class="k">Value on hold</div><div class="v">${a.atRisk?peso(a.atRisk):'—'}</div></div>
+    </div>`;
+
+  $('#caveat').innerHTML = (a.last && !a.full)
+    ? `<div class="note-line">Daily filings for ${label(selected)} are recorded only through day ${a.last}. The grade itself is unaffected — it is measured against ${label(prev(selected))} — but the "filed this month" figure will keep rising.</div>` : '';
+}
+
+function renderLedger(){
+  const ks = months();
+  const max = Math.max(1, ...ks.map(k=>Math.max(filed(k), RTH.get(k)||0)));
+  $('#ledger').querySelector('tbody').innerHTML = ks.map(k=>{
+    const a = assess(k);
+    return `<tr class="${k===selected?'is-current':''}">
+      <td><b>${short(k)}</b>${a.last && !a.full ? ' <span class="tiny">partial</span>' : ''}</td>
+      <td class="num mono">${a.filed.toLocaleString()}</td>
+      <td class="num mono">${a.ret===null?'—':a.ret.toLocaleString()}</td>
+      <td class="num mono">${a.rate===null?'—':a.rate.toFixed(1)+'%'}</td>
+      <td><span class="bar" style="width:${filed(k)/max*100}%"></span><br><span class="bar rth" style="width:${(RTH.get(k)||0)/max*100}%"></span></td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${gradeColor(a.grade)}">${a.grade||'—'}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="tiny">Nothing recorded yet.</td></tr>`;
+  const ds=[...DAILY.keys()].sort();
+  $('#ledgerNote').textContent = ds.length ? `Daily filings recorded through ${ds[ds.length-1]}.` : '';
+}
+
+function renderDaily(){
+  if(!selected){ $('#daily').querySelector('tbody').innerHTML=''; return; }
+  const rows = [...DAILY].filter(([d])=>mk(d)===selected).sort();
+  const max = Math.max(1, ...rows.map(([,t])=>t));
+  $('#daily').querySelector('tbody').innerHTML = rows.length ? rows.map(([d,t])=>`
+    <tr><td class="mono">${d.slice(5)}</td><td class="num mono">${t}</td>
+    <td><span class="bar" style="width:${t/max*100}%;${t===0?'background:var(--line)':''}"></span></td></tr>`).join('')
+    : `<tr><td colspan="3" class="tiny">No days recorded for this month.</td></tr>`;
+  const active = rows.filter(([,t])=>t>0).length;
+  $('#dailyNote').textContent = rows.length ? `${active} of ${rows.length} recorded days had filings.` : '';
+}
+
+/* ===== sheet sync ===== */
+function renderSync(){
+  const box = $('#syncBox');
+  if(!LIVE){ box.textContent = 'Offline preview — running on the sheet extract read through Jun 10.'; return; }
+  if(!SYNC || !SYNC.last_run){ box.textContent = 'Never run.'; return; }
+  const when = new Date(SYNC.last_run).toLocaleString();
+  box.innerHTML = SYNC.ok
+    ? `Last read ${esc(when)} · ${SYNC.rows_seen} rows in the sheet`
+    : `<span style="color:var(--bad)">Last attempt ${esc(when)} failed — ${esc(SYNC.message||'no detail')}</span>`;
+}
+
+$('#syncNow').onclick = async ()=>{
+  if(!LIVE){ say('#syncToast','Sign in first.'); return; }
+  say('#syncToast','Reading the sheet…', 0);
+  const { data, error } = await sb.functions.invoke('sync-claims-sheet');
+  say('#syncToast', error ? 'Failed: '+error.message : `${data?.rows ?? 0} rows read`, error?6000:3000);
+};
+
+/* ===== writes ===== */
+const say=(id,m,ms=2400)=>{ $(id).textContent=m; if(ms) setTimeout(()=>{ if($(id).textContent===m) $(id).textContent=''; },ms); };
+
+$('#saveRth').onclick = async ()=>{
+  const k = $('#rMonth').value, n = parseInt($('#rCount').value,10);
+  if(!k || !(n>=0)){ say('#rthToast','Need a month and a count.'); return; }
+  if(LIVE){
+    const { error } = await sb.from('pc_rth').upsert({period:k+'-01', returned:n}, {onConflict:'period'});
+    say('#rthToast', error ? 'Failed: '+error.message : 'Saved', error?6000:2400);
+  } else { RTH.set(k,n); selected=k; render(); say('#rthToast','Saved'); }
+};
+
+/* ===== live layer ===== */
+function setLive(s,t){ $('#live').classList.toggle('on',s==='on'); $('#live').classList.toggle('err',s==='err'); $('#liveTxt').textContent=t; }
+const stamp = () => setLive('on','Live · '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}));
+
+async function loadAll(){
+  const [d,r,y] = await Promise.all([
+    sb.from('pc_daily').select('submitted_on,total').order('submitted_on'),
+    sb.from('pc_rth').select('period,returned'),
+    sb.from('pc_sync').select('*').eq('id',1).maybeSingle()
+  ]);
+  if(d.error||r.error){ setLive('err','Load failed'); return false; }
+  DAILY = new Map((d.data||[]).map(x=>[x.submitted_on, x.total]));
+  RTH   = new Map((r.data||[]).map(x=>[String(x.period).slice(0,7), x.returned]));
+  SYNC  = y.data || null;
+  return true;
+}
+function scheduleReload(){
+  clearTimeout(timer);
+  timer = setTimeout(async ()=>{ const keep=selected; if(await loadAll()){ selected=keep; render(); renderSync(); stamp(); } }, 250);
+}
+function subscribe(){
+  if(channel) sb.removeChannel(channel);
+  channel = sb.channel('claims-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'pc_daily'}, scheduleReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'pc_rth'},   scheduleReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'pc_sync'},  scheduleReload)
+    .subscribe(s=>{
+      if(s==='SUBSCRIBED') setLive('on','Live');
+      else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT') setLive('err','Reconnecting');
+      else if(s==='CLOSED') setLive('err','Disconnected');
+    });
+}
+async function resolveProfile(authId){
+  let {data} = await sb.from('users').select('id,full_name,claims_role').eq('auth_id',authId).maybeSingle();
+  if(data) return data;
+  const {data:al} = await sb.from('user_auth_aliases').select('user_id').eq('auth_id',authId).maybeSingle();
+  if(!al) return null;
+  const {data:u} = await sb.from('users').select('id,full_name,claims_role').eq('id',al.user_id).maybeSingle();
+  return u;
+}
+async function startSession(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ $('#gate').hidden=false; setLive('off','Offline preview'); return; }
+  PROFILE = await resolveProfile(session.user.id);
+  if(!PROFILE?.claims_role){
+    $('#gate').hidden=false; $('#gErr').textContent='This account has no claims access yet. Ask IT.';
+    await sb.auth.signOut(); setLive('err','No access'); return;
+  }
+  $('#gate').hidden=true;
+  $('#whoami').textContent = `${PROFILE.full_name} · ${PROFILE.claims_role}`;
+  const ro = PROFILE.claims_role === 'viewer';
+  ['#pSync','#pRth'].forEach(s=> ro ? $(s).setAttribute('data-readonly','') : $(s).removeAttribute('data-readonly'));
+  LIVE = await loadAll();
+  if(LIVE){ selected=null; render(); renderSync(); subscribe(); }
+}
+$('#gSubmit').onclick = async ()=>{
+  $('#gErr').textContent='';
+  const {error} = await sb.auth.signInWithPassword({email:$('#gEmail').value.trim(), password:$('#gPass').value});
+  if(error){ $('#gErr').textContent=error.message; return; }
+  $('#gPass').value=''; await startSession();
+};
+$('#gPass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#gSubmit').click(); });
+
+/* ===== boot ===== */
+SEED_DAILY.split('|').forEach(p=>{ const [d,t]=p.split(','); DAILY.set(d,+t); });
+Object.entries(SEED_RTH).forEach(([k,v])=>RTH.set(k,v));
+selected = '2026-06';
+$('#rMonth').value = '2026-06';
+render();
+renderSync();
+
+if(window.supabase){
+  sb = window.supabase.createClient(SB_URL, SB_KEY, {
+    auth:{storageKey:'tdmh-claims-auth', autoRefreshToken:true, persistSession:true},
+    realtime:{params:{eventsPerSecond:10}}
+  });
+  sb.auth.onAuthStateChange(e=>{ if(e==='SIGNED_OUT') location.reload(); });
+  startSession();
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && LIVE) scheduleReload(); });
+  window.addEventListener('online', ()=>{ if(LIVE){ subscribe(); scheduleReload(); } });
+}
+</script>
+</body>
+</html>
