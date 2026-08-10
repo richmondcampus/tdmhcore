@@ -30,6 +30,12 @@ body{background:var(--paper);color:var(--ink);font-family:Inter,system-ui,-apple
 .live.on .dot{background:#4ADE80} .live.on{color:#fff;border-color:rgba(122,255,170,.45)}
 .live.err .dot{background:#FF8A93}
 .who{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+button.who{background:none;border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:4px 11px;cursor:pointer;display:flex;align-items:center;gap:8px}
+button.who:hover{color:#fff;border-color:rgba(255,255,255,.55)}
+button.who:hover .out{color:#FFB4BA}
+button.who:focus-visible{outline:2px solid #fff;outline-offset:2px}
+button.who .out{border-left:1px solid rgba(255,255,255,.28);padding-left:8px}
+button.who[hidden]{display:none}
 
 .rail{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .rail-in{max-width:960px;margin:0 auto;padding:0 20px;display:flex;gap:2px;overflow-x:auto}
@@ -141,7 +147,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
   <div class="mark">T</div>
   <h1>PhilHealth Claims Performance</h1>
   <div class="live" id="live"><span class="dot"></span><span id="liveTxt">Offline preview</span></div>
-  <div class="who" id="whoami">tdmhcore.io / claims</div>
+  <button class="who" id="whoami" type="button" hidden></button>
+  <div class="who" id="brand">tdmhcore.io / claims</div>
 </div></div>
 
 <div class="rail"><div class="rail-in" id="rail" role="tablist" aria-label="Month"></div></div>
@@ -449,7 +456,9 @@ async function startSession(){
     await sb.auth.signOut(); setLive('err','No access'); return;
   }
   $('#gate').hidden=true;
-  $('#whoami').textContent = `${PROFILE.full_name} · ${PROFILE.claims_role}`;
+  $('#whoami').innerHTML = `<span>${esc(PROFILE.full_name)} · ${esc(PROFILE.claims_role)}</span><span class="out">Sign out</span>`;
+  $('#whoami').hidden = false;
+  $('#brand').hidden  = true;
   const ro = PROFILE.claims_role === 'viewer';
   ['#pSync','#pRth'].forEach(s=> ro ? $(s).setAttribute('data-readonly','') : $(s).removeAttribute('data-readonly'));
   LIVE = await loadAll();
@@ -461,6 +470,11 @@ $('#gSubmit').onclick = async ()=>{
   if(error){ $('#gErr').textContent=error.message; return; }
   $('#gPass').value=''; await startSession();
 };
+$('#whoami').onclick = async ()=>{
+  if(!sb) return;
+  await sb.auth.signOut();          // onAuthStateChange reloads the page
+};
+
 $('#gPass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('#gSubmit').click(); });
 
 /* ===== boot ===== */
