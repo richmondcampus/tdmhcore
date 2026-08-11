@@ -551,9 +551,14 @@ async function doLogin(){
   try{
     const res=await fetch(SB_URL+'/functions/v1/verify-admin',{
       method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SB_KEY},
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SB_KEY,
+        'Authorization':'Bearer '+SB_KEY
+      },
       body:JSON.stringify({password:pw})
     });
+    if(!res.ok){throw new Error('HTTP '+res.status);}
     const{valid}=await res.json();
     if(valid){
       adminLoggedIn=true;sessionStorage.setItem('cbp_admin','1');
