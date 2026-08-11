@@ -5116,6 +5116,7 @@ async function saveSupplier() {
 let issState = {
   issuances: [], batches: [], pendingRequests: [],
   view: 'list',
+  itemsByIssuance: {},
   filters: { search: '', dept: '', from: '', to: '', scenario: '', tab: 'all' }
 }
 
@@ -5149,6 +5150,31 @@ async function renderIssuance() {
   issState.issuances = allIssuances
   issState.batches = batchRes.data || []
   issState.pendingRequests = pendingRes.data || []
+
+  // Preload the line items for the visible issuances so hover cards are instant.
+  issState.itemsByIssuance = {}
+  const visIds = allIssuances.map(i => i.id)
+  if (visIds.length) {
+    const { data: issItems } = await SB.from('issuance_items')
+      .select('issuance_id, quantity_issued, request_item_id, stock_item_id')
+      .in('issuance_id', visIds.slice(0, 500))
+    // Resolve item names from request_items / stock_items
+    const reqItemIds = [...new Set((issItems||[]).map(x => x.request_item_id).filter(Boolean))]
+    const stockIds = [...new Set((issItems||[]).map(x => x.stock_item_id).filter(Boolean))]
+    const [riRes, siRes] = await Promise.all([
+      reqItemIds.length ? SB.from('request_items').select('id,item_name,unit').in('id', reqItemIds) : Promise.resolve({ data: [] }),
+      stockIds.length ? SB.from('stock_items').select('id,item_name,unit').in('id', stockIds) : Promise.resolve({ data: [] })
+    ])
+    const riById = {}; (riRes.data||[]).forEach(r => riById[r.id] = r)
+    const siById = {}; (siRes.data||[]).forEach(s => siById[s.id] = s)
+    ;(issItems||[]).forEach(it => {
+      const src = (it.request_item_id && riById[it.request_item_id]) || (it.stock_item_id && siById[it.stock_item_id])
+      const name = src?.item_name || 'Item'
+      const unit = src?.unit || ''
+      ;(issState.itemsByIssuance[it.issuance_id] = issState.itemsByIssuance[it.issuance_id] || [])
+        .push({ name, qty: it.quantity_issued, unit })
+    })
+  }
 
   // Stats
   const confirmedCount = allIssuances.filter(i => i.confirmed_at).length
@@ -5247,7 +5273,7 @@ function buildIssuanceRows(issuances) {
     const emailSent = !!iss.email_sent
 
     rows += '<tr onclick="viewIssuance(\'' + iss.id + '\')" style="cursor:pointer;">'
-    rows += '<td class="td-mono">' + iss.issuance_no + '</td>'
+    rows += '<td class="td-mono" onmouseenter="showIssHover(event,\'' + iss.id + '\')" onmouseleave="hideIssHover()" style="position:relative;">' + iss.issuance_no + ' <span style="font-size:10px;color:var(--txt3);">ⓘ</span></td>'
     rows += '<td style="font-size:12px;color:var(--txt2);">' + (reqInfo?.request_no || '—') + '</td>'
     rows += '<td style="font-size:12px;">' + (dept?.dept_name || '—') + '</td>'
     rows += '<td><span class="badge ' + (iss.scenario === 'from_stock' ? 'badge-approved' : 'badge-issued') + '">' + (iss.scenario === 'from_stock' ? '📦 From Stock' : '🚚 After PO') + '</span></td>'
@@ -5268,6 +5294,62 @@ function buildIssuanceRows(issuances) {
     rows += '</tr>'
   }
   return rows
+}
+
+let _issHoverTimer = null
+function showIssHover(ev, issId) {
+  hideIssHover()
+  const iss = issState.issuances.find(i => i.id === issId)
+  if (!iss) return
+  const reqInfo = state.requests?.find(r => r.id === iss.request_id)
+  const dept = reqInfo ? state.departments.find(d => d.id === reqInfo.dept_id) : null
+  const receiver = state.users?.find(u => u.id === iss.received_by)
+  const items = issState.itemsByIssuance[issId] || []
+
+  let html = '<div style="font-weight:700;font-size:13px;margin-bottom:2px;">' + escStk(iss.issuance_no) + '</div>'
+  html += '<div style="font-size:11px;color:var(--txt2);margin-bottom:8px;">' + escStk(reqInfo?.request_no || 'No linked request') + (dept ? ' · ' + escStk(dept.dept_name) : '') + '</div>'
+
+  html += '<div style="font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Items Issued</div>'
+  if (items.length) {
+    html += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;">'
+    items.slice(0, 8).forEach(it => {
+      html += '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;">'
+        + '<span>' + escStk(it.name) + '</span>'
+        + '<span style="color:var(--txt2);white-space:nowrap;">' + escStk(String(it.qty)) + ' ' + escStk(it.unit || '') + '</span></div>'
+    })
+    if (items.length > 8) html += '<div style="font-size:11px;color:var(--txt3);">+' + (items.length - 8) + ' pa...</div>'
+    html += '</div>'
+  } else {
+    html += '<div style="font-size:12px;color:var(--txt3);margin-bottom:8px;">Walang naka-record na item.</div>'
+  }
+
+  html += '<div style="border-top:1px solid var(--bdr2);padding-top:6px;font-size:11px;color:var(--txt2);display:flex;flex-direction:column;gap:2px;">'
+  html += '<div>👤 ' + escStk(receiver?.full_name || '—') + '</div>'
+  html += '<div>📅 ' + formatDate(iss.issued_at) + '</div>'
+  html += '<div>' + (iss.confirmed_at
+    ? '<span style="color:var(--green);">✅ Confirmed ' + formatDate(iss.confirmed_at) + '</span>'
+    : '<span style="color:var(--amber);">⏳ Pending confirmation</span>') + '</div>'
+  html += '</div>'
+
+  const card = document.createElement('div')
+  card.id = 'issHoverCard'
+  card.style.cssText = 'position:fixed;z-index:9999;width:280px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:12px;padding:12px 14px;box-shadow:0 12px 32px rgba(0,0,0,.35);pointer-events:none;'
+  card.innerHTML = html
+  document.body.appendChild(card)
+
+  // Position near the cursor, flipping if it would go off-screen
+  const rect = ev.currentTarget.getBoundingClientRect()
+  let top = rect.bottom + 6
+  let left = rect.left
+  const cardH = card.offsetHeight, cardW = card.offsetWidth
+  if (top + cardH > window.innerHeight - 8) top = rect.top - cardH - 6
+  if (left + cardW > window.innerWidth - 8) left = window.innerWidth - cardW - 8
+  card.style.top = Math.max(8, top) + 'px'
+  card.style.left = Math.max(8, left) + 'px'
+}
+function hideIssHover() {
+  const c = document.getElementById('issHoverCard')
+  if (c) c.remove()
 }
 
 function filterIssTab(tab) {
