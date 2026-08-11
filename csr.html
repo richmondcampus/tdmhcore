@@ -5194,11 +5194,11 @@ async function renderIssuance() {
     .filter(d => d.is_active !== false)
     .sort((a,b) => (a.dept_name||'').localeCompare(b.dept_name||''))
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">'
-  html += '<input type="text" id="iss_f_search" placeholder="🔍 Issuance/Request no. o receiver..." value="' + esc(issState.filters.search) + '" oninput="issState.filters.search=this.value;applyIssuanceFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+  html += '<input type="text" id="iss_f_search" placeholder="🔍 Issuance/Request no. o receiver..." value="' + escStk(issState.filters.search) + '" oninput="issState.filters.search=this.value;applyIssuanceFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   if (!isDeptHead) {
     html += '<select id="iss_f_dept" onchange="issState.filters.dept=this.value;applyIssuanceFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
     html += '<option value="">🏢 All Depts</option>'
-    deptOpts.forEach(d => { html += '<option value="' + d.id + '"' + (issState.filters.dept===d.id?' selected':'') + '>' + esc(d.dept_name) + '</option>' })
+    deptOpts.forEach(d => { html += '<option value="' + d.id + '"' + (issState.filters.dept===d.id?' selected':'') + '>' + escStk(d.dept_name) + '</option>' })
     html += '</select>'
   }
   html += '<select id="iss_f_scenario" onchange="issState.filters.scenario=this.value;applyIssuanceFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
@@ -5207,9 +5207,9 @@ async function renderIssuance() {
   html += '<option value="after_po"' + (issState.filters.scenario==='after_po'?' selected':'') + '>🚚 After PO</option>'
   html += '</select>'
   html += '<span style="font-size:11px;color:var(--txt3);">📅</span>'
-  html += '<input type="date" id="iss_f_from" value="' + esc(issState.filters.from) + '" onchange="issState.filters.from=this.value;applyIssuanceFilters()" title="From date" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
+  html += '<input type="date" id="iss_f_from" value="' + escStk(issState.filters.from) + '" onchange="issState.filters.from=this.value;applyIssuanceFilters()" title="From date" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
   html += '<span style="font-size:11px;color:var(--txt3);">→</span>'
-  html += '<input type="date" id="iss_f_to" value="' + esc(issState.filters.to) + '" onchange="issState.filters.to=this.value;applyIssuanceFilters()" title="To date" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
+  html += '<input type="date" id="iss_f_to" value="' + escStk(issState.filters.to) + '" onchange="issState.filters.to=this.value;applyIssuanceFilters()" title="To date" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
   html += '<button class="btn btn-ghost btn-sm" onclick="clearIssuanceFilters()" title="Clear filters" style="font-size:12px;">✕ Clear</button>'
   html += '</div>'
 
