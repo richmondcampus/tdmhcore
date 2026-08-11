@@ -1626,6 +1626,7 @@ async function renderMyRequests() {
   }
 
   state.requests = requests
+  await loadRequestItemsIndex(requests.map(r => r.id))
   renderRequestsTable(content, requests, title, subtitle)
 }
 
@@ -1633,7 +1634,25 @@ async function renderAllRequests() {
   const content = document.getElementById('mainContent')
   const requests = await loadRequests({})
   state.requests = requests
+  // Preload line items so requests can be searched by item name.
+  await loadRequestItemsIndex(requests.map(r => r.id))
   renderRequestsTable(content, requests, 'All Requests', 'Complete request registry')
+}
+
+// Build an index of request_id → [item names] for item search.
+async function loadRequestItemsIndex(requestIds) {
+  state.itemsByRequest = state.itemsByRequest || {}
+  const ids = (requestIds || []).filter(id => !(id in state.itemsByRequest))
+  if (!ids.length) return
+  try {
+    const { data } = await SB.from('request_items')
+      .select('request_id,item_name').in('request_id', ids.slice(0, 800))
+    // Seed empties so we don't re-query requests that genuinely have no items
+    ids.forEach(id => { state.itemsByRequest[id] = state.itemsByRequest[id] || [] })
+    ;(data || []).forEach(ri => {
+      ;(state.itemsByRequest[ri.request_id] = state.itemsByRequest[ri.request_id] || []).push(ri.item_name || '')
+    })
+  } catch (_) { /* search by item just won't match; other filters still work */ }
 }
 
 function renderRequestsTable(content, requests, title, subtitle) {
@@ -1647,6 +1666,7 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '</div></div>'
 
   html += '<div class="filter-bar">'
+  html += '<input type="text" id="filterReqSearch" placeholder="\u{1F50D} Request no., purpose, o item..." oninput="filterRequests(this.value,\'search\')" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   html += '<select onchange="filterRequests(this.value,\'status\')" id="filterStatus"><option value="">All Status</option>'
   const statuses = ['draft','pending_approval','approved','for_po','ordered','delivered','issued','cancelled']
   statuses.forEach(s => { html += '<option value="' + s + '">' + formatStatus(s) + '</option>' })
@@ -1715,9 +1735,19 @@ function filterRequests(val, field) {
   const status = document.getElementById('filterStatus') ? document.getElementById('filterStatus').value : ''
   const type = document.getElementById('filterType') ? document.getElementById('filterType').value : ''
   const urgency = document.getElementById('filterUrgency') ? document.getElementById('filterUrgency').value : ''
+  const search = document.getElementById('filterReqSearch') ? document.getElementById('filterReqSearch').value.trim().toLowerCase() : ''
   if (status) filtered = filtered.filter(r => r.status === status)
   if (type) filtered = filtered.filter(r => r.request_type === type)
   if (urgency) filtered = filtered.filter(r => r.urgency === urgency)
+  if (search) {
+    filtered = filtered.filter(r => {
+      const items = (state.itemsByRequest && state.itemsByRequest[r.id]) || []
+      const itemMatch = items.some(n => (n || '').toLowerCase().includes(search))
+      return (r.request_no || '').toLowerCase().includes(search)
+        || (r.purpose || '').toLowerCase().includes(search)
+        || itemMatch
+    })
+  }
   const built = buildRequestRows(filtered)
   const tbody = document.getElementById('requestsTableBody')
   if (tbody) tbody.innerHTML = built.rows
@@ -5220,7 +5250,7 @@ async function renderIssuance() {
     .filter(d => d.is_active !== false)
     .sort((a,b) => (a.dept_name||'').localeCompare(b.dept_name||''))
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">'
-  html += '<input type="text" id="iss_f_search" placeholder="🔍 Issuance/Request no. o receiver..." value="' + escStk(issState.filters.search) + '" oninput="issState.filters.search=this.value;applyIssuanceFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+  html += '<input type="text" id="iss_f_search" placeholder="🔍 Issuance/Request no., receiver, o item..." value="' + escStk(issState.filters.search) + '" oninput="issState.filters.search=this.value;applyIssuanceFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   if (!isDeptHead) {
     html += '<select id="iss_f_dept" onchange="issState.filters.dept=this.value;applyIssuanceFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
     html += '<option value="">🏢 All Depts</option>'
@@ -5396,15 +5426,18 @@ function applyIssuanceFilters() {
     list = list.filter(i => i.issued_at && new Date(i.issued_at) <= to)
   }
 
-  // Search: issuance no, request no, or receiver name
+  // Search: issuance no, request no, receiver name, or ITEM name
   if (f.search && f.search.trim()) {
     const q = f.search.trim().toLowerCase()
     list = list.filter(i => {
       const r = state.requests?.find(x => x.id === i.request_id)
       const receiver = state.users?.find(u => u.id === i.received_by)
+      const items = issState.itemsByIssuance[i.id] || []
+      const itemMatch = items.some(it => (it.name || '').toLowerCase().includes(q))
       return (i.issuance_no || '').toLowerCase().includes(q)
         || (r?.request_no || '').toLowerCase().includes(q)
         || (receiver?.full_name || '').toLowerCase().includes(q)
+        || itemMatch
     })
   }
 
