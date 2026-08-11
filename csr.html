@@ -1814,6 +1814,57 @@ function filterRequests(val, field) {
 // ═══════════════════════════════════════════
 // APPROVAL QUEUE
 // ═══════════════════════════════════════════
+function buildApprovalRows(queue, role, levelLabels) {
+  let html = ''
+  for (const r of queue) {
+    const dept = state.departments.find(d => d.id === r.dept_id)
+    const lvl = r.current_approval_level || 1
+    const lvlLabel = levelLabels[lvl] || 'Level ' + lvl
+    html += '<tr>'
+    html += '<td class="td-mono" onclick="viewRequest(\'' + r.id + '\')" onmouseenter="showReqHover(event,\'' + r.id + '\')" onmouseleave="hideReqHover()" style="cursor:pointer;color:var(--accent);position:relative;">' + r.request_no + ' <span style="font-size:10px;color:var(--txt3);">ⓘ</span></td>'
+    html += '<td><span class="badge badge-' + r.request_type + '">' + r.request_type.toUpperCase() + '</span></td>'
+    html += '<td style="color:var(--txt2);">' + (dept ? dept.dept_name : '—') + '</td>'
+    html += '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (r.purpose || '—') + '</td>'
+    html += '<td><span class="badge badge-' + r.urgency + '">' + r.urgency.toUpperCase() + '</span></td>'
+    html += '<td><span style="font-size:11px;background:var(--accent-a);color:var(--accent);padding:2px 8px;border-radius:8px;">' + (r.current_approval_level === 99 ? '⚡ Auto-Approved' : 'L' + lvl + ' — ' + lvlLabel) + '</span></td>'
+    html += '<td style="color:var(--txt2);white-space:nowrap;">' + formatDate(r.created_at) + '</td>'
+    html += '<td><div style="display:flex;gap:5px;">'
+    if (r.current_approval_level === 99 && ['supply_officer','admin'].includes(role)) {
+      html += '<button class="btn btn-success btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'approve\')">📦 Fulfill</button>'
+    } else {
+      html += '<button class="btn btn-success btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'approve\')">✅ Approve</button>'
+      html += '<button class="btn btn-ghost btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'return\')">↩ Return</button>'
+      html += '<button class="btn btn-danger btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'reject\')">❌ Reject</button>'
+    }
+    html += '</div></td>'
+    html += '</tr>'
+  }
+  return html
+}
+
+function filterApprovalQueue(term) {
+  const q = (term || '').trim().toLowerCase()
+  const queue = state.approvalQueue || []
+  let list = queue
+  if (q) {
+    list = queue.filter(r => {
+      const items = (state.itemsByRequest && state.itemsByRequest[r.id]) || []
+      const itemMatch = items.some(it => (it.name || '').toLowerCase().includes(q))
+      return (r.request_no || '').toLowerCase().includes(q)
+        || (r.purpose || '').toLowerCase().includes(q)
+        || itemMatch
+    })
+  }
+  const role = state.user.csr_role
+  const levelLabels = { 1:'Dept Head', 2:'Supply Officer', 3:'Purchasing Officer' }
+  const tbody = document.getElementById('approvalTableBody')
+  if (tbody) {
+    tbody.innerHTML = list.length
+      ? buildApprovalRows(list, role, levelLabels)
+      : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang request.</td></tr>'
+  }
+}
+
 async function renderApprovalQueue() {
   const content = document.getElementById('mainContent')
   const role = state.user.csr_role
@@ -1857,6 +1908,8 @@ async function renderApprovalQueue() {
     myQueue = []
   }
   state.requests = myQueue
+  state.approvalQueue = myQueue   // full set, for search filtering
+  await loadRequestItemsIndex(myQueue.map(r => r.id))
 
   const roleIcon = { dept_head:'🏢', supply_officer:'📋', purchasing_officer:'💰', admin:'⚙️' }
   const roleTitle = { dept_head:'Dept Head Approvals', supply_officer:'Supply Fulfillment Queue', purchasing_officer:'Purchasing Approvals', admin:'All Pending Approvals' }
@@ -1909,33 +1962,13 @@ async function renderApprovalQueue() {
   if (myQueue.length === 0) {
     html += '<div class="empty-state"><div class="empty-icon">✅</div><h3>All clear!</h3><p>No requests pending your approval right now.</p></div>'
   } else {
+    html += '<div style="margin-bottom:12px;">'
+    html += '<input type="text" id="approvalSearch" placeholder="🔍 Request no., purpose, o item..." oninput="filterApprovalQueue(this.value)" style="width:100%;max-width:360px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    html += '</div>'
     html += '<div class="table-wrap"><table><thead><tr>'
     html += '<th>Request No.</th><th>Type</th><th>Dept</th><th>Purpose</th><th>Urgency</th><th>Level</th><th>Date</th><th>Actions</th>'
-    html += '</tr></thead><tbody>'
-    for (const r of myQueue) {
-      const dept = state.departments.find(d => d.id === r.dept_id)
-      const lvl = r.current_approval_level || 1
-      const lvlLabel = levelLabels[lvl] || 'Level ' + lvl
-      html += '<tr>'
-      html += '<td class="td-mono" onclick="viewRequest(\'' + r.id + '\')" style="cursor:pointer;color:var(--accent);">' + r.request_no + '</td>'
-      html += '<td><span class="badge badge-' + r.request_type + '">' + r.request_type.toUpperCase() + '</span></td>'
-      html += '<td style="color:var(--txt2);">' + (dept ? dept.dept_name : '—') + '</td>'
-      html += '<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (r.purpose || '—') + '</td>'
-      html += '<td><span class="badge badge-' + r.urgency + '">' + r.urgency.toUpperCase() + '</span></td>'
-      html += '<td><span style="font-size:11px;background:var(--accent-a);color:var(--accent);padding:2px 8px;border-radius:8px;">' + (r.current_approval_level === 99 ? '⚡ Auto-Approved' : 'L' + lvl + ' — ' + lvlLabel) + '</span></td>'
-      html += '<td style="color:var(--txt2);white-space:nowrap;">' + formatDate(r.created_at) + '</td>'
-      html += '<td><div style="display:flex;gap:5px;">'
-      if (r.current_approval_level === 99 && ['supply_officer','admin'].includes(role)) {
-        // Auto-approved — show fulfillment options directly
-        html += '<button class="btn btn-success btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'approve\')">📦 Fulfill</button>'
-      } else {
-        html += '<button class="btn btn-success btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'approve\')">✅ Approve</button>'
-        html += '<button class="btn btn-ghost btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'return\')">↩ Return</button>'
-        html += '<button class="btn btn-danger btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'reject\')">❌ Reject</button>'
-      }
-      html += '</div></td>'
-      html += '</tr>'
-    }
+    html += '</tr></thead><tbody id="approvalTableBody">'
+    html += buildApprovalRows(myQueue, role, levelLabels)
     html += '</tbody></table></div>'
 
     // Mobile cards
