@@ -5275,7 +5275,7 @@ async function renderIssuance() {
   const visIds = allIssuances.map(i => i.id)
   if (visIds.length) {
     const { data: issItems } = await SB.from('issuance_items')
-      .select('issuance_id, quantity_issued, request_item_id, stock_item_id')
+      .select('issuance_id, quantity_issued, request_item_id, stock_item_id, item_name_snapshot')
       .in('issuance_id', visIds.slice(0, 500))
     // Resolve item names from request_items / stock_items
     const reqItemIds = [...new Set((issItems||[]).map(x => x.request_item_id).filter(Boolean))]
@@ -5288,7 +5288,7 @@ async function renderIssuance() {
     const siById = {}; (siRes.data||[]).forEach(s => siById[s.id] = s)
     ;(issItems||[]).forEach(it => {
       const src = (it.request_item_id && riById[it.request_item_id]) || (it.stock_item_id && siById[it.stock_item_id])
-      const name = src?.item_name || 'Item'
+      const name = src?.item_name || it.item_name_snapshot || 'Item'
       const unit = src?.unit || ''
       ;(issState.itemsByIssuance[it.issuance_id] = issState.itemsByIssuance[it.issuance_id] || [])
         .push({ name, qty: it.quantity_issued, unit })
@@ -5309,6 +5309,7 @@ async function renderIssuance() {
   html += '<div class="page-header-actions">'
   if (['supply_officer','admin'].includes(role)) {
     html += '<button class="btn btn-ghost btn-sm" onclick="showIssView(\'batches\')">📦 Bulk Batches</button>'
+    html += '<button class="btn btn-ghost btn-sm" onclick="openBlankIssuanceModal()">⚡ Blank Issuance</button>'
     html += '<button class="btn btn-primary" onclick="openNewIssuanceModal()">＋ New Issuance</button>'
   }
   html += '</div></div>'
@@ -5494,9 +5495,10 @@ function applyIssuanceFilters() {
   if (f.tab === 'pending') list = list.filter(i => !i.confirmed_at)
   else if (f.tab === 'confirmed') list = list.filter(i => !!i.confirmed_at)
 
-  // Department (resolve via the linked request)
+  // Department (issuance's own dept_id, or via the linked request)
   if (f.dept) {
     list = list.filter(i => {
+      if (i.dept_id) return i.dept_id === f.dept
       const r = state.requests?.find(x => x.id === i.request_id)
       return r && r.dept_id === f.dept
     })
@@ -5728,6 +5730,175 @@ function updateSMSPreview() {
     text.textContent = 'Hi ' + receiverName.split(' ')[0] + ', your supply request ' + csrNo + ' is ready for pickup at the Supply Room. Please confirm receipt: https://tdmhcore.io/csr?confirm=<token>'
   } else {
     preview.style.display = 'none'
+  }
+}
+
+// ═══ BLANK ISSUANCE ═══
+// Direct issuance with NO linked request — for items handed out without prior
+// paperwork (walk-in, emergency, small items). Supply Officer / Admin only.
+// Requires a department (for tracking); reason is optional. Deducts stock and is
+// covered by the same stock guard as every other issuance.
+let _blankIssRows = []
+async function openBlankIssuanceModal() {
+  const role = state.user.csr_role
+  if (!['supply_officer','admin'].includes(role)) {
+    showToast('error','Not Allowed','Supply Officer o Admin lang ang pwedeng mag-blank issuance.')
+    return
+  }
+  // Load current stock for the picker
+  const { data: stock } = await SB.from('stock_items').select('id,item_name,unit,quantity_on_hand').eq('is_active', true).order('item_name')
+  issState.blankStock = stock || []
+  _blankIssRows = [{ id: Date.now(), stock_item_id:'', item_name:'', quantity:1, unit:'pcs' }]
+
+  document.getElementById('newRequestTitle').textContent = '⚡ Blank Issuance (walang request)'
+  let html = ''
+  html += '<div style="font-size:11px;color:var(--txt3);background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:8px 10px;margin-bottom:12px;">Para sa items na ibinibigay nang walang naunang request. Ide-deduct sa stock kung galing sa stock. Kailangan ng department para sa record.</div>'
+
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Department <span style="color:var(--red);">*</span></label><select id="bi_dept"><option value="">— Select department —</option>'
+  ;[...state.departments].filter(d => d.is_active !== false).sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).forEach(d => {
+    html += '<option value="' + d.id + '">' + escStk(d.dept_name) + '</option>'
+  })
+  html += '</select></div>'
+  html += '<div class="field"><label>Received By <span style="color:var(--red);">*</span></label><select id="bi_receiver" onchange="const o=this.options[this.selectedIndex];document.getElementById(\'bi_phone\').value=o.dataset.phone||\'\'"><option value="">— Select receiver —</option>'
+  state.users.filter(u => u.is_active).forEach(u => {
+    html += '<option value="' + u.id + '" data-phone="' + (u.phone||'') + '">' + escStk(u.full_name) + '</option>'
+  })
+  html += '</select></div></div>'
+
+  html += '<div class="field-row">'
+  html += '<div class="field"><label>Receiver Phone (SMS)</label><input type="text" id="bi_phone" placeholder="09xx-xxx-xxxx"></div>'
+  html += '<div class="field"><label>Reason <span style="color:var(--txt3);font-weight:400;">(optional)</span></label><input type="text" id="bi_reason" placeholder="hal. walk-in, emergency"></div>'
+  html += '</div>'
+
+  html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;">Items</div>'
+  html += '<div id="bi_items"></div>'
+  html += '<button class="btn btn-ghost btn-sm" onclick="addBlankIssRow()" style="margin-top:6px;">＋ Add Item</button>'
+
+  document.getElementById('newRequestBody').innerHTML = html
+  document.getElementById('newRequestFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'newRequestModal\')">Cancel</button>' +
+    '<button class="btn btn-primary" id="biSaveBtn" onclick="saveBlankIssuance()">⚡ Issue</button>'
+  renderBlankIssRows()
+  openModal('newRequestModal')
+}
+
+function renderBlankIssRows() {
+  const box = document.getElementById('bi_items')
+  if (!box) return
+  let html = ''
+  _blankIssRows.forEach(row => {
+    html += '<div id="bi_row_' + row.id + '" style="display:flex;gap:8px;margin-bottom:6px;align-items:center;">'
+    // Stock picker (optional — leave blank to type a free item)
+    html += '<select onchange="updateBlankStock(' + row.id + ',this.value)" style="flex:2;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:13px;">'
+    html += '<option value="">— From stock (optional) —</option>'
+    ;(issState.blankStock||[]).forEach(s => {
+      const sel = row.stock_item_id === s.id ? ' selected' : ''
+      html += '<option value="' + s.id + '"' + sel + '>' + escStk(s.item_name) + ' (' + s.quantity_on_hand + ' ' + escStk(s.unit||'') + ')</option>'
+    })
+    html += '</select>'
+    // Free-text item name (used when not from stock)
+    html += '<input type="text" placeholder="o item name" value="' + escStk(row.item_name||'') + '" oninput="updateBlankField(' + row.id + ',\'item_name\',this.value)" style="flex:2;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:13px;"' + (row.stock_item_id ? ' disabled' : '') + '>'
+    html += '<input type="number" min="1" value="' + (row.quantity||1) + '" oninput="updateBlankField(' + row.id + ',\'quantity\',this.value)" style="width:70px;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:13px;">'
+    html += '<input type="text" value="' + escStk(row.unit||'pcs') + '" oninput="updateBlankField(' + row.id + ',\'unit\',this.value)" style="width:64px;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:13px;"' + (row.stock_item_id ? ' disabled' : '') + '>'
+    html += '<button class="btn btn-ghost btn-sm" onclick="removeBlankIssRow(' + row.id + ')" style="color:var(--red);">✕</button>'
+    html += '</div>'
+  })
+  box.innerHTML = html
+}
+function addBlankIssRow() { _blankIssRows.push({ id: Date.now(), stock_item_id:'', item_name:'', quantity:1, unit:'pcs' }); renderBlankIssRows() }
+function removeBlankIssRow(id) { if (_blankIssRows.length > 1) { _blankIssRows = _blankIssRows.filter(r => r.id !== id); renderBlankIssRows() } }
+function updateBlankField(id, field, val) { const r = _blankIssRows.find(x => x.id === id); if (r) r[field] = val }
+function updateBlankStock(id, stockId) {
+  const r = _blankIssRows.find(x => x.id === id)
+  if (!r) return
+  r.stock_item_id = stockId
+  if (stockId) {
+    const s = (issState.blankStock||[]).find(x => x.id === stockId)
+    if (s) { r.item_name = s.item_name; r.unit = s.unit || 'pcs' }
+  }
+  renderBlankIssRows()
+}
+
+async function saveBlankIssuance() {
+  if (!guardClick('saveBlankIssuance')) return
+  const role = state.user.csr_role
+  if (!['supply_officer','admin'].includes(role)) { showToast('error','Not Allowed','Supply Officer o Admin lang.'); releaseClick('saveBlankIssuance'); return }
+
+  const deptId = document.getElementById('bi_dept')?.value
+  const receiverId = document.getElementById('bi_receiver')?.value
+  const phone = (document.getElementById('bi_phone')?.value || '').trim()
+  const reason = (document.getElementById('bi_reason')?.value || '').trim()
+
+  if (!deptId) { showToast('error','Required','Pumili ng department.'); releaseClick('saveBlankIssuance'); return }
+  if (!receiverId) { showToast('error','Required','Pumili ng receiver.'); releaseClick('saveBlankIssuance'); return }
+
+  const items = _blankIssRows
+    .map(r => ({ ...r, quantity: Number(r.quantity) || 0 }))
+    .filter(r => r.quantity > 0 && (r.stock_item_id || (r.item_name && r.item_name.trim())))
+  if (!items.length) { showToast('error','Required','Magdagdag ng kahit isang item.'); releaseClick('saveBlankIssuance'); return }
+
+  // Stock check for the stock-linked lines (same rule as regular issuance)
+  const stockLines = items.filter(i => i.stock_item_id)
+  const wanted = {}
+  stockLines.forEach(i => { wanted[i.stock_item_id] = (wanted[i.stock_item_id]||0) + i.quantity })
+  const short = []
+  for (const [sid, qty] of Object.entries(wanted)) {
+    const s = (issState.blankStock||[]).find(x => x.id === sid)
+    if (!s || qty > Number(s.quantity_on_hand)) {
+      short.push((s? s.item_name : 'Item') + ': meron lang ' + (s? s.quantity_on_hand : 0) + ', hinihingi ' + qty)
+    }
+  }
+  if (short.length) { showToast('error','Kulang ang Stock', short.join(' • ')); releaseClick('saveBlankIssuance'); return }
+
+  const btn = document.getElementById('biSaveBtn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Issuing...' }
+  try {
+    const { data: issNum } = await SB.rpc('generate_issuance_no')
+    const issNo = issNum || ('ISS-' + Date.now())
+    const { data: iss, error: issErr } = await SB.from('issuances').insert({
+      issuance_no: issNo,
+      request_id: null,
+      dept_id: deptId,
+      issued_by: state.user.id,
+      received_by: receiverId,
+      issued_at: new Date().toISOString(),
+      scenario: 'from_stock',
+      remarks: reason ? ('Blank issuance — ' + reason) : 'Blank issuance (walang request)',
+      sms_sent_to: phone || null
+    }).select().single()
+    if (issErr) throw issErr
+
+    for (const it of items) {
+      await SB.from('issuance_items').insert({
+        issuance_id: iss.id,
+        quantity_issued: it.quantity,
+        from_stock: !!it.stock_item_id,
+        stock_item_id: it.stock_item_id || null,
+        item_name_snapshot: it.item_name || null
+      })
+      if (it.stock_item_id) {
+        const s = (issState.blankStock||[]).find(x => x.id === it.stock_item_id)
+        const before = s ? Number(s.quantity_on_hand) : 0
+        const after = before - it.quantity
+        await SB.from('stock_items').update({ quantity_on_hand: after, last_updated: new Date().toISOString() }).eq('id', it.stock_item_id)
+        await SB.from('stock_movements').insert({
+          stock_item_id: it.stock_item_id, movement_type: 'issue',
+          quantity: -it.quantity, quantity_before: before, quantity_after: after,
+          performed_by: state.user.id, reference_type: 'blank_issuance', reference_id: iss.id,
+          notes: 'Blank issuance ' + issNo
+        }).catch(() => {})
+      }
+    }
+
+    closeModal('newRequestModal')
+    showToast('success','Issued ⚡', issNo + ' — na-issue nang walang request.')
+    renderIssuance()
+  } catch (e) {
+    releaseClick('saveBlankIssuance')
+    if (handleSupabaseError(e, 'blank issuance')) return
+    showToast('error','Error', e.message || 'Hindi na-issue.')
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Issue' }
   }
 }
 
