@@ -5776,7 +5776,7 @@ async function openBlankIssuanceModal() {
   html += '<button class="btn btn-ghost btn-sm" onclick="addBlankIssRow()" style="margin-top:6px;">＋ Add Item</button>'
 
   document.getElementById('newRequestBody').innerHTML = html
-  document.getElementById('newRequestFooter').innerHTML =
+  document.querySelector('#newRequestModal .modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal(\'newRequestModal\')">Cancel</button>' +
     '<button class="btn btn-primary" id="biSaveBtn" onclick="saveBlankIssuance()">⚡ Issue</button>'
   renderBlankIssRows()
