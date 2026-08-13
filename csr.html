@@ -6237,11 +6237,13 @@ async function viewIssuance(id) {
   if (!iss) return
   const { data: items } = await SB.from('issuance_items').select('*').eq('issuance_id', id)
   const req = iss.request_id ? state.requests?.find(r => r.id === iss.request_id) : null
-  const reqData = req || (await SB.from('requests').select('*').eq('id', iss.request_id).maybeSingle()).data
+  const reqData = req || (iss.request_id ? (await SB.from('requests').select('*').eq('id', iss.request_id).maybeSingle()).data : null)
   const issuedBy = state.users.find(u => u.id === iss.issued_by)
-  const dept = reqData ? state.departments.find(d => d.id === reqData.dept_id) : null
+  // Department: blank issuances carry their own dept_id; linked ones use the request's
+  const dept = state.departments.find(d => d.id === (iss.dept_id || reqData?.dept_id))
   const role = state.user.csr_role
   const isConfirmed = !!(iss.confirmed_at || iss.online_confirmed_at)
+  const isBlank = !iss.request_id
 
   document.getElementById('detailModalTitle').textContent = iss.issuance_no
 
@@ -6275,12 +6277,13 @@ async function viewIssuance(id) {
 
   // ── Info row ──
   body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">'
-  body += infoField('Request No.', reqData?.request_no || '—')
+  body += infoField('Request No.', isBlank ? '⚡ Blank (walang request)' : (reqData?.request_no || '—'))
   body += infoField('Department', dept?.dept_name || '—')
   body += infoField('Issued By', issuedBy?.full_name || '—')
   body += infoField('Date Issued', formatDate(iss.issued_at))
+  if (isBlank && iss.receiver_name) body += infoField('Received By', iss.receiver_name)
   body += infoField('Scenario', iss.scenario === 'from_stock' ? '📦 From Stock' : '🚚 After PO')
-  body += infoField('Purpose', reqData?.purpose || '—')
+  body += infoField('Purpose', isBlank ? (iss.remarks || '—') : (reqData?.purpose || '—'))
   body += '</div>'
 
   // ── Items Issued (full detail). Falls back to request_items if
@@ -6290,11 +6293,28 @@ async function viewIssuance(id) {
     const riById = {}
     reqItems.forEach(r => { riById[r.id] = r })
 
+    // Resolve stock item names for blank-issuance / from-stock lines
+    const stockIds = (items || []).map(x => x.stock_item_id).filter(Boolean)
+    const stockById = {}
+    if (stockIds.length) {
+      const { data: stk } = await SB.from('stock_items').select('id,item_name,unit').in('id', [...new Set(stockIds)])
+      ;(stk || []).forEach(s => { stockById[s.id] = s })
+    }
+
     // Build the display rows: prefer issuance_items, else fall back to request_items
     let rows = []
     if (items && items.length > 0) {
       rows = items.map((item, i) => {
-        const ri = (item.request_item_id && riById[item.request_item_id]) ? riById[item.request_item_id] : (reqItems[i] || {})
+        let ri = (item.request_item_id && riById[item.request_item_id]) ? riById[item.request_item_id] : (reqData ? (reqItems[i] || {}) : {})
+        // Blank issuance / from-stock: name comes from snapshot or the stock item
+        if (!ri.item_name) {
+          const stk = item.stock_item_id ? stockById[item.stock_item_id] : null
+          ri = {
+            item_name: item.item_name_snapshot || stk?.item_name || 'Item',
+            unit: stk?.unit || '',
+            category: item.from_stock ? 'From stock' : '—'
+          }
+        }
         const qty = item.quantity_issued != null ? item.quantity_issued : (ri.quantity != null ? ri.quantity : '—')
         return { ri, qty }
       })
