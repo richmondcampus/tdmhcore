@@ -5760,16 +5760,27 @@ async function openBlankIssuanceModal() {
     html += '<option value="' + d.id + '">' + escStk(d.dept_name) + '</option>'
   })
   html += '</select></div>'
-  html += '<div class="field"><label>Received By <span style="color:var(--red);">*</span></label><select id="bi_receiver" onchange="const o=this.options[this.selectedIndex];document.getElementById(\'bi_phone\').value=o.dataset.phone||\'\'"><option value="">— Select receiver —</option>'
+  html += '<div class="field"><label>Received By <span style="color:var(--red);">*</span></label>'
+  html += '<input type="text" id="bi_receiver_name" list="bi_receiver_list" placeholder="I-type ang pangalan..." autocomplete="off" oninput="onBlankReceiverInput(this.value)">'
+  html += '<datalist id="bi_receiver_list">'
   state.users.filter(u => u.is_active).forEach(u => {
-    html += '<option value="' + u.id + '" data-phone="' + (u.phone||'') + '">' + escStk(u.full_name) + '</option>'
+    html += '<option data-uid="' + u.id + '" data-phone="' + (u.phone||'') + '" value="' + escStk(u.full_name) + '">'
   })
-  html += '</select></div></div>'
+  html += '</datalist>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-top:3px;">Naka-register? mag-suggest habang nagta-type. Walk-in? i-type lang ang pangalan.</div>'
+  html += '</div></div>'
 
   html += '<div class="field-row">'
   html += '<div class="field"><label>Receiver Phone (SMS)</label><input type="text" id="bi_phone" placeholder="09xx-xxx-xxxx"></div>'
   html += '<div class="field"><label>Reason <span style="color:var(--txt3);font-weight:400;">(optional)</span></label><input type="text" id="bi_reason" placeholder="hal. walk-in, emergency"></div>'
   html += '</div>'
+
+  // Optional confirmation — capture a receipt photo only if you want proof.
+  html += '<div class="field"><label>Confirmation <span style="color:var(--txt3);font-weight:400;">(optional)</span></label>'
+  html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+  html += '<input type="file" id="bi_photo" accept="image/*" capture="environment" style="font-size:12px;color:var(--txt2);">'
+  html += '<span style="font-size:11px;color:var(--txt3);">Kumuha ng photo bilang patunay ng pagtanggap — kung hindi kailangan, iwan lang na blanko.</span>'
+  html += '</div></div>'
 
   html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;">Items</div>'
   html += '<div id="bi_items"></div>'
@@ -5820,18 +5831,29 @@ function updateBlankStock(id, stockId) {
   renderBlankIssRows()
 }
 
+function onBlankReceiverInput(val) {
+  // If the typed name exactly matches a registered user, auto-fill their phone.
+  const match = state.users.find(u => u.is_active && (u.full_name||'').toLowerCase() === (val||'').trim().toLowerCase())
+  const phoneEl = document.getElementById('bi_phone')
+  if (match && phoneEl && !phoneEl.value) phoneEl.value = match.phone || ''
+}
+
 async function saveBlankIssuance() {
   if (!guardClick('saveBlankIssuance')) return
   const role = state.user.csr_role
   if (!['supply_officer','admin'].includes(role)) { showToast('error','Not Allowed','Supply Officer o Admin lang.'); releaseClick('saveBlankIssuance'); return }
 
   const deptId = document.getElementById('bi_dept')?.value
-  const receiverId = document.getElementById('bi_receiver')?.value
+  const receiverName = (document.getElementById('bi_receiver_name')?.value || '').trim()
   const phone = (document.getElementById('bi_phone')?.value || '').trim()
   const reason = (document.getElementById('bi_reason')?.value || '').trim()
 
   if (!deptId) { showToast('error','Required','Pumili ng department.'); releaseClick('saveBlankIssuance'); return }
-  if (!receiverId) { showToast('error','Required','Pumili ng receiver.'); releaseClick('saveBlankIssuance'); return }
+  if (!receiverName) { showToast('error','Required','I-type ang pangalan ng receiver.'); releaseClick('saveBlankIssuance'); return }
+
+  // Link to a registered user if the typed name matches one exactly; else keep as walk-in name.
+  const matchedUser = state.users.find(u => u.is_active && (u.full_name||'').toLowerCase() === receiverName.toLowerCase())
+  const receiverId = matchedUser ? matchedUser.id : null
 
   const items = _blankIssRows
     .map(r => ({ ...r, quantity: Number(r.quantity) || 0 }))
@@ -5854,6 +5876,22 @@ async function saveBlankIssuance() {
   const btn = document.getElementById('biSaveBtn')
   if (btn) { btn.disabled = true; btn.textContent = 'Issuing...' }
   try {
+    // Optional receipt photo
+    let photoUrl = null
+    const photoFile = document.getElementById('bi_photo')?.files?.[0]
+    if (photoFile) {
+      try {
+        const ext = photoFile.name.split('.').pop() || 'jpg'
+        const path = 'csr-issuances/blank-' + Date.now() + '.' + ext
+        const { error: upErr } = await SB.storage.from('asset-photos')
+          .upload(path, photoFile, { contentType: photoFile.type, upsert: false })
+        if (!upErr) {
+          const { data: urlData } = SB.storage.from('asset-photos').getPublicUrl(path)
+          photoUrl = urlData?.publicUrl || null
+        }
+      } catch (_) { /* photo is optional — proceed without it */ }
+    }
+
     const { data: issNum } = await SB.rpc('generate_issuance_no')
     const issNo = issNum || ('ISS-' + Date.now())
     const { data: iss, error: issErr } = await SB.from('issuances').insert({
@@ -5862,10 +5900,15 @@ async function saveBlankIssuance() {
       dept_id: deptId,
       issued_by: state.user.id,
       received_by: receiverId,
+      receiver_name: receiverName,
       issued_at: new Date().toISOString(),
       scenario: 'from_stock',
       remarks: reason ? ('Blank issuance — ' + reason) : 'Blank issuance (walang request)',
-      sms_sent_to: phone || null
+      sms_sent_to: phone || null,
+      receipt_photo_url: photoUrl,
+      confirmed_at: photoUrl ? new Date().toISOString() : null,
+      confirmed_by_name: photoUrl ? receiverName : null,
+      confirmation_method: photoUrl ? 'photo' : null
     }).select().single()
     if (issErr) throw issErr
 
