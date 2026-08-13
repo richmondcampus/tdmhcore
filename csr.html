@@ -5925,12 +5925,14 @@ async function saveBlankIssuance() {
         const before = s ? Number(s.quantity_on_hand) : 0
         const after = before - it.quantity
         await SB.from('stock_items').update({ quantity_on_hand: after, last_updated: new Date().toISOString() }).eq('id', it.stock_item_id)
-        await SB.from('stock_movements').insert({
-          stock_item_id: it.stock_item_id, movement_type: 'issue',
-          quantity: -it.quantity, quantity_before: before, quantity_after: after,
-          performed_by: state.user.id, reference_type: 'blank_issuance', reference_id: iss.id,
-          notes: 'Blank issuance ' + issNo
-        }).catch(() => {})
+        try {
+          await SB.from('stock_movements').insert({
+            stock_item_id: it.stock_item_id, movement_type: 'issue',
+            quantity: -it.quantity, quantity_before: before, quantity_after: after,
+            performed_by: state.user.id, reference_type: 'blank_issuance', reference_id: iss.id,
+            notes: 'Blank issuance ' + issNo
+          })
+        } catch (_) { /* movement log is non-critical */ }
       }
     }
 
