@@ -1856,6 +1856,21 @@ function roleSelect(sys, current){
 function toggleDeptHeadField(role){
   const wrap = document.getElementById('deptHeadAssignWrap')
   if(wrap) wrap.style.display = role==='dept_head' ? 'block' : 'none'
+  // When someone becomes a dept head, they need at least requester access in IT and
+  // Maintenance to see their department's tickets (RLS requires a role there). Auto-set
+  // those to 'requester' if still blank — the admin can change them before saving.
+  if(role==='dept_head'){
+    const itSel = document.getElementById('uf_it')
+    const maintSel = document.getElementById('uf_maintenance')
+    let noted = false
+    if(itSel && !itSel.value){ itSel.value = 'requester'; noted = true }
+    if(maintSel && !maintSel.value){ maintSel.value = 'requester'; noted = true }
+    const hint = document.getElementById('deptHeadRoleHint')
+    if(hint) hint.style.display = noted ? 'block' : 'none'
+  } else {
+    const hint = document.getElementById('deptHeadRoleHint')
+    if(hint) hint.style.display = 'none'
+  }
 }
 
 function openUserForm(userId){
@@ -1888,6 +1903,7 @@ function openUserForm(userId){
   html += '<div id="deptHeadAssignWrap" style="margin-top:10px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:12px;'+(isDeptHead?'':'display:none;')+'">'
   html += '<div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;">👤 Department Head Assignment</div>'
   html += '<div style="font-size:11px;color:var(--txt3);margin-bottom:10px;">Piliin lahat ng department na hinehead niya. Makikita niya ang requests mula sa lahat ng napili.</div>'
+  html += '<div id="deptHeadRoleHint" style="display:none;font-size:11px;color:var(--accent);background:var(--accent-a);border-radius:7px;padding:7px 9px;margin-bottom:10px;">ℹ️ Na-set ang IT at Maintenance role sa <strong>requester</strong> para makita niya ang tickets ng dept niya sa lahat ng system. Pwede mong palitan kung kailangan.</div>'
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:190px;overflow-y:auto;">'
   S.departments.forEach(d=>{
     const chk = headedIds.includes(d.id) ? ' checked' : ''
