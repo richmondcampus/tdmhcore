@@ -5631,17 +5631,15 @@ async function openNewIssuanceModal(requestId) {
   })
   html += '</select></div>'
 
-  // Receiver info
-  html += '<div class="field-row">'
+  // Receiver — type the name (auto-suggests registered users; walk-ins allowed)
   html += '<div class="field"><label>Received By <span style="color:var(--red);">*</span></label>'
-  html += '<select id="iss_receiver">'
-  html += '<option value="">— Select receiver —</option>'
+  html += '<input type="text" id="iss_receiver_name" list="iss_receiver_list" placeholder="I-type ang pangalan..." autocomplete="off">'
+  html += '<datalist id="iss_receiver_list">'
   state.users.filter(u => u.is_active).forEach(u => {
-    html += '<option value="' + u.id + '" data-phone="' + (u.phone||'') + '">' + u.full_name + '</option>'
+    html += '<option data-uid="' + u.id + '" value="' + escStk(u.full_name) + '">'
   })
-  html += '</select></div>'
-  html += '<div class="field"><label>Receiver Phone (for SMS)</label>'
-  html += '<input type="text" id="iss_phone" placeholder="09xx-xxx-xxxx"></div>'
+  html += '</datalist>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-top:3px;">Naka-register? mag-suggest habang nagta-type. Walk-in? i-type lang ang pangalan.</div>'
   html += '</div>'
 
   // Items
@@ -5671,20 +5669,9 @@ async function openNewIssuanceModal(requestId) {
   document.getElementById('newRequestBody').innerHTML = html
   document.getElementById('newRequestBody').dataset.issItemRows = '[]'
 
-  // Auto-fill phone on receiver select
-  setTimeout(() => {
-    const sel = document.getElementById('iss_receiver')
-    if (sel) sel.addEventListener('change', function() {
-      const opt = this.options[this.selectedIndex]
-      const phone = opt.getAttribute('data-phone')
-      if (phone) document.getElementById('iss_phone').value = phone
-      updateSMSPreview()
-    })
-  }, 100)
-
   document.querySelector('#newRequestModal .modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal(\'newRequestModal\')">Cancel</button>' +
-    '<button class="btn btn-primary" onclick="saveIssuance()">Issue & Send SMS</button>'
+    '<button class="btn btn-primary" onclick="saveIssuance()">📤 Issue</button>'
 
   if (requestId) loadCSRForIssuance(requestId)
   openModal('newRequestModal')
@@ -5695,15 +5682,11 @@ async function loadCSRForIssuance(requestId) {
   const items = await loadRequestItems(requestId)
   const req = issState.pendingRequests.find(r => r.id === requestId)
 
-  // Auto-fill receiver from request
+  // Auto-fill receiver name from request (typed field; still editable)
   if (req && req.requested_by) {
-    const sel = document.getElementById('iss_receiver')
-    if (sel) sel.value = req.requested_by
     const user = state.users.find(u => u.id === req.requested_by)
-    if (user && user.phone) {
-      const phoneEl = document.getElementById('iss_phone')
-      if (phoneEl) phoneEl.value = user.phone
-    }
+    const nameEl = document.getElementById('iss_receiver_name')
+    if (nameEl && user) nameEl.value = user.full_name
   }
 
   // Render items with stock check
@@ -5772,10 +5755,15 @@ function addManualIssItem() {
 }
 
 function updateSMSPreview() {
+  // SMS removed — no-op kept so existing callers don't error.
+  const preview = document.getElementById('iss_sms_preview')
+  if (preview) preview.style.display = 'none'
+  return
+  /* legacy SMS preview below (disabled)
   const receiver = document.getElementById('iss_receiver')
   const phone = document.getElementById('iss_phone')
   const csr = document.getElementById('iss_csr')
-  const preview = document.getElementById('iss_sms_preview')
+  const preview2 = document.getElementById('iss_sms_preview')
   const text = document.getElementById('iss_sms_text')
   if (!receiver || !preview || !text) return
 
@@ -5788,6 +5776,7 @@ function updateSMSPreview() {
   } else {
     preview.style.display = 'none'
   }
+  */
 }
 
 // ═══ BLANK ISSUANCE ═══
@@ -6015,14 +6004,17 @@ function toggleIssScenario() {
 async function saveIssuance() {
   if (!guardClick('saveIssuance')) return
 
-  const receiverId = document.getElementById('iss_receiver')?.value
-  const phone = document.getElementById('iss_phone')?.value.trim()
+  const receiverName = (document.getElementById('iss_receiver_name')?.value || '').trim()
   const csrId = document.getElementById('iss_csr')?.value
   const locId = document.getElementById('iss_loc')?.value
   const notes = document.getElementById('iss_notes')?.value.trim()
   const scenario = document.querySelector('input[name="iss_scenario"]:checked')?.value || 'from_stock'
 
-  if (!receiverId) { showToast('error','Validation','Please select a receiver.'); return }
+  if (!receiverName) { showToast('error','Validation','I-type ang pangalan ng receiver.'); releaseClick('saveIssuance'); return }
+
+  // Link to a registered user if the typed name matches exactly; else keep as walk-in name.
+  const matchedUser = state.users.find(u => u.is_active && (u.full_name||'').toLowerCase() === receiverName.toLowerCase())
+  const receiverId = matchedUser ? matchedUser.id : null
 
   // Collect items — only those checked (or manual rows, which have no checkbox)
   const qtyInputs = document.querySelectorAll('.iss_qty_input')
@@ -6071,6 +6063,7 @@ async function saveIssuance() {
       request_id: csrId || null,
       issued_by: state.user.id,
       received_by: receiverId,
+      receiver_name: receiverName,
       issued_at: new Date().toISOString(),
       scenario,
       location_id: locId || null,
@@ -6145,36 +6138,21 @@ async function saveIssuance() {
       }
     }
 
-    // Send SMS confirmation link
-    if (phone) {
-      const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + token
-      const receiver = state.users.find(u => u.id === receiverId)
-      const firstName = receiver ? receiver.full_name.split(' ')[0] : 'Sir/Ma\'am'
-      const csrNo = csrId ? (issState.pendingRequests.find(r => r.id === csrId)?.request_no || '') : ''
-
-      const smsMsg = 'Hi ' + firstName + ', your supply request ' + csrNo + ' is ready. Please confirm receipt: ' + confirmUrl
-
-      await sendSMS([phone], smsMsg)
-      await SB.from('issuances').update({
-        sms_sent_at: new Date().toISOString(),
-        sms_sent_to: phone
-      }).eq('id', iss.id)
+    // In-app notification to receiver (only if they're a registered user)
+    if (receiverId) {
+      await SB.from('notifications').insert({
+        user_id: receiverId,
+        source_system: 'csr', source_ref_id: iss.id,
+        body: 'Your supply request is ready for pickup at the Supply Room. Issuance: ' + issuanceNo,
+        type: 'issuance_ready'
+      })
     }
-
-    // In-app notification to receiver
-    await SB.from('notifications').insert({
-      user_id: receiverId,
-      source_system: 'csr', source_ref_id: iss.id,
-      source_system: 'csr',
-      body: 'Your supply request is ready for pickup at the Supply Room. Issuance: ' + issuanceNo,
-      type: 'issuance_ready'
-    })
 
     closeModal('newRequestModal')
     if (hasRemainder) {
       showToast('warning', 'Na-issue — may natira ⚠️', issuanceNo + ' — narecord ang naibigay. Buhay pa ang request para sa natirang items.')
     } else {
-      showToast('success', 'Issued ✅', issuanceNo + (phone ? ' — SMS sent to ' + phone : '') )
+      showToast('success', 'Issued ✅', issuanceNo + ' — narecord ang naibigay.')
     }
     renderIssuance()
   } catch(e) { releaseClick('saveIssuance'); if (handleSupabaseError(e, 'action')) return; showToast('error','Error', e.message); console.error(e) }
