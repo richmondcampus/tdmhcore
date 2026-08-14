@@ -757,10 +757,20 @@ const SB = supabase.createClient(SUPA_URL, SUPA_KEY, {
   }
 })
 
+// ═══ Stock guard switch ═══
+// During the encoding transition, over-issuing is allowed (stock may go negative).
+// When enforce_stock_guard = 'true' in settings, strict blocking returns.
+let _enforceStockGuard = null
+async function isStockGuardStrict() {
+  if (_enforceStockGuard !== null) return _enforceStockGuard
+  try {
+    const { data } = await SB.from('settings').select('value').eq('key','enforce_stock_guard').single()
+    _enforceStockGuard = (data?.value === 'true')
+  } catch (_) { _enforceStockGuard = true }  // default strict if unreadable
+  return _enforceStockGuard
+}
+
 // ═══ Re-entrancy guard ═══
-// A slow network let a double-click fire the same write twice (e.g. a duplicate
-// issuance). guardClick() blocks a second call to the same action within a short
-// window and while an earlier call is still running.
 const _busyActions = new Set()
 function guardClick(key, ms) {
   if (_busyActions.has(key)) return false      // still in flight — reject
@@ -2010,8 +2020,23 @@ async function viewRequest(id) {
   document.getElementById('detailModalTitle').textContent = req.request_no
   let body = ''
 
+  // Partial issuance banner — shows exactly which items are still pending
+  if (req.status === 'partially_issued') {
+    body += '<div style="background:var(--amber-a,rgba(240,200,56,.12));border:1.5px solid var(--amber,#f0c838);border-radius:12px;padding:14px 16px;margin-bottom:16px;">'
+    body += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
+    body += '<span style="font-size:20px;">⚠️</span>'
+    body += '<div style="font-weight:700;font-size:14px;color:var(--amber,#b8860b);">Partially Issued — may natirang pending</div></div>'
+    if (req.pending_items_note) {
+      body += '<div style="font-size:12px;color:var(--txt2);margin-bottom:2px;">Hindi pa naisyu (kulang sa stock noong pag-issue):</div>'
+      body += '<div style="font-size:13px;color:var(--txt);font-weight:600;">' + escStk(req.pending_items_note) + '</div>'
+    }
+    body += '<div style="font-size:11px;color:var(--txt3);margin-top:6px;">Mag-issue ulit para sa mga natira, o gawing purchase request kung wala talagang stock.</div>'
+    body += '</div>'
+  }
+
   // Approval progress tracker
   if (['pending_approval','approved','cancelled'].includes(req.status)) {
+
     const isAutoApproved = req.current_approval_level === 99
     const approvalSteps = [
       { level: 1, label: 'Dept Head', icon: '🏢' },
@@ -2588,6 +2613,7 @@ async function directIssueFromStock() {
 
     // Deduct from stock + create issuance items
     const shortItems = []
+    const strictDirect = await isStockGuardStrict()
     for (const item of items) {
       const { data: stockItems } = await SB.from('stock_items')
         .select('id,quantity_on_hand,unit')
@@ -2599,10 +2625,11 @@ async function directIssueFromStock() {
       const stockItem = stockItems?.[0]
       const wantQty = Number(item.quantity) || 1
 
-      // Only issue from stock when there is genuinely enough on hand.
-      // A partial match would otherwise be recorded as fully issued.
+      // In STRICT mode, only issue from stock when there's genuinely enough on hand;
+      // short items are skipped and flagged. In RELAXED mode (encoding transition),
+      // issue anyway — stock may go negative.
       const enoughStock = stockItem && Number(stockItem.quantity_on_hand) >= wantQty
-      if (stockItem && !enoughStock) {
+      if (strictDirect && stockItem && !enoughStock) {
         shortItems.push(item.item_name + ' (meron: ' + stockItem.quantity_on_hand + ', kailangan: ' + wantQty + ')')
         continue
       }
@@ -5251,7 +5278,7 @@ async function renderIssuance() {
     SB.from('issuances').select('*').order('issued_at', { ascending: false }).limit(500),
     SB.from('issuance_batches').select('*').order('created_at', { ascending: false }).limit(20),
     SB.from('requests').select('*')
-      .in('status', ['approved','delivered'])
+      .in('status', ['approved','delivered','partially_issued'])
       .in('request_type', ['supply','purchase','issuance'])
       .order('created_at', { ascending: false })
   ])
@@ -5862,18 +5889,21 @@ async function saveBlankIssuance() {
     .filter(r => r.quantity > 0 && (r.stock_item_id || (r.item_name && r.item_name.trim())))
   if (!items.length) { showToast('error','Required','Magdagdag ng kahit isang item.'); releaseClick('saveBlankIssuance'); return }
 
-  // Stock check for the stock-linked lines (same rule as regular issuance)
-  const stockLines = items.filter(i => i.stock_item_id)
-  const wanted = {}
-  stockLines.forEach(i => { wanted[i.stock_item_id] = (wanted[i.stock_item_id]||0) + i.quantity })
-  const short = []
-  for (const [sid, qty] of Object.entries(wanted)) {
-    const s = (issState.blankStock||[]).find(x => x.id === sid)
-    if (!s || qty > Number(s.quantity_on_hand)) {
-      short.push((s? s.item_name : 'Item') + ': meron lang ' + (s? s.quantity_on_hand : 0) + ', hinihingi ' + qty)
+  // Stock check for the stock-linked lines — only enforced in strict mode.
+  const strictBlank = await isStockGuardStrict()
+  if (strictBlank) {
+    const stockLines = items.filter(i => i.stock_item_id)
+    const wanted = {}
+    stockLines.forEach(i => { wanted[i.stock_item_id] = (wanted[i.stock_item_id]||0) + i.quantity })
+    const short = []
+    for (const [sid, qty] of Object.entries(wanted)) {
+      const s = (issState.blankStock||[]).find(x => x.id === sid)
+      if (!s || qty > Number(s.quantity_on_hand)) {
+        short.push((s? s.item_name : 'Item') + ': meron lang ' + (s? s.quantity_on_hand : 0) + ', hinihingi ' + qty)
+      }
     }
+    if (short.length) { showToast('error','Kulang ang Stock', short.join(' • ')); releaseClick('saveBlankIssuance'); return }
   }
-  if (short.length) { showToast('error','Kulang ang Stock', short.join(' • ')); releaseClick('saveBlankIssuance'); return }
 
   const btn = document.getElementById('biSaveBtn')
   if (btn) { btn.disabled = true; btn.textContent = 'Issuing...' }
@@ -5983,12 +6013,13 @@ async function saveIssuance() {
 
   if (issItems.length === 0) { showToast('error','Validation','Please add items to issue.'); return }
 
-  // Stock check BEFORE anything is written. Instead of blocking the WHOLE issuance
-  // when one item is short, we issue what's available and leave the short items on
-  // the request as still-pending (for a later purchase or restock). Only the short
-  // lines stay pending — not the entire issuance.
+  // Stock check BEFORE anything is written. In STRICT mode: issue what's available
+  // and leave short items pending (only short lines stay pending, not the whole
+  // issuance). In RELAXED mode (encoding transition): issue everything — stock may
+  // go negative, honestly recording the shortfall.
   const shortNotes = []
-  {
+  const strict = await isStockGuardStrict()
+  if (strict) {
     const stockLines = issItems.filter(i => i.from_stock && i.stock_item_id)
     if (stockLines.length) {
       const ids = [...new Set(stockLines.map(i => i.stock_item_id))]
@@ -6064,11 +6095,12 @@ async function saveIssuance() {
         if (si) {
           const before = Number(si.quantity_on_hand)
           const newQty = before - item.quantity_issued
-          if (newQty < 0) {
-            // Should be unreachable — the pre-check and DB guard both cover this.
+          if (newQty < 0 && strict) {
+            // Strict mode only — pre-check and DB guard should already prevent this.
             // Surface it rather than clamping to 0 and losing the difference.
             throw new Error('Kulang ang stock habang nag-iisyu (meron: ' + before + ', hinihingi: ' + item.quantity_issued + '). Na-cancel ang issuance.')
           }
+          // Relaxed mode: allow negative — it honestly records the shortfall.
           await SB.from('stock_items').update({ quantity_on_hand: newQty, last_updated: new Date().toISOString() }).eq('id', item.stock_item_id)
           await SB.from('stock_movements').insert({
             stock_item_id: item.stock_item_id,
@@ -6085,9 +6117,17 @@ async function saveIssuance() {
       }
     }
 
-    // Update CSR request status
+    // Update CSR request status — 'issued' only if nothing is left pending;
+    // otherwise 'partially_issued' so it's clear items still need to go out.
     if (csrId) {
-      await SB.from('requests').update({ status: 'issued' }).eq('id', csrId)
+      if (shortNotes.length) {
+        await SB.from('requests').update({
+          status: 'partially_issued',
+          pending_items_note: shortNotes.join(' • ')
+        }).eq('id', csrId)
+      } else {
+        await SB.from('requests').update({ status: 'issued', pending_items_note: null }).eq('id', csrId)
+      }
     }
 
     // Send SMS confirmation link
@@ -9724,7 +9764,16 @@ async function renderPreferencesSettings(el) {
   html += '<div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;' + (isDark?'right:3px;':'left:3px;') + 'transition:all .2s;"></div>'
   html += '</button></div></div>'
 
-  // Notification settings
+  // Stock Guard — allow issuing beyond stock during the encoding transition
+  const guardStrict = settingsMap['enforce_stock_guard'] === 'true'
+  html += '<div class="card">'
+  html += '<div style="font-size:13px;font-weight:600;margin-bottom:4px;">📦 Stock Guard</div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-bottom:12px;">Kapag OFF, pwedeng mag-issue kahit kulang ang stock (magiging negatibo) — para sa transition habang di pa kumpleto ang encoding. Kapag ON, hinaharang ang pag-issue nang labis sa stock.</div>'
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;">'
+  html += '<span style="font-size:13px;">Strict Stock Enforcement <span style="font-size:11px;color:' + (guardStrict?'var(--green,#12a62f)':'var(--amber,#f0c838)') + ';">(' + (guardStrict?'ON — mahigpit':'OFF — relaxed') + ')</span></span>'
+  html += '<button onclick="toggleStockGuard(' + (!guardStrict) + ')" style="width:48px;height:26px;border-radius:13px;border:none;cursor:pointer;background:' + (guardStrict?'var(--accent)':'var(--surf3)') + ';position:relative;transition:background .2s;">'
+  html += '<div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;' + (guardStrict?'right:3px;':'left:3px;') + 'transition:all .2s;"></div>'
+  html += '</button></div></div>'
   html += '<div class="card">'
   html += '<div style="font-size:13px;font-weight:600;margin-bottom:12px;">🔔 Notifications</div>'
   const notifSettings = [
@@ -9795,7 +9844,7 @@ function formatStatus(s) {
     draft:'Draft', pending_approval:'Pending Approval',
     pending_evaluation:'Pending Evaluation', under_evaluation:'Under Evaluation',
     approved:'Approved', for_po:'For PO', ordered:'Ordered',
-    delivered:'Delivered', issued:'Issued', cancelled:'Cancelled',
+    delivered:'Delivered', issued:'Issued', partially_issued:'Partially Issued', cancelled:'Cancelled',
     for_repair:'For Repair', repair_in_progress:'Repair In Progress',
     repair_completed:'Repair Completed', for_replacement:'For Replacement',
     closed:'Closed', csr_triggered:'CSR Triggered'
@@ -9809,7 +9858,7 @@ function statusBadge(s) {
     pending_evaluation:'badge-pending', under_evaluation:'badge-pending',
     approved:'badge-approved', for_po:'badge-for_po',
     ordered:'badge-ordered', delivered:'badge-delivered',
-    issued:'badge-issued', cancelled:'badge-cancelled',
+    issued:'badge-issued', partially_issued:'badge-pending', cancelled:'badge-cancelled',
     for_repair:'badge-pending', repair_in_progress:'badge-pending',
     repair_completed:'badge-approved', for_replacement:'badge-for_po',
     closed:'badge-issued', csr_triggered:'badge-draft'
@@ -9821,6 +9870,19 @@ function formatDate(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
   return d.toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' })
+}
+
+async function toggleStockGuard(makeStrict) {
+  try {
+    await SB.from('settings').update({ value: makeStrict ? 'true' : 'false', updated_by: state.user.id, updated_at: new Date().toISOString() }).eq('key', 'enforce_stock_guard')
+    _enforceStockGuard = !!makeStrict   // refresh cached value immediately
+    showToast('success', 'Stock Guard ' + (makeStrict ? 'ON' : 'OFF'),
+      makeStrict ? 'Mahigpit na — hinaharang ang pag-issue nang labis sa stock.'
+                 : 'Relaxed — pwede nang mag-issue kahit kulang ang stock.')
+    renderSettings()
+  } catch (e) {
+    showToast('error','Error', e.message || 'Hindi na-update ang setting.')
+  }
 }
 
 function toggleTheme() {
