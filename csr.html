@@ -1129,6 +1129,7 @@ function renderSidebarNav() {
 
   // Reports — admin only
   { id:'reports',         icon:'📈', label:'Reports',    roles:['admin'] },
+  { id:'issuance_report', icon:'📑', label:'Issuance Report', roles:['supply_officer','admin'] },
   { id:'settings',        icon:'⚙️', label:'Settings',   roles:['admin'] },
   ]
   let html = ''
@@ -1184,6 +1185,7 @@ function showPage(page) {
     purchase_orders: renderPurchaseOrders, incoming_deliveries: renderIncomingDeliveries, issuance: renderIssuance,
     stock_inventory: renderStockInventory, derp: renderDerp,
     reports: renderReports, settings: renderSettings,
+    issuance_report: renderIssuanceReport,
     notifications: renderNotifications, new_request: openNewRequestModal
   }
   if (pages[page]) pages[page]()
@@ -8371,6 +8373,12 @@ async function notifyDerpEvaluators(req, category) {
 async function renderReports() {
   const content = document.getElementById('mainContent')
 
+  // Admin-only, guarded here too (nav already hides it).
+  if (state.user?.csr_role !== 'admin') {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><h3>Admin Only</h3><p>Ang Reports ay para sa admin lang.</p></div>'
+    return
+  }
+
   // Load all data for reports
   const [reqRes, issRes, poRes, stockRes] = await Promise.all([
     SB.from('requests').select('*').order('created_at', { ascending: false }),
@@ -8615,6 +8623,232 @@ async function renderReports() {
   content.innerHTML = html
 }
 
+// ═══════════════════════════════════════════
+// ISSUANCE REPORT — for Supply Officers / Admin
+// Per-item log of everything issued, with full detail for back-tracking,
+// filters, and CSV / Excel export.
+// ═══════════════════════════════════════════
+let issRptState = {
+  rows: [],            // flattened per-item rows
+  filters: { search:'', dept:'', from:'', to:'', scenario:'', status:'', stock:'' }
+}
+
+async function renderIssuanceReport() {
+  const content = document.getElementById('mainContent')
+  const role = state.user?.csr_role
+  if (!['supply_officer','admin'].includes(role)) {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><h3>Restricted</h3><p>Supply Officer o Admin lang.</p></div>'
+    return
+  }
+
+  content.innerHTML = '<div class="empty-state"><div class="skeleton" style="width:220px;height:20px;margin:0 auto 10px;"></div><div class="skeleton" style="width:320px;height:14px;margin:0 auto;"></div></div>'
+
+  // Pull issuances + their items, then flatten to one row per item.
+  const [issRes, itemRes] = await Promise.all([
+    SB.from('issuances').select('*').order('issued_at', { ascending: false }).limit(2000),
+    SB.from('issuance_items').select('*').limit(8000)
+  ])
+  const issuances = issRes.data || []
+  const allItems = itemRes.data || []
+
+  // Resolve item names from request_items + stock_items
+  const reqItemIds = [...new Set(allItems.map(x => x.request_item_id).filter(Boolean))]
+  const stockIds = [...new Set(allItems.map(x => x.stock_item_id).filter(Boolean))]
+  const [riRes, siRes] = await Promise.all([
+    reqItemIds.length ? SB.from('request_items').select('id,item_name,unit,category').in('id', reqItemIds) : Promise.resolve({ data: [] }),
+    stockIds.length ? SB.from('stock_items').select('id,item_name,unit').in('id', stockIds) : Promise.resolve({ data: [] })
+  ])
+  const riById = {}; (riRes.data||[]).forEach(r => riById[r.id] = r)
+  const siById = {}; (siRes.data||[]).forEach(s => siById[s.id] = s)
+
+  // Requests (for request_no + dept when issuance has no own dept_id)
+  const reqIds = [...new Set(issuances.map(i => i.request_id).filter(Boolean))]
+  const reqById = {}
+  if (reqIds.length) {
+    const { data: reqs } = await SB.from('requests').select('id,request_no,dept_id').in('id', reqIds)
+    ;(reqs||[]).forEach(r => reqById[r.id] = r)
+  }
+
+  const itemsByIss = {}
+  allItems.forEach(it => { (itemsByIss[it.issuance_id] = itemsByIss[it.issuance_id] || []).push(it) })
+
+  // Flatten
+  const rows = []
+  issuances.forEach(iss => {
+    const req = iss.request_id ? reqById[iss.request_id] : null
+    const deptId = iss.dept_id || req?.dept_id
+    const dept = state.departments.find(d => d.id === deptId)
+    const receiver = state.users.find(u => u.id === iss.received_by)
+    const issuer = state.users.find(u => u.id === iss.issued_by)
+    const confirmed = !!(iss.confirmed_at || iss.online_confirmed_at)
+    const items = itemsByIss[iss.id] || []
+    if (items.length === 0) {
+      rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, null, riById, siById))
+    } else {
+      items.forEach(it => rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById)))
+    }
+  })
+  issRptState.rows = rows
+
+  // Build the page
+  let html = '<div class="page-header"><div><h2>📑 Issuance Report</h2>'
+  html += '<p style="color:var(--txt2);font-size:13px;">Kumpletong tala ng bawat item na naisyu — para sa back-tracking at audit.</p></div>'
+  html += '<div class="page-header-actions">'
+  html += '<button class="btn btn-ghost btn-sm" onclick="exportIssuanceReport(\'csv\')">⬇️ CSV</button>'
+  html += '<button class="btn btn-primary btn-sm" onclick="exportIssuanceReport(\'xlsx\')">⬇️ Excel</button>'
+  html += '</div></div>'
+
+  // Filters
+  const deptOpts = [...state.departments].filter(d=>d.is_active!==false).sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||''))
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">'
+  html += '<input type="text" id="ir_search" placeholder="🔍 Item, ISS/CSR no., receiver..." value="'+escStk(issRptState.filters.search)+'" oninput="issRptState.filters.search=this.value;applyIssRptFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
+  html += '<select id="ir_dept" onchange="issRptState.filters.dept=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">🏢 All Depts</option>'
+  deptOpts.forEach(d => { html += '<option value="'+d.id+'"'+(issRptState.filters.dept===d.id?' selected':'')+'>'+escStk(d.dept_name)+'</option>' })
+  html += '</select>'
+  html += '<select id="ir_scenario" onchange="issRptState.filters.scenario=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Types</option><option value="from_stock">📦 From Stock</option><option value="after_po">🚚 After PO</option></select>'
+  html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Status</option><option value="confirmed">✅ Confirmed</option><option value="pending">⏳ Pending</option></select>'
+  html += '<span style="font-size:11px;color:var(--txt3);">📅</span>'
+  html += '<input type="date" id="ir_from" value="'+escStk(issRptState.filters.from)+'" onchange="issRptState.filters.from=this.value;applyIssRptFilters()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
+  html += '<span style="font-size:11px;color:var(--txt3);">→</span>'
+  html += '<input type="date" id="ir_to" value="'+escStk(issRptState.filters.to)+'" onchange="issRptState.filters.to=this.value;applyIssRptFilters()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
+  html += '<button class="btn btn-ghost btn-sm" onclick="clearIssRptFilters()" style="font-size:12px;">✕ Clear</button>'
+  html += '</div>'
+
+  html += '<div style="font-size:12px;color:var(--txt2);margin-bottom:8px;"><span id="ir_count">'+rows.length+' item rows</span></div>'
+  html += '<div class="table-wrap"><table><thead><tr>'
+  html += '<th>Issuance No.</th><th>Date</th><th>Request No.</th><th>Department</th><th>Item</th><th>Qty</th><th>Unit</th><th>From Stock</th><th>Received By</th><th>Issued By</th><th>Status</th><th>Confirmation</th>'
+  html += '</tr></thead><tbody id="irTableBody"></tbody></table></div>'
+
+  content.innerHTML = html
+  applyIssRptFilters()
+}
+
+function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById) {
+  let itemName = '—', qty = '', unit = ''
+  if (it) {
+    const src = (it.request_item_id && riById[it.request_item_id]) || (it.stock_item_id && siById[it.stock_item_id])
+    itemName = src?.item_name || it.item_name_snapshot || 'Item'
+    qty = it.quantity_issued != null ? it.quantity_issued : ''
+    unit = src?.unit || ''
+  }
+  return {
+    issuance_no: iss.issuance_no || '',
+    date: iss.issued_at ? iss.issued_at.split('T')[0] : '',
+    request_no: iss.request_id ? (req?.request_no || '') : 'Blank (walang request)',
+    department: dept?.dept_name || '',
+    dept_id: (iss.dept_id || req?.dept_id) || '',
+    item: itemName,
+    qty: qty,
+    unit: unit,
+    from_stock: it ? (it.from_stock ? 'Oo' : 'Hindi') : '',
+    received_by: receiver?.full_name || iss.receiver_name || '',
+    issued_by: issuer?.full_name || '',
+    status: confirmed ? 'Confirmed' : 'Pending',
+    confirmation: confirmed ? (iss.confirmation_method || (iss.online_confirmed_at ? 'online_link' : 'photo')) : '',
+    scenario: iss.scenario || '',
+    _confirmed: confirmed
+  }
+}
+
+function getFilteredIssRptRows() {
+  const f = issRptState.filters
+  let list = issRptState.rows.slice()
+  if (f.dept) list = list.filter(r => r.dept_id === f.dept)
+  if (f.scenario) list = list.filter(r => r.scenario === f.scenario)
+  if (f.status === 'confirmed') list = list.filter(r => r._confirmed)
+  else if (f.status === 'pending') list = list.filter(r => !r._confirmed)
+  if (f.from) list = list.filter(r => r.date && r.date >= f.from)
+  if (f.to) list = list.filter(r => r.date && r.date <= f.to)
+  if (f.search && f.search.trim()) {
+    const q = f.search.trim().toLowerCase()
+    list = list.filter(r =>
+      (r.item||'').toLowerCase().includes(q) ||
+      (r.issuance_no||'').toLowerCase().includes(q) ||
+      (r.request_no||'').toLowerCase().includes(q) ||
+      (r.received_by||'').toLowerCase().includes(q) ||
+      (r.department||'').toLowerCase().includes(q)
+    )
+  }
+  return list
+}
+
+function applyIssRptFilters() {
+  const list = getFilteredIssRptRows()
+  const tbody = document.getElementById('irTableBody')
+  if (tbody) {
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang record.</td></tr>'
+    } else {
+      tbody.innerHTML = list.map(r => {
+        const statusBadge = r._confirmed
+          ? '<span style="color:var(--green,#12a62f);">✅ Confirmed</span>'
+          : '<span style="color:var(--amber,#f0c838);">⏳ Pending</span>'
+        const confLabel = r.confirmation === 'photo' ? '📷 Photo' : r.confirmation === 'online_link' ? '🔗 Online' : (r.confirmation || '—')
+        return '<tr>'
+          + '<td class="td-mono">'+escStk(r.issuance_no)+'</td>'
+          + '<td style="white-space:nowrap;">'+escStk(r.date)+'</td>'
+          + '<td class="td-mono" style="font-size:11px;">'+escStk(r.request_no)+'</td>'
+          + '<td>'+escStk(r.department||'—')+'</td>'
+          + '<td><strong>'+escStk(r.item)+'</strong></td>'
+          + '<td>'+escStk(String(r.qty))+'</td>'
+          + '<td>'+escStk(r.unit||'')+'</td>'
+          + '<td>'+escStk(r.from_stock||'')+'</td>'
+          + '<td>'+escStk(r.received_by||'—')+'</td>'
+          + '<td>'+escStk(r.issued_by||'—')+'</td>'
+          + '<td style="white-space:nowrap;">'+statusBadge+'</td>'
+          + '<td style="white-space:nowrap;">'+confLabel+'</td>'
+          + '</tr>'
+      }).join('')
+    }
+  }
+  const cnt = document.getElementById('ir_count')
+  if (cnt) cnt.textContent = list.length + ' item row' + (list.length !== 1 ? 's' : '')
+}
+
+function clearIssRptFilters() {
+  issRptState.filters = { search:'', dept:'', from:'', to:'', scenario:'', status:'', stock:'' }
+  ;['ir_search','ir_dept','ir_scenario','ir_status','ir_from','ir_to'].forEach(id => { const el=document.getElementById(id); if(el) el.value='' })
+  applyIssRptFilters()
+}
+
+async function exportIssuanceReport(fmt) {
+  const list = getFilteredIssRptRows()
+  if (!list.length) { showToast('info','No Data','Walang record na i-e-export.'); return }
+
+  const headers = ['Issuance No.','Date Issued','Request No.','Department','Item','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
+  const dataRows = list.map(r => [
+    r.issuance_no, r.date, r.request_no, r.department, r.item, r.qty, r.unit,
+    r.from_stock, r.received_by, r.issued_by, r.status,
+    r.confirmation === 'photo' ? 'Photo' : r.confirmation === 'online_link' ? 'Online Link' : (r.confirmation||''),
+    r.scenario === 'from_stock' ? 'From Stock' : r.scenario === 'after_po' ? 'After PO' : (r.scenario||'')
+  ])
+  const stamp = new Date().toISOString().split('T')[0]
+
+  if (fmt === 'xlsx') {
+    if (typeof XLSX === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+        s.onload = resolve; s.onerror = reject; document.head.appendChild(s)
+      })
+    }
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows])
+    ws['!cols'] = headers.map((h,i) => ({ wch: Math.max(h.length, ...dataRows.map(r => String(r[i]||'').length)) + 2 }))
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Issuance Report')
+    XLSX.writeFile(wb, 'TDMH_Issuance_Report_' + stamp + '.xlsx')
+    showToast('success','Exported','Excel downloaded — ' + list.length + ' rows.')
+  } else {
+    const csv = [headers, ...dataRows].map(r => r.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')).join('\n')
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'TDMH_Issuance_Report_' + stamp + '.csv'; a.click()
+    URL.revokeObjectURL(url)
+    showToast('success','Exported','CSV downloaded — ' + list.length + ' rows.')
+  }
+}
+
 async function exportReportsCSV() {
   const { data: requests } = await SB.from('requests').select('*').order('created_at', { ascending: false })
   if (!requests || requests.length === 0) { showToast('info','No Data','No requests to export.'); return }
@@ -8652,6 +8886,13 @@ let poState = { pos: [], filterStatus: 'all' }
 
 function renderSettings() {
   const content = document.getElementById('mainContent')
+
+  // Defense in depth: Settings is admin-only. The nav hides it, but guard here too
+  // so it can't be opened another way. (The database RLS is the final safeguard.)
+  if (state.user?.csr_role !== 'admin') {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">🔒</div><h3>Admin Only</h3><p>Ang Settings ay para sa admin lang.</p></div>'
+    return
+  }
 
   let html = '<div class="page-header">'
   html += '<h2>⚙️ Settings</h2>'
