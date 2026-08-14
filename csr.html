@@ -1842,7 +1842,7 @@ function buildApprovalRows(queue, role, levelLabels) {
     html += '<td style="color:var(--txt2);white-space:nowrap;">' + formatDate(r.created_at) + '</td>'
     html += '<td><div style="display:flex;gap:5px;">'
     if (r.current_approval_level === 99 && ['supply_officer','admin'].includes(role)) {
-      html += '<button class="btn btn-success btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'approve\')">📦 Fulfill</button>'
+      html += '<button class="btn btn-success btn-sm" onclick="fulfillFromRequest(\'' + r.id + '\')">📦 Fulfill</button>'
     } else {
       html += '<button class="btn btn-success btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'approve\')">✅ Approve</button>'
       html += '<button class="btn btn-ghost btn-sm" onclick="openApprovalModal(\'' + r.id + '\',\'return\')">↩ Return</button>'
@@ -2198,13 +2198,13 @@ async function viewRequest(id) {
     footer += '<button class="btn btn-ghost" onclick="openApprovalModal(\'' + req.id + '\',\'return\')">Return</button>'
     footer += '<button class="btn btn-danger" onclick="openApprovalModal(\'' + req.id + '\',\'reject\')">Reject</button>'
   }
-  // Auto-approved (level 99) — Supply Officer needs to choose fulfillment (SUPPLY/PURCHASE only)
+  // Auto-approved (level 99) — Supply Officer issues via the New Issuance modal
   if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level === 99 && ['supply_officer','admin'].includes(role)) {
-    footer += '<button class="btn btn-success" onclick="openApprovalModal(\'' + req.id + '\',\'approve\')">📦 Fulfill Request</button>'
+    footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Fulfill Request</button>'
   }
-  // Fully approved (level 3) — Supply Officer can choose: issue from stock OR create PO (SUPPLY/PURCHASE only)
+  // Fully approved (level 3) — Supply Officer can issue from stock OR create PO
   else if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level !== 99 && ['supply_officer','admin'].includes(role)) {
-    footer += '<button class="btn btn-secondary" onclick="openApprovalModal(\'' + req.id + '\',\'approve\')">📦 Issue from Stock</button>'
+    footer += '<button class="btn btn-secondary" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue from Stock</button>'
     footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
   }
   document.getElementById('requestDetailFooter').innerHTML = footer
@@ -5589,6 +5589,23 @@ function showIssView(view) {
 // ─────────────────────────────
 // NEW ISSUANCE MODAL
 // ─────────────────────────────
+// Fulfill = "issue na". Opens the New Issuance modal preloaded with this request,
+// so there is ONE issuance flow everywhere (with the per-item checkbox + follow-up).
+async function fulfillFromRequest(reqId) {
+  if (!reqId) return
+  issState.pendingRequests = issState.pendingRequests || []
+  // Make sure this request is available to the modal's dropdown.
+  if (!issState.pendingRequests.some(r => r.id === reqId)) {
+    const { data: r } = await SB.from('requests').select('*').eq('id', reqId).maybeSingle()
+    if (r) issState.pendingRequests.unshift(r)
+  }
+  closeModal('approvalModal')
+  closeModal('requestDetailModal')
+  await openNewIssuanceModal(reqId)
+  // Trigger item load for the preselected request (checkbox + qty rows)
+  await loadCSRForIssuance(reqId)
+}
+
 async function openNewIssuanceModal(requestId) {
   document.getElementById('newRequestTitle').textContent = '📤 New Issuance'
 
