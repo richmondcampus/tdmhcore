@@ -567,7 +567,7 @@ async function bootApp(session) {
   document.getElementById('userAvatar').textContent = initials
   document.getElementById('userName').textContent = session.full_name
   document.getElementById('userRoleLabel').textContent = formatItRole(session.it_role)
-  await Promise.all([loadCategories(), loadDepartments(), loadUsers(), loadDerpLinks()])
+  await Promise.all([loadCategories(), loadDepartments(), loadUsers(), loadDerpLinks(), loadMyHeadedDepts()])
   renderSidebarNav()
   subscribeTickets()
   showPage('dashboard')
@@ -588,6 +588,15 @@ async function loadDepartments() {
   const { data } = await SB.from('departments').select('*').eq('is_active', true).order('dept_name')
   S.departments = data || []
 }
+// Departments this user heads (shared dept_heads table). A dept head sees every
+// ticket from the department(s) they head, on top of their own.
+async function loadMyHeadedDepts() {
+  try {
+    if (!S.user?.id) { S.myHeadedDeptIds = []; return }
+    const { data } = await SB.from('dept_heads').select('dept_id').eq('user_id', S.user.id)
+    S.myHeadedDeptIds = (data || []).map(r => r.dept_id)
+  } catch (_) { S.myHeadedDeptIds = [] }
+}
 async function loadUsers() {
   const { data } = await SB.from('users').select('id,full_name,employee_no,it_role,phone,dept_id').eq('is_active', true)
   S.users = data || []
@@ -595,6 +604,7 @@ async function loadUsers() {
 async function loadTickets(filter = {}) {
   let q = SB.from('it_tickets').select('*').order('created_at', { ascending: false })
   if (filter.requester_id) q = q.eq('requester_id', filter.requester_id)
+  if (filter.dept_ids && filter.dept_ids.length) q = q.in('dept_id', filter.dept_ids)
   if (filter.assigned_to) q = q.eq('assigned_to', filter.assigned_to)
   if (filter.status) q = q.eq('status', filter.status)
   if (filter.open) q = q.not('status', 'in', '("resolved","closed")')
@@ -796,6 +806,15 @@ function ticketRow(t) {
 
 // ═══ TICKET LISTS ═══
 async function renderMyTickets() {
+  const headedDepts = S.myHeadedDeptIds || []
+  if (headedDepts.length) {
+    // Dept head — every ticket from the department(s) they head
+    const tickets = await loadTickets({ dept_ids: headedDepts })
+    S.tickets = tickets
+    const names = headedDepts.map(id => S.departments.find(d => d.id === id)?.dept_name).filter(Boolean)
+    renderTicketList(tickets, '🏢 ' + (names.length === 1 ? (names[0] + ' Tickets') : 'Department Tickets'))
+    return
+  }
   const tickets = await loadTickets({ requester_id: S.user.id })
   S.tickets = tickets
   renderTicketList(tickets, 'My Tickets')
