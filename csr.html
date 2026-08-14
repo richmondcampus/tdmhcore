@@ -5699,7 +5699,7 @@ async function loadCSRForIssuance(requestId) {
   }
 
   let html = '<div class="items-table-wrap"><table class="items-table"><thead><tr>'
-  html += '<th>Item</th><th>Requested</th><th>Unit</th><th>To Issue</th><th>Stock Available</th>'
+  html += '<th style="width:36px;"></th><th>Item</th><th>Kailangan</th><th>Naibigay na</th><th>Natira</th><th>Unit</th><th>Ibibigay</th><th>Stock</th>'
   html += '</tr></thead><tbody id="iss_items_body">'
 
   for (const item of items) {
@@ -5710,18 +5710,29 @@ async function loadCSRForIssuance(requestId) {
       .single()
 
     const stockQty = stockItem ? Number(stockItem.quantity_on_hand) : null
-    const stockColor = stockQty === null ? 'var(--txt3)' : stockQty < item.quantity ? 'var(--red)' : 'var(--green)'
-    const stockLabel = stockQty === null ? 'Not in stock system' : stockQty + ' available'
+    const alreadyIssued = Number(item.quantity_issued) || 0
+    const remaining = Math.max(0, Number(item.quantity) - alreadyIssued)
+    const isDone = remaining <= 0
+    // Default "to issue" = what's left. Supply officer can lower it (partial) or raise it.
+    const defaultIssue = remaining
+    const stockColor = stockQty === null ? 'var(--txt3)' : (defaultIssue > 0 && stockQty < defaultIssue) ? 'var(--red)' : 'var(--green)'
+    const stockLabel = stockQty === null ? 'Wala sa stock system' : stockQty + ' available'
 
-    html += '<tr>'
-    html += '<td><strong>' + item.item_name + '</strong></td>'
+    html += '<tr' + (isDone ? ' style="opacity:.55;"' : '') + '>'
+    // Checkbox — include this item in this issuance (unchecked/disabled if fully issued)
+    html += '<td style="text-align:center;"><input type="checkbox" class="iss_item_chk" data-item-id="' + item.id + '"' + (isDone ? ' disabled' : ' checked') + ' style="cursor:pointer;width:16px;height:16px;"></td>'
+    html += '<td><strong>' + escStk(item.item_name) + '</strong>' + (isDone ? ' <span style="font-size:10px;color:var(--green);">✓ Kumpleto na</span>' : '') + '</td>'
     html += '<td>' + item.quantity + '</td>'
+    html += '<td style="color:var(--txt2);">' + alreadyIssued + '</td>'
+    html += '<td style="font-weight:600;color:' + (remaining>0?'var(--amber,#b8860b)':'var(--green)') + ';">' + remaining + '</td>'
     html += '<td>' + (item.unit||'pcs') + '</td>'
-    html += '<td><input type="number" class="iss_qty_input" data-item-id="' + item.id + '" data-stock-id="' + (stockItem?stockItem.id:'') + '" min="0" max="' + item.quantity + '" value="' + item.quantity + '" style="width:70px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+    // No max cap — supply officer may over-issue if needed
+    html += '<td><input type="number" class="iss_qty_input" data-item-id="' + item.id + '" data-stock-id="' + (stockItem?stockItem.id:'') + '" min="0" value="' + defaultIssue + '"' + (isDone ? ' disabled' : '') + ' style="width:70px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
     html += '<td style="font-size:12px;color:' + stockColor + ';">' + stockLabel + '</td>'
     html += '</tr>'
   }
   html += '</tbody></table></div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-top:6px;">I-check ang mga ibibigay ngayon at i-adjust ang dami. Kung may natira, mananatiling buhay ang request para sa susunod na issuance.</div>'
   wrap.innerHTML = html
   updateSMSPreview()
 }
@@ -5996,10 +6007,14 @@ async function saveIssuance() {
 
   if (!receiverId) { showToast('error','Validation','Please select a receiver.'); return }
 
-  // Collect items
+  // Collect items — only those checked (or manual rows, which have no checkbox)
   const qtyInputs = document.querySelectorAll('.iss_qty_input')
   const issItems = []
   qtyInputs.forEach(input => {
+    const itemId = input.dataset.itemId
+    // If there's a checkbox for this item, respect it. Manual rows have none → always included.
+    const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
+    if (chk && !chk.checked) return
     const qty = Number(input.value)
     if (qty > 0) {
       issItems.push({
@@ -6013,43 +6028,14 @@ async function saveIssuance() {
 
   if (issItems.length === 0) { showToast('error','Validation','Please add items to issue.'); return }
 
-  // Stock check BEFORE anything is written. In STRICT mode: issue what's available
-  // and leave short items pending (only short lines stay pending, not the whole
-  // issuance). In RELAXED mode (encoding transition): issue everything — stock may
-  // go negative, honestly recording the shortfall.
-  const shortNotes = []
+  // The supply officer has already chosen exactly what to issue (checkbox + qty),
+  // so we issue precisely that. In STRICT mode, the DB guard still blocks issuing
+  // more than what's physically on hand; in RELAXED mode it's allowed (stock may go
+  // negative). Whatever isn't fully issued stays owed on the request (computed after).
   const strict = await isStockGuardStrict()
-  if (strict) {
-    const stockLines = issItems.filter(i => i.from_stock && i.stock_item_id)
-    if (stockLines.length) {
-      const ids = [...new Set(stockLines.map(i => i.stock_item_id))]
-      const { data: stockRows } = await SB.from('stock_items')
-        .select('id,item_name,quantity_on_hand,unit').in('id', ids)
-      const byId = {}
-      ;(stockRows || []).forEach(s => { byId[s.id] = s })
-      // Sum requested per stock item (same item may appear on multiple lines)
-      const wanted = {}
-      stockLines.forEach(i => { wanted[i.stock_item_id] = (wanted[i.stock_item_id] || 0) + Number(i.quantity_issued) })
-      const shortIds = new Set()
-      Object.entries(wanted).forEach(([sid, qty]) => {
-        const s = byId[sid]
-        const onHand = s ? Number(s.quantity_on_hand) : 0
-        if (!s || qty > onHand) {
-          shortIds.add(sid)
-          shortNotes.push((s ? s.item_name : 'Item') + ': meron lang ' + onHand + ' ' + (s?.unit || 'pcs') + ', hinihingi ay ' + qty)
-        }
-      })
-      // Drop short lines from this issuance — they remain pending on the request
-      if (shortIds.size) {
-        for (let i = issItems.length - 1; i >= 0; i--) {
-          if (issItems[i].stock_item_id && shortIds.has(issItems[i].stock_item_id)) issItems.splice(i, 1)
-        }
-      }
-    }
-  }
 
   if (issItems.length === 0) {
-    showToast('warning','Walang Ma-issue', 'Lahat ng item ay kulang sa stock: ' + shortNotes.join(' • ') + '. Gawing purchase request.')
+    showToast('warning','Walang Ma-issue', 'Walang item na napili. I-check ang mga ibibigay.')
     releaseClick('saveIssuance')
     return
   }
@@ -6079,15 +6065,23 @@ async function saveIssuance() {
 
     if (error) throw error
 
-    // Insert issuance items + deduct stock
+    // Insert issuance items + deduct stock + track cumulative issued per request item
     for (const item of issItems) {
+      const realReqItemId = item.request_item_id?.startsWith('man_') ? null : item.request_item_id
       await SB.from('issuance_items').insert({
         issuance_id: iss.id,
-        request_item_id: item.request_item_id?.startsWith('man_') ? null : item.request_item_id,
+        request_item_id: realReqItemId,
         quantity_issued: item.quantity_issued,
         from_stock: item.from_stock,
         stock_item_id: item.stock_item_id || null
       })
+
+      // Add to the request item's cumulative issued qty (for follow-up tracking)
+      if (realReqItemId) {
+        const { data: ri } = await SB.from('request_items').select('quantity_issued').eq('id', realReqItemId).single()
+        const prev = Number(ri?.quantity_issued) || 0
+        await SB.from('request_items').update({ quantity_issued: prev + item.quantity_issued }).eq('id', realReqItemId)
+      }
 
       // Auto-deduct from stock
       if (item.stock_item_id && item.from_stock) {
@@ -6117,16 +6111,20 @@ async function saveIssuance() {
       }
     }
 
-    // Update CSR request status — 'issued' only if nothing is left pending;
-    // otherwise 'partially_issued' so it's clear items still need to go out.
+    // Update CSR request status by checking what's still owed across ALL items.
+    let hasRemainder = false
     if (csrId) {
-      if (shortNotes.length) {
-        await SB.from('requests').update({
-          status: 'partially_issued',
-          pending_items_note: shortNotes.join(' • ')
-        }).eq('id', csrId)
-      } else {
+      const { data: allReqItems } = await SB.from('request_items')
+        .select('item_name,quantity,quantity_issued,unit').eq('request_id', csrId)
+      const pending = (allReqItems || [])
+        .map(ri => ({ ...ri, left: Number(ri.quantity) - (Number(ri.quantity_issued) || 0) }))
+        .filter(ri => ri.left > 0)
+      if (pending.length === 0) {
         await SB.from('requests').update({ status: 'issued', pending_items_note: null }).eq('id', csrId)
+      } else {
+        hasRemainder = true
+        const note = pending.map(ri => ri.item_name + ' (natira: ' + ri.left + ' ' + (ri.unit||'pcs') + ')').join(' • ')
+        await SB.from('requests').update({ status: 'partially_issued', pending_items_note: note }).eq('id', csrId)
       }
     }
 
@@ -6156,8 +6154,8 @@ async function saveIssuance() {
     })
 
     closeModal('newRequestModal')
-    if (shortNotes.length) {
-      showToast('warning', 'Partial Issued ⚠️', issuanceNo + ' — naisyu ang available. NANATILING PENDING (kulang sa stock): ' + shortNotes.join(' • ') + '. Gawing purchase request para sa kulang.')
+    if (hasRemainder) {
+      showToast('warning', 'Na-issue — may natira ⚠️', issuanceNo + ' — narecord ang naibigay. Buhay pa ang request para sa natirang items.')
     } else {
       showToast('success', 'Issued ✅', issuanceNo + (phone ? ' — SMS sent to ' + phone : '') )
     }
