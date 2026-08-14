@@ -667,7 +667,7 @@ async function bootApp(session) {
   document.getElementById('userName').textContent = session.full_name
   document.getElementById('userRoleLabel').textContent = formatMaintRole(session.maintenance_role)
   renderSidebarNav()
-  await Promise.all([loadUsers(), loadDepartments()])
+  await Promise.all([loadUsers(), loadDepartments(), loadMyHeadedDepts()])
   subscribeTickets()
   subscribeNotifications()
   // Role-based landing — go straight to what each user needs (less navigating for older staff)
@@ -741,6 +741,16 @@ async function loadDepartments() {
   const { data } = await SB.from('departments').select('*').eq('is_active', true).order('dept_name')
   S.departments = data || []
 }
+
+// Departments this user heads (from the shared dept_heads table). One person can
+// head several departments; a dept head sees every ticket from all of them.
+async function loadMyHeadedDepts() {
+  try {
+    if (!S.user?.id) { S.myHeadedDeptIds = []; return }
+    const { data } = await SB.from('dept_heads').select('dept_id').eq('user_id', S.user.id)
+    S.myHeadedDeptIds = (data || []).map(r => r.dept_id)
+  } catch (_) { S.myHeadedDeptIds = [] }
+}
 function invalidateTicketCache() { S._ticketsLoadedAt = 0 }
 
 async function loadTickets(filter = {}) {
@@ -753,6 +763,7 @@ async function loadTickets(filter = {}) {
   let q = SB.from('maint_tickets').select('*').order('created_at', { ascending: false })
   if (filter.submitted_by) q = q.eq('submitted_by', filter.submitted_by)
   if (filter.dept_id) q = q.eq('dept_id', filter.dept_id)
+  if (filter.dept_ids && filter.dept_ids.length) q = q.in('dept_id', filter.dept_ids)
   if (filter.status) q = q.eq('status', filter.status)
   if (filter.claimed_by) q = q.eq('claimed_by', filter.claimed_by)
   const { data } = await q
@@ -965,16 +976,19 @@ function formatStatus(s) {
 // ═══════════════════════════════════
 async function renderMyTickets() {
   const role = S.user.maintenance_role
+  const headedDepts = S.myHeadedDeptIds || []
+  const isDeptHead = headedDepts.length > 0
   let filter = {}
   let title = 'My Tickets'
   if (['technician','supervisor'].includes(role)) {
     filter.claimed_by = S.user.id
-  } else if (role === 'requester') {
-    // Requester — dept tickets lang, hindi lahat
-    filter.dept_id = S.user.dept_id
-    const dept = S.departments.find(d => d.id === S.user.dept_id)
-    title = '🏢 ' + (dept?.dept_name || 'Dept') + ' Tickets'
+  } else if (isDeptHead) {
+    // Dept head — every ticket from the department(s) they head
+    filter.dept_ids = headedDepts
+    const names = headedDepts.map(id => S.departments.find(d => d.id === id)?.dept_name).filter(Boolean)
+    title = '🏢 ' + (names.length === 1 ? (names[0] + ' Tickets') : 'Department Tickets')
   } else {
+    // Ordinary requester — only their OWN tickets
     filter.submitted_by = S.user.id
   }
   const tickets = await loadTickets(filter)
