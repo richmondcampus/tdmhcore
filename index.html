@@ -1796,7 +1796,11 @@ function drawUserMgmt(){
   }
 
   let html = '<div class="page-header"><h2>👥 User Management</h2>'
-  html += '<button class="btn btn-primary" onclick="openUserForm()">＋ New User</button></div>'
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+  html += '<button class="btn btn-ghost btn-sm" onclick="downloadUserTemplate()">📥 Template</button>'
+  html += '<button class="btn btn-secondary btn-sm" onclick="openBulkImport()">📤 Bulk Import</button>'
+  html += '<button class="btn btn-primary" onclick="openUserForm()">＋ New User</button>'
+  html += '</div></div>'
 
   // Filter bar
   html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">'
@@ -1926,6 +1930,219 @@ function openUserForm(userId){
     '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>'+
     '<button class="btn btn-primary" id="ufSaveBtn" onclick="saveUser('+(editing?'\''+u.id+'\'':'null')+')">'+(editing?'💾 Save Changes':'👤 Create User')+'</button>'
   openModal('mainModal')
+}
+
+// ═══════════════════════════════════════════
+// BULK USER IMPORT (Excel) — add/update/deactivate synced to a master sheet.
+// Email is the key. New email → create + email a set-password link. Existing with
+// changes → update (no email). Unchanged → skipped. Missing from sheet → offered
+// for deactivation (with confirmation). Nothing is hard-deleted.
+// ═══════════════════════════════════════════
+const UI_ROLE_COLS = ['csr_role','maintenance_role','it_role','inventory_role']
+
+async function ensureXLSX() {
+  if (typeof XLSX !== 'undefined') return
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+    s.onload = resolve; s.onerror = reject; document.head.appendChild(s)
+  })
+}
+
+async function downloadUserTemplate() {
+  await ensureXLSX()
+  const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role']
+  const sample = ['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer']
+  const notes = ['REQUIRED — ito ang susi','REQUIRED','optional','optional','optional (pangalan ng dept)','optional','requester/dept_head/supply_officer/purchasing_officer/admin','requester/technician/supervisor/admin','requester/technician/supervisor/admin','viewer/encoder/admin']
+  const ws = XLSX.utils.aoa_to_sheet([headers, sample, notes])
+  ws['!cols'] = headers.map((h,i) => ({ wch: Math.max(h.length, String(sample[i]||'').length, 18) }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Users')
+  XLSX.writeFile(wb, 'TDMH_User_Import_Template.xlsx')
+}
+
+let _bulkPlan = null
+function openBulkImport() {
+  _bulkPlan = null
+  document.getElementById('modalTitle').textContent = '📤 Bulk User Import'
+  let body = ''
+  body += '<div style="font-size:12px;color:var(--txt2);background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 12px;margin-bottom:14px;line-height:1.6;">'
+  body += 'I-upload ang master sheet (gamitin ang <b>📥 Template</b>). Ang <b>email</b> ang susi.<br>'
+  body += '• Bagong email → gagawa ng account + magpapadala ng set-password link.<br>'
+  body += '• Existing na may pagbabago → i-a-update (walang email).<br>'
+  body += '• Walang pagbabago → laktawan.<br>'
+  body += '• Wala na sa sheet → ipapakita para i-deactivate (kumpirmahin mo muna).'
+  body += '</div>'
+  body += '<input type="file" id="bulkFile" accept=".xlsx,.xls,.csv" onchange="previewBulkImport()" style="width:100%;padding:10px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
+  body += '<div id="bulkPreview" style="margin-top:14px;"></div>'
+  document.getElementById('modalBody').innerHTML = body
+  document.getElementById('modalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>' +
+    '<button class="btn btn-primary" id="bulkApplyBtn" onclick="applyBulkImport()" disabled>Apply Changes</button>'
+  openModal('mainModal')
+}
+
+function normEmail(v) { return (v==null?'':String(v)).trim().toLowerCase() }
+function cleanStr(v) { return (v==null?'':String(v)).trim() }
+
+async function previewBulkImport() {
+  const file = document.getElementById('bulkFile').files[0]
+  if (!file) return
+  const prev = document.getElementById('bulkPreview')
+  prev.innerHTML = '<div style="color:var(--txt3);font-size:13px;">⏳ Binabasa ang file...</div>'
+  try {
+    await ensureXLSX()
+    const buf = await file.arrayBuffer()
+    const wb = XLSX.read(buf, { type: 'array' })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+
+    // Drop the notes/instruction row if present (email not a valid address)
+    const clean = rows.filter(r => {
+      const em = normEmail(r.email)
+      return em && em.includes('@') && !em.startsWith('required')
+    })
+    if (!clean.length) { prev.innerHTML = '<div style="color:var(--red);font-size:13px;">Walang valid na row (kailangan may email).</div>'; return }
+
+    // Dept name -> id (case-insensitive)
+    const deptByName = {}
+    ;(S.departments||[]).forEach(d => { deptByName[(d.dept_name||'').toLowerCase()] = d.id })
+
+    const existingByEmail = {}
+    UM.users.forEach(u => { if (u.email) existingByEmail[normEmail(u.email)] = u })
+
+    const toCreate = [], toUpdate = [], unchanged = [], bad = []
+    const sheetEmails = new Set()
+
+    for (const r of clean) {
+      const email = normEmail(r.email)
+      sheetEmails.add(email)
+      const deptName = cleanStr(r.department)
+      const dept_id = deptName ? (deptByName[deptName.toLowerCase()] || null) : null
+      if (deptName && !dept_id) { bad.push({ email, reason: 'Walang dept na "' + deptName + '"' }); continue }
+
+      const rec = {
+        email, full_name: cleanStr(r.full_name), employee_no: cleanStr(r.employee_no),
+        phone: cleanStr(r.phone), dept_id, position: cleanStr(r.position),
+        csr_role: cleanStr(r.csr_role) || null, maintenance_role: cleanStr(r.maintenance_role) || null,
+        it_role: cleanStr(r.it_role) || null, inventory_role: cleanStr(r.inventory_role) || null
+      }
+      if (!rec.full_name) { bad.push({ email, reason: 'Walang full_name' }); continue }
+
+      const ex = existingByEmail[email]
+      if (!ex) { toCreate.push(rec); continue }
+
+      // Detect changes vs existing
+      const changed = (ex.full_name||'')!==rec.full_name || (ex.employee_no||'')!==rec.employee_no
+        || (ex.phone||'')!==rec.phone || (ex.dept_id||null)!==rec.dept_id || (ex.position||'')!==rec.position
+        || (ex.csr_role||null)!==rec.csr_role || (ex.maintenance_role||null)!==rec.maintenance_role
+        || (ex.it_role||null)!==rec.it_role || (ex.inventory_role||null)!==rec.inventory_role
+        || !ex.is_active  // reactivate if they were inactive
+      if (changed) toUpdate.push({ ...rec, user_id: ex.id }); else unchanged.push(rec)
+    }
+
+    // Active users whose email is NOT in the sheet → candidates for deactivation
+    const toDeactivate = UM.users.filter(u => u.is_active && u.email && !sheetEmails.has(normEmail(u.email)))
+
+    _bulkPlan = { toCreate, toUpdate, unchanged, bad, toDeactivate }
+
+    // Render summary
+    let h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'
+    h += bulkStat('🆕 Bago', toCreate.length, 'var(--green)')
+    h += bulkStat('✏️ Update', toUpdate.length, 'var(--blue,#4a86e8)')
+    h += bulkStat('⏸️ Deactivate', toDeactivate.length, 'var(--amber,#f0c838)')
+    h += bulkStat('⏭️ Walang bago', unchanged.length, 'var(--txt3)')
+    if (bad.length) h += bulkStat('⚠️ May problema', bad.length, 'var(--red)')
+    h += '</div>'
+
+    if (toCreate.length) h += bulkList('🆕 Gagawin (may email na ipapadala)', toCreate.map(r => r.full_name + ' — ' + r.email))
+    if (toUpdate.length) h += bulkList('✏️ Ia-update (walang email)', toUpdate.map(r => r.full_name + ' — ' + r.email))
+    if (toDeactivate.length) {
+      h += '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:9px;padding:10px 12px;margin-bottom:10px;">'
+      h += '<div style="font-weight:700;font-size:13px;color:var(--amber,#b8860b);margin-bottom:4px;">⏸️ Ide-deactivate — wala na sa sheet</div>'
+      h += '<div style="font-size:12px;color:var(--txt2);margin-bottom:6px;">Hindi buburahin — mawawala lang sa system, mananatili ang records nila.</div>'
+      h += '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="bulkConfirmDeactivate" style="width:16px;height:16px;"> <b>Oo, i-deactivate ang ' + toDeactivate.length + ' user na ito:</b></label>'
+      h += '<div style="font-size:12px;color:var(--txt2);margin-top:6px;padding-left:24px;">' + toDeactivate.map(u => esc(u.full_name) + ' (' + esc(u.email) + ')').join(', ') + '</div>'
+      h += '</div>'
+    }
+    if (bad.length) h += bulkList('⚠️ Nilaktawan (may problema)', bad.map(b => b.email + ' — ' + b.reason), 'var(--red)')
+
+    prev.innerHTML = h
+    const applyBtn = document.getElementById('bulkApplyBtn')
+    applyBtn.disabled = (toCreate.length + toUpdate.length === 0 && toDeactivate.length === 0)
+  } catch (e) {
+    prev.innerHTML = '<div style="color:var(--red);font-size:13px;">Error sa pagbasa: ' + esc(e.message) + '</div>'
+  }
+}
+
+function bulkStat(label, n, color) {
+  return '<div style="flex:1;min-width:90px;background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:8px 10px;text-align:center;"><div style="font-size:20px;font-weight:800;color:' + color + ';">' + n + '</div><div style="font-size:11px;color:var(--txt3);">' + label + '</div></div>'
+}
+function bulkList(title, items, color) {
+  let h = '<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:' + (color||'var(--txt2)') + ';margin-bottom:4px;">' + title + ' (' + items.length + ')</div>'
+  h += '<div style="font-size:12px;color:var(--txt2);max-height:120px;overflow:auto;background:var(--surf2);border-radius:8px;padding:8px 10px;">' + items.map(esc).join('<br>') + '</div></div>'
+  return h
+}
+
+async function applyBulkImport() {
+  if (!_bulkPlan) return
+  const { toCreate, toUpdate, toDeactivate } = _bulkPlan
+  const doDeactivate = document.getElementById('bulkConfirmDeactivate')?.checked
+
+  if (toDeactivate.length && !doDeactivate) {
+    // If there are deactivations but not confirmed, warn once
+    if (!confirm('May ' + toDeactivate.length + ' user na wala sa sheet. Hindi mo pa na-check ang deactivate box — ituloy nang HINDI dinideactivate sila?')) return
+  }
+
+  const btn = document.getElementById('bulkApplyBtn')
+  btn.disabled = true; btn.textContent = 'Processing...'
+  const prev = document.getElementById('bulkPreview')
+
+  let created = 0, updated = 0, deactivated = 0, emailed = 0, failed = 0
+  const errors = []
+
+  // CREATE (with reset email)
+  for (const r of toCreate) {
+    try {
+      const res = await callUserFn({ action: 'create_with_reset', ...r })
+      created++
+      if (res.emailed) emailed++
+    } catch (e) { failed++; errors.push(r.email + ': ' + e.message) }
+    prev.innerHTML = '<div style="color:var(--txt2);font-size:13px;">⏳ Ginagawa: ' + created + '/' + toCreate.length + ' bago, ' + updated + '/' + toUpdate.length + ' update...</div>'
+  }
+
+  // UPDATE (no email)
+  for (const r of toUpdate) {
+    try {
+      await callUserFn({ action: 'update', ...r })
+      updated++
+    } catch (e) { failed++; errors.push(r.email + ': ' + e.message) }
+    prev.innerHTML = '<div style="color:var(--txt2);font-size:13px;">⏳ Ginagawa: ' + created + '/' + toCreate.length + ' bago, ' + updated + '/' + toUpdate.length + ' update...</div>'
+  }
+
+  // DEACTIVATE (only if confirmed)
+  if (doDeactivate) {
+    for (const u of toDeactivate) {
+      try {
+        await callUserFn({ action: 'update', user_id: u.id, is_active: false })
+        deactivated++
+      } catch (e) { failed++; errors.push(u.email + ': ' + e.message) }
+    }
+  }
+
+  let summary = '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:12px 14px;font-size:13px;line-height:1.8;">'
+  summary += '<div style="font-weight:700;margin-bottom:6px;">✅ Tapos na</div>'
+  summary += '🆕 Bagong account: <b>' + created + '</b> (na-email: ' + emailed + ')<br>'
+  summary += '✏️ Na-update: <b>' + updated + '</b><br>'
+  if (doDeactivate) summary += '⏸️ Na-deactivate: <b>' + deactivated + '</b><br>'
+  if (failed) summary += '<span style="color:var(--red);">⚠️ Bigo: ' + failed + '</span>'
+  summary += '</div>'
+  if (errors.length) summary += '<div style="font-size:12px;color:var(--red);margin-top:8px;max-height:120px;overflow:auto;">' + errors.map(esc).join('<br>') + '</div>'
+  prev.innerHTML = summary
+
+  btn.textContent = 'Done'
+  showToast('success', 'Import Complete', created + ' bago, ' + updated + ' update' + (deactivated?', '+deactivated+' deactivated':'') + '.')
+  renderUserMgmt()
 }
 
 async function saveUser(userId){
