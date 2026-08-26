@@ -1949,16 +1949,91 @@ async function ensureXLSX() {
   })
 }
 
+// ExcelJS supports data validation (dropdowns), which SheetJS community build does not.
+async function ensureExcelJS() {
+  if (typeof ExcelJS !== 'undefined') return
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script')
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js'
+    s.onload = resolve; s.onerror = reject; document.head.appendChild(s)
+  })
+}
+
 async function downloadUserTemplate() {
-  await ensureXLSX()
+  await ensureExcelJS()
+  const wb = new ExcelJS.Workbook()
+  const ws = wb.addWorksheet('Users')
+
   const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role']
-  const sample = ['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer']
-  const notes = ['REQUIRED — ito ang susi','REQUIRED','optional','optional','optional (pangalan ng dept)','optional','requester/dept_head/supply_officer/purchasing_officer/admin','requester/technician/supervisor/admin','requester/technician/supervisor/admin','viewer/encoder/admin']
-  const ws = XLSX.utils.aoa_to_sheet([headers, sample, notes])
-  ws['!cols'] = headers.map((h,i) => ({ wch: Math.max(h.length, String(sample[i]||'').length, 18) }))
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Users')
-  XLSX.writeFile(wb, 'TDMH_User_Import_Template.xlsx')
+  const widths  = [30, 22, 14, 16, 20, 18, 24, 22, 22, 18]
+
+  // Header row
+  ws.addRow(headers)
+  const headerRow = ws.getRow(1)
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF12A62F' } }
+  headerRow.alignment = { vertical: 'middle' }
+  ws.columns.forEach((c, i) => { c.width = widths[i] })
+
+  // Sample row (row 2)
+  ws.addRow(['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer'])
+  ws.getRow(2).font = { italic: true, color: { argb: 'FF888888' } }
+
+  // Valid role values
+  const csrRoles = ['requester','dept_head','supply_officer','purchasing_officer','admin']
+  const maintRoles = ['requester','technician','supervisor','admin']
+  const itRoles = ['requester','technician','supervisor','admin']
+  const invRoles = ['viewer','encoder','admin']
+  const deptNames = (S.departments||[]).map(d => d.dept_name).filter(Boolean)
+
+  // Apply dropdowns to rows 2..500 for each relevant column
+  const addDropdown = (colLetter, listArr) => {
+    if (!listArr.length) return
+    const formula = '"' + listArr.join(',') + '"'
+    for (let r = 2; r <= 500; r++) {
+      ws.getCell(colLetter + r).dataValidation = {
+        type: 'list', allowBlank: true, formulae: [formula],
+        showErrorMessage: true, errorStyle: 'warning',
+        errorTitle: 'Pumili sa listahan', error: 'Piliin ang tamang value mula sa dropdown.'
+      }
+    }
+  }
+  // Column letters: E=department, G=csr, H=maintenance, I=it, J=inventory
+  // Excel list validations have a ~255-char limit; dept list may exceed it, so guard.
+  if (deptNames.length && deptNames.join(',').length < 250) addDropdown('E', deptNames)
+  addDropdown('G', csrRoles)
+  addDropdown('H', maintRoles)
+  addDropdown('I', itRoles)
+  addDropdown('J', invRoles)
+
+  // A short instructions sheet
+  const info = wb.addWorksheet('README')
+  info.columns = [{ width: 22 }, { width: 60 }]
+  info.addRow(['Column', 'Notes'])
+  info.getRow(1).font = { bold: true }
+  ;[
+    ['email','REQUIRED — ito ang susi. Login identity at para sa reset link.'],
+    ['full_name','REQUIRED — buong pangalan.'],
+    ['employee_no','Optional.'],
+    ['phone','Optional.'],
+    ['department','Optional — pumili sa dropdown (dept name).'],
+    ['position','Optional.'],
+    ['csr_role','Optional — dropdown: requester/dept_head/supply_officer/purchasing_officer/admin'],
+    ['maintenance_role','Optional — dropdown: requester/technician/supervisor/admin'],
+    ['it_role','Optional — dropdown: requester/technician/supervisor/admin'],
+    ['inventory_role','Optional — dropdown: viewer/encoder/admin'],
+    ['', ''],
+    ['PAALALA','Bagong email = gagawa ng account + magpapadala ng set-password link.'],
+    ['','May pagbabago sa existing = update lang (walang email).'],
+    ['','Wala sa sheet = ide-deactivate (kumpirmahin muna sa system).']
+  ].forEach(r => info.addRow(r))
+
+  const buf = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = 'TDMH_User_Import_Template.xlsx'; a.click()
+  URL.revokeObjectURL(url)
 }
 
 let _bulkPlan = null
