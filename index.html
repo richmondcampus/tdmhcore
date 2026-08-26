@@ -1964,8 +1964,8 @@ async function downloadUserTemplate() {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Users')
 
-  const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role']
-  const widths  = [30, 22, 14, 16, 20, 18, 24, 22, 22, 18]
+  const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role','is_dept_head']
+  const widths  = [30, 22, 14, 16, 20, 18, 24, 22, 22, 18, 12]
 
   // Header row
   ws.addRow(headers)
@@ -1975,9 +1975,27 @@ async function downloadUserTemplate() {
   headerRow.alignment = { vertical: 'middle' }
   ws.columns.forEach((c, i) => { c.width = widths[i] })
 
-  // Sample row (row 2)
-  ws.addRow(['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer'])
-  ws.getRow(2).font = { italic: true, color: { argb: 'FF888888' } }
+  // Pre-fill with CURRENT active users so a re-upload never deactivates them.
+  // Only users with a real email are included (email is the sync key).
+  const deptById = {}
+  ;(S.departments||[]).forEach(d => { deptById[d.id] = d.dept_name })
+  const activeUsers = (UM.users||[]).filter(u => u.is_active && u.email && !String(u.email).endsWith('@tdmh.local'))
+  let prefillCount = 0
+  activeUsers.forEach(u => {
+    const isHead = (UM.headMap && UM.headMap[u.id] && UM.headMap[u.id].length) ? 'yes' : 'no'
+    ws.addRow([
+      u.email, u.full_name || '', u.employee_no || '', u.phone || '',
+      u.dept_id ? (deptById[u.dept_id] || '') : '', u.position || '',
+      u.csr_role || '', u.maintenance_role || '', u.it_role || '', u.inventory_role || '', isHead
+    ])
+    prefillCount++
+  })
+
+  // If there are no existing users yet, show a sample row instead
+  if (prefillCount === 0) {
+    const sampleRow = ws.addRow(['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer','no'])
+    sampleRow.font = { italic: true, color: { argb: 'FF888888' } }
+  }
 
   // Valid role values
   const csrRoles = ['requester','dept_head','supply_officer','purchasing_officer','admin']
@@ -2021,6 +2039,7 @@ async function downloadUserTemplate() {
   addInlineDropdown('H', maintRoles)
   addInlineDropdown('I', itRoles)
   addInlineDropdown('J', invRoles)
+  addInlineDropdown('K', ['yes','no'])
 
   // A short instructions sheet
   const info = wb.addWorksheet('README')
@@ -2038,6 +2057,11 @@ async function downloadUserTemplate() {
     ['maintenance_role','Optional — dropdown: requester/technician/supervisor/admin'],
     ['it_role','Optional — dropdown: requester/technician/supervisor/admin'],
     ['inventory_role','Optional — dropdown: viewer/encoder/admin'],
+    ['is_dept_head','yes = department head (approval + makikita dept tickets). no/blank = ordinary.'],
+    ['', ''],
+    ['MAHALAGA','Naka-prefill na ang mga KASALUKUYANG users dito. HUWAG burahin ang rows nila'],
+    ['','maliban kung talagang gusto mong i-deactivate sila.'],
+    ['','Idagdag lang ang bagong users sa dulo.'],
     ['', ''],
     ['PAALALA','Bagong email = gagawa ng account + magpapadala ng set-password link.'],
     ['','May pagbabago sa existing = update lang (walang email).'],
