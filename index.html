@@ -2112,13 +2112,16 @@ async function previewBulkImport() {
       const dept_id = deptName ? (deptByName[deptName.toLowerCase()] || null) : null
       if (deptName && !dept_id) { bad.push({ email, reason: 'Walang dept na "' + deptName + '"' }); continue }
 
+      const isHead = ['yes','oo','true','1','y'].includes(cleanStr(r.is_dept_head).toLowerCase())
       const rec = {
         email, full_name: cleanStr(r.full_name), employee_no: cleanStr(r.employee_no),
         phone: cleanStr(r.phone), dept_id, position: cleanStr(r.position),
         csr_role: cleanStr(r.csr_role) || null, maintenance_role: cleanStr(r.maintenance_role) || null,
-        it_role: cleanStr(r.it_role) || null, inventory_role: cleanStr(r.inventory_role) || null
+        it_role: cleanStr(r.it_role) || null, inventory_role: cleanStr(r.inventory_role) || null,
+        is_dept_head: isHead
       }
       if (!rec.full_name) { bad.push({ email, reason: 'Walang full_name' }); continue }
+      if (isHead && !dept_id) { bad.push({ email, reason: 'dept_head pero walang valid na department' }); continue }
 
       const ex = existingByEmail[email]
       if (!ex) { toCreate.push(rec); continue }
