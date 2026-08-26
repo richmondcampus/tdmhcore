@@ -1986,8 +1986,10 @@ async function downloadUserTemplate() {
   const invRoles = ['viewer','encoder','admin']
   const deptNames = (S.departments||[]).map(d => d.dept_name).filter(Boolean)
 
-  // Apply dropdowns to rows 2..500 for each relevant column
-  const addDropdown = (colLetter, listArr) => {
+  // Apply dropdowns to rows 2..500 for each relevant column.
+  // Short lists (roles) go inline. The department list can exceed Excel's ~255-char
+  // inline limit, so it lives in a hidden 'Lists' sheet and is referenced by range.
+  const addInlineDropdown = (colLetter, listArr) => {
     if (!listArr.length) return
     const formula = '"' + listArr.join(',') + '"'
     for (let r = 2; r <= 500; r++) {
@@ -1998,13 +2000,27 @@ async function downloadUserTemplate() {
       }
     }
   }
-  // Column letters: E=department, G=csr, H=maintenance, I=it, J=inventory
-  // Excel list validations have a ~255-char limit; dept list may exceed it, so guard.
-  if (deptNames.length && deptNames.join(',').length < 250) addDropdown('E', deptNames)
-  addDropdown('G', csrRoles)
-  addDropdown('H', maintRoles)
-  addDropdown('I', itRoles)
-  addDropdown('J', invRoles)
+
+  // Hidden sheet holding the full department list (no length limit this way)
+  if (deptNames.length) {
+    const lists = wb.addWorksheet('Lists')
+    deptNames.forEach((name, i) => { lists.getCell('A' + (i + 1)).value = name })
+    lists.state = 'veryHidden'
+    const range = 'Lists!$A$1:$A$' + deptNames.length
+    for (let r = 2; r <= 500; r++) {
+      ws.getCell('E' + r).dataValidation = {
+        type: 'list', allowBlank: true, formulae: [range],
+        showErrorMessage: true, errorStyle: 'warning',
+        errorTitle: 'Pumili sa listahan', error: 'Piliin ang department mula sa dropdown.'
+      }
+    }
+  }
+
+  // Column letters: G=csr, H=maintenance, I=it, J=inventory (short → inline)
+  addInlineDropdown('G', csrRoles)
+  addInlineDropdown('H', maintRoles)
+  addInlineDropdown('I', itRoles)
+  addInlineDropdown('J', invRoles)
 
   // A short instructions sheet
   const info = wb.addWorksheet('README')
