@@ -1964,8 +1964,8 @@ async function downloadUserTemplate() {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Users')
 
-  const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role','is_dept_head']
-  const widths  = [30, 22, 14, 16, 20, 18, 24, 22, 22, 18, 12]
+  const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role','is_dept_head','also_heads']
+  const widths  = [30, 22, 14, 16, 20, 18, 24, 22, 22, 18, 12, 40]
 
   // Header row
   ws.addRow(headers)
@@ -1982,18 +1982,21 @@ async function downloadUserTemplate() {
   const activeUsers = (UM.users||[]).filter(u => u.is_active && u.email && !String(u.email).endsWith('@tdmh.local'))
   let prefillCount = 0
   activeUsers.forEach(u => {
-    const isHead = (UM.headMap && UM.headMap[u.id] && UM.headMap[u.id].length) ? 'yes' : 'no'
+    const headedIds = (UM.headMap && UM.headMap[u.id]) ? UM.headMap[u.id] : []
+    const isHead = headedIds.length ? 'yes' : 'no'
+    // also_heads = the departments they head OTHER than their primary dept_id
+    const alsoHeads = headedIds.filter(id => id !== u.dept_id).map(id => deptById[id] || '').filter(Boolean).join(', ')
     ws.addRow([
       u.email, u.full_name || '', u.employee_no || '', u.phone || '',
       u.dept_id ? (deptById[u.dept_id] || '') : '', u.position || '',
-      u.csr_role || '', u.maintenance_role || '', u.it_role || '', u.inventory_role || '', isHead
+      u.csr_role || '', u.maintenance_role || '', u.it_role || '', u.inventory_role || '', isHead, alsoHeads
     ])
     prefillCount++
   })
 
   // If there are no existing users yet, show a sample row instead
   if (prefillCount === 0) {
-    const sampleRow = ws.addRow(['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer','no'])
+    const sampleRow = ws.addRow(['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer','no',''])
     sampleRow.font = { italic: true, color: { argb: 'FF888888' } }
   }
 
@@ -2058,6 +2061,8 @@ async function downloadUserTemplate() {
     ['it_role','Optional — dropdown: requester/technician/supervisor/admin'],
     ['inventory_role','Optional — dropdown: viewer/encoder/admin'],
     ['is_dept_head','yes = department head (approval + makikita dept tickets). no/blank = ordinary.'],
+    ['also_heads','Kung head siya ng MARAMING dept: ilista dito ang iba, comma-separated.'],
+    ['','Hal: "Maintenance, Parking, Housekeeping". Ang primary ay nasa department column.'],
     ['', ''],
     ['MAHALAGA','Naka-prefill na ang mga KASALUKUYANG users dito. HUWAG burahin ang rows nila'],
     ['','maliban kung talagang gusto mong i-deactivate sila.'],
@@ -2137,15 +2142,24 @@ async function previewBulkImport() {
       if (deptName && !dept_id) { bad.push({ email, reason: 'Walang dept na "' + deptName + '"' }); continue }
 
       const isHead = ['yes','oo','true','1','y'].includes(cleanStr(r.is_dept_head).toLowerCase())
+      // also_heads: comma/semicolon-separated department names this person also heads
+      const extraDeptNames = cleanStr(r.also_heads).split(/[,;]/).map(s=>s.trim()).filter(Boolean)
+      const extra_dept_ids = []
+      const badExtra = []
+      extraDeptNames.forEach(nm => {
+        const id = deptByName[nm.toLowerCase()]
+        if (id) extra_dept_ids.push(id); else badExtra.push(nm)
+      })
       const rec = {
         email, full_name: cleanStr(r.full_name), employee_no: cleanStr(r.employee_no),
         phone: cleanStr(r.phone), dept_id, position: cleanStr(r.position),
         csr_role: cleanStr(r.csr_role) || null, maintenance_role: cleanStr(r.maintenance_role) || null,
         it_role: cleanStr(r.it_role) || null, inventory_role: cleanStr(r.inventory_role) || null,
-        is_dept_head: isHead
+        is_dept_head: isHead, extra_dept_ids
       }
       if (!rec.full_name) { bad.push({ email, reason: 'Walang full_name' }); continue }
       if (isHead && !dept_id) { bad.push({ email, reason: 'dept_head pero walang valid na department' }); continue }
+      if (badExtra.length) { bad.push({ email, reason: 'also_heads may di-kilalang dept: ' + badExtra.join(', ') }); continue }
 
       const ex = existingByEmail[email]
       if (!ex) { toCreate.push(rec); continue }
