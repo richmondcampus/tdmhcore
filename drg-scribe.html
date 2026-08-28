@@ -99,7 +99,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal);
 .msg{margin-top:12px;font-size:13px;padding:9px 11px;border-radius:2px}
 .msg-err{background:#fdf0ee;color:#8c2f1e;border-left:2px solid #8c2f1e}
 .msg-ok{background:#eef6f4;color:var(--signal-dark);border-left:2px solid var(--signal)}
-.hidden{display:none}
+.hidden{display:none!important}
+.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.gate-card{width:100%;max-width:360px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:3px;padding:26px}
+.gate-card h2{margin:6px 0 2px;font-size:19px;font-weight:600;letter-spacing:-.01em}
+.gate-sub{margin:0 0 20px;font-size:13px;color:var(--ink-faint)}
+.gate-card input[type=email],.gate-card input[type=password]{width:100%;padding:8px 10px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:2px}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.4);
   border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;margin-right:7px;
   vertical-align:-1px}
@@ -114,15 +121,36 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal);
 </head>
 <body>
 
-<header class="topbar">
+<header class="topbar hidden" id="topbar">
   <span class="eyebrow">TDMH · PhilHealth</span>
   <h1>DRG Scribe</h1>
   <span class="spacer"></span>
   <span class="whoami" id="whoami">—</span>
   <a class="whoami" href="/claims.html" style="color:var(--signal-dark)">Scorecard →</a>
+  <button class="whoami" id="signout" style="background:none;border:0;cursor:pointer;padding:0">Sign out</button>
 </header>
 
-<main class="wrap">
+<div id="gate" class="gate">
+  <form class="gate-card" id="loginForm">
+    <span class="eyebrow">TDMH · PhilHealth</span>
+    <h2>DRG Scribe</h2>
+    <p class="gate-sub">Sign in with the shared scribe account.</p>
+    <div class="field">
+      <label for="loginEmail">Email</label>
+      <input type="email" id="loginEmail" autocomplete="username"
+             value="drgscribe@taytaydoctorshospital.com">
+    </div>
+    <div class="field">
+      <label for="loginPass">Password</label>
+      <input type="password" id="loginPass" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary" id="loginBtn" type="submit"
+            style="width:100%;margin-top:4px">Sign in</button>
+    <div id="loginMsg" class="msg hidden"></div>
+  </form>
+</div>
+
+<main class="wrap hidden" id="app">
 
   <!-- ===================== INTAKE ===================== -->
   <section class="panel">
@@ -274,13 +302,48 @@ async function resolveProfile(authId){
   return viaAlias ?? null;
 }
 
-const { data: { session } } = await sb.auth.getSession();
-if (!session) { location.href = "/index.html"; }
-const profile = await resolveProfile(session.user.id);
-$("whoami").textContent = profile?.full_name ?? session.user.email ?? "";
-const CAN_WRITE = ["scribe","cdi","admin"].includes(profile?.claims_role);
+function say(el, text, kind="err"){ el.textContent = text; el.className = `msg msg-${kind}`; }
+const hide = (el) => el.className = "msg hidden";
+
+let session = null, profile = null, CAN_WRITE = false;
+
+async function startSession(s){
+  session = s;
+  profile = await resolveProfile(s.user.id);
+  if (!profile) {
+    await sb.auth.signOut();
+    say($("loginMsg"), "That account is not set up for the claims module. Contact IT.");
+    return false;
+  }
+  CAN_WRITE = ["scribe","cdi","admin"].includes(profile.claims_role);
+  $("whoami").textContent = profile.full_name ?? s.user.email ?? "";
+  $("gate").classList.add("hidden");
+  $("topbar").classList.remove("hidden");
+  $("app").classList.remove("hidden");
+  return true;
+}
+
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  hide($("loginMsg"));
+  const btn = $("loginBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Signing in…';
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({
+      email: $("loginEmail").value.trim(),
+      password: $("loginPass").value,
+    });
+    if (error) throw error;
+    if (await startSession(data.session)) await boot();
+  } catch (err) {
+    say($("loginMsg"), err.message || "Could not sign in. Check the password.");
+  } finally {
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+});
 
 // ---------- templates ----------
+async function loadTemplates(){
 const { data: templates, error: tErr } = await sb.from("pc_drg_templates")
   .select("id, drg_name").eq("active", true).order("sort_order");
 const sel = $("template");
@@ -290,6 +353,7 @@ if (tErr || !templates?.length){
 } else {
   sel.append(new Option("Select a case type…", ""));
   templates.forEach(t => sel.append(new Option(t.drg_name, t.id)));
+}
 }
 
 // ---------- readiness rail ----------
@@ -309,16 +373,13 @@ function refreshChecks(){
 [...FIELDS, "template"].forEach(id => $(id).addEventListener("input", refreshChecks));
 refreshChecks();
 
-// ---------- messaging ----------
-function say(el, text, kind="err"){
-  el.textContent = text;
-  el.className = `msg msg-${kind}`;
-}
-const hide = (el) => el.className = "msg hidden";
-
-if (!CAN_WRITE) {
-  $("generate").disabled = true;
-  say($("formMsg"), "Your account has read-only access to the claims module. Ask IT for scribe access.");
+async function boot(){
+  await loadTemplates();
+  await loadRecent();
+  if (!CAN_WRITE) {
+    $("generate").disabled = true;
+    say($("formMsg"), "This account has read-only access to the claims module. Ask IT for scribe access.");
+  }
 }
 
 // ---------- generate ----------
@@ -460,7 +521,15 @@ $("histSearch").addEventListener("input", () => {
   histTimer = setTimeout(loadRecent, 250);
 });
 
-loadRecent();
+// resume an existing session if the browser still has one
+const { data: { session: existing } } = await sb.auth.getSession();
+if (existing && await startSession(existing)) await boot();
+
+// sign out
+$("signout").addEventListener("click", async () => {
+  await sb.auth.signOut();
+  location.reload();
+});
 </script>
 </body>
 </html>
