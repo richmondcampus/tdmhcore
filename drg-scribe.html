@@ -365,6 +365,7 @@ $("loginForm").addEventListener("submit", async (e) => {
 });
 
 // ---------- templates ----------
+const sel = $("template");
 let GENERAL_ID = null;
 let MODE = "guided";
 
@@ -414,6 +415,7 @@ refreshChecks();
 async function boot(){
   await loadTemplates();
   await loadRecent();
+  showTab("paneGuided");
   if (!CAN_WRITE) {
     $("generate").disabled = true;
     say($("formMsg"), "This account has read-only access to the claims module. Ask IT for scribe access.");
@@ -562,10 +564,6 @@ $("histSearch").addEventListener("input", () => {
   histTimer = setTimeout(loadRecent, 250);
 });
 
-// resume an existing session if the browser still has one
-const { data: { session: existing } } = await sb.auth.getSession();
-if (existing && await startSession(existing)) await boot();
-
 // ---------- tabs ----------
 const PANES = {
   paneGuided: ["paneIntake","paneDraft","paneHistory"],
@@ -593,7 +591,9 @@ $("copyBlank").addEventListener("click", async () => {
   setTimeout(() => $("copyBlank").textContent = "Copy", 1800);
 });
 
-showTab("paneGuided");
+// resume an existing session if the browser still has one
+const { data: { session: existing } } = await sb.auth.getSession();
+if (existing && await startSession(existing)) await boot();
 
 // sign out
 $("signout").addEventListener("click", async () => {
