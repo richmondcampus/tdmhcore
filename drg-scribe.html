@@ -271,7 +271,80 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal);
     </div>
   </section>
 
-  <section class="panel" style="grid-column:1/-1">
+  <!-- ===================== BLANK TEMPLATE ===================== -->
+  <section class="panel hidden" id="paneManual" style="grid-column:1/-1">
+    <div class="panel-head">
+      <h2>Blank template</h2>
+      <span style="margin-left:auto"></span>
+      <button class="btn btn-ghost" id="copyBlank" style="padding:5px 12px;font-size:12.5px">Copy</button>
+    </div>
+    <div class="panel-body">
+      <p class="tab-note">No AI, nothing saved. Fill it in yourself and copy it across &mdash;
+        for when the scribe is down, or when you would rather write it by hand.</p>
+      <textarea class="blank" id="blankText" spellcheck="false">CHIEF COMPLAINT:
+[symptom] for [duration], with [associated symptom] for [duration]
+
+
+HISTORY OF PRESENT ILLNESS:
+
+This is a [age] y/o [male/female], known [comorbidities], who presented with a
+[duration] history of [chief complaint].
+
+[Progression of symptoms. Associated symptoms. Home medications taken. What
+finally brought the patient in.]
+
+On admission, the patient was febrile/afebrile at T [  ], HR [  ], RR [  ],
+BP [  ], O2 saturation [  ] on [room air / O2 support]. Physical examination
+revealed [pertinent positive findings]. There was no [pertinent negatives].
+
+Laboratory revealed [results with values]. [Imaging] showed [findings].
+
+Given the findings of [diagnosis + severity + any organ dysfunction], the
+patient was admitted for [IV antibiotics / IV fluids / oxygen support /
+monitoring] for further management.
+
+
+---
+Before this leaves your hands, check:
+  Timeline &middot; Admission vitals &middot; Labs and imaging &middot; Treatment started
+  &middot; A clear statement of why inpatient care was needed
+</textarea>
+    </div>
+  </section>
+
+  <!-- ===================== HOW TO USE ===================== -->
+  <section class="panel hidden guide" id="paneGuide" style="grid-column:1/-1">
+    <div class="panel-head"><h2>How to use</h2></div>
+    <div class="panel-body">
+      <h3>Who and when</h3>
+      <p>Resident on duty enters the notes within about two hours of admission,
+         while the details are still fresh.</p>
+
+      <h3>The three modes</h3>
+      <ul>
+        <li><strong>Guided case</strong> &mdash; for the ten case types Dr. listed. The template
+            constrains the wording, so this is the safer default.</li>
+        <li><strong>Open case</strong> &mdash; anything else. The scribe works out the case itself
+            and shows its reasoning under BASIS. Read that section.</li>
+        <li><strong>Blank template</strong> &mdash; write it yourself, no AI.</li>
+      </ul>
+
+      <h3>Before you paste into the EMR</h3>
+      <p>Read the draft against the actual chart. The scribe only sees what was typed into
+         the form &mdash; it does not know the patient. Check that the HPI has:</p>
+      <ul>
+        <li>Timeline</li><li>Admission vitals</li><li>Labs and imaging</li>
+        <li>Treatment started</li><li>A clear statement of why inpatient care was needed</li>
+      </ul>
+      <p>Physician sign-off happens in the EMR as usual. Nothing is signed here.</p>
+
+      <h3>What not to type</h3>
+      <p>No names, no PhilHealth numbers, no addresses, no contact details.
+         Clinical facts only. Every entry is recorded in the hospital database.</p>
+    </div>
+  </section>
+
+  <section class="panel" id="paneHistory" style="grid-column:1/-1">
     <div class="panel-head">
       <h2>History</h2>
       <span style="margin-left:auto"></span>
@@ -559,7 +632,7 @@ async function loadRecent(){
 }
 
 let histTimer;
-$("histSearch").addEventListener("input", () => {
+$("histSearch")?.addEventListener("input", () => {
   clearTimeout(histTimer);
   histTimer = setTimeout(loadRecent, 250);
 });
@@ -585,7 +658,7 @@ function showTab(key){
 document.querySelectorAll(".tab").forEach(t =>
   t.addEventListener("click", () => showTab(t.dataset.pane)));
 
-$("copyBlank").addEventListener("click", async () => {
+$("copyBlank")?.addEventListener("click", async () => {
   try { await navigator.clipboard.writeText($("blankText").value); $("copyBlank").textContent = "Copied"; }
   catch { $("copyBlank").textContent = "Select and copy"; }
   setTimeout(() => $("copyBlank").textContent = "Copy", 1800);
@@ -596,7 +669,7 @@ const { data: { session: existing } } = await sb.auth.getSession();
 if (existing && await startSession(existing)) await boot();
 
 // sign out
-$("signout").addEventListener("click", async () => {
+$("signout")?.addEventListener("click", async () => {
   await sb.auth.signOut();
   location.reload();
 });
