@@ -100,6 +100,19 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal);
 .msg-err{background:#fdf0ee;color:#8c2f1e;border-left:2px solid #8c2f1e}
 .msg-ok{background:#eef6f4;color:var(--signal-dark);border-left:2px solid var(--signal)}
 .hidden{display:none!important}
+.tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--rule);
+  padding:0 22px;overflow-x:auto}
+.tab{padding:11px 16px;border:0;background:none;cursor:pointer;white-space:nowrap;
+  font-size:13.5px;color:var(--ink-soft);border-bottom:2px solid transparent;
+  transition:color .12s,border-color .12s}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--signal-dark);border-bottom-color:var(--signal);font-weight:500}
+.tab-note{font-family:var(--sans);font-size:12.5px;color:var(--ink-faint);margin:0 0 14px}
+.guide h3{font-size:13.5px;margin:20px 0 6px;font-weight:600}
+.guide h3:first-child{margin-top:0}
+.guide p,.guide li{font-size:13.5px;color:var(--ink-soft);margin:0 0 6px}
+.guide ol,.guide ul{margin:0 0 4px;padding-left:20px}
+.blank{width:100%;min-height:420px;font-family:var(--mono);font-size:13px;line-height:1.7}
 .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .gate-card{width:100%;max-width:360px;background:var(--surface);
   border:1px solid var(--rule);border-radius:3px;padding:26px}
@@ -150,12 +163,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal);
   </form>
 </div>
 
+<nav class="tabs hidden" id="tabs" role="tablist">
+  <button class="tab" role="tab" data-pane="paneGuided"  aria-selected="true">Guided case</button>
+  <button class="tab" role="tab" data-pane="paneOpen"    aria-selected="false">Open case</button>
+  <button class="tab" role="tab" data-pane="paneManual"  aria-selected="false">Blank template</button>
+  <button class="tab" role="tab" data-pane="paneGuide"   aria-selected="false">How to use</button>
+</nav>
+
 <main class="wrap hidden" id="app">
 
   <!-- ===================== INTAKE ===================== -->
-  <section class="panel">
+  <section class="panel" id="paneIntake">
     <div class="panel-head"><h2>Case data</h2></div>
     <div class="panel-body">
+      <p class="tab-note" id="modeNote">Pick one of Dr.'s ten case types. The template tells the scribe which findings to foreground and when severity wording is allowed.</p>
 
       <div class="notice">
         <div><strong>No names, no PHIC numbers, no addresses.</strong>
@@ -217,7 +238,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal);
   </section>
 
   <!-- ===================== DRAFT ===================== -->
-  <section class="panel">
+  <section class="panel" id="paneDraft">
     <div class="panel-head">
       <h2>Draft</h2>
       <span class="spacer" style="margin-left:auto"></span>
@@ -319,6 +340,7 @@ async function startSession(s){
   $("whoami").textContent = profile.full_name ?? s.user.email ?? "";
   $("gate").classList.add("hidden");
   $("topbar").classList.remove("hidden");
+  $("tabs").classList.remove("hidden");
   $("app").classList.remove("hidden");
   return true;
 }
@@ -343,17 +365,33 @@ $("loginForm").addEventListener("submit", async (e) => {
 });
 
 // ---------- templates ----------
+let GENERAL_ID = null;
+let MODE = "guided";
+
 async function loadTemplates(){
-const { data: templates, error: tErr } = await sb.from("pc_drg_templates")
-  .select("id, drg_name").eq("active", true).order("sort_order");
-const sel = $("template");
-sel.innerHTML = "";
-if (tErr || !templates?.length){
-  sel.innerHTML = '<option value="">No case types available</option>';
-} else {
+  const { data: templates, error: tErr } = await sb.from("pc_drg_templates")
+    .select("id, drg_name, general_mode").eq("active", true).order("sort_order");
+  sel.innerHTML = "";
+  if (tErr || !templates?.length){
+    sel.innerHTML = '<option value="">No case types available</option>';
+    return;
+  }
+  const general = templates.find(t => t.general_mode);
+  GENERAL_ID = general?.id ?? null;
   sel.append(new Option("Select a case type…", ""));
-  templates.forEach(t => sel.append(new Option(t.drg_name, t.id)));
+  templates.filter(t => !t.general_mode)
+           .forEach(t => sel.append(new Option(t.drg_name, t.id)));
 }
+
+const GUIDED_NOTE = "Pick one of Dr.'s ten case types. The template tells the scribe which findings to foreground and when severity wording is allowed.";
+const OPEN_NOTE   = "Any case, no template. The scribe works out the case type itself, suggests the diagnostic phrasing, and lists under BASIS which finding supports each severity term it used. Read that part before you paste.";
+
+function setMode(mode){
+  MODE = mode;
+  const open = mode === "open";
+  $("modeNote").textContent = open ? OPEN_NOTE : GUIDED_NOTE;
+  $("template").closest(".field").classList.toggle("hidden", open);
+  refreshChecks();
 }
 
 // ---------- readiness rail ----------
@@ -365,7 +403,7 @@ function refreshChecks(){
     vitals:    /\d/.test(v.vitals),
     labs:      /\d/.test(v.labs) || /\d/.test(v.imaging),
     treatment: v.treatment.length > 3,
-    necessity: !!sel.value && /\d/.test(v.vitals) && v.treatment.length > 3,
+    necessity: (MODE === "open" || !!sel.value) && /\d/.test(v.vitals) && v.treatment.length > 3,
   };
   document.querySelectorAll(".check").forEach(el =>
     el.classList.toggle("on", !!state[el.dataset.k]));
@@ -385,7 +423,10 @@ async function boot(){
 // ---------- generate ----------
 $("generate").addEventListener("click", async () => {
   hide($("formMsg"));
-  if (!sel.value) return say($("formMsg"), "Pick a case type first.");
+  const templateId = MODE === "open" ? GENERAL_ID : sel.value;
+  if (!templateId) return say($("formMsg"), MODE === "open"
+    ? "Open mode is not configured. Contact IT."
+    : "Pick a case type first.");
   if (!$("notes").value.trim()) return say($("formMsg"), "Add the clinical notes before generating.");
 
   const btn = $("generate");
@@ -393,7 +434,7 @@ $("generate").addEventListener("click", async () => {
   btn.innerHTML = '<span class="spin"></span>Generating…';
 
   try {
-    const payload = { template_id: sel.value, claim_ref: $("claim_ref").value.trim() };
+    const payload = { template_id: templateId, claim_ref: $("claim_ref").value.trim() };
     FIELDS.forEach(f => payload[f] = $(f).value.trim());
 
     const { data, error } = await sb.functions.invoke("drg-scribe", { body: payload });
@@ -524,6 +565,35 @@ $("histSearch").addEventListener("input", () => {
 // resume an existing session if the browser still has one
 const { data: { session: existing } } = await sb.auth.getSession();
 if (existing && await startSession(existing)) await boot();
+
+// ---------- tabs ----------
+const PANES = {
+  paneGuided: ["paneIntake","paneDraft","paneHistory"],
+  paneOpen:   ["paneIntake","paneDraft","paneHistory"],
+  paneManual: ["paneManual"],
+  paneGuide:  ["paneGuide"],
+};
+const ALL_PANES = ["paneIntake","paneDraft","paneHistory","paneManual","paneGuide"];
+
+function showTab(key){
+  ALL_PANES.forEach(id => $(id)?.classList.add("hidden"));
+  (PANES[key] ?? []).forEach(id => $(id)?.classList.remove("hidden"));
+  document.querySelectorAll(".tab").forEach(t =>
+    t.setAttribute("aria-selected", String(t.dataset.pane === key)));
+  if (key === "paneGuided") setMode("guided");
+  if (key === "paneOpen")   setMode("open");
+}
+
+document.querySelectorAll(".tab").forEach(t =>
+  t.addEventListener("click", () => showTab(t.dataset.pane)));
+
+$("copyBlank").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("blankText").value); $("copyBlank").textContent = "Copied"; }
+  catch { $("copyBlank").textContent = "Select and copy"; }
+  setTimeout(() => $("copyBlank").textContent = "Copy", 1800);
+});
+
+showTab("paneGuided");
 
 // sign out
 $("signout").addEventListener("click", async () => {
