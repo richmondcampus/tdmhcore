@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRG Scribe · TDMH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14202a; --ink-soft:#4a5a66; --ink-faint:#7d8b94;
+  --paper:#f2f5f4; --surface:#ffffff; --rule:#d8dedc;
+  --signal:#0b6e6e; --signal-dark:#085454; --caution:#9c5c0d;
+  --caution-bg:#fdf6ec; --draft-bg:#f7f9f8;
+  --sans:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* ---------- chrome ---------- */
+.topbar{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  padding:14px 22px;background:var(--surface);border-bottom:1px solid var(--rule)}
+.topbar h1{margin:0;font-size:17px;font-weight:600;letter-spacing:-.01em}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-faint)}
+.topbar .spacer{margin-left:auto}
+.whoami{font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+
+.wrap{max-width:1400px;margin:0 auto;padding:22px;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:1fr;padding:14px;gap:16px}}
+
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:3px}
+.panel-head{display:flex;align-items:center;gap:10px;
+  padding:11px 16px;border-bottom:1px solid var(--rule)}
+.panel-head h2{margin:0;font-size:13px;font-weight:600;letter-spacing:.02em}
+.panel-body{padding:16px}
+
+/* ---------- form ---------- */
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px}
+input[type=text],select,textarea{width:100%;padding:8px 10px;background:var(--surface);
+  border:1px solid var(--rule);border-radius:2px;transition:border-color .12s}
+textarea{resize:vertical;min-height:78px;line-height:1.55}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--signal);
+  box-shadow:0 0 0 3px rgba(11,110,110,.13)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.notice{display:flex;gap:9px;padding:9px 11px;margin-bottom:14px;
+  background:var(--caution-bg);border-left:2px solid var(--caution);border-radius:2px;
+  font-size:12.5px;line-height:1.45;color:var(--caution)}
+.notice strong{font-weight:600}
+
+.actions{display:flex;gap:10px;align-items:center;margin-top:18px;
+  padding-top:16px;border-top:1px solid var(--rule)}
+.btn{padding:9px 18px;border:1px solid transparent;border-radius:2px;
+  font-weight:500;cursor:pointer;transition:background .12s,border-color .12s}
+.btn-primary{background:var(--signal);color:#fff}
+.btn-primary:hover:not(:disabled){background:var(--signal-dark)}
+.btn-ghost{background:transparent;border-color:var(--rule);color:var(--ink-soft)}
+.btn-ghost:hover:not(:disabled){border-color:var(--ink-soft);color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,a:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+
+/* ---------- signature: the RTH readiness rail ---------- */
+/* Doc's own pre-discharge checklist, live. It is the one piece of
+   decoration on the page that is not decoration. */
+.rail{border-top:1px solid var(--rule);padding:13px 16px 15px;background:var(--draft-bg)}
+.rail-title{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-faint);margin-bottom:9px}
+.checks{display:flex;flex-wrap:wrap;gap:7px}
+.check{display:flex;align-items:center;gap:6px;padding:4px 9px 4px 6px;
+  background:var(--surface);border:1px solid var(--rule);border-radius:2px;
+  font-family:var(--mono);font-size:11px;color:var(--ink-faint);
+  transition:color .2s,border-color .2s}
+.check .box{width:11px;height:11px;border:1.5px solid var(--rule);border-radius:1px;
+  position:relative;transition:background .2s,border-color .2s}
+.check.on{color:var(--signal-dark);border-color:rgba(11,110,110,.4)}
+.check.on .box{background:var(--signal);border-color:var(--signal)}
+.check.on .box::after{content:"";position:absolute;left:3px;top:.5px;
+  width:3px;height:6px;border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(42deg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- draft ---------- */
+.draft{white-space:pre-wrap;font-family:var(--mono);font-size:12.5px;line-height:1.6;
+  color:var(--ink-soft);background:var(--draft-bg);border:1px solid var(--rule);
+  border-radius:2px;padding:13px;max-height:240px;overflow:auto}
+.final{width:100%;min-height:300px;font-family:var(--mono);font-size:13px;line-height:1.65}
+.tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  padding:2px 6px;border-radius:2px;background:var(--paper);color:var(--ink-faint)}
+.tag-ai{background:var(--caution-bg);color:var(--caution)}
+.empty{padding:44px 20px;text-align:center;color:var(--ink-faint);font-size:13.5px}
+.empty p{margin:0 0 4px}
+.msg{margin-top:12px;font-size:13px;padding:9px 11px;border-radius:2px}
+.msg-err{background:#fdf0ee;color:#8c2f1e;border-left:2px solid #8c2f1e}
+.msg-ok{background:#eef6f4;color:var(--signal-dark);border-left:2px solid var(--signal)}
+.hidden{display:none}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;margin-right:7px;
+  vertical-align:-1px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.recent{font-family:var(--mono);font-size:12px}
+.recent li{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--rule);
+  color:var(--ink-soft);cursor:pointer}
+.recent li:hover{color:var(--signal-dark);background:var(--draft-bg)}
+.recent li:focus-visible{outline:2px solid var(--signal);outline-offset:-2px}
+.recent ul{list-style:none;margin:0;padding:0}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <span class="eyebrow">TDMH · PhilHealth</span>
+  <h1>DRG Scribe</h1>
+  <span class="spacer"></span>
+  <span class="whoami" id="whoami">—</span>
+  <a class="whoami" href="/claims.html" style="color:var(--signal-dark)">Scorecard →</a>
+</header>
+
+<main class="wrap">
+
+  <!-- ===================== INTAKE ===================== -->
+  <section class="panel">
+    <div class="panel-head"><h2>Case data</h2></div>
+    <div class="panel-body">
+
+      <div class="notice">
+        <div><strong>No names, no PHIC numbers, no addresses.</strong>
+        Enter clinical facts only. Identifiers are stripped before the draft
+        is generated, but the safest place to leave them out is here.</div>
+      </div>
+
+      <div class="field">
+        <label for="template">Case type</label>
+        <select id="template"><option value="">Loading…</option></select>
+      </div>
+
+      <div class="row">
+        <div class="field"><label for="age">Age</label>
+          <input type="text" id="age" placeholder="54" inputmode="numeric"></div>
+        <div class="field"><label for="sex">Sex</label>
+          <select id="sex"><option value="">—</option><option>Male</option><option>Female</option></select></div>
+      </div>
+
+      <div class="field"><label for="comorbidities">Comorbidities</label>
+        <input type="text" id="comorbidities" placeholder="T2DM, hypertension"></div>
+
+      <div class="field"><label for="notes">Chronological notes</label>
+        <textarea id="notes" placeholder="Onset, progression, what was taken at home, what brought them in…"></textarea></div>
+
+      <div class="field"><label for="vitals">Vitals on admission</label>
+        <textarea id="vitals" style="min-height:56px" placeholder="T 38.9, HR 112, RR 28, BP 100/60, O2 sat 91% room air"></textarea></div>
+
+      <div class="field"><label for="labs">Labs</label>
+        <textarea id="labs" style="min-height:56px" placeholder="WBC 18.2, creatinine 1.8 (baseline 0.9)…"></textarea></div>
+
+      <div class="field"><label for="imaging">Imaging</label>
+        <textarea id="imaging" style="min-height:56px" placeholder="CXR: right lower lobe infiltrates"></textarea></div>
+
+      <div class="field"><label for="treatment">Treatment started</label>
+        <textarea id="treatment" style="min-height:56px" placeholder="IV ceftriaxone, IVF PNSS, O2 via nasal cannula 2 lpm"></textarea></div>
+
+      <div class="field"><label for="claim_ref">Claim reference <span style="text-transform:none;letter-spacing:0">(optional)</span></label>
+        <input type="text" id="claim_ref" placeholder="Ties this note to the claims scorecard"></div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="generate">Generate draft</button>
+        <button class="btn btn-ghost" id="clear">Clear</button>
+      </div>
+      <div id="formMsg" class="msg hidden"></div>
+    </div>
+
+    <!-- signature element -->
+    <div class="rail">
+      <div class="rail-title">Pre-discharge readiness</div>
+      <div class="checks" id="checks">
+        <span class="check" data-k="timeline"><span class="box"></span>Timeline</span>
+        <span class="check" data-k="vitals"><span class="box"></span>Vitals</span>
+        <span class="check" data-k="labs"><span class="box"></span>Labs</span>
+        <span class="check" data-k="treatment"><span class="box"></span>Treatment</span>
+        <span class="check" data-k="necessity"><span class="box"></span>Medical necessity</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DRAFT ===================== -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Draft</h2>
+      <span class="spacer" style="margin-left:auto"></span>
+      <span class="tag" id="noteStamp"></span>
+    </div>
+
+    <div id="draftEmpty" class="empty">
+      <p>Nothing drafted yet.</p>
+      <p style="color:var(--rule);font-family:var(--mono);font-size:11.5px">
+        Fill the case data and generate.</p>
+    </div>
+
+    <div id="draftArea" class="panel-body hidden">
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px">
+          As generated <span class="tag tag-ai">unedited</span></label>
+        <div class="draft" id="aiDraft"></div>
+      </div>
+
+      <div class="field">
+        <label for="finalText">For the chart — edit freely</label>
+        <textarea id="finalText" class="final"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="copy">Copy to EMR</button>
+        <button class="btn btn-ghost" id="save">Save changes</button>
+      </div>
+      <div id="draftMsg" class="msg hidden"></div>
+    </div>
+  </section>
+
+  <section class="panel" style="grid-column:1/-1">
+    <div class="panel-head">
+      <h2>History</h2>
+      <span style="margin-left:auto"></span>
+      <input type="text" id="histSearch" placeholder="Find by claim reference"
+             style="width:220px;padding:5px 9px;font-size:12.5px">
+    </div>
+    <div class="panel-body recent">
+      <p style="margin:0 0 8px;font-family:var(--sans);font-size:12.5px;color:var(--ink-faint)">
+        Click any row to reopen it. The original inputs come back with it.</p>
+      <ul id="recent"><li style="color:var(--ink-faint);border:0">—</li></ul>
+    </div>
+  </section>
+
+</main>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// ------------------------------------------------------------
+// TODO: paste your own SUPABASE_URL / anon key, same pair the
+// other tdmhcore pages use.
+// ------------------------------------------------------------
+const SUPABASE_URL = "https://zcyhwdulizorgngayxya.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_OLvJELZuF2pTxE-ihM25Hg_5Ywq7ylq";
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { storageKey: "tdmh-drg-scribe", autoRefreshToken: true, persistSession: true },
+});
+
+const $ = (id) => document.getElementById(id);
+const FIELDS = ["age","sex","comorbidities","notes","vitals","labs","imaging","treatment"];
+let currentNote = null;
+
+// ---------- auth ----------
+// Matches the tdmhcore users table: auth_id / email_auth_id / id,
+// with user_auth_aliases (alias_auth_id -> primary_user_id) as fallback.
+async function resolveProfile(authId){
+  const { data } = await sb.from("users")
+    .select("id, full_name, claims_role, is_active")
+    .or(`auth_id.eq.${authId},email_auth_id.eq.${authId},id.eq.${authId}`)
+    .eq("is_active", true).maybeSingle();
+  if (data) return data;
+  const { data: alias } = await sb.from("user_auth_aliases")
+    .select("primary_user_id").eq("alias_auth_id", authId).maybeSingle();
+  if (!alias) return null;
+  const { data: viaAlias } = await sb.from("users")
+    .select("id, full_name, claims_role, is_active")
+    .eq("id", alias.primary_user_id).maybeSingle();
+  return viaAlias ?? null;
+}
+
+const { data: { session } } = await sb.auth.getSession();
+if (!session) { location.href = "/index.html"; }
+const profile = await resolveProfile(session.user.id);
+$("whoami").textContent = profile?.full_name ?? session.user.email ?? "";
+const CAN_WRITE = ["scribe","cdi","admin"].includes(profile?.claims_role);
+
+// ---------- templates ----------
+const { data: templates, error: tErr } = await sb.from("pc_drg_templates")
+  .select("id, drg_name").eq("active", true).order("sort_order");
+const sel = $("template");
+sel.innerHTML = "";
+if (tErr || !templates?.length){
+  sel.innerHTML = '<option value="">No case types available</option>';
+} else {
+  sel.append(new Option("Select a case type…", ""));
+  templates.forEach(t => sel.append(new Option(t.drg_name, t.id)));
+}
+
+// ---------- readiness rail ----------
+// Heuristics on purpose. It nudges; it does not gate.
+function refreshChecks(){
+  const v = Object.fromEntries(FIELDS.map(f => [f, $(f).value.trim()]));
+  const state = {
+    timeline:  v.notes.length > 80 && /\b(day|days|week|hour|hrs|PTA|prior)\b/i.test(v.notes),
+    vitals:    /\d/.test(v.vitals),
+    labs:      /\d/.test(v.labs) || /\d/.test(v.imaging),
+    treatment: v.treatment.length > 3,
+    necessity: !!sel.value && /\d/.test(v.vitals) && v.treatment.length > 3,
+  };
+  document.querySelectorAll(".check").forEach(el =>
+    el.classList.toggle("on", !!state[el.dataset.k]));
+}
+[...FIELDS, "template"].forEach(id => $(id).addEventListener("input", refreshChecks));
+refreshChecks();
+
+// ---------- messaging ----------
+function say(el, text, kind="err"){
+  el.textContent = text;
+  el.className = `msg msg-${kind}`;
+}
+const hide = (el) => el.className = "msg hidden";
+
+if (!CAN_WRITE) {
+  $("generate").disabled = true;
+  say($("formMsg"), "Your account has read-only access to the claims module. Ask IT for scribe access.");
+}
+
+// ---------- generate ----------
+$("generate").addEventListener("click", async () => {
+  hide($("formMsg"));
+  if (!sel.value) return say($("formMsg"), "Pick a case type first.");
+  if (!$("notes").value.trim()) return say($("formMsg"), "Add the clinical notes before generating.");
+
+  const btn = $("generate");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span>Generating…';
+
+  try {
+    const payload = { template_id: sel.value, claim_ref: $("claim_ref").value.trim() };
+    FIELDS.forEach(f => payload[f] = $(f).value.trim());
+
+    const { data, error } = await sb.functions.invoke("drg-scribe", { body: payload });
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+
+    currentNote = data.note;
+    $("aiDraft").textContent = data.note.ai_draft;
+    $("finalText").value = data.note.ai_draft;
+    $("noteStamp").textContent = new Date(data.note.created_at)
+      .toLocaleString("en-PH", { dateStyle:"medium", timeStyle:"short" });
+    $("draftEmpty").classList.add("hidden");
+    $("draftArea").classList.remove("hidden");
+    $("draftArea").scrollIntoView({ behavior:"smooth", block:"nearest" });
+    loadRecent();
+  } catch (err) {
+    say($("formMsg"), err.message || "Could not generate the draft. Try again.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Generate draft";
+  }
+});
+
+// ---------- save ----------
+async function saveFinal(){
+  if (!currentNote) return;
+  const { error } = await sb.from("pc_drg_notes")
+    .update({ final_text: $("finalText").value }).eq("id", currentNote.id);
+  if (error) throw error;
+}
+
+$("save").addEventListener("click", async () => {
+  try { await saveFinal(); say($("draftMsg"), "Saved.", "ok"); }
+  catch { say($("draftMsg"), "Could not save. Your text is still in the box — try again."); }
+});
+
+// ---------- copy ----------
+$("copy").addEventListener("click", async () => {
+  const text = $("finalText").value;
+  try {
+    await navigator.clipboard.writeText(text);
+    await saveFinal();
+    await sb.from("pc_drg_notes").update({
+      exported_by: session.user.id, exported_at: new Date().toISOString(),
+    }).eq("id", currentNote.id);
+    say($("draftMsg"), "Copied. Paste into the EMR and review against the chart.", "ok");
+    loadRecent();
+  } catch {
+    say($("draftMsg"), "Copy blocked by the browser. Select the text and copy manually.");
+  }
+});
+
+// ---------- clear ----------
+$("clear").addEventListener("click", () => {
+  FIELDS.forEach(f => $(f).value = "");
+  $("claim_ref").value = ""; sel.value = "";
+  hide($("formMsg")); refreshChecks();
+});
+
+// ---------- history ----------
+// The rail above shows what you are writing now. This shows what has
+// already been written, and lets you reopen any of it.
+
+async function openNote(id){
+  const { data, error } = await sb.from("pc_drg_notes")
+    .select("id, ai_draft, final_text, claim_ref, created_at, input_data, pc_drg_templates(drg_name)")
+    .eq("id", id).single();
+  if (error || !data) return say($("draftMsg"), "Could not open that draft.");
+
+  currentNote = data;
+  $("aiDraft").textContent = data.ai_draft;
+  $("finalText").value = data.final_text ?? data.ai_draft;
+  $("noteStamp").textContent =
+    (data.pc_drg_templates?.drg_name ? data.pc_drg_templates.drg_name + " · " : "") +
+    new Date(data.created_at).toLocaleString("en-PH",{dateStyle:"medium",timeStyle:"short"});
+  $("draftEmpty").classList.add("hidden");
+  $("draftArea").classList.remove("hidden");
+  hide($("draftMsg"));
+
+  // put the original inputs back in the form so it can be regenerated
+  const d = data.input_data ?? {};
+  FIELDS.forEach(f => $(f).value = d[f] ?? "");
+  $("claim_ref").value = data.claim_ref ?? "";
+  refreshChecks();
+  $("draftArea").scrollIntoView({ behavior:"smooth", block:"nearest" });
+}
+
+async function loadRecent(){
+  const term = $("histSearch").value.trim();
+  let q = sb.from("pc_drg_notes")
+    .select("id, claim_ref, created_at, exported_at, pc_drg_templates(drg_name)")
+    .order("created_at", { ascending:false }).limit(25);
+  if (term) q = q.ilike("claim_ref", `%${term}%`);
+
+  const { data } = await q;
+  const ul = $("recent");
+  if (!data?.length){
+    ul.innerHTML = term
+      ? '<li style="color:var(--ink-faint);border:0">Nothing matches that claim reference.</li>'
+      : '<li style="color:var(--ink-faint);border:0">No drafts yet.</li>';
+    return;
+  }
+  ul.innerHTML = "";
+  data.forEach(n => {
+    const li = document.createElement("li");
+    li.tabIndex = 0;
+    li.setAttribute("role","button");
+    li.innerHTML =
+      `<span style="color:var(--ink-faint);min-width:130px">${
+        new Date(n.created_at).toLocaleString("en-PH",{dateStyle:"short",timeStyle:"short"})}</span>` +
+      `<span style="flex:1">${n.pc_drg_templates?.drg_name ?? "—"}</span>` +
+      `<span style="color:var(--ink-faint)">${n.claim_ref ?? ""}</span>` +
+      `<span class="tag">${n.exported_at ? "used" : "draft"}</span>`;
+    li.addEventListener("click", () => openNote(n.id));
+    li.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openNote(n.id); }
+    });
+    ul.append(li);
+  });
+}
+
+let histTimer;
+$("histSearch").addEventListener("input", () => {
+  clearTimeout(histTimer);
+  histTimer = setTimeout(loadRecent, 250);
+});
+
+loadRecent();
+</script>
+</body>
+</html>
