@@ -383,6 +383,19 @@ tr:hover td{background:var(--surf2);}
   /* Tap hint inside cards — clearer */
   .ticket-card div[style*="Tap to view"]{font-size:14px!important;color:var(--accent)!important;font-weight:600!important;}
 }
+
+/* Animated hourglass loading — sand drains and flips */
+.hourglass-anim{display:inline-block;width:48px;height:48px;position:relative;animation:hg-flip 2.4s ease-in-out infinite;}
+.hourglass-anim svg{display:block;width:100%;height:100%;}
+.hg-sand-top{transform-origin:12px 4px;animation:hg-drain 2.4s ease-in-out infinite;}
+.hg-sand-bot{transform-origin:12px 20px;animation:hg-fill 2.4s ease-in-out infinite;}
+.hg-stream{animation:hg-stream 2.4s ease-in-out infinite;}
+@keyframes hg-flip{0%,45%{transform:rotate(0deg);}55%,100%{transform:rotate(180deg);}}
+@keyframes hg-drain{0%{transform:scaleY(1);opacity:1;}45%{transform:scaleY(.05);opacity:.85;}55%,100%{transform:scaleY(.05);opacity:0;}}
+@keyframes hg-fill{0%{transform:scaleY(.05);opacity:0;}45%{transform:scaleY(1);opacity:1;}55%,100%{transform:scaleY(1);opacity:.9;}}
+@keyframes hg-stream{0%,45%{opacity:.9;}50%,100%{opacity:0;}}
+@media(prefers-reduced-motion:reduce){.hourglass-anim,.hg-sand-top,.hg-sand-bot,.hg-stream{animation:none!important;}}
+
 </style>
 </head>
 <body>
@@ -588,6 +601,7 @@ let S = {
 // ═══════════════════════════════════
 // AUTH — same pattern as CSR
 // ═══════════════════════════════════
+function hourglass(){return '<span class="hourglass-anim" role="img" aria-label="Loading"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h12M6 22h12M6 2c0 5 6 6 6 10 0-4 6-5 6-10M6 22c0-5 6-6 6-10 0 4 6 5 6 10" stroke="var(--amber,#f0c838)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><polygon class="hg-sand-top" points="7.5,4 16.5,4 12,10.5" fill="var(--amber,#f0c838)"/><polygon class="hg-sand-bot" points="12,13.5 16.5,20 7.5,20" fill="var(--amber,#f0c838)"/><rect class="hg-stream" x="11.55" y="10" width="0.9" height="4" fill="var(--amber,#f0c838)"/></svg></span>'}
 function getSession() { try { return JSON.parse(localStorage.getItem('tdmh_session')) } catch { return null } }
 function setSession(d) { localStorage.setItem('tdmh_session', JSON.stringify(d)) }
 function clearSession() { localStorage.removeItem('tdmh_session') }
@@ -696,6 +710,7 @@ function renderSidebarNav() {
     { id:'all_tickets',  icon:'🗂', label:'All Tickets',  roles:['technician','supervisor','admin'] },
     { id:'reports',      icon:'📊', label:'Reports & Analytics', roles:['supervisor','admin'] },
     { id:'team',         icon:'👥', label:'Team',         roles:['supervisor','admin'] },
+    { id:'how_to',       icon:'📖', label:'How-To Guide', roles:['requester','technician','supervisor','admin'] },
   ]
   let html = ''
   items.forEach(item => {
@@ -713,7 +728,7 @@ function renderSidebarNav() {
 // ═══════════════════════════════════
 const PAGE_TITLES = {
   dashboard:'Dashboard', my_tickets:'My Tickets', all_tickets:'All Tickets',
-  open_tickets:'Open Tickets', kanban:'Kanban Board', reports:'Reports & Analytics', team:'Team'
+  open_tickets:'Open Tickets', kanban:'Kanban Board', reports:'Reports & Analytics', team:'Team', how_to:'How-To Guide'
 }
 
 function showPage(page) {
@@ -724,10 +739,10 @@ function showPage(page) {
   if (navEl) navEl.classList.add('active')
   closeSidebar()
   const content = document.getElementById('mainContent')
-  content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div></div>'
+  content.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
   const pages = { dashboard:renderDashboard, my_tickets:renderMyTickets,
     all_tickets:renderAllTickets, open_tickets:renderOpenTickets,
-    kanban:renderKanban, reports:renderReports, team:renderTeam }
+    kanban:renderKanban, reports:renderReports, team:renderTeam, how_to:renderHowTo }
   if (pages[page]) pages[page]()
 }
 
@@ -1868,7 +1883,7 @@ async function renderReports() {
 
   html += '</div>'
 
-  html += '<div id="reportBody"><div class="empty-state"><div class="empty-icon">⏳</div></div></div>'
+  html += '<div id="reportBody"><div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div></div>'
   content.innerHTML = html
 
   await buildReport()
@@ -1906,7 +1921,7 @@ function resolutionHours(t) {
 
 async function buildReport() {
   const body = document.getElementById('reportBody')
-  if (body) body.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div></div>'
+  if (body) body.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
   const all = await loadTickets()
   // Filter by created_at within [from, to] inclusive
   const from = new Date(S._repFrom + 'T00:00:00')
@@ -2104,6 +2119,104 @@ function exportReportCSV() {
   showToast('success','Exported','Report downloaded as CSV.')
 }
 
+
+// ═══════════════════════════════════════════
+// HOW-TO GUIDE — role-based, illustrated, bilingual (TL/EN)
+// ═══════════════════════════════════════════
+let howToLang = 'tl'
+function setHowToLang(l){ howToLang = l; renderHowTo() }
+function t(tl, en){ return howToLang === 'en' ? en : tl }
+
+function renderHowTo() {
+  const content = document.getElementById('mainContent')
+  const role = S.user?.maintenance_role || 'requester'
+  const roleLabels = { requester:'Requester', technician:'Technician', supervisor:'Supervisor', admin:'Administrator' }
+
+  let html = '<div class="page-header"><div><h2>📖 ' + t('Gabay sa Paggamit','How-To Guide') + '</h2>'
+  html += '<p style="color:var(--txt2);font-size:13px;">' + t('Gabay base sa role mo','Guide based on your role') + ': <strong>' + (roleLabels[role]||role) + '</strong></p></div>'
+  html += '<div style="display:flex;gap:6px;align-items:center;">'
+  html += '<span style="font-size:11px;color:var(--txt3);">Wika/Language:</span>'
+  html += '<button class="btn btn-sm ' + (howToLang==='tl'?'btn-primary':'btn-ghost') + '" onclick="setHowToLang(\'tl\')">🇵🇭 Tagalog</button>'
+  html += '<button class="btn btn-sm ' + (howToLang==='en'?'btn-primary':'btn-ghost') + '" onclick="setHowToLang(\'en\')">🇬🇧 English</button>'
+  html += '</div></div>'
+
+  html += howToCard('🔄 ' + t('Ang Buong Daloy ng Maintenance','The Full Maintenance Flow'), howToFlowSVG(role))
+  if (role === 'requester' || role === 'admin') html += howToMaintRequester()
+  if (['technician','supervisor','admin'].includes(role)) html += howToMaintTechnician()
+  if (['supervisor','admin'].includes(role)) html += howToMaintSupervisor()
+  html += howToMaintCommon()
+  content.innerHTML = html
+}
+
+function howToCard(title, inner) {
+  return '<div class="card" style="margin-bottom:16px;"><h3 style="font-size:15px;margin:0 0 12px;">' + title + '</h3>' + inner + '</div>'
+}
+function uiFrame(titleBar, bodyHtml) {
+  let h = '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;background:var(--surf1);box-shadow:0 2px 8px rgba(0,0,0,.15);margin:8px 0;">'
+  h += '<div style="background:var(--surf2);border-bottom:1px solid var(--bdr2);padding:7px 12px;font-size:11px;color:var(--txt2);"><span style="display:inline-flex;gap:4px;vertical-align:middle;margin-right:6px;"><span style="width:9px;height:9px;border-radius:50%;background:#ff5f57;display:inline-block;"></span><span style="width:9px;height:9px;border-radius:50%;background:#febc2e;display:inline-block;"></span><span style="width:9px;height:9px;border-radius:50%;background:#28c840;display:inline-block;"></span></span>' + titleBar + '</div>'
+  h += '<div style="padding:14px;">' + bodyHtml + '</div></div>'
+  return h
+}
+function fakeBtn(label, color) {
+  return '<span style="display:inline-block;background:' + (color||'var(--accent,#12A62F)') + ';color:#fff;font-size:12px;font-weight:600;padding:5px 12px;border-radius:7px;">' + label + '</span>'
+}
+function stepRow(n, text) {
+  return '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
+    + '<span style="flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--accent-a,rgba(18,166,47,.12));color:var(--accent,#12A62F);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;">' + n + '</span>'
+    + '<div style="font-size:13px;color:var(--txt);line-height:1.5;padding-top:2px;">' + text + '</div></div>'
+}
+function howToFlowSVG(role) {
+  const stages = [
+    { k:'requester', label:t('Requester','Requester'), sub:t('Mag-file ng ticket','File a ticket'), icon:'📝' },
+    { k:'technician', label:t('Technician','Technician'), sub:t('Claim + ayusin','Claim + fix'), icon:'🔧' },
+    { k:'supervisor', label:t('Supervisor','Supervisor'), sub:t('Subaybayan','Oversee'), icon:'📋' }
+  ]
+  let boxes = ''
+  stages.forEach((s, i) => {
+    const on = (s.k === role) || (role === 'admin')
+    const x = 10 + i * 172
+    boxes += '<rect x="' + x + '" y="20" width="150" height="70" rx="10" fill="' + (on ? 'var(--accent-a,rgba(18,166,47,.12))' : 'var(--surf2)') + '" stroke="' + (on ? 'var(--accent,#12A62F)' : 'var(--bdr2)') + '" stroke-width="' + (on?'2':'1') + '"/>'
+    boxes += '<text x="' + (x+75) + '" y="45" text-anchor="middle" font-size="20">' + s.icon + '</text>'
+    boxes += '<text x="' + (x+75) + '" y="65" text-anchor="middle" font-size="12" font-weight="700" fill="var(--txt)">' + s.label + '</text>'
+    boxes += '<text x="' + (x+75) + '" y="80" text-anchor="middle" font-size="9" fill="var(--txt2)">' + s.sub + '</text>'
+    if (i < stages.length - 1) { const ax = x + 150; boxes += '<path d="M' + ax + ' 55 L' + (ax+22) + ' 55" stroke="var(--txt3)" stroke-width="2" marker-end="url(#arM)"/>' }
+  })
+  return '<div style="overflow-x:auto;"><svg viewBox="0 0 540 110" style="width:540px;max-width:100%;height:auto;"><defs><marker id="arM" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L6 4 L0 8 z" fill="var(--txt3)"/></marker></defs>' + boxes + '</svg></div>'
+    + '<p style="font-size:12px;color:var(--txt2);margin-top:8px;">' + t('Naka-highlight ang bahagi mo sa daloy.','Your part in the flow is highlighted.') + '</p>'
+}
+function howToMaintRequester() {
+  let b = ''
+  b += stepRow(1, t('Pumunta sa <strong>🎫 My Tickets</strong>, tapos i-click ang <strong>＋ New Ticket</strong>.','Go to <strong>🎫 My Tickets</strong>, then click <strong>＋ New Ticket</strong>.'))
+  b += uiFrame('Maintenance — New Ticket', '<div style="text-align:right;">' + fakeBtn('＋ New Ticket') + '</div>')
+  b += stepRow(2, t('Ilagay ang <strong>Title</strong>, <strong>Location</strong>, <strong>Category</strong> (electrical, plumbing, hvac, atbp.) at <strong>Priority</strong>. Ilarawan ang problema.','Enter the <strong>Title</strong>, <strong>Location</strong>, <strong>Category</strong> (electrical, plumbing, hvac, etc.) and <strong>Priority</strong>. Describe the problem.'))
+  b += uiFrame('New Ticket Form', '<div style="font-size:12px;color:var(--txt2);">Title: <span style="color:var(--txt);">Aircon leaking</span><br>Location: Billing Office<br>Category: HVAC ▾ &nbsp; Priority: High ▾</div>')
+  b += stepRow(3, t('I-submit. Makakatanggap ka ng <strong>ticket number</strong> at makikita mo ang status sa <strong>🎫 My Tickets</strong>.','Submit. You get a <strong>ticket number</strong> and can see the status under <strong>🎫 My Tickets</strong>.'))
+  b += stepRow(4, t('Susubaybayan mo ang status: Open → In Progress → Resolved. May notification kapag may update.','Track the status: Open → In Progress → Resolved. You get a notification on updates.'))
+  return howToCard('📝 ' + t('Para sa Requester — Paano Mag-file ng Ticket','For Requesters — How to File a Ticket'), b)
+}
+function howToMaintTechnician() {
+  let b = ''
+  b += stepRow(1, t('Pumunta sa <strong>🔓 Open Tickets</strong> para makita ang mga hindi pa naka-assign.','Go to <strong>🔓 Open Tickets</strong> to see unassigned tickets.'))
+  b += uiFrame('Maintenance — Open Tickets', '<div style="font-size:12px;color:var(--txt2);">MT-2026-014 &nbsp; Aircon leaking &nbsp; ' + fakeBtn('🙋 Claim','var(--accent,#12A62F)') + '</div>')
+  b += stepRow(2, t('I-click ang <strong>🙋 Claim</strong> para kunin ang ticket. Lilipat ito sa <strong>🎫 My Tickets</strong> mo.','Click <strong>🙋 Claim</strong> to take the ticket. It moves to your <strong>🎫 My Tickets</strong>.'))
+  b += stepRow(3, t('Habang inaayos, i-update ang status sa <strong>In Progress</strong>. Pwede kang mag-add ng <strong>notes</strong> o mag-request ng parts.','While working, update the status to <strong>In Progress</strong>. You can add <strong>notes</strong> or request parts.'))
+  b += stepRow(4, t('Kapag tapos na, i-mark na <strong>Resolved</strong>. Kung may kailangang parts mula sa CSR, i-request muna bago i-close.','When done, mark it <strong>Resolved</strong>. If parts are needed from CSR, request them before closing.'))
+  b += stepRow(5, t('Gamitin ang <strong>📋 Kanban Board</strong> para makita ang lahat ng ticket sa columns (Open, In Progress, Resolved).','Use the <strong>📋 Kanban Board</strong> to see all tickets in columns (Open, In Progress, Resolved).'))
+  return howToCard('🔧 ' + t('Para sa Technician — Paano Mag-asikaso ng Ticket','For Technicians — How to Handle a Ticket'), b)
+}
+function howToMaintSupervisor() {
+  let b = ''
+  b += stepRow(1, t('Nakikita mo ang <strong>lahat ng ticket</strong> sa <strong>🗂 All Tickets</strong> at ang buong <strong>📋 Kanban</strong>.','You see <strong>all tickets</strong> under <strong>🗂 All Tickets</strong> and the full <strong>📋 Kanban</strong>.'))
+  b += stepRow(2, t('Sa <strong>📊 Reports & Analytics</strong>, makikita mo ang performance — resolution time, ticket volume, atbp.','In <strong>📊 Reports & Analytics</strong>, you see performance — resolution time, ticket volume, etc.'))
+  b += stepRow(3, t('Sa <strong>👥 Team</strong>, makikita mo ang mga technician at ang workload nila.','In <strong>👥 Team</strong>, you see the technicians and their workload.'))
+  return howToCard('📋 ' + t('Para sa Supervisor — Pangangasiwa','For Supervisors — Oversight'), b)
+}
+function howToMaintCommon() {
+  let b = ''
+  b += stepRow(1, t('Ang <strong>🔔 notifications</strong> (kampanilya sa taas) ang magsasabi kung may bagong ticket o update.','The <strong>🔔 notifications</strong> (bell at top) tell you about new tickets or updates.'))
+  b += stepRow(2, t('Kung dept head ka, nakikita mo ang lahat ng ticket ng department mo — kahit hindi ikaw ang nag-file.','If you are a dept head, you see all your department\\u2019s tickets — even those you did not file.'))
+  return howToCard('🔔 ' + t('Para sa Lahat — Notifications','For Everyone — Notifications'), b)
+}
 
 async function renderTeam() {
   const content = document.getElementById('mainContent')
