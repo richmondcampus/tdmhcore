@@ -564,6 +564,19 @@ tr:hover td{background:var(--surf2);}
   align-items:center;justify-content:center;cursor:pointer;font-size:16px;
 }
 .mobile-cards{display:none;}
+
+/* Animated hourglass loading — sand drains and flips */
+.hourglass-anim{display:inline-block;width:48px;height:48px;position:relative;animation:hg-flip 2.4s ease-in-out infinite;}
+.hourglass-anim svg{display:block;width:100%;height:100%;}
+.hg-sand-top{transform-origin:12px 4px;animation:hg-drain 2.4s ease-in-out infinite;}
+.hg-sand-bot{transform-origin:12px 20px;animation:hg-fill 2.4s ease-in-out infinite;}
+.hg-stream{animation:hg-stream 2.4s ease-in-out infinite;}
+@keyframes hg-flip{0%,45%{transform:rotate(0deg);}55%,100%{transform:rotate(180deg);}}
+@keyframes hg-drain{0%{transform:scaleY(1);opacity:1;}45%{transform:scaleY(.05);opacity:.85;}55%,100%{transform:scaleY(.05);opacity:0;}}
+@keyframes hg-fill{0%{transform:scaleY(.05);opacity:0;}45%{transform:scaleY(1);opacity:1;}55%,100%{transform:scaleY(1);opacity:.9;}}
+@keyframes hg-stream{0%,45%{opacity:.9;}50%,100%{opacity:0;}}
+@media(prefers-reduced-motion:reduce){.hourglass-anim,.hg-sand-top,.hg-sand-bot,.hg-stream{animation:none!important;}}
+
 </style>
 </head>
 <body>
@@ -3248,7 +3261,7 @@ async function submitRequest(id) {
 async function renderIncomingDeliveries() {
   const content = document.getElementById('mainContent')
   const role = state.user.csr_role
-  content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div></div>'
+  content.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
 
   const [posRes, receivedRes] = await Promise.all([
     SB.from('purchase_orders').select('*, requests(request_no, purpose, dept_id, urgency)')
@@ -3347,7 +3360,7 @@ async function renderIncomingDeliveries() {
 async function renderPurchaseOrders() {
   const content = document.getElementById('mainContent')
   const role = state.user.csr_role
-  content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div></div>'
+  content.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
 
   const [posRes, reqsRes] = await Promise.all([
     SB.from('purchase_orders').select('*').order('created_at', { ascending: false }),
@@ -3836,6 +3849,7 @@ function autoMatchStock(name, stockList) {
   return null
 }
 
+function hourglass(){return '<span class="hourglass-anim" role="img" aria-label="Loading"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h12M6 22h12M6 2c0 5 6 6 6 10 0-4 6-5 6-10M6 22c0-5 6-6 6-10 0 4 6 5 6 10" stroke="var(--amber,#f0c838)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><polygon class="hg-sand-top" points="7.5,4 16.5,4 12,10.5" fill="var(--amber,#f0c838)"/><polygon class="hg-sand-bot" points="12,13.5 16.5,20 7.5,20" fill="var(--amber,#f0c838)"/><rect class="hg-stream" x="11.55" y="10" width="0.9" height="4" fill="var(--amber,#f0c838)"/></svg></span>'}
 function escStk(s){ if(s==null)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 
 // Called when supply officer overrides the stock link via dropdown
@@ -8715,6 +8729,11 @@ let issRptState = {
 // ═══════════════════════════════════════════
 // HOW-TO GUIDE — role-based, illustrated (no screenshots; inline SVG mockups)
 // ═══════════════════════════════════════════
+// How-To language: 'tl' (Tagalog) or 'en' (English). Default Tagalog for local staff.
+let howToLang = 'tl'
+function setHowToLang(l){ howToLang = l; renderHowTo() }
+function t(tl, en){ return howToLang === 'en' ? en : tl }
+
 function renderHowTo() {
   const content = document.getElementById('mainContent')
   const role = state.user?.csr_role || 'requester'
@@ -8723,11 +8742,17 @@ function renderHowTo() {
     purchasing_officer:'Purchasing Officer', admin:'Administrator'
   }
 
-  let html = '<div class="page-header"><div><h2>📖 How To Guide</h2>'
-  html += '<p style="color:var(--txt2);font-size:13px;">Gabay base sa role mo: <strong>' + (roleLabels[role]||role) + '</strong></p></div></div>'
+  let html = '<div class="page-header"><div><h2>📖 ' + t('Gabay sa Paggamit','How-To Guide') + '</h2>'
+  html += '<p style="color:var(--txt2);font-size:13px;">' + t('Gabay base sa role mo','Guide based on your role') + ': <strong>' + (roleLabels[role]||role) + '</strong></p></div>'
+  // Language toggle
+  html += '<div style="display:flex;gap:6px;align-items:center;">'
+  html += '<span style="font-size:11px;color:var(--txt3);">Wika/Language:</span>'
+  html += '<button class="btn btn-sm ' + (howToLang==='tl'?'btn-primary':'btn-ghost') + '" onclick="setHowToLang(\'tl\')">🇵🇭 Tagalog</button>'
+  html += '<button class="btn btn-sm ' + (howToLang==='en'?'btn-primary':'btn-ghost') + '" onclick="setHowToLang(\'en\')">🇬🇧 English</button>'
+  html += '</div></div>'
 
   // Whole-flow overview (everyone sees this)
-  html += howToCard('🔄 Ang Buong Daloy ng CSR', howToFlowSVG(role))
+  html += howToCard('🔄 ' + t('Ang Buong Daloy ng CSR','The Full CSR Flow'), howToFlowSVG(role))
 
   // Role-specific sections
   if (role === 'requester' || role === 'admin') html += howToRequester()
@@ -8795,54 +8820,54 @@ function howToFlowSVG(role) {
 
 function howToRequester() {
   let b = ''
-  b += stepRow(1, 'Sa sidebar, i-click ang <strong>📊 Dashboard</strong> o <strong>📋 My Requests</strong>, tapos ang <strong>＋ New Request</strong> button sa kanang taas.')
+  b += stepRow(1, t('Sa sidebar, i-click ang <strong>📊 Dashboard</strong> o <strong>📋 My Requests</strong>, tapos ang <strong>＋ New Request</strong> button sa kanang taas.','In the sidebar, click <strong>📊 Dashboard</strong> or <strong>📋 My Requests</strong>, then the <strong>＋ New Request</strong> button at the top right.'))
   b += uiFrame('CSR — New Request', '<div style="text-align:right;">' + fakeBtn('＋ New Request') + '</div>')
-  b += stepRow(2, 'Piliin ang <strong>Department</strong> at <strong>Urgency</strong>, tapos idagdag ang mga item (pangalan, dami, unit). Pwede kang magdagdag ng maraming item.')
+  b += stepRow(2, t('Piliin ang <strong>Department</strong> at <strong>Urgency</strong>, tapos idagdag ang mga item (pangalan, dami, unit). Pwede kang magdagdag ng maraming item.','Choose the <strong>Department</strong> and <strong>Urgency</strong>, then add items (name, quantity, unit). You can add multiple items.'))
   b += uiFrame('New Request Form', '<div style="font-size:12px;color:var(--txt2);">Department: <span style="color:var(--txt);">Nursing ▾</span><br><br>Items:<br>• Facemask — 5 box<br>• Alcohol — 3 bottles &nbsp; ' + fakeBtn('＋ Add Item','var(--surf3)') + '</div>')
-  b += stepRow(3, 'I-click ang <strong>Submit</strong>. Kung maliit lang ang halaga, <strong>auto-approved</strong> agad. Kung malaki, pupunta sa dept head mo para i-approve.')
-  b += stepRow(4, 'I-track sa <strong>📋 My Requests</strong> — makikita mo ang status: Pending Approval → Approved → Issued.')
-  b += stepRow(5, 'Kapag <strong>Issued</strong> na, kunin ang items sa Supply Room. Kumpirmahin ang pagtanggap (tignan ang "Pagkumpirma" sa ibaba).')
-  return howToCard('📝 Para sa Requester — Paano Mag-file ng Request', b)
+  b += stepRow(3, t('I-click ang <strong>Submit</strong>. Kung maliit lang ang halaga, <strong>auto-approved</strong> agad. Kung malaki, pupunta sa dept head mo para i-approve.','Click <strong>Submit</strong>. If the amount is small, it is <strong>auto-approved</strong> right away. If large, it goes to your dept head for approval.'))
+  b += stepRow(4, t('I-track sa <strong>📋 My Requests</strong> — makikita mo ang status: Pending Approval → Approved → Issued.','Track it under <strong>📋 My Requests</strong> — you will see the status: Pending Approval → Approved → Issued.'))
+  b += stepRow(5, t('Kapag <strong>Issued</strong> na, kunin ang items sa Supply Room. Kumpirmahin ang pagtanggap (tignan ang "Pagkumpirma" sa ibaba).','Once <strong>Issued</strong>, pick up the items at the Supply Room. Confirm receipt (see "Confirmation" below).'))
+  return howToCard('📝 ' + t('Para sa Requester — Paano Mag-file ng Request','For Requesters — How to File a Request'), b)
 }
 
 function howToDeptHead() {
   let b = ''
-  b += stepRow(1, 'Kapag may nag-file sa department mo, may <strong>🔔 notification</strong> ka. Pumunta sa <strong>✅ Approval Queue</strong>.')
+  b += stepRow(1, t('Kapag may nag-file sa department mo, may <strong>🔔 notification</strong> ka. Pumunta sa <strong>✅ Approval Queue</strong>.','When someone files in your department, you get a <strong>🔔 notification</strong>. Go to the <strong>✅ Approval Queue</strong>.'))
   b += uiFrame('CSR — Approval Queue', '<div style="font-size:12px;"><table style="width:100%;font-size:11px;color:var(--txt2);"><tr style="color:var(--txt3);"><td>REQUEST</td><td>DEPT</td><td>ACTION</td></tr><tr><td style="color:var(--accent);">CSR-2026-0091</td><td>Nursing</td><td>' + fakeBtn('✅ Approve','var(--green)') + ' ' + fakeBtn('❌','var(--red)') + '</td></tr></table></div>')
-  b += stepRow(2, 'I-click ang <strong>request number</strong> para makita ang detalye (mga item, requester, purpose). Pwede ka ring mag-hover para sa mabilis na preview.')
-  b += stepRow(3, 'I-click ang <strong>✅ Approve</strong> kung tama, o <strong>↩ Return</strong> (pabalik sa requester) o <strong>❌ Reject</strong> kung hindi.')
-  b += stepRow(4, 'Nakikita mo lang ang requests ng <strong>department mo</strong>. Ang sarili mong request ay <strong>auto-skip</strong> sa level mo — hindi mo kailangang aprubahan ang sarili.')
-  b += '<div style="background:var(--accent-a);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--txt);margin-top:8px;">💡 Bilang dept head, nakikita mo rin ang <strong>IT at Maintenance tickets</strong> ng department mo sa kani-kanilang systems.</div>'
-  return howToCard('✅ Para sa Department Head — Paano Mag-approve', b)
+  b += stepRow(2, t('I-click ang <strong>request number</strong> para makita ang detalye (mga item, requester, purpose). Pwede ka ring mag-hover para sa mabilis na preview.','Click the <strong>request number</strong> to see details (items, requester, purpose). You can also hover for a quick preview.'))
+  b += stepRow(3, t('I-click ang <strong>✅ Approve</strong> kung tama, o <strong>↩ Return</strong> (pabalik sa requester) o <strong>❌ Reject</strong> kung hindi.','Click <strong>✅ Approve</strong> if correct, or <strong>↩ Return</strong> (back to requester) or <strong>❌ Reject</strong> if not.'))
+  b += stepRow(4, t('Nakikita mo lang ang requests ng <strong>department mo</strong>. Ang sarili mong request ay <strong>auto-skip</strong> sa level mo — hindi mo kailangang aprubahan ang sarili.','You only see requests from <strong>your department</strong>. Your own request <strong>auto-skips</strong> your level — you never approve your own.'))
+  b += '<div style="background:var(--accent-a);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--txt);margin-top:8px;">💡 ' + t('Bilang dept head, nakikita mo rin ang <strong>IT at Maintenance tickets</strong> ng department mo sa kani-kanilang systems.','As dept head, you also see the <strong>IT and Maintenance tickets</strong> of your department in their respective systems.') + '</div>'
+  return howToCard('✅ ' + t('Para sa Department Head — Paano Mag-approve','For Department Heads — How to Approve'), b)
 }
 
 function howToSupplyOfficer() {
   let b = ''
-  b += stepRow(1, 'Ang mga <strong>approved</strong> na request ay lalabas sa <strong>✅ Approval Queue</strong> na may <strong>📦 Fulfill</strong> button.')
+  b += stepRow(1, t('Ang mga <strong>approved</strong> na request ay lalabas sa <strong>✅ Approval Queue</strong> na may <strong>📦 Fulfill</strong> button.','<strong>Approved</strong> requests appear in the <strong>✅ Approval Queue</strong> with a <strong>📦 Fulfill</strong> button.'))
   b += uiFrame('CSR — Fulfill', '<div style="font-size:12px;color:var(--txt2);">CSR-2026-0092 &nbsp; Nursing &nbsp; ' + fakeBtn('📦 Fulfill','var(--green)') + '</div>')
-  b += stepRow(2, 'I-click ang <strong>📦 Fulfill</strong> → magbubukas ang Issuance modal. I-type ang <strong>Received By</strong> (may auto-suggest), tapos piliin ang mga item at dami.')
-  b += uiFrame('Issuance Modal', '<div style="font-size:11px;color:var(--txt2);">Received By: <span style="color:var(--txt);">Juan Dela Cruz</span><br><br><table style="width:100%;font-size:11px;"><tr style="color:var(--txt3);"><td></td><td>ITEM</td><td>NATIRA</td><td>IBIBIGAY</td></tr><tr><td>☑</td><td>Facemask</td><td>5</td><td>[5]</td></tr><tr><td>☑</td><td>Gloves</td><td>10</td><td>[2]</td></tr></table></div>')
-  b += stepRow(3, '<strong>Checkbox</strong> = isasama ba. <strong>Ibibigay</strong> = ilan ngayon (pwede bawasan). Kung may natira, mananatiling buhay ang request para sa susunod.')
-  b += stepRow(4, 'Optional: kumuha ng <strong>photo</strong> bilang patunay ng pagtanggap. I-click ang <strong>📤 Issue</strong>.')
-  b += stepRow(5, 'Para sa direktang labas na walang request, gamitin ang <strong>⚡ Blank Issuance</strong>. Para sa report, ang <strong>📑 Issuance Report</strong> (may export).')
-  b += '<div style="background:var(--amber-a,rgba(240,200,56,.12));border-radius:8px;padding:10px 12px;font-size:12px;color:var(--txt);margin-top:8px;">📦 <strong>Stock Guard</strong>: kung naka-OFF (relaxed), pwedeng mag-issue kahit kulang ang stock. I-ON kapag kumpleto na ang encoding. (Settings → Preferences)</div>'
-  return howToCard('📦 Para sa Supply Officer — Paano Mag-issue', b)
+  b += stepRow(2, t('I-click ang <strong>📦 Fulfill</strong> → magbubukas ang Issuance modal. I-type ang <strong>Received By</strong> (may auto-suggest), tapos piliin ang mga item at dami.','Click <strong>📦 Fulfill</strong> → the Issuance modal opens. Type the <strong>Received By</strong> (auto-suggests), then choose the items and quantities.'))
+  b += uiFrame('Issuance Modal', '<div style="font-size:11px;color:var(--txt2);">Received By: <span style="color:var(--txt);">Juan Dela Cruz</span><br><br><table style="width:100%;font-size:11px;"><tr style="color:var(--txt3);"><td></td><td>ITEM</td><td>' + t('NATIRA','LEFT') + '</td><td>' + t('IBIBIGAY','GIVE') + '</td></tr><tr><td>☑</td><td>Facemask</td><td>5</td><td>[5]</td></tr><tr><td>☑</td><td>Gloves</td><td>10</td><td>[2]</td></tr></table></div>')
+  b += stepRow(3, t('<strong>Checkbox</strong> = isasama ba. <strong>Ibibigay</strong> = ilan ngayon (pwede bawasan). Kung may natira, mananatiling buhay ang request para sa susunod.','<strong>Checkbox</strong> = include it or not. <strong>Give</strong> = how many now (can reduce). If some remain, the request stays open for next time.'))
+  b += stepRow(4, t('Optional: kumuha ng <strong>photo</strong> bilang patunay ng pagtanggap. I-click ang <strong>📤 Issue</strong>.','Optional: take a <strong>photo</strong> as proof of receipt. Click <strong>📤 Issue</strong>.'))
+  b += stepRow(5, t('Para sa direktang labas na walang request, gamitin ang <strong>⚡ Blank Issuance</strong>. Para sa report, ang <strong>📑 Issuance Report</strong> (may export).','For direct issuance with no request, use <strong>⚡ Blank Issuance</strong>. For reports, use <strong>📑 Issuance Report</strong> (with export).'))
+  b += '<div style="background:var(--amber-a,rgba(240,200,56,.12));border-radius:8px;padding:10px 12px;font-size:12px;color:var(--txt);margin-top:8px;">📦 <strong>Stock Guard</strong>: ' + t('kung naka-OFF (relaxed), pwedeng mag-issue kahit kulang ang stock. I-ON kapag kumpleto na ang encoding. (Settings → Preferences)','if OFF (relaxed), you can issue even with insufficient stock. Turn ON once encoding is complete. (Settings → Preferences)') + '</div>'
+  return howToCard('📦 ' + t('Para sa Supply Officer — Paano Mag-issue','For Supply Officers — How to Issue'), b)
 }
 
 function howToPurchasing() {
   let b = ''
-  b += stepRow(1, 'Ang mga request na kailangang <strong>bilhin</strong> (walang stock) ay dumadaan sa iyo. Makikita sa <strong>✅ Approval Queue</strong> (Level 3).')
-  b += stepRow(2, 'I-review, tapos gumawa ng <strong>Purchase Order</strong> via <strong>🛒 Purchase Orders</strong>. I-encode ang supplier at presyo.')
-  b += stepRow(3, 'Kapag dumating ang order, i-record sa <strong>📦 Incoming Deliveries</strong>. Pagkatapos, ang Supply Officer na ang mag-i-issue.')
-  return howToCard('🛒 Para sa Purchasing Officer — Paano Gumawa ng PO', b)
+  b += stepRow(1, t('Ang mga request na kailangang <strong>bilhin</strong> (walang stock) ay dumadaan sa iyo. Makikita sa <strong>✅ Approval Queue</strong> (Level 3).','Requests that need to be <strong>purchased</strong> (no stock) come to you. See them in the <strong>✅ Approval Queue</strong> (Level 3).'))
+  b += stepRow(2, t('I-review, tapos gumawa ng <strong>Purchase Order</strong> via <strong>🛒 Purchase Orders</strong>. I-encode ang supplier at presyo.','Review, then create a <strong>Purchase Order</strong> via <strong>🛒 Purchase Orders</strong>. Encode the supplier and price.'))
+  b += stepRow(3, t('Kapag dumating ang order, i-record sa <strong>📦 Incoming Deliveries</strong>. Pagkatapos, ang Supply Officer na ang mag-i-issue.','When the order arrives, record it in <strong>📦 Incoming Deliveries</strong>. After that, the Supply Officer issues it.'))
+  return howToCard('🛒 ' + t('Para sa Purchasing Officer — Paano Gumawa ng PO','For Purchasing Officers — How to Create a PO'), b)
 }
 
 function howToCommon() {
   let b = ''
-  b += stepRow(1, 'Ang mga <strong>🔔 notifications</strong> (kampanilya sa taas) ang magsasabi kung may update sa request mo — approved, issued, o kailangan ng aksyon.')
-  b += stepRow(2, 'Kapag natanggap mo na ang items, hanapin ang issuance at i-click ang <strong>✅ Confirm Receipt</strong> (may photo option) para kumpleto ang tala.')
-  b += stepRow(3, 'Ang <strong>♻️ DERP</strong> ay para sa sirang gamit na dapat i-dispose o palitan — hiwalay ito sa supply request.')
-  return howToCard('🔔 Para sa Lahat — Notifications at Pagkumpirma', b)
+  b += stepRow(1, t('Ang mga <strong>🔔 notifications</strong> (kampanilya sa taas) ang magsasabi kung may update sa request mo — approved, issued, o kailangan ng aksyon.','The <strong>🔔 notifications</strong> (bell at the top) tell you when your request has an update — approved, issued, or needs action.'))
+  b += stepRow(2, t('Kapag natanggap mo na ang items, hanapin ang issuance at i-click ang <strong>✅ Confirm Receipt</strong> (may photo option) para kumpleto ang tala.','Once you receive the items, find the issuance and click <strong>✅ Confirm Receipt</strong> (with photo option) to complete the record.'))
+  b += stepRow(3, t('Ang <strong>♻️ DERP</strong> ay para sa sirang gamit na dapat i-dispose o palitan — hiwalay ito sa supply request.','<strong>♻️ DERP</strong> is for broken equipment to dispose of or replace — separate from a supply request.'))
+  return howToCard('🔔 ' + t('Para sa Lahat — Notifications at Pagkumpirma','For Everyone — Notifications and Confirmation'), b)
 }
 
 async function renderIssuanceReport() {
