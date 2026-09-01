@@ -304,10 +304,40 @@ canvas{max-height:220px;}
 /* Loading spinner nicety for empty-state hourglass */
 .empty-icon{display:inline-block;animation:fadeIn .5s ease both;}
 
+/* Animated hourglass — flips + sand falls */
+.hourglass-anim{
+  display:inline-block;width:48px;height:48px;position:relative;
+  animation:hg-flip 2.4s ease-in-out infinite;
+}
+.hourglass-anim svg{display:block;width:100%;height:100%;}
+.hg-sand-top{transform-origin:12px 4px;animation:hg-drain 2.4s ease-in-out infinite;}
+.hg-sand-bot{transform-origin:12px 20px;animation:hg-fill 2.4s ease-in-out infinite;}
+.hg-stream{animation:hg-stream 2.4s ease-in-out infinite;}
+@keyframes hg-flip{
+  0%,45%{transform:rotate(0deg);}
+  55%,100%{transform:rotate(180deg);}
+}
+@keyframes hg-drain{
+  0%{transform:scaleY(1);opacity:1;}
+  45%{transform:scaleY(.05);opacity:.85;}
+  55%,100%{transform:scaleY(.05);opacity:0;}
+}
+@keyframes hg-fill{
+  0%{transform:scaleY(.05);opacity:0;}
+  45%{transform:scaleY(1);opacity:1;}
+  55%,100%{transform:scaleY(1);opacity:.9;}
+}
+@keyframes hg-stream{
+  0%,45%{opacity:.9;}
+  50%,100%{opacity:0;}
+}
+
 /* Respect reduced motion */
 @media(prefers-reduced-motion:reduce){
   *,#mainContent>*,.stat-card,.work-item,.badge,.stat-value,.login-card{animation:none!important;}
   .nav-item:hover,.btn:hover,.icon-btn:hover,.stat-card:hover,.work-item:hover{transform:none!important;}
+  .hourglass-anim{animation:none!important;}
+  .hg-sand-top,.hg-sand-bot,.hg-stream{animation:none!important;}
 }
 
 </style>
@@ -455,6 +485,21 @@ let S = { user:null, page:'my_work', departments:[], users:[], charts:{} }
 
 // AUTH
 function getSession(){ try{return JSON.parse(localStorage.getItem('tdmh_session'))}catch{return null} }
+
+// Animated hourglass markup — sand drains from top and fills the bottom, then flips.
+function hourglass(){
+  return '<span class="hourglass-anim" role="img" aria-label="Loading">'
+    + '<svg viewBox="0 0 24 24" fill="none">'
+    + '<path d="M6 2h12M6 22h12M6 2c0 5 6 6 6 10 0-4 6-5 6-10M6 22c0-5 6-6 6-10 0 4 6 5 6 10" stroke="var(--amber,#f0c838)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<polygon class="hg-sand-top" points="7.5,4 16.5,4 12,10.5" fill="var(--amber,#f0c838)"/>'
+    + '<polygon class="hg-sand-bot" points="12,13.5 16.5,20 7.5,20" fill="var(--amber,#f0c838)"/>'
+    + '<rect class="hg-stream" x="11.55" y="10" width="0.9" height="4" fill="var(--amber,#f0c838)"/>'
+    + '</svg></span>'
+}
+// Standard loading block for empty states
+function loadingBlock(label){
+  return '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div><p>' + (label||'Loading...') + '</p></div>'
+}
 function setSession(d){ localStorage.setItem('tdmh_session',JSON.stringify(d)) }
 function clearSession(){ localStorage.removeItem('tdmh_session') }
 function storeAuthSession(authData, profile){
@@ -609,7 +654,7 @@ function showPage(page){
   if(nav)nav.classList.add('active')
   closeSidebar()
   const content=document.getElementById('mainContent')
-  content.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading...</p></div>'
+  content.innerHTML=loadingBlock('Loading...')
   Object.values(S.charts).forEach(c=>{try{c.destroy()}catch(e){}})
   S.charts={}
   const pages={announcements:renderAnnouncements,memos:renderMemos,documents:renderDocuments,my_work:renderMyWork,notifications:renderNotifications,dept_view:renderDeptView,handover:renderHandover,search:renderSearch,audit_trail:renderAuditTrail,reports:renderReports,budget:renderBudget,room_view:renderRoomView,user_mgmt:renderUserMgmt}
@@ -1044,7 +1089,7 @@ async function renderAuditTrail(){
 
 async function renderReports(){
   const content=document.getElementById('mainContent')
-  content.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading reports...</p></div>'
+  content.innerHTML=loadingBlock('Loading reports...')
   const now=new Date()
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString()
   const[maintRes,itRes,csrRes,assetRes,stockRes]=await Promise.all([
@@ -1442,7 +1487,7 @@ async function deleteAnnouncement(id){
 
 async function renderMemos(){
   const content=document.getElementById('mainContent')
-  content.innerHTML='<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading memos...</p></div>'
+  content.innerHTML=loadingBlock('Loading memos...')
   const{data}=await SB.from('memos').select('*').eq('is_active',true).order('created_at',{ascending:false}).limit(100)
   const memos=(data||[]).filter(m=>m.target==='all'||(m.target==='department'&&m.dept_id===S.user.dept_id)||canPost())
   const{data:acks}=await SB.from('memo_acknowledgments').select('memo_id').eq('user_id',S.user.id)
