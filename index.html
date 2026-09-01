@@ -379,7 +379,7 @@ canvas{max-height:220px;}
         <div class="nav-item nav-system" onclick="goSystem('it')" id="navsys_it" style="display:none;"><span class="nav-icon">🖥️</span>IT Helpdesk<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('csr')" id="navsys_csr" style="display:none;"><span class="nav-icon">📋</span>CSR / Supply<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('inventory')" id="navsys_inventory" style="display:none;"><span class="nav-icon">🏷️</span>Inventory<span class="nav-ext">↗</span></div>
-        <div class="nav-item nav-system" onclick="goSystem('scan')" id="navsys_scan"><span class="nav-icon">📱</span>Asset Scan<span class="nav-ext">↗</span></div>
+        <div class="nav-item nav-system" onclick="goSystem('scan')" id="navsys_scan" style="display:none;"><span class="nav-icon">📱</span>Asset Scan<span class="nav-ext">↗</span></div>
 
       </nav>
       <div class="sidebar-footer">
@@ -571,8 +571,9 @@ async function bootApp(session){
   const roles=[...new Set([session.csr_role,session.maintenance_role,session.it_role,session.inventory_role].filter(Boolean))]
   const roleLabel=roles.map(r=>String(r).replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())).join(' · ')
   document.getElementById('userRoleLabel').textContent=roleLabel||'Staff'
-  // Show Systems nav links based on this user's role access (Asset Scan always shown)
-  const sysAccess={maintenance:!!session.maintenance_role,it:!!session.it_role,csr:!!session.csr_role,inventory:!!session.inventory_role,scan:true}
+  // Show Systems nav links based on this user's role access
+  // (Asset Scan hidden for now — scan page not yet deployed)
+  const sysAccess={maintenance:!!session.maintenance_role,it:!!session.it_role,csr:!!session.csr_role,inventory:!!session.inventory_role,scan:false}
   let anySys=false
   Object.keys(sysAccess).forEach(k=>{
     const el=document.getElementById('navsys_'+k)
