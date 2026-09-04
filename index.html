@@ -1904,6 +1904,25 @@ function roleSelect(sys, current){
   h += '</select></div>'
   return h
 }
+function setAccountType(type){
+  // Visual toggle between Department User and Department Head.
+  const userBox = document.getElementById('acctTypeUserBox')
+  const headBox = document.getElementById('acctTypeHeadBox')
+  const csrSel = document.getElementById('uf_csr')
+  if(type==='head'){
+    if(headBox){ headBox.style.borderColor='var(--accent)'; headBox.style.background='var(--accent-a)' }
+    if(userBox){ userBox.style.borderColor='var(--bdr2)'; userBox.style.background='var(--surf2)' }
+    if(csrSel) csrSel.value = 'dept_head'
+    toggleDeptHeadField('dept_head')
+  } else {
+    if(userBox){ userBox.style.borderColor='var(--accent)'; userBox.style.background='var(--accent-a)' }
+    if(headBox){ headBox.style.borderColor='var(--bdr2)'; headBox.style.background='var(--surf2)' }
+    // Default a plain user to CSR requester if currently unset or was dept_head
+    if(csrSel && (!csrSel.value || csrSel.value==='dept_head')) csrSel.value = 'requester'
+    toggleDeptHeadField(csrSel ? csrSel.value : 'requester')
+  }
+}
+
 function toggleDeptHeadField(role){
   const wrap = document.getElementById('deptHeadAssignWrap')
   if(wrap) wrap.style.display = role==='dept_head' ? 'block' : 'none'
@@ -1944,6 +1963,17 @@ function openUserForm(userId){
   html += '<div class="field"><label>Position</label><input type="text" id="uf_position" value="'+(u?esc(u.position||''):'')+'" placeholder="e.g. Nurse, Technician"></div>'
   html += '</div>'
 
+  html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 6px;">Account Type</div>'
+  const startsAsHead = u?.csr_role === 'dept_head'
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'
+  html += '<label id="acctTypeUserBox" onclick="setAccountType(\'user\')" style="cursor:pointer;border:2px solid '+(startsAsHead?'var(--bdr2)':'var(--accent)')+';border-radius:10px;padding:10px 12px;background:'+(startsAsHead?'var(--surf2)':'var(--accent-a)')+';">'
+  html += '<div style="font-size:13px;font-weight:700;color:var(--txt);">👤 Department User</div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-top:2px;">Nag-fa-file ng request/ticket. Ordinaryong staff.</div></label>'
+  html += '<label id="acctTypeHeadBox" onclick="setAccountType(\'head\')" style="cursor:pointer;border:2px solid '+(startsAsHead?'var(--accent)':'var(--bdr2)')+';border-radius:10px;padding:10px 12px;background:'+(startsAsHead?'var(--accent-a)':'var(--surf2)')+';">'
+  html += '<div style="font-size:13px;font-weight:700;color:var(--txt);">👑 Department Head</div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-top:2px;">Nag-a-approve + nakikita ang lahat ng ticket ng dept.</div></label>'
+  html += '</div>'
+
   html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 6px;">System Roles</div>'
   html += '<div class="field-row">'+roleSelect('csr', u?.csr_role)+roleSelect('maintenance', u?.maintenance_role)+'</div>'
   html += '<div class="field-row">'+roleSelect('it', u?.it_role)+roleSelect('inventory', u?.inventory_role)+'</div>'
@@ -1965,8 +1995,8 @@ function openUserForm(userId){
   html += '</div></div>'
 
   if(!editing){
-    html += '<div class="field"><label>Initial Password *</label><input type="text" id="uf_pass" placeholder="At least 6 characters"></div>'
-    html += '<p style="font-size:11px;color:var(--txt3);">Kung may email, mag-login gamit ang email. Kung walang email, employee number ang gamit sa login.</p>'
+    html += '<div class="field"><label>Initial Password <span style="font-size:11px;font-weight:400;color:var(--txt3);">(kung walang email)</span></label><input type="text" id="uf_pass" placeholder="6+ characters — kailangan lang kung walang email"></div>'
+    html += '<p style="font-size:11px;color:var(--txt3);">May email? Awtomatikong makakatanggap ng <strong>set-password link</strong> — hindi na kailangan ng initial password. Walang email? Employee number ang gamit sa login, kaya kailangan ng initial password.</p>'
   } else {
     html += '<div class="field"><label>Status</label><select id="uf_active"><option value="true"'+(u.is_active?' selected':'')+'>✅ Active</option><option value="false"'+(!u.is_active?' selected':'')+'>🚫 Inactive</option></select></div>'
   }
@@ -2340,8 +2370,11 @@ async function saveUser(userId){
   const name = g('uf_name')
   if(!name){ showErr('Full name is required.'); return }
 
+  const hasEmail = g('uf_email') && g('uf_email').includes('@')
   const payload = {
-    action: editing ? 'update' : 'create',
+    // New users WITH an email get a welcome + set-password email (create_with_reset,
+    // same as bulk import). Users without an email fall back to manual password.
+    action: editing ? 'update' : (hasEmail ? 'create_with_reset' : 'create'),
     full_name: name,
     employee_no: g('uf_empno') || null,
     email: g('uf_email') || null,
@@ -2356,9 +2389,10 @@ async function saveUser(userId){
   if(editing){
     payload.user_id = userId
     payload.is_active = g('uf_active') === 'true'
-  } else {
+  } else if(!hasEmail){
+    // No email → require a manual initial password (they log in with employee number)
     const pass = g('uf_pass')
-    if(pass.length < 6){ showErr('Password must be at least 6 characters.'); return }
+    if(pass.length < 6){ showErr('Walang email — kailangan ng initial password (6+ characters).'); return }
     payload.password = pass
   }
 
@@ -2382,7 +2416,7 @@ async function saveUser(userId){
       if(depts) S.departments = depts
     }
     closeModal('mainModal')
-    showToast('success', editing?'User Updated':'User Created', editing?'✅ Na-save ang pagbabago.':'✅ Nagawa ang bagong user.')
+    showToast('success', editing?'User Updated':'User Created', editing ? '✅ Na-save ang pagbabago.' : (hasEmail ? '✅ Nagawa ang user — nagpadala ng set-password link sa email.' : '✅ Nagawa ang user (login via employee number).'))
     // refresh global users cache too
     renderUserMgmt()
   }catch(e){
