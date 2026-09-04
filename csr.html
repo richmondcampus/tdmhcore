@@ -5894,11 +5894,12 @@ async function loadCSRForIssuance(requestId) {
   html += '</tr></thead><tbody id="iss_items_body">'
 
   for (const item of items) {
-    // Check stock
-    const { data: stockItem } = await SB.from('stock_items')
+    // Check stock (maybeSingle + limit avoids throwing when 0 or multiple match)
+    const { data: stockMatches } = await SB.from('stock_items')
       .select('id,quantity_on_hand,unit')
       .ilike('item_name', '%' + item.item_name.substring(0,15) + '%')
-      .single()
+      .limit(1)
+    const stockItem = (stockMatches && stockMatches.length) ? stockMatches[0] : null
 
     const stockQty = stockItem ? Number(stockItem.quantity_on_hand) : null
     const alreadyIssued = Number(item.quantity_issued) || 0
