@@ -6006,8 +6006,8 @@ async function openBlankIssuanceModal() {
     html += '<option value="' + d.id + '">' + escStk(d.dept_name) + '</option>'
   })
   html += '</select></div>'
-  html += '<div class="field"><label>Received By <span style="color:var(--red);">*</span></label>'
-  html += '<input type="text" id="bi_receiver_name" list="bi_receiver_list" placeholder="I-type ang pangalan..." autocomplete="off" oninput="onBlankReceiverInput(this.value)">'
+  html += '<div class="field"><label>Received By <span style="font-size:11px;font-weight:400;color:var(--txt3);">(optional)</span></label>'
+  html += '<input type="text" id="bi_receiver_name" list="bi_receiver_list" placeholder="I-type ang pangalan... (optional)" autocomplete="off" oninput="onBlankReceiverInput(this.value)">'
   html += '<datalist id="bi_receiver_list">'
   state.users.filter(u => u.is_active).forEach(u => {
     html += '<option data-uid="' + u.id + '" data-phone="' + (u.phone||'') + '" value="' + escStk(u.full_name) + '">'
@@ -6095,7 +6095,7 @@ async function saveBlankIssuance() {
   const reason = (document.getElementById('bi_reason')?.value || '').trim()
 
   if (!deptId) { showToast('error','Required','Pumili ng department.'); releaseClick('saveBlankIssuance'); return }
-  if (!receiverName) { showToast('error','Required','I-type ang pangalan ng receiver.'); releaseClick('saveBlankIssuance'); return }
+  // Receiver name is OPTIONAL for blank issuance — department is enough.
 
   // Link to a registered user if the typed name matches one exactly; else keep as walk-in name.
   const matchedUser = state.users.find(u => u.is_active && (u.full_name||'').toLowerCase() === receiverName.toLowerCase())
@@ -6149,7 +6149,7 @@ async function saveBlankIssuance() {
       dept_id: deptId,
       issued_by: state.user.id,
       received_by: receiverId,
-      receiver_name: receiverName,
+      receiver_name: receiverName || null,
       issued_at: new Date().toISOString(),
       scenario: 'from_stock',
       remarks: reason ? ('Blank issuance — ' + reason) : 'Blank issuance (walang request)',
