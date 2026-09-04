@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -168,17 +168,13 @@ async function sendResetLink() {
   btn.disabled = true; btn.textContent = 'Sending...'
 
   try {
-    // Build redirect URL pointing back to this page
-    const redirectTo = window.location.origin + window.location.pathname + '?from=' + fromSystem
-
-    const { error } = await SB.auth.resetPasswordForEmail(email, {
-      redirectTo
+    // Use our Gmail-SMTP-backed reset (not Supabase's rate-limited built-in mailer),
+    // so reset links actually arrive even during heavy rollout usage.
+    await fetch(SUPA_URL + '/functions/v1/request-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
     })
-
-    if (error) {
-      // Don't reveal if email exists — always show success for security
-      console.warn(error.message)
-    }
 
     // Always show success (security: don't confirm if email exists)
     showAlert('reqOk', '✅ If that email is registered, a reset link has been sent. Please check your inbox (and spam folder). Link expires in 1 hour.')
@@ -264,7 +260,7 @@ function goBack() {
 
 // ─── INIT: Check if came from reset email link ───
 ;(async function init() {
-  const savedTheme = localStorage.getItem('tdmh_theme') || 'dark'
+  const savedTheme = localStorage.getItem('tdmh_theme') || 'light'
   document.documentElement.setAttribute('data-theme', savedTheme)
 
   // Supabase puts tokens in URL hash after email link click
