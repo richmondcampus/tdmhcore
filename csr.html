@@ -2087,7 +2087,7 @@ async function viewRequest(id) {
       body += '<span style="font-size:22px;">⚡</span>'
       body += '<div>'
       body += '<div style="font-weight:700;font-size:14px;color:var(--green);">Action Required — Ready for Fulfillment</div>'
-      body += '<div style="font-size:12px;color:var(--txt2);margin-top:2px;">Below ₱5,000 threshold — auto-approved. Choose how to fulfill:</div>'
+      body += '<div style="font-size:12px;color:var(--txt2);margin-top:2px;">Approved and ready. Choose how to fulfill:</div>'
       body += '</div></div>'
       body += '<div style="display:flex;gap:8px;margin-top:4px;">'
       body += '<div style="flex:1;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;padding:10px 12px;font-size:12px;">'
@@ -2498,6 +2498,15 @@ function getDerpAction() {
 }
 
 async function updateAutoApproveHint() {
+  // Auto-approval is DISABLED — every request needs dept head approval. Just show the
+  // standard "needs approval" hint if present, and hide the old auto-approve hint.
+  const hint = document.getElementById('autoApproveHint')
+  const needsHint = document.getElementById('needsApprovalHint')
+  if (hint) hint.style.display = 'none'
+  if (needsHint) needsHint.style.display = 'block'
+  return
+}
+async function _legacyUpdateAutoApproveHint() {
   const total = state.itemRows.reduce((s,r) => s + (Number(r.estimated_cost)||0) * (Number(r.quantity)||1), 0)
   if (total === 0) return
   const { data: settings } = await SB.from('settings').select('value').eq('key','csr_auto_approve_threshold').single()
@@ -2698,13 +2707,17 @@ async function directIssueFromStock() {
       }
     }
 
-    // SMS confirmation link to dept
-    const deptUsers = state.users.filter(u => u.dept_id === dept && u.phone)
-    if (deptUsers.length > 0) {
-      const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + token
-      const deptName = state.departments.find(d => d.id === dept)?.dept_name || 'your department'
-      await sendSMS(deptUsers.map(u => u.phone),
-        '[TDMH Supply] ' + requestNo + ' — items from stock are ready for pickup. Please confirm receipt: ' + confirmUrl)
+    // In-app notification to dept requesters (no SMS — links get blocked by telcos,
+    // and CSR uses in-app notifications only).
+    const deptUsers = state.users.filter(u => u.dept_id === dept && u.id)
+    for (const du of deptUsers) {
+      try {
+        await SB.from('notifications').insert({
+          user_id: du.id, source_system: 'csr', source_ref_id: requestNo,
+          body: requestNo + ' — items from stock are ready for pickup at the Supply Room.',
+          type: 'issuance_ready'
+        })
+      } catch(_) {}
     }
 
     closeModal('newRequestModal')
@@ -2733,7 +2746,7 @@ function buildItemRows() {
 
     html += '<tr id="row_' + row.id + '">'
     html += '<td><input type="text" placeholder="Item name" value="' + (row.item_name||'') + '"'
-    html += ' oninput="updateItemRow(' + row.id + ',\'item_name\',this.value);scheduleSmartPrice(' + row.id + ',this.value)"'
+    html += ' oninput="updateItemRow(' + row.id + ',\'item_name\',this.value)"'
     html += ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();handleItemEnter(' + row.id + ')}"></td>'
     html += '<td><input type="text" placeholder="Description" value="' + (row.item_description||'') + '" oninput="updateItemRow(' + row.id + ',\'item_description\',this.value)"></td>'
     html += '<td><input type="number" min="1" value="' + (row.quantity||1) + '" oninput="updateItemRow(' + row.id + ',\'quantity\',this.value);recomputeItemTotal(' + row.id + ')"></td>'
@@ -2799,10 +2812,6 @@ function clearItemPrice(rowId, newUnit) {
     row.estimated_cost = 0
     row.price_source = null
     document.getElementById('itemsBody').innerHTML = buildItemRows()
-    // Re-trigger smart price with unit context
-    if (row.item_name && row.item_name.length >= 3) {
-      scheduleSmartPrice(rowId, row.item_name + ' per ' + newUnit)
-    }
   }
 }
 
@@ -2892,9 +2901,8 @@ function rebuildItemsPreservingFocus() {
 }
 
 function scheduleSmartPrice(rowId, itemName) {
-  clearTimeout(_priceTimers[rowId])
-  if (!itemName || itemName.trim().length < 3) return
-  _priceTimers[rowId] = setTimeout(() => fetchSmartPrice(rowId, itemName.trim()), 800)
+  // AI price estimation is DISABLED — cost is now a manual, optional field.
+  return
 }
 
 async function fetchSmartPrice(rowId, itemName) {
@@ -3043,31 +3051,22 @@ async function saveRequest(action) {
       idempotency_key: state.requestIdempotencyKey || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
     }
 
-    // ── AUTO-APPROVAL CHECK ──
-    // Compute total estimated cost of items
-    const totalEstimated = validItems.reduce((s, r) => s + (Number(r.estimated_cost) || 0) * (Number(r.quantity) || 1), 0)
+    // ── APPROVAL ROUTING ──
+    // Auto-approval is DISABLED — every request goes through dept head approval (Level 1).
+    // Exception: if the requester IS the dept head of the target dept, skip Level 1
+    // (they can't approve their own request) and go straight to Supply Officer.
     if (action === 'submit' && reqType !== 'derp') {
-      const { data: autoApprove } = await SB.rpc('should_auto_approve', {
-        p_request_type: reqType,
-        p_total_amount: totalEstimated
-      })
-      if (autoApprove) {
-        payload.status = 'approved'
-        payload.current_approval_level = 99
-      } else {
-        // If requester IS the dept head (or OIC) of the target dept — skip Level 1
-        const { data: deptInfo } = await SB.from('departments')
-          .select('dept_head_id, dept_oic_id')
-          .eq('id', payload.dept_id)
-          .maybeSingle()
-        const headsThisDept = (state.myHeadedDeptIds || []).includes(payload.dept_id)
-        const isOwnDeptHead = headsThisDept || (deptInfo && (
-          deptInfo.dept_head_id === state.user.id ||
-          deptInfo.dept_oic_id === state.user.id
-        ))
-        if (isOwnDeptHead) {
-          payload.current_approval_level = 2 // skip to Supply Officer
-        }
+      const { data: deptInfo } = await SB.from('departments')
+        .select('dept_head_id, dept_oic_id')
+        .eq('id', payload.dept_id)
+        .maybeSingle()
+      const headsThisDept = (state.myHeadedDeptIds || []).includes(payload.dept_id)
+      const isOwnDeptHead = headsThisDept || (deptInfo && (
+        deptInfo.dept_head_id === state.user.id ||
+        deptInfo.dept_oic_id === state.user.id
+      ))
+      if (isOwnDeptHead) {
+        payload.current_approval_level = 2 // skip to Supply Officer (can't self-approve)
       }
     }
 
@@ -5722,7 +5721,7 @@ async function openNewIssuanceModal(requestId) {
 
   document.querySelector('#newRequestModal .modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal(\'newRequestModal\')">Cancel</button>' +
-    '<button class="btn btn-primary" onclick="saveIssuance()">📤 Issue</button>'
+    '<button class="btn btn-primary" onclick="reviewIssuance()">📤 Review & Issue</button>'
 
   if (requestId) loadCSRForIssuance(requestId)
   openModal('newRequestModal')
@@ -5778,7 +5777,7 @@ async function loadCSRForIssuance(requestId) {
     html += '<td style="font-weight:600;color:' + (remaining>0?'var(--amber,#b8860b)':'var(--green)') + ';">' + remaining + '</td>'
     html += '<td>' + (item.unit||'pcs') + '</td>'
     // No max cap — supply officer may over-issue if needed
-    html += '<td><input type="number" class="iss_qty_input" data-item-id="' + item.id + '" data-stock-id="' + (stockItem?stockItem.id:'') + '" min="0" value="' + defaultIssue + '"' + (isDone ? ' disabled' : '') + ' style="width:70px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+    html += '<td><input type="number" class="iss_qty_input" data-item-id="' + item.id + '" data-stock-id="' + (stockItem?stockItem.id:'') + '" data-item-name="' + escStk(item.item_name||item.name||'Item') + '" data-unit="' + escStk(item.unit||'pcs') + '" min="0" value="' + defaultIssue + '"' + (isDone ? ' disabled' : '') + ' style="width:70px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
     html += '<td style="font-size:12px;color:' + stockColor + ';">' + stockLabel + '</td>'
     html += '</tr>'
   }
@@ -6052,8 +6051,57 @@ function toggleIssScenario() {
   // Visual feedback only — both scenarios use same form
 }
 
+// REVIEW STEP — show a summary of exactly what will be issued BEFORE finalizing.
+// This is the safeguard against accidental over-issue / double-issue: the supply
+// officer sees the final list, can still adjust quantities or cancel, and only then
+// confirms. Nothing is written to the database until "Confirm & Issue" is clicked.
+function reviewIssuance() {
+  const receiverName = (document.getElementById('iss_receiver_name')?.value || '').trim()
+  if (!receiverName) { showToast('error','Validation','I-type muna ang pangalan ng receiver.'); return }
+
+  // Collect the checked items + their quantities (same logic as saveIssuance)
+  const qtyInputs = document.querySelectorAll('.iss_qty_input')
+  const rows = []
+  qtyInputs.forEach(input => {
+    const itemId = input.dataset.itemId
+    const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
+    if (chk && !chk.checked) return
+    const qty = Number(input.value)
+    if (qty > 0) rows.push({ itemId, name: input.dataset.itemName || 'Item', qty, unit: input.dataset.unit || '' })
+  })
+  if (rows.length === 0) { showToast('error','Validation','Walang item na naka-check para i-issue.'); return }
+
+  // Build the review modal
+  let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">'
+  html += 'I-review ang <strong>' + rows.length + ' item</strong> na ibibigay kay <strong>' + escStk(receiverName) + '</strong>. '
+  html += 'Pwede mo pang baguhin ang dami o i-cancel bago i-finalize.</div>'
+  html += '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;">'
+  html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+  html += '<thead><tr style="background:var(--surf2);color:var(--txt3);font-size:11px;text-transform:uppercase;">'
+  html += '<th style="text-align:left;padding:8px 10px;">Item</th><th style="text-align:center;padding:8px;width:90px;">Ibibigay</th><th style="width:40px;"></th></tr></thead><tbody>'
+  rows.forEach((r, i) => {
+    html += '<tr style="border-top:1px solid var(--bdr);" id="revRow_' + i + '">'
+    html += '<td style="padding:8px 10px;color:var(--txt);">' + escStk(r.name) + '</td>'
+    html += '<td style="padding:6px 8px;text-align:center;"><input type="number" min="0" value="' + r.qty + '" data-item-id="' + r.itemId + '" class="rev_qty_input" style="width:64px;padding:5px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);"> <span style="font-size:11px;color:var(--txt3);">' + escStk(r.unit) + '</span></td>'
+    html += '<td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'revRow_' + i + '\').remove()" title="Alisin" style="color:var(--red);padding:2px 7px;">✕</button></td>'
+    html += '</tr>'
+  })
+  html += '</tbody></table></div>'
+  html += '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--txt);margin-top:12px;">⚠️ Kapag pinindot mo ang <strong>Confirm & Issue</strong>, ma-re-record na ang issuance. Siguraduhing tama ang dami at ang mga item.</div>'
+
+  document.getElementById('modalTitle').textContent = '📋 Review Issuance'
+  document.getElementById('modalBody').innerHTML = html
+  document.getElementById('modalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">← Bumalik / I-edit</button>' +
+    '<button class="btn btn-primary" id="confirmIssueBtn" onclick="saveIssuance()">✅ Confirm & Issue</button>'
+  openModal('mainModal')
+}
+
 async function saveIssuance() {
   if (!guardClick('saveIssuance')) return
+  // Disable the confirm button immediately (defense against double-click)
+  const confirmBtn = document.getElementById('confirmIssueBtn')
+  if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Processing...' }
 
   const receiverName = (document.getElementById('iss_receiver_name')?.value || '').trim()
   const csrId = document.getElementById('iss_csr')?.value
@@ -6067,26 +6115,44 @@ async function saveIssuance() {
   const matchedUser = state.users.find(u => u.is_active && (u.full_name||'').toLowerCase() === receiverName.toLowerCase())
   const receiverId = matchedUser ? matchedUser.id : null
 
-  // Collect items — only those checked (or manual rows, which have no checkbox)
-  const qtyInputs = document.querySelectorAll('.iss_qty_input')
+  // Collect items. If the review modal is open, use ITS (possibly adjusted) quantities;
+  // otherwise fall back to the original issuance form inputs.
+  const reviewInputs = document.querySelectorAll('.rev_qty_input')
   const issItems = []
-  qtyInputs.forEach(input => {
-    const itemId = input.dataset.itemId
-    // If there's a checkbox for this item, respect it. Manual rows have none → always included.
-    const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
-    if (chk && !chk.checked) return
-    const qty = Number(input.value)
-    if (qty > 0) {
-      issItems.push({
-        request_item_id: input.dataset.itemId,
-        stock_item_id: input.dataset.stockId || null,
-        quantity_issued: qty,
-        from_stock: !!input.dataset.stockId
-      })
-    }
-  })
+  if (reviewInputs.length) {
+    reviewInputs.forEach(input => {
+      const itemId = input.dataset.itemId
+      const qty = Number(input.value)
+      // Find the original row to recover stock linkage
+      const orig = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
+      if (qty > 0) {
+        issItems.push({
+          request_item_id: itemId,
+          stock_item_id: orig?.dataset.stockId || null,
+          quantity_issued: qty,
+          from_stock: !!(orig?.dataset.stockId)
+        })
+      }
+    })
+  } else {
+    const qtyInputs = document.querySelectorAll('.iss_qty_input')
+    qtyInputs.forEach(input => {
+      const itemId = input.dataset.itemId
+      const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
+      if (chk && !chk.checked) return
+      const qty = Number(input.value)
+      if (qty > 0) {
+        issItems.push({
+          request_item_id: input.dataset.itemId,
+          stock_item_id: input.dataset.stockId || null,
+          quantity_issued: qty,
+          from_stock: !!input.dataset.stockId
+        })
+      }
+    })
+  }
 
-  if (issItems.length === 0) { showToast('error','Validation','Please add items to issue.'); return }
+  if (issItems.length === 0) { showToast('error','Validation','Please add items to issue.'); releaseClick('saveIssuance'); return }
 
   // The supply officer has already chosen exactly what to issue (checkbox + qty),
   // so we issue precisely that. In STRICT mode, the DB guard still blocks issuing
@@ -6128,10 +6194,12 @@ async function saveIssuance() {
     if (error) {
       if (error.code === '23505' && String(error.message||'').includes('idempotency')) {
         showToast('info', 'Na-issue na', 'Na-record na ang issuance na ito — hindi na inulit.')
-        closeModal('newRequestModal'); releaseClick('saveIssuance')
+        closeModal('mainModal'); closeModal('newRequestModal'); releaseClick('saveIssuance')
         if (typeof renderIssuance === 'function') renderIssuance()
         return
       }
+      const cb = document.getElementById('confirmIssueBtn')
+      if (cb) { cb.disabled = false; cb.textContent = '✅ Confirm & Issue' }
       throw error
     }
 
@@ -6208,6 +6276,7 @@ async function saveIssuance() {
       })
     }
 
+    closeModal('mainModal')
     closeModal('newRequestModal')
     if (hasRemainder) {
       showToast('warning', 'Na-issue — may natira ⚠️', issuanceNo + ' — narecord ang naibigay. Buhay pa ang request para sa natirang items.')
@@ -6215,7 +6284,7 @@ async function saveIssuance() {
       showToast('success', 'Issued ✅', issuanceNo + ' — narecord ang naibigay.')
     }
     renderIssuance()
-  } catch(e) { releaseClick('saveIssuance'); if (handleSupabaseError(e, 'action')) return; showToast('error','Error', e.message); console.error(e) }
+  } catch(e) { releaseClick('saveIssuance'); const cb=document.getElementById('confirmIssueBtn'); if(cb){cb.disabled=false;cb.textContent='✅ Confirm & Issue';} if (handleSupabaseError(e, 'action')) return; showToast('error','Error', e.message); console.error(e) }
 }
 
 function generateToken() {
@@ -6814,26 +6883,34 @@ async function processManualOverride(issId) {
 }
 
 async function resendIssuanceSMS(issId) {
+  // No SMS - in-app reminder instead (telcos block SMS links).
   const { data: iss } = await SB.from('issuances').select('*').eq('id', issId).single()
-  if (!iss || !iss.sms_sent_to || !iss.confirm_token) return
-  const receiver = state.users.find(u => u.id === iss.received_by)
-  const firstName = receiver ? receiver.full_name.split(' ')[0] : 'Sir/Ma\'am'
-  const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + iss.confirm_token
-  await sendSMS([iss.sms_sent_to], 'Hi ' + firstName + ', reminder: your supply items are ready. Confirm receipt: ' + confirmUrl)
-  showToast('success','SMS Resent','Reminder sent to ' + iss.sms_sent_to)
+  if (!iss || !iss.received_by) { showToast('info','No receiver','Walang registered receiver para pagpadalhan ng reminder.'); return }
+  try {
+    await SB.from('notifications').insert({
+      user_id: iss.received_by, source_system: 'csr', source_ref_id: iss.id,
+      body: 'Reminder: your supply items are ready for pickup at the Supply Room. Issuance: ' + (iss.issuance_no||''),
+      type: 'issuance_ready'
+    })
+    showToast('success','Reminder Sent','In-app reminder sent to the receiver.')
+  } catch(e) { showToast('error','Error', e.message) }
 }
 
 async function resendAllPending() {
-  const pending = issState.issuances.filter(i => !i.confirmed_at && i.confirm_token && i.sms_sent_to)
+  // In-app reminders to all pending receivers (registered users only).
+  const pending = issState.issuances.filter(i => !i.confirmed_at && i.received_by)
   let count = 0
   for (const iss of pending) {
-    const receiver = state.users.find(u => u.id === iss.received_by)
-    const firstName = receiver ? receiver.full_name.split(' ')[0] : 'Sir/Ma\'am'
-    const confirmUrl = 'https://tdmhcore.io/csr?confirm=' + iss.confirm_token
-    await sendSMS([iss.sms_sent_to], 'Hi ' + firstName + ', reminder: supply items ready. Confirm: ' + confirmUrl)
-    count++
+    try {
+      await SB.from('notifications').insert({
+        user_id: iss.received_by, source_system: 'csr', source_ref_id: iss.id,
+        body: 'Reminder: supply items ready for pickup. Issuance: ' + (iss.issuance_no||''),
+        type: 'issuance_ready'
+      })
+      count++
+    } catch(_) {}
   }
-  showToast('success','SMS Sent','Reminders sent to ' + count + ' receiver(s).')
+  showToast('success','Reminders Sent','In-app reminders sent to ' + count + ' receiver(s).')
 }
 
 // ─────────────────────────────
