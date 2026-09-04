@@ -2045,6 +2045,118 @@ async function renderApprovalQueue() {
 // ═══════════════════════════════════════════
 // REQUEST DETAIL
 // ═══════════════════════════════════════════
+// ITEM EDITOR (Supply Officer / Admin) — flexible editing of a request's items so
+// they match the actual stock: rename, change qty/unit, add, or remove items.
+// Guarded to supply_officer/admin only, and blocked once fully issued/closed.
+let _itemEditorRows = []
+let _itemEditorReqId = null
+async function openItemEditor(reqId) {
+  const role = state.user?.csr_role
+  if (!['supply_officer','admin'].includes(role)) {
+    showToast('error','Not Allowed','Supply Officer o Admin lang ang pwedeng mag-edit ng items.'); return
+  }
+  _itemEditorReqId = reqId
+  const { data: items } = await SB.from('request_items').select('*').eq('request_id', reqId).order('item_name')
+  _itemEditorRows = (items||[]).map(it => ({
+    id: it.id, item_name: it.item_name || '', quantity: it.quantity || 1,
+    unit: it.unit || 'pcs', quantity_issued: it.quantity_issued || 0, _new: false, _delete: false
+  }))
+  renderItemEditor()
+}
+
+function renderItemEditor() {
+  let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">'
+  html += 'I-edit ang mga item para tumugma sa aktwal na stock. Pwede mong palitan ang pangalan, dami, o unit — o mag-alis/magdagdag. '
+  html += '<strong>Ang naibigay na (issued) ay hindi na mababawasan.</strong></div>'
+  html += '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+  html += '<thead><tr style="background:var(--surf2);color:var(--txt3);font-size:11px;text-transform:uppercase;">'
+  html += '<th style="text-align:left;padding:8px 10px;">Item Name</th><th style="width:70px;padding:8px;">Qty</th><th style="width:70px;padding:8px;">Unit</th><th style="width:60px;padding:8px;">Issued</th><th style="width:40px;"></th></tr></thead><tbody>'
+  _itemEditorRows.forEach((r, i) => {
+    if (r._delete) return
+    html += '<tr style="border-top:1px solid var(--bdr);">'
+    html += '<td style="padding:5px 8px;"><input type="text" value="' + escStk(r.item_name) + '" oninput="updateEditorRow(' + i + ',\'item_name\',this.value)" style="width:100%;min-width:140px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+    html += '<td style="padding:5px;"><input type="number" min="' + (r.quantity_issued||0) + '" value="' + r.quantity + '" oninput="updateEditorRow(' + i + ',\'quantity\',this.value)" style="width:60px;padding:5px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+    html += '<td style="padding:5px;"><input type="text" value="' + escStk(r.unit) + '" oninput="updateEditorRow(' + i + ',\'unit\',this.value)" style="width:60px;padding:5px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+    html += '<td style="padding:5px;text-align:center;color:var(--txt3);font-size:12px;">' + (r.quantity_issued||0) + '</td>'
+    // Can only remove if nothing has been issued yet
+    if ((r.quantity_issued||0) > 0) {
+      html += '<td style="text-align:center;color:var(--txt3);font-size:10px;" title="May naibigay na — hindi na maalis">🔒</td>'
+    } else {
+      html += '<td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="removeEditorRow(' + i + ')" style="color:var(--red);padding:2px 7px;">✕</button></td>'
+    }
+    html += '</tr>'
+  })
+  html += '</tbody></table></div>'
+  html += '<button class="btn btn-ghost btn-sm" onclick="addEditorRow()" style="margin-top:10px;">＋ Magdagdag ng Item</button>'
+
+  document.getElementById('modalTitle').textContent = '✏️ Edit Request Items'
+  document.getElementById('modalBody').innerHTML = html
+  document.getElementById('modalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="saveItemEditor()">💾 I-save ang Pagbabago</button>'
+  openModal('mainModal')
+}
+
+function updateEditorRow(i, field, val) {
+  if (!_itemEditorRows[i]) return
+  if (field === 'quantity') {
+    const issued = _itemEditorRows[i].quantity_issued || 0
+    const n = Number(val)
+    _itemEditorRows[i].quantity = (n < issued) ? issued : n // can't go below already-issued
+  } else {
+    _itemEditorRows[i][field] = val
+  }
+}
+function removeEditorRow(i) {
+  if (!_itemEditorRows[i]) return
+  if ((_itemEditorRows[i].quantity_issued||0) > 0) { showToast('warning','Hindi Maalis','May naibigay na sa item na ito.'); return }
+  if (_itemEditorRows[i]._new) { _itemEditorRows.splice(i, 1) } else { _itemEditorRows[i]._delete = true }
+  renderItemEditor()
+}
+function addEditorRow() {
+  _itemEditorRows.push({ id: null, item_name: '', quantity: 1, unit: 'pcs', quantity_issued: 0, _new: true, _delete: false })
+  renderItemEditor()
+}
+
+async function saveItemEditor() {
+  if (!guardClick('saveItemEditor')) return
+  try {
+    const reqId = _itemEditorReqId
+    let added = 0, updated = 0, removed = 0
+    for (const r of _itemEditorRows) {
+      if (r._delete && r.id) {
+        await SB.from('request_items').delete().eq('id', r.id); removed++
+      } else if (r._new) {
+        const nm = (r.item_name||'').trim()
+        if (!nm) continue
+        await SB.from('request_items').insert({
+          request_id: reqId, item_name: nm, quantity: Number(r.quantity)||1,
+          unit: (r.unit||'pcs').trim(), quantity_issued: 0
+        }); added++
+      } else if (r.id) {
+        await SB.from('request_items').update({
+          item_name: (r.item_name||'').trim(), quantity: Number(r.quantity)||1, unit: (r.unit||'pcs').trim()
+        }).eq('id', r.id); updated++
+      }
+    }
+    // Log the edit for accountability
+    try {
+      await SB.from('request_activity').insert({
+        request_id: reqId, action: 'items_edited', performed_by: state.user.id,
+        notes: 'Supply officer edited items (' + added + ' added, ' + updated + ' updated, ' + removed + ' removed)'
+      })
+    } catch(_) { /* activity table optional */ }
+
+    showToast('success','Na-save ✅', added + ' idinagdag, ' + updated + ' na-update, ' + removed + ' inalis.')
+    closeModal('mainModal')
+    releaseClick('saveItemEditor')
+    viewRequest(reqId) // refresh the detail view
+  } catch(e) {
+    releaseClick('saveItemEditor')
+    showToast('error','Error', e.message)
+  }
+}
+
 async function viewRequest(id) {
   const req = state.requests.find(r => r.id === id) || (await SB.from('requests').select('*').eq('id', id).single()).data
   if (!req) { showToast('error', 'Error', 'Request not found'); return }
@@ -2242,6 +2354,13 @@ async function viewRequest(id) {
   else if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level !== 99 && ['supply_officer','admin'].includes(role)) {
     footer += '<button class="btn btn-secondary" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue from Stock</button>'
     footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
+  }
+  // Supply Officer / Admin can edit the request's items (correct names, qty, add/remove)
+  // to match actual stock — available while the request isn't fully issued/closed.
+  if (req.request_type !== 'derp'
+      && ['supply_officer','admin'].includes(role)
+      && !['issued','cancelled','rejected'].includes(req.status)) {
+    footer += '<button class="btn btn-ghost" onclick="openItemEditor(\'' + req.id + '\')">✏️ Edit Items</button>'
   }
   document.getElementById('requestDetailFooter').innerHTML = footer
   openModal('requestDetailModal')
@@ -3187,6 +3306,18 @@ async function saveRequest(action) {
           asset_no: state.pendingDerpParams?.asset_no || null
         })
         showToast('info','Maintenance Ticket Created 🔧', ticketId + ' — routed to Maintenance.')
+
+        // SMS blast to maintenance technicians (same as filing directly in Maintenance)
+        try {
+          const maintStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
+          if (maintStaff.length > 0) {
+            const title = (state.pendingDerpParams?.item || 'Asset') + ' — DERP Repair'
+            const loc = state.pendingDerpParams?.location || ''
+            const deptNm = state.departments.find(d=>d.id===deptId)?.dept_name || '—'
+            const smsMsg = '[TDMH] NEW TICKET ' + ticketId + ' — "' + title + '" at ' + (loc||'—') + ' (' + deptNm + ')'
+            await sendSMS(maintStaff.map(u=>u.phone), smsMsg)
+          }
+        } catch(_) {}
       }
     }
 
@@ -4755,6 +4886,13 @@ async function autoCreateITSetupTicket(assetNo, assetName, deptId) {
     'action_required', 'csr', 'asset', assetNo,
     'https://tdmhcore.io/helpdesk'
   )
+  // SMS blast to IT technicians
+  try {
+    const itPhones = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+    if (itPhones.length > 0) {
+      await sendSMS(itPhones.map(u=>u.phone), '[TDMH] NEW TICKET ' + ticketId + ' — New Equipment Setup: ' + assetNo + ' (' + assetName + ')')
+    }
+  } catch(_) {}
   showToast('info','IT Setup Ticket Created', ticketId + ' — IT team notified.')
 }
 function openPOSendOptions(poId) {
@@ -5797,11 +5935,23 @@ function addManualIssItem() {
   const newId = Date.now()
   const row = document.createElement('tr')
   row.id = 'iss_man_' + newId
-  row.innerHTML = '<td><input type="text" placeholder="Item name" style="min-width:120px;"></td>' +
-    '<td><input type="number" class="iss_qty_input" data-item-id="man_' + newId + '" data-stock-id="" value="1" min="1" style="width:60px;"></td>' +
-    '<td><input type="text" placeholder="pcs" style="width:50px;"></td>' +
+  row.innerHTML = '<td><input type="text" placeholder="Item name" class="iss_man_name" data-for="man_' + newId + '" oninput="syncManualIssName(\'man_' + newId + '\')" style="min-width:120px;"></td>' +
+    '<td><input type="number" class="iss_qty_input" data-item-id="man_' + newId + '" data-stock-id="" data-item-name="" data-unit="pcs" value="1" min="1" style="width:60px;"></td>' +
+    '<td><input type="text" placeholder="pcs" class="iss_man_unit" data-for="man_' + newId + '" oninput="syncManualIssName(\'man_' + newId + '\')" style="width:50px;"></td>' +
     '<td><button class="remove-row" onclick="this.closest(\'tr\').remove()">✕</button></td>'
   document.getElementById('iss_items_body').appendChild(row)
+}
+
+// Keep the manual item's name/unit in sync onto the qty input's data attributes,
+// so both the review step and saveIssuance can read them (fixes items not saving).
+function syncManualIssName(manId) {
+  const nameEl = document.querySelector('.iss_man_name[data-for="' + manId + '"]')
+  const unitEl = document.querySelector('.iss_man_unit[data-for="' + manId + '"]')
+  const qtyEl = document.querySelector('.iss_qty_input[data-item-id="' + manId + '"]')
+  if (qtyEl) {
+    if (nameEl) qtyEl.dataset.itemName = nameEl.value.trim()
+    if (unitEl) qtyEl.dataset.unit = unitEl.value.trim() || 'pcs'
+  }
 }
 
 function updateSMSPreview() {
@@ -6123,14 +6273,15 @@ async function saveIssuance() {
     reviewInputs.forEach(input => {
       const itemId = input.dataset.itemId
       const qty = Number(input.value)
-      // Find the original row to recover stock linkage
+      // Find the original row to recover stock linkage + name
       const orig = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
       if (qty > 0) {
         issItems.push({
           request_item_id: itemId,
           stock_item_id: orig?.dataset.stockId || null,
           quantity_issued: qty,
-          from_stock: !!(orig?.dataset.stockId)
+          from_stock: !!(orig?.dataset.stockId),
+          item_name: orig?.dataset.itemName || input.dataset.itemName || null
         })
       }
     })
@@ -6146,7 +6297,8 @@ async function saveIssuance() {
           request_item_id: input.dataset.itemId,
           stock_item_id: input.dataset.stockId || null,
           quantity_issued: qty,
-          from_stock: !!input.dataset.stockId
+          from_stock: !!input.dataset.stockId,
+          item_name: input.dataset.itemName || null
         })
       }
     })
@@ -6211,7 +6363,8 @@ async function saveIssuance() {
         request_item_id: realReqItemId,
         quantity_issued: item.quantity_issued,
         from_stock: item.from_stock,
-        stock_item_id: item.stock_item_id || null
+        stock_item_id: item.stock_item_id || null,
+        item_name_snapshot: item.item_name || null
       })
 
       // Add to the request item's cumulative issued qty (for follow-up tracking)
@@ -8056,6 +8209,22 @@ async function autoCreateDerpTicket(req, category) {
         target_id: req.id, // using req.id as proxy since target is text ID
         relationship: 'triggered_by'
       })
+
+      // SMS blast to the receiving team's technicians (same as filing directly there)
+      try {
+        const deptNm = dept?.dept_name || '—'
+        if (category === 'it') {
+          const itStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+          if (itStaff.length > 0) {
+            await sendSMS(itStaff.map(u=>u.phone), '[TDMH] NEW TICKET ' + ticketId + ' — "' + subject + '" (' + deptNm + ')')
+          }
+        } else {
+          const maintStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
+          if (maintStaff.length > 0) {
+            await sendSMS(maintStaff.map(u=>u.phone), '[TDMH] NEW TICKET ' + ticketId + ' — "' + subject + '" (' + deptNm + ')')
+          }
+        }
+      } catch(_) {}
 
       const label = category === 'it' ? 'IT Helpdesk' : 'Maintenance Hub'
       showToast('info', '🔗 Forwarded to ' + label, 'Ticket ' + ticketId + ' created automatically.')
