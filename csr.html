@@ -3747,9 +3747,11 @@ async function processApproval() {
 
     if (approvalAction === 'approve') {
       const fulfillChoice = document.querySelector('input[name="csr_fulfill"]:checked')?.value
+      // Admin acts at any level, so treat admin like the Supply Officer level (2) here.
+      const effLevel = (role === 'admin' && !level) ? 2 : level
 
       // Issue from stock — only if explicitly chosen OR auto-approved with issue_stock selected
-      const shouldIssueFromStock = fulfillChoice === 'issue_stock' && (level === 2 || isAutoApproved)
+      const shouldIssueFromStock = fulfillChoice === 'issue_stock' && (effLevel === 2 || isAutoApproved)
 
       if (shouldIssueFromStock) {
         // Issue from stock directly
@@ -3837,18 +3839,18 @@ async function processApproval() {
           await SB.from('notifications').insert({ user_id: req.requested_by, title: '📦 Items Ready — ' + req.request_no, body: note, type: 'success', source_system: 'csr', source_ref_id: req.id })
         }
 
-      } else if (level === 1) {
+      } else if (effLevel === 1) {
         newLevel = 2; newStatus = 'pending_approval'
         toastMsg = '✅ Approved — forwarded to Supply Officer.'
         await notifyApprovers(req, 2)
 
-      } else if (level === 2 || isAutoApproved) {
+      } else if (effLevel === 2 || isAutoApproved) {
         // Forward to Purchasing Officer for PO creation
         newLevel = 3; newStatus = 'pending_approval'
         toastMsg = '✅ Forwarded to Purchasing Officer for PO.'
         await notifyApprovers(req, 3)
 
-      } else if (level === 3) {
+      } else if (effLevel === 3) {
         // Purchasing Officer approved — update status and notify
         newLevel = 3; newStatus = 'for_po'
         toastMsg = '✅ Approved — Purchasing Officer notified to create PO.'
@@ -4191,7 +4193,7 @@ function openApprovalModal(reqId, action) {
     return: 'Return for Revision'
   }
   const descs = {
-    approve: (isAutoApproved || level === 2)
+    approve: (isAutoApproved || level === 2 || role === 'admin')
       ? (isAutoApproved ? 'Auto-approved (below threshold). Choose how to fulfill:' : 'Choose how to fulfill this request:')
       : 'You are approving this request. It will proceed to the next approval level.',
     reject: 'You are rejecting this request. The requester will be notified. This cannot be undone.',
@@ -4204,7 +4206,8 @@ function openApprovalModal(reqId, action) {
   const optionWrap = document.getElementById('approvalOptionWrap') ||
     (() => { const d = document.createElement('div'); d.id = 'approvalOptionWrap'; document.getElementById('approvalModalDesc').after(d); return d })()
 
-  if (action === 'approve' && (level === 2 || isAutoApproved)) {
+  const effLevel = (role === 'admin' && !level) ? 2 : level
+  if (action === 'approve' && (effLevel === 2 || isAutoApproved)) {
     optionWrap.innerHTML =
       '<div style="display:flex;flex-direction:column;gap:8px;margin:12px 0;">' +
         '<label style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;cursor:pointer;">' +
