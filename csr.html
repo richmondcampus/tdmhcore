@@ -780,7 +780,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-1'
+const APP_VERSION = '2026.09.05-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3802,7 +3802,29 @@ async function processApproval() {
       const shouldIssueFromStock = fulfillChoice === 'issue_stock' && (effLevel === 2 || isAutoApproved)
 
       if (shouldIssueFromStock) {
-        // Issue from stock directly
+        // DON'T issue directly — approve the request, then open the New Issuance modal
+        // (which has the Review & Issue step) so the officer can check/adjust before
+        // finalizing. This prevents accidental full issuance without review.
+        newStatus = 'approved'; newLevel = 2
+        toastMsg = '✅ Approved — buksan para i-review at i-issue.'
+        await SB.from('requests').update({ status: newStatus, current_approval_level: newLevel, updated_at: new Date().toISOString() }).eq('id', req.id)
+        await SB.from('approvals').insert({
+          request_id: req.id, approver_id: state.user.id, approver_role: role || 'admin',
+          level: effLevel, decision: 'approved', remarks: remarks || null, decided_at: new Date().toISOString()
+        })
+        closeModal('approvalModal')
+        showToast('success', 'Approved ✅', 'I-review at i-issue ang request.')
+        // Open the issuance modal with review step
+        if (typeof fulfillFromRequest === 'function') await fulfillFromRequest(req.id)
+        releaseClick('confirmApproval')
+        if (state.page === 'approval_queue') renderApprovalQueue()
+        else if (state.page === 'all_requests') renderAllRequests()
+        else renderDashboard()
+        return
+      }
+
+      if (false) {
+        // (legacy direct-issue path disabled — kept for reference, never runs)
         newStatus = 'issued'; newLevel = 2
         toastMsg = '📦 Issued from stock — no PO needed.'
 
