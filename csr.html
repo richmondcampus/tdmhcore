@@ -692,6 +692,18 @@ tr:hover td{background:var(--surf2);}
   </div>
 </div>
 
+<!-- Review / Item Editor Modal (dedicated, used by reviewIssuance + item editor) -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="reviewModalTitle">Review</h3>
+      <button class="modal-close" onclick="closeModal('reviewModal')">✕</button>
+    </div>
+    <div class="modal-body" id="reviewModalBody"><!-- Rendered by JS --></div>
+    <div class="modal-footer" id="reviewModalFooter"><!-- Rendered by JS --></div>
+  </div>
+</div>
+
 <!-- User Modal (separate from newRequestModal to prevent button bleedover) -->
 <div class="modal-overlay" id="userModal">
   <div class="modal modal-lg">
@@ -2089,12 +2101,12 @@ function renderItemEditor() {
   html += '</tbody></table></div>'
   html += '<button class="btn btn-ghost btn-sm" onclick="addEditorRow()" style="margin-top:10px;">＋ Magdagdag ng Item</button>'
 
-  document.getElementById('modalTitle').textContent = '✏️ Edit Request Items'
-  document.getElementById('modalBody').innerHTML = html
-  document.getElementById('modalFooter').innerHTML =
-    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>' +
+  document.getElementById('reviewModalTitle').textContent = '✏️ Edit Request Items'
+  document.getElementById('reviewModalBody').innerHTML = html
+  document.getElementById('reviewModalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'reviewModal\')">Cancel</button>' +
     '<button class="btn btn-primary" onclick="saveItemEditor()">💾 I-save ang Pagbabago</button>'
-  openModal('mainModal')
+  openModal('reviewModal')
 }
 
 function updateEditorRow(i, field, val) {
@@ -2148,7 +2160,7 @@ async function saveItemEditor() {
     } catch(_) { /* activity table optional */ }
 
     showToast('success','Na-save ✅', added + ' idinagdag, ' + updated + ' na-update, ' + removed + ' inalis.')
-    closeModal('mainModal')
+    closeModal('reviewModal')
     releaseClick('saveItemEditor')
     viewRequest(reqId) // refresh the detail view
   } catch(e) {
@@ -6243,12 +6255,12 @@ function reviewIssuance() {
   html += '</tbody></table></div>'
   html += '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--txt);margin-top:12px;">⚠️ Kapag pinindot mo ang <strong>Confirm & Issue</strong>, ma-re-record na ang issuance. Siguraduhing tama ang dami at ang mga item.</div>'
 
-  document.getElementById('modalTitle').textContent = '📋 Review Issuance'
-  document.getElementById('modalBody').innerHTML = html
-  document.getElementById('modalFooter').innerHTML =
-    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">← Bumalik / I-edit</button>' +
+  document.getElementById('reviewModalTitle').textContent = '📋 Review Issuance'
+  document.getElementById('reviewModalBody').innerHTML = html
+  document.getElementById('reviewModalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'reviewModal\')">← Bumalik / I-edit</button>' +
     '<button class="btn btn-primary" id="confirmIssueBtn" onclick="saveIssuance()">✅ Confirm & Issue</button>'
-  openModal('mainModal')
+  openModal('reviewModal')
 }
 
 async function saveIssuance() {
@@ -6350,7 +6362,7 @@ async function saveIssuance() {
     if (error) {
       if (error.code === '23505' && String(error.message||'').includes('idempotency')) {
         showToast('info', 'Na-issue na', 'Na-record na ang issuance na ito — hindi na inulit.')
-        closeModal('mainModal'); closeModal('newRequestModal'); releaseClick('saveIssuance')
+        closeModal('reviewModal'); closeModal('newRequestModal'); releaseClick('saveIssuance')
         if (typeof renderIssuance === 'function') renderIssuance()
         return
       }
@@ -6433,7 +6445,7 @@ async function saveIssuance() {
       })
     }
 
-    closeModal('mainModal')
+    closeModal('reviewModal')
     closeModal('newRequestModal')
     if (hasRemainder) {
       showToast('warning', 'Na-issue — may natira ⚠️', issuanceNo + ' — narecord ang naibigay. Buhay pa ang request para sa natirang items.')
