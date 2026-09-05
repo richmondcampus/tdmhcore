@@ -747,16 +747,26 @@ async function renderDashboard() {
   }
 
   html += '<div class="stat-grid">'
-  html += sC('🔓','Open',open,'Awaiting action','var(--accent)')
-  html += sC('🔄','In Progress',inProg,'Being worked on','var(--amber)')
-  html += sC('✅','Resolved Today',tickets.filter(t=>t.resolved_at&&new Date(t.resolved_at).toDateString()===new Date().toDateString()).length,'Today','var(--green)')
-  html += sC('🎫','Total',tickets.length,'All time','var(--txt2)')
+  if (isIT) {
+    // Technician/supervisor/admin: full operational stats
+    html += sC('🔓','Open',open,'Awaiting action','var(--accent)')
+    html += sC('🔄','In Progress',inProg,'Being worked on','var(--amber)')
+    html += sC('✅','Resolved Today',tickets.filter(t=>t.resolved_at&&new Date(t.resolved_at).toDateString()===new Date().toDateString()).length,'Today','var(--green)')
+    html += sC('🎫','Total',tickets.length,'All time','var(--txt2)')
+  } else {
+    // Requester: only their own simple view — open vs resolved, no team/aggregate stats
+    const myOpen = tickets.filter(t => !['resolved','closed'].includes(t.status)).length
+    const myResolved = tickets.filter(t => ['resolved','closed'].includes(t.status)).length
+    html += sC('🎫','My Open Tickets',myOpen,'Naghihintay o ginagawa pa','var(--accent)')
+    html += sC('✅','Resolved',myResolved,'Tapos na','var(--green)')
+  }
   html += '</div>'
 
-  // Category quick access
+  // Category quick access — for filing (everyone can file). Requesters see this as a
+  // shortcut to raise a ticket; the count badge is hidden for them (no team view).
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:24px;">'
   S.categories.forEach(cat => {
-    const count = tickets.filter(t => t.category_id === cat.id && !['resolved','closed'].includes(t.status)).length
+    const count = isIT ? tickets.filter(t => t.category_id === cat.id && !['resolved','closed'].includes(t.status)).length : 0
     html += '<div onclick="openTicketFormWithCategory(\'' + cat.id + '\')" style="background:var(--surf1);border:1px solid var(--bdr);border-radius:12px;padding:14px;cursor:pointer;text-align:center;" class="card-hover">'
     html += '<div style="font-size:22px;margin-bottom:6px;">' + cat.icon + '</div>'
     html += '<div style="font-size:12px;font-weight:600;">' + cat.name + '</div>'
