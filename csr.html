@@ -780,7 +780,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-7'
+const APP_VERSION = '2026.09.05-8'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2359,6 +2359,11 @@ async function viewRequest(id) {
   }
   body += '</div>'
 
+  // Actually Issued section — shows what was really given out (including manual items
+  // the supply officer added, e.g. extras not in the original request). Loaded async.
+  if (req.request_type !== 'derp') {
+    body += '<div id="actuallyIssuedSection" style="margin-bottom:16px;"></div>'
+  }
   // Approval stepper
   if (req.request_type !== 'derp') {
     body += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Approval Status</div>'
@@ -2428,6 +2433,44 @@ async function viewRequest(id) {
   }
   document.getElementById('requestDetailFooter').innerHTML = footer
   openModal('requestDetailModal')
+  loadActuallyIssued(req.id)
+}
+
+async function loadActuallyIssued(reqId) {
+  const wrap = document.getElementById('actuallyIssuedSection')
+  if (!wrap) return
+  try {
+    const { data: isss } = await SB.from('issuances').select('id,issuance_no,issued_at').eq('request_id', reqId).order('issued_at')
+    if (!isss || !isss.length) { wrap.innerHTML = ''; return }
+    const issIds = isss.map(i => i.id)
+    const { data: iitems } = await SB.from('issuance_items')
+      .select('issuance_id,request_item_id,stock_item_id,item_name_snapshot,quantity_issued,from_stock')
+      .in('issuance_id', issIds)
+    if (!iitems || !iitems.length) { wrap.innerHTML = ''; return }
+    const riIds = iitems.map(x => x.request_item_id).filter(Boolean)
+    const stkIds = iitems.map(x => x.stock_item_id).filter(Boolean)
+    const riById = {}, stkById = {}
+    if (riIds.length) { const { data } = await SB.from('request_items').select('id,item_name,unit').in('id', [...new Set(riIds)]); (data||[]).forEach(r => riById[r.id]=r) }
+    if (stkIds.length) { const { data } = await SB.from('stock_items').select('id,item_name,unit').in('id', [...new Set(stkIds)]); (data||[]).forEach(s => stkById[s.id]=s) }
+    const issById = {}; isss.forEach(i => issById[i.id] = i)
+    let html = '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">\ud83d\udce6 Actually Issued</div>'
+    html += '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    html += '<thead><tr style="background:var(--surf2);color:var(--txt3);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:7px 10px;">Item</th><th style="width:60px;padding:7px;">Qty</th><th style="width:110px;padding:7px;">Issuance</th></tr></thead><tbody>'
+    iitems.forEach(it => {
+      let name, isExtra = false
+      if (it.request_item_id && riById[it.request_item_id]) { name = riById[it.request_item_id].item_name }
+      else if (it.stock_item_id && stkById[it.stock_item_id]) { name = stkById[it.stock_item_id].item_name; isExtra = true }
+      else { name = it.item_name_snapshot || 'Item'; isExtra = true }
+      const iss = issById[it.issuance_id]
+      html += '<tr style="border-top:1px solid var(--bdr);">'
+      html += '<td style="padding:7px 10px;color:var(--txt);">' + escStk(name) + (isExtra ? ' <span style="font-size:10px;color:var(--amber,#b8860b);background:var(--amber-a,rgba(240,200,56,.12));padding:1px 6px;border-radius:5px;">dinagdag</span>' : '') + '</td>'
+      html += '<td style="padding:7px;text-align:center;font-weight:600;">' + it.quantity_issued + '</td>'
+      html += '<td style="padding:7px;font-size:11px;color:var(--txt3);">' + escStk(iss?.issuance_no || '') + '</td>'
+      html += '</tr>'
+    })
+    html += '</tbody></table></div>'
+    wrap.innerHTML = html
+  } catch(e) { wrap.innerHTML = ''; console.warn('loadActuallyIssued', e.message) }
 }
 
 function buildApprovalStepper(req, approvals) {
