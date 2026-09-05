@@ -867,14 +867,20 @@ function flashEl(el) {
 async function renderDashboard() {
   const content = document.getElementById('mainContent')
   const role = S.user.maintenance_role
+  const isTech = ['technician','supervisor','admin'].includes(role)
+  const isHead = (S.myHeadedDeptIds && S.myHeadedDeptIds.length > 0)
 
-  // Requester — dept tickets lang (para makita kung kamusta ang sariling dept)
-  // Technician/supervisor/admin — lahat
+  // Ticket scope by role:
+  //  - technician/supervisor/admin → all tickets (operational view)
+  //  - dept head (not tech) → their department(s) tickets
+  //  - ordinary requester → ONLY their own submitted tickets
   let tickets
-  if (role === 'requester') {
-    tickets = await loadTickets({ dept_id: S.user.dept_id })
-  } else {
+  if (isTech) {
     tickets = await loadTickets()
+  } else if (isHead) {
+    tickets = await loadTickets({ dept_ids: S.myHeadedDeptIds })
+  } else {
+    tickets = await loadTickets({ submitted_by: S.user.id })
   }
   S.tickets = tickets
   // Run SLA escalation check silently
@@ -888,12 +894,10 @@ async function renderDashboard() {
   let html = '<div class="page-header">'
   html += '<h2>👋 Kamusta, ' + S.user.full_name.split(' ')[0] + '</h2>'
   html += '<div style="display:flex;gap:8px;">'
-  if (['requester','supervisor','admin'].includes(role)) {
-    html += '<button class="btn btn-primary" onclick="openNewTicketModal()">🔧 New Ticket</button>'
-  }
+  html += '<button class="btn btn-primary" onclick="openNewTicketModal()">🔧 New Ticket</button>'
   html += '</div></div>'
 
-  if (emergency > 0) {
+  if (emergency > 0 && (isTech || isHead)) {
     html += '<div style="background:var(--red-a);border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">'
     html += '<span style="font-size:20px;">🚨</span><div><strong style="color:var(--red);">' + emergency + ' EMERGENCY ticket(s) require immediate attention!</strong></div>'
     html += '<button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="showPage(\'open_tickets\')">View Now</button>'
@@ -901,10 +905,19 @@ async function renderDashboard() {
   }
 
   html += '<div class="stat-grid">'
-  html += statC('🔓','Open',open,'Awaiting action','var(--blue)')
-  html += statC('🔄','In Progress',claimed,'Being handled','var(--amber)')
-  html += statC('✅','Resolved Today',tickets.filter(t=>t.resolved_at && new Date(t.resolved_at).toDateString()===new Date().toDateString()).length,'Resolved today','var(--accent)')
-  html += statC('📋','Total (All Time)',tickets.length,'All tickets','var(--txt2)')
+  if (isTech || isHead) {
+    // Technician/supervisor/admin/dept head: full operational stats
+    html += statC('🔓','Open',open,'Awaiting action','var(--blue)')
+    html += statC('🔄','In Progress',claimed,'Being handled','var(--amber)')
+    html += statC('✅','Resolved Today',tickets.filter(t=>t.resolved_at && new Date(t.resolved_at).toDateString()===new Date().toDateString()).length,'Resolved today','var(--accent)')
+    html += statC('📋','Total (All Time)',tickets.length,'All tickets','var(--txt2)')
+  } else {
+    // Ordinary requester: only their own simple view
+    const myOpen = tickets.filter(t => !['resolved','closed'].includes(t.status)).length
+    const myResolved = tickets.filter(t => ['resolved','closed'].includes(t.status)).length
+    html += statC('🎫','My Open Tickets',myOpen,'Naghihintay o ginagawa pa','var(--blue)')
+    html += statC('✅','Resolved',myResolved,'Tapos na','var(--accent)')
+  }
   html += '</div>'
 
   // Recent tickets
