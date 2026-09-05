@@ -651,6 +651,7 @@ tr:hover td{background:var(--surf2);}
           <span style="font-size:10px;color:var(--txt3);">⚙</span>
         </div>
       </div>
+      <div id="versionLabel" style="text-align:center;font-size:10px;color:var(--txt3);padding:6px 0 2px;opacity:.7;">CSR v2.1</div>
     </div>
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
@@ -1141,6 +1142,9 @@ function renderUserInfo() {
   const initials = u.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
   document.getElementById('userAvatar').textContent = initials
   document.getElementById('userName').textContent = u.full_name
+  // Show version (label + deploy date) in the sidebar
+  const vl = document.getElementById('versionLabel')
+  if (vl) vl.textContent = 'CSR v2.1 · ' + APP_VERSION
   document.getElementById('userRoleLabel').textContent = formatRole(u.csr_role)
 }
 
