@@ -282,6 +282,10 @@ a{color:var(--accent);text-decoration:none;}
    TABLES
 ═══════════════════════════════════════════ */
 .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--bdr);}
+/* Detail-modal item tables stay VISIBLE on mobile (scroll horizontally) — unlike the
+   list .table-wrap which is replaced by card views on small screens. */
+.detail-table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--bdr);}
+.detail-table-wrap table{width:100%;border-collapse:collapse;background:var(--surf1);min-width:0;}
 table{width:100%;border-collapse:collapse;background:var(--surf1);}
 th{
   font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
@@ -783,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-10'
+const APP_VERSION = '2026.09.05-11'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2359,7 +2363,7 @@ async function viewRequest(id) {
   if (items.length === 0) {
     body += '<p style="color:var(--txt2);font-size:13px;">No items listed.</p>'
   } else {
-    body += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>Est. Cost</th><th>Category</th></tr></thead><tbody>'
+    body += '<div class="detail-table-wrap"><table><thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>Est. Cost</th><th>Category</th></tr></thead><tbody>'
     items.forEach((item, i) => {
       body += '<tr><td style="color:var(--txt2);">' + (i+1) + '</td><td><strong>' + item.item_name + '</strong>'
       if (item.item_description) body += '<br><span style="font-size:11px;color:var(--txt2);">' + item.item_description + '</span>'
