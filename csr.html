@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-11'
+const APP_VERSION = '2026.09.05-12'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1631,9 +1631,14 @@ function buildCSRKanban(requests) {
   const cols = allCols.filter(c => c.id !== 'issued' && c.id !== 'cancelled')
 
   let html = '<style>'
-  html += '.csr-kanban{display:flex;gap:10px;overflow-x:auto;padding-bottom:16px;min-height:400px;margin-top:16px;}'
-  html += '.csr-kcol{flex:1 1 0;min-width:200px;}'
-  html += '@media(min-width:900px){.csr-kanban{overflow-x:visible;}.csr-kcol{min-width:0;}}'
+  html += '.csr-kanban{display:flex;flex-direction:column;gap:14px;padding-bottom:16px;margin-top:16px;}'
+  html += '.csr-kcol{flex:1 1 0;min-width:0;}'
+  // On wider screens (tablet/desktop) show the columns side-by-side; on phones they
+  // stack vertically (no horizontal drag needed — just scroll down).
+  html += '@media(min-width:760px){.csr-kanban{flex-direction:row;gap:10px;overflow-x:auto;}.csr-kcol{min-width:200px;}}'
+  html += '@media(min-width:1100px){.csr-kanban{overflow-x:visible;}.csr-kcol{min-width:0;}}'
+  // On phones, collapse empty columns to a slim header so the list stays short.
+  html += '@media(max-width:759px){.csr-kbody{min-height:0;}.csr-kbody:empty::after{content:"Wala pa";display:block;color:var(--txt3);font-size:12px;padding:10px;text-align:center;}}'
   html += '.csr-khead{padding:10px 12px;border-radius:10px 10px 0 0;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;}'
   html += '.csr-kbody{background:var(--surf2);border:1px solid var(--bdr);border-radius:0 0 10px 10px;padding:8px;min-height:160px;}'
   html += '.csr-kcard{background:var(--surf1);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,box-shadow .15s;}'
