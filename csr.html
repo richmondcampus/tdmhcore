@@ -780,7 +780,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-2'
+const APP_VERSION = '2026.09.05-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1610,8 +1610,12 @@ function buildCSRKanban(requests) {
   const allCols = [
     { id:'draft',            label:'📝 Draft',             color:'var(--txt3)',   bg:'var(--surf2)',   filter: r => r.status === 'draft' },
     { id:'pending_approval', label:'⏳ Pending Approval',  color:'var(--amber)',  bg:'var(--amber-a)', filter: r => r.status === 'pending_approval' },
-    { id:'approved',         label:'⚡ Needs Fulfillment', color:'var(--green)',  bg:'var(--green-a)', filter: r => r.status === 'approved' && r.current_approval_level === 99 },
-    { id:'for_po',           label:'💰 For PO',            color:'var(--accent)', bg:'var(--accent-a)', filter: r => r.status === 'for_po' || (r.status === 'approved' && r.current_approval_level !== 99) },
+    // Needs Fulfillment: approved requests ready for the Supply Officer to issue —
+    // auto-approved (99) OR approved and sitting at the Supply Officer level (2).
+    { id:'approved',         label:'⚡ Needs Fulfillment', color:'var(--green)',  bg:'var(--green-a)', filter: r => (r.status === 'approved' || r.status === 'partially_issued') && r.current_approval_level !== 3 },
+    // For PO: only requests explicitly forwarded for purchasing (for_po) or at the
+    // Purchasing Officer level (3). These are NOT for the Supply Officer to issue.
+    { id:'for_po',           label:'💰 For PO',            color:'var(--accent)', bg:'var(--accent-a)', filter: r => r.status === 'for_po' || (r.status === 'approved' && r.current_approval_level === 3) },
     { id:'issued',           label:'📦 Issued/Done',       color:'var(--blue)',   bg:'var(--blue-a)',  filter: r => r.status === 'issued' || r.status === 'ordered' || r.status === 'delivered' },
     { id:'cancelled',        label:'❌ Cancelled',         color:'var(--red)',    bg:'var(--red-a)',   filter: r => r.status === 'cancelled' },
   ]
