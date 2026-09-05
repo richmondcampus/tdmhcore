@@ -780,7 +780,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-3'
+const APP_VERSION = '2026.09.05-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3145,7 +3145,7 @@ function viewItemImage(src) {
 }
 
 function addItemRow(focusNew) {
-  const newId = Date.now()
+  const newId = Date.now() + Math.floor(Math.random()*100000)
   state.itemRows.push({ id: newId, item_name:'', item_description:'', quantity:1, unit:'pcs', estimated_cost:0, unit_price:0, category:'equipment', image_file:null, image_preview:null })
   document.getElementById('itemsBody').innerHTML = buildItemRows()
   if (focusNew) {
@@ -6010,7 +6010,7 @@ function addManualIssItem() {
     const wrap = document.getElementById('iss_items_wrap')
     wrap.innerHTML = '<div class="items-table-wrap"><table class="items-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th></th></tr></thead><tbody id="iss_items_body"></tbody></table></div>'
   }
-  const newId = Date.now()
+  const newId = Date.now() + Math.floor(Math.random()*100000)
   const row = document.createElement('tr')
   row.id = 'iss_man_' + newId
   row.innerHTML = '<td><input type="text" placeholder="Item name" class="iss_man_name" data-for="man_' + newId + '" oninput="syncManualIssName(\'man_' + newId + '\')" style="min-width:120px;"></td>' +
@@ -6295,7 +6295,7 @@ function reviewIssuance() {
     const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
     if (chk && !chk.checked) return
     const qty = Number(input.value)
-    if (qty > 0) rows.push({ itemId, name: input.dataset.itemName || 'Item', qty, unit: input.dataset.unit || '' })
+    if (qty > 0) rows.push({ itemId, name: input.dataset.itemName || 'Item', qty, unit: input.dataset.unit || '', stockId: input.dataset.stockId || '' })
   })
   if (rows.length === 0) { showToast('error','Validation','Walang item na naka-check para i-issue.'); return }
 
@@ -6310,7 +6310,7 @@ function reviewIssuance() {
   rows.forEach((r, i) => {
     html += '<tr style="border-top:1px solid var(--bdr);" id="revRow_' + i + '">'
     html += '<td style="padding:8px 10px;color:var(--txt);">' + escStk(r.name) + '</td>'
-    html += '<td style="padding:6px 8px;text-align:center;"><input type="number" min="0" value="' + r.qty + '" data-item-id="' + r.itemId + '" class="rev_qty_input" style="width:64px;padding:5px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);"> <span style="font-size:11px;color:var(--txt3);">' + escStk(r.unit) + '</span></td>'
+    html += '<td style="padding:6px 8px;text-align:center;"><input type="number" min="0" value="' + r.qty + '" data-item-id="' + r.itemId + '" data-item-name="' + escStk(r.name) + '" data-unit="' + escStk(r.unit) + '" data-stock-id="' + escStk(r.stockId || '') + '" class="rev_qty_input" style="width:64px;padding:5px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);"> <span style="font-size:11px;color:var(--txt3);">' + escStk(r.unit) + '</span></td>'
     html += '<td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'revRow_' + i + '\').remove()" title="Alisin" style="color:var(--red);padding:2px 7px;">✕</button></td>'
     html += '</tr>'
   })
@@ -6351,15 +6351,16 @@ async function saveIssuance() {
     reviewInputs.forEach(input => {
       const itemId = input.dataset.itemId
       const qty = Number(input.value)
-      // Find the original row to recover stock linkage + name
-      const orig = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
       if (qty > 0) {
+        // Read EVERYTHING directly off the review input — no cross-lookup by itemId,
+        // which could mismatch and swap names/quantities between items.
+        const stockId = input.dataset.stockId || null
         issItems.push({
           request_item_id: itemId,
-          stock_item_id: orig?.dataset.stockId || null,
+          stock_item_id: stockId || null,
           quantity_issued: qty,
-          from_stock: !!(orig?.dataset.stockId),
-          item_name: orig?.dataset.itemName || input.dataset.itemName || null
+          from_stock: !!stockId,
+          item_name: input.dataset.itemName || null
         })
       }
     })
