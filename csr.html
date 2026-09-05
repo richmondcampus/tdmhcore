@@ -780,7 +780,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-4'
+const APP_VERSION = '2026.09.05-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6701,9 +6701,14 @@ async function viewIssuance(id) {
     let rows = []
     if (items && items.length > 0) {
       rows = items.map((item, i) => {
-        let ri = (item.request_item_id && riById[item.request_item_id]) ? riById[item.request_item_id] : (reqData ? (reqItems[i] || {}) : {})
-        // Blank issuance / from-stock: name comes from snapshot or the stock item
-        if (!ri.item_name) {
+        let ri
+        if (item.request_item_id && riById[item.request_item_id]) {
+          // Linked to a real request item — use it.
+          ri = riById[item.request_item_id]
+        } else {
+          // Manual / blank / from-stock item (no request_item_id): the name MUST come
+          // from the snapshot or stock item — NOT from reqItems[i], which would grab
+          // an unrelated request item by position and show the wrong name.
           const stk = item.stock_item_id ? stockById[item.stock_item_id] : null
           ri = {
             item_name: item.item_name_snapshot || stk?.item_name || 'Item',
