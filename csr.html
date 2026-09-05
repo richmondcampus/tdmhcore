@@ -303,6 +303,9 @@ tr:hover td{background:var(--surf2);}
   transition:opacity .2s!important;
 }
 .modal-overlay.open{opacity:1;pointer-events:all;}
+/* reviewModal is a secondary modal (edit items / review) that can open on top of the
+   request-detail modal — give it a higher z-index so it appears in front, not behind. */
+#reviewModal{z-index:1100;}
 .modal{
   background:var(--surf1);border:1px solid var(--bdr2);
   border-radius:18px;width:100%;max-width:600px;
@@ -780,7 +783,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-8'
+const APP_VERSION = '2026.09.05-9'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
