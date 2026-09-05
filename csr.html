@@ -3789,8 +3789,10 @@ async function processApproval() {
 
     if (approvalAction === 'approve') {
       const fulfillChoice = document.querySelector('input[name="csr_fulfill"]:checked')?.value
-      // Admin acts at any level, so treat admin like the Supply Officer level (2) here.
-      const effLevel = (role === 'admin' && !level) ? 2 : level
+      // Admin acts at the request's CURRENT level (not always Supply Officer). So an
+      // admin approving a Level-1 request just forwards it to the next approver —
+      // it does NOT jump straight to issuance.
+      const effLevel = (role === 'admin' && !level) ? (req.current_approval_level || 1) : level
 
       // Issue from stock — only if explicitly chosen OR auto-approved with issue_stock selected
       const shouldIssueFromStock = fulfillChoice === 'issue_stock' && (effLevel === 2 || isAutoApproved)
@@ -4248,7 +4250,7 @@ function openApprovalModal(reqId, action) {
   const optionWrap = document.getElementById('approvalOptionWrap') ||
     (() => { const d = document.createElement('div'); d.id = 'approvalOptionWrap'; document.getElementById('approvalModalDesc').after(d); return d })()
 
-  const effLevel = (role === 'admin' && !level) ? 2 : level
+  const effLevel = (role === 'admin' && !level) ? (req.current_approval_level || 1) : level
   if (action === 'approve' && (effLevel === 2 || isAutoApproved)) {
     optionWrap.innerHTML =
       '<div style="display:flex;flex-direction:column;gap:8px;margin:12px 0;">' +
