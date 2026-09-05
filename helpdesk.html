@@ -1516,6 +1516,42 @@ async function quickResolveIT(ticketId) {
 }
 
 // ═══ TICKET DETAIL ═══
+// Render a ticket description nicely: structured requests (like Agimat, which use
+// "Label: value" lines) become a clean key/value table; everything else keeps its
+// line breaks instead of collapsing into one long run-on line.
+function renderTicketDescription(desc) {
+  const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  if (!desc) return '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;font-size:13px;color:var(--txt3);">—</div>'
+  const lines = String(desc).split('\n').map(l => l.trim()).filter(l => l && !/^━+$/.test(l))
+  // Detect a structured request: a header line + several "Label: value" lines.
+  const kvLines = lines.filter(l => /^[^:]{2,30}:\s?.+/.test(l))
+  const isStructured = kvLines.length >= 3
+  if (isStructured) {
+    // First line without a colon is treated as the title/header.
+    const header = lines.find(l => !l.includes(':')) || ''
+    let html = '<div style="background:var(--surf1);border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;">'
+    if (header) html += '<div style="background:var(--accent-a,rgba(34,34,168,.1));color:var(--accent,#2222A8);font-weight:700;font-size:12px;padding:9px 14px;border-bottom:1px solid var(--bdr2);">' + esc(header) + '</div>'
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    lines.forEach(l => {
+      const idx = l.indexOf(':')
+      if (idx > 0 && idx <= 30) {
+        const label = l.slice(0, idx).trim()
+        let val = l.slice(idx + 1).trim()
+        // Make links clickable (e.g. PRC ID Photo URL)
+        if (/^https?:\/\//.test(val)) val = '<a href="' + esc(val) + '" target="_blank" style="color:var(--accent,#2222A8);word-break:break-all;">View</a>'
+        else val = esc(val)
+        html += '<tr style="border-top:1px solid var(--bdr);"><td style="padding:8px 14px;color:var(--txt2);font-size:12px;width:140px;vertical-align:top;">' + esc(label) + '</td><td style="padding:8px 14px;color:var(--txt);">' + val + '</td></tr>'
+      } else if (l !== header && !/^(optional|notes):?$/i.test(l)) {
+        html += '<tr style="border-top:1px solid var(--bdr);"><td colspan="2" style="padding:8px 14px;color:var(--txt2);font-size:12px;font-weight:600;">' + esc(l) + '</td></tr>'
+      }
+    })
+    html += '</table></div>'
+    return html
+  }
+  // Plain description — preserve line breaks.
+  return '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;font-size:13px;white-space:pre-wrap;line-height:1.55;">' + esc(desc) + '</div>'
+}
+
 async function viewTicket(ticketId) {
   const { data: t } = await SB.from('it_tickets').select('*').eq('id', ticketId).single()
   if (!t) return
@@ -1592,7 +1628,7 @@ async function viewTicket(ticketId) {
   // Description
   body += '<div style="margin-bottom:16px;">'
   body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Description</div>'
-  body += '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;font-size:13px;">' + (t.description || '—') + '</div>'
+  body += renderTicketDescription(t.description)
   body += '</div>'
 
   // Assign to (IT only, if unassigned or admin)
