@@ -780,7 +780,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-6'
+const APP_VERSION = '2026.09.05-7'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2407,8 +2407,15 @@ async function viewRequest(id) {
   if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level === 99 && ['supply_officer','admin'].includes(role)) {
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Fulfill Request</button>'
   }
-  // Fully approved (level 3) — Supply Officer can issue from stock OR create PO
-  else if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level !== 99 && ['supply_officer','admin'].includes(role)) {
+  // Fully approved (level 2) or PARTIALLY ISSUED — Supply Officer can issue (the
+  // remainder, if partial) from stock OR forward for PO.
+  else if (req.request_type !== 'derp' && (req.status === 'approved' || req.status === 'partially_issued') && req.current_approval_level !== 99 && req.current_approval_level !== 3 && ['supply_officer','admin'].includes(role)) {
+    const btnLabel = req.status === 'partially_issued' ? '📦 Issue Remaining' : '📦 Issue from Stock'
+    footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">' + btnLabel + '</button>'
+    footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
+  }
+  // Level 3 (Purchasing) approved — issue from stock OR create PO
+  else if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level === 3 && ['supply_officer','admin'].includes(role)) {
     footer += '<button class="btn btn-secondary" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue from Stock</button>'
     footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
   }
