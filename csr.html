@@ -773,6 +773,36 @@ tr:hover td{background:var(--surf2);}
 // SUPABASE INIT
 // ═══════════════════════════════════════════
 const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
+// ═══ APP VERSION (for update detection) ═══
+// Bump this string every deploy (e.g. the date+time). When the live file on the
+// server has a newer version than what's loaded, a small "update available" banner
+// shows so the user can refresh. Purely read-only, event-based (page load + tab
+// focus) — no timer, no background load, wrapped in try/catch so it can never break
+// the app.
+const APP_VERSION = '2026.09.05-1'
+async function checkForUpdate() {
+  try {
+    // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
+    const res = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })
+    if (!res.ok) return
+    const text = await res.text()
+    const m = text.match(/const APP_VERSION = '([^']+)'/)
+    if (m && m[1] && m[1] !== APP_VERSION) showUpdateBanner()
+  } catch(_) { /* silent — never affect the app */ }
+}
+function showUpdateBanner() {
+  if (document.getElementById('updateBanner')) return
+  const bar = document.createElement('div')
+  bar.id = 'updateBanner'
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#12A62F;color:#fff;padding:10px 16px;text-align:center;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;gap:12px;'
+  bar.innerHTML = '🔄 May bagong update ng system. '
+    + '<button onclick="location.reload(true)" style="background:#fff;color:#12A62F;border:none;padding:5px 14px;border-radius:7px;font-weight:700;cursor:pointer;font-size:13px;">I-refresh ngayon</button>'
+    + '<button onclick="document.getElementById(\'updateBanner\').remove()" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);padding:5px 10px;border-radius:7px;cursor:pointer;font-size:12px;">Mamaya na</button>'
+  document.body.appendChild(bar)
+}
+// Check on load + whenever the user returns to the tab (event-based, no timer).
+window.addEventListener('load', () => setTimeout(checkForUpdate, 3000))
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate() })
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeWh3ZHVsaXpvcmduZ2F5eHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjU0NTgsImV4cCI6MjA5NDg0MTQ1OH0.xLdKGNqjNZNRfjAf5NmXGI1GyTbQZAmbZiKokpgAhUo'
 const SB = supabase.createClient(SUPA_URL, SUPA_KEY, {
   auth: {
