@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-10'
+const APP_VERSION = '2026.09.07-11'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6123,7 +6123,7 @@ async function loadCSRForIssuance(requestId) {
   }
 
   let html = '<div class="items-table-wrap"><table class="items-table"><thead><tr>'
-  html += '<th>Item</th><th>Kailangan</th><th>Naibigay na</th><th>Natira</th><th>Unit</th><th>Ibibigay</th><th>Aksyon</th><th>Stock</th>'
+  html += '<th style="width:36px;"></th><th>Item</th><th>Kailangan</th><th>Naibigay na</th><th>Natira</th><th>Unit</th><th>Ibibigay</th><th>Aksyon</th><th>Stock</th>'
   html += '</tr></thead><tbody id="iss_items_body">'
 
   for (const item of items) {
@@ -6144,6 +6144,8 @@ async function loadCSRForIssuance(requestId) {
     const stockLabel = stockQty === null ? 'Wala sa stock system' : stockQty + ' available'
 
     html += '<tr' + (isDone ? ' style="opacity:.55;"' : '') + '>'
+    // Checkbox — include this item in this issuance (unchecked = skip; disabled if done)
+    html += '<td style="text-align:center;"><input type="checkbox" class="iss_item_chk" data-item-id="' + item.id + '"' + (isDone ? ' disabled' : ' checked') + ' onchange="onIssItemToggle(\'' + item.id + '\')" style="cursor:pointer;width:16px;height:16px;"></td>'
     html += '<td><strong>' + escStk(item.item_name) + '</strong>' + (isDone ? ' <span style="font-size:10px;color:var(--green);">✓ Kumpleto na</span>' : '') + '</td>'
     html += '<td>' + item.quantity + '</td>'
     html += '<td style="color:var(--txt2);">' + alreadyIssued + '</td>'
@@ -6151,13 +6153,12 @@ async function loadCSRForIssuance(requestId) {
     html += '<td><input type="text" class="iss_unit_input" data-item-id="' + item.id + '" value="' + escStk(item.unit||'pcs') + '"' + (isDone ? ' disabled' : '') + ' oninput="syncIssUnit(\'' + item.id + '\')" style="width:60px;padding:4px 6px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);text-align:center;"></td>'
     // No max cap — supply officer may over-issue if needed
     html += '<td><input type="number" class="iss_qty_input" data-item-id="' + item.id + '" data-stock-id="' + (stockItem?stockItem.id:'') + '" data-item-name="' + escStk(item.item_name||item.name||'Item') + '" data-unit="' + escStk(item.unit||'pcs') + '" min="0" value="' + defaultIssue + '"' + (isDone ? ' disabled' : '') + ' style="width:70px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
-    // Single per-item decision (no separate checkbox): Issue Now / For PO / Skip.
-    // Default: Issue Now if in stock, else For PO.
+    // Per-item action: Issue Now (from stock) or For PO (forward to Purchasing).
+    // Uncheck the item above to skip it entirely.
     const defAction = (stockQty === null || (stockQty !== null && stockQty <= 0)) ? 'for_po' : 'issue'
     html += '<td><select class="iss_action_select" data-item-id="' + item.id + '"' + (isDone ? ' disabled' : '') + ' onchange="onIssActionChange(\'' + item.id + '\')" style="padding:4px 6px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;">'
     html += '<option value="issue"' + (defAction==='issue'?' selected':'') + '>📦 Issue Now</option>'
     html += '<option value="for_po"' + (defAction==='for_po'?' selected':'') + '>🛒 For PO</option>'
-    html += '<option value="skip">⏭️ Wag muna</option>'
     html += '</select></td>'
     html += '<td style="font-size:12px;color:' + stockColor + ';">' + stockLabel + '</td>'
     html += '</tr>'
@@ -6204,22 +6205,16 @@ function onIssItemToggle(itemId) {
   })
 }
 
-// Per-item action changed: For PO / Skip dims the qty (not issued now); Issue Now enables it.
+// Per-item action changed: "For PO" dims the qty (forwarded, not issued now).
 function onIssActionChange(itemId) {
   const sel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
   const qty = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
-  const unit = document.querySelector('.iss_unit_input[data-item-id="' + itemId + '"]')
-  if (!sel) return
-  const v = sel.value
-  if (qty) {
-    if (v === 'skip') { qty.disabled = true; qty.style.opacity = '.4'; qty.title = 'Hindi isasama ngayon.' }
-    else if (v === 'for_po') { qty.disabled = false; qty.style.opacity = '.6'; qty.title = 'Ide-forward sa Purchasing.' }
-    else { qty.disabled = false; qty.style.opacity = '1'; qty.title = '' }
-  }
-  if (unit) { unit.disabled = (v === 'skip'); unit.style.opacity = (v === 'skip') ? '.4' : '1' }
+  if (!sel || !qty) return
+  if (sel.value === 'for_po') { qty.style.opacity = '.6'; qty.title = 'Ide-forward sa Purchasing.' }
+  else { qty.style.opacity = '1'; qty.title = '' }
 }
 
-function onIssActionChange_OLD(itemId) {
+function onIssActionChange_OLD2(itemId) {
   const sel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
   const qty = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
   if (sel && qty) {
@@ -6499,20 +6494,21 @@ function reviewIssuance() {
   const receiverName = (document.getElementById('iss_receiver_name')?.value || '').trim()
   if (!receiverName) { showToast('error','Validation','I-type muna ang pangalan ng receiver.'); return }
 
-  // Collect items, splitting by per-item action: issue now vs forward to PO (skip = excluded).
+  // Collect items: only checked ones, split by action (Issue Now vs For PO).
   const qtyInputs = document.querySelectorAll('.iss_qty_input')
   const issueRows = [], poRows = []
   qtyInputs.forEach(input => {
     const itemId = input.dataset.itemId
-    const actionSel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
-    const action = actionSel ? actionSel.value : 'issue'
-    if (action === 'skip') return  // "Wag muna" — not included
+    const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
+    if (chk && !chk.checked) return  // unchecked = skip
     const qty = Number(input.value)
     if (qty <= 0) return
+    const actionSel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
+    const action = actionSel ? actionSel.value : 'issue'
     const row = { itemId, name: input.dataset.itemName || 'Item', qty, unit: input.dataset.unit || '', stockId: input.dataset.stockId || '' }
     if (action === 'for_po') poRows.push(row); else issueRows.push(row)
   })
-  if (issueRows.length === 0 && poRows.length === 0) { showToast('error','Validation','Walang item na napili. Pumili ng Issue Now o For PO.'); return }
+  if (issueRows.length === 0 && poRows.length === 0) { showToast('error','Validation','Walang item na naka-check.'); return }
 
   // Build the review modal — issue-now items are editable; PO items shown for confirmation.
   let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">'
@@ -6638,9 +6634,11 @@ async function saveIssuance() {
     const qtyInputs = document.querySelectorAll('.iss_qty_input')
     qtyInputs.forEach(input => {
       const itemId = input.dataset.itemId
-      // Skip items marked "For PO" or "Skip" — only issue "Issue Now" items.
+      const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
+      if (chk && !chk.checked) return  // unchecked = skip
+      // Skip items marked "For PO" — only issue "Issue Now" items.
       const actionSel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
-      if (actionSel && (actionSel.value === 'for_po' || actionSel.value === 'skip')) return
+      if (actionSel && actionSel.value === 'for_po') return
       const qty = Number(input.value)
       if (qty > 0) {
         issItems.push({
