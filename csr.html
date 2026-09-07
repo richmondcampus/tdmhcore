@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-2'
+const APP_VERSION = '2026.09.07-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2417,6 +2417,7 @@ async function viewRequest(id) {
   // the supply officer added, e.g. extras not in the original request). Loaded async.
   if (req.request_type !== 'derp') {
     body += '<div id="actuallyIssuedSection" style="margin-bottom:16px;"></div>'
+    body += '<div id="forPoSection" style="margin-bottom:16px;"></div>'
   }
   // Approval stepper
   if (req.request_type !== 'derp') {
@@ -2488,6 +2489,32 @@ async function viewRequest(id) {
   document.getElementById('requestDetailFooter').innerHTML = footer
   openModal('requestDetailModal')
   loadActuallyIssued(req.id)
+  loadForPoItems(req.id)
+}
+
+// Show items flagged "For PO" (need purchasing) as a distinct section, so the
+// Purchasing Officer sees exactly what to buy — separate from what was already issued.
+async function loadForPoItems(reqId) {
+  const wrap = document.getElementById('forPoSection')
+  if (!wrap) return
+  try {
+    const { data: items } = await SB.from('request_items')
+      .select('item_name,quantity,quantity_for_po,unit,fulfillment_type,estimated_cost')
+      .eq('request_id', reqId).eq('fulfillment_type', 'for_po')
+    if (!items || !items.length) { wrap.innerHTML = ''; return }
+    let html = '<div style="font-size:11px;font-weight:600;color:var(--accent,#2222A8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🛒 For Purchase Order (need to buy)</div>'
+    html += '<div style="border:1px solid var(--accent,#2222A8);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    html += '<thead><tr style="background:var(--accent-a,rgba(34,34,168,.1));color:var(--accent,#2222A8);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:7px 10px;">Item</th><th style="width:70px;padding:7px;">Dami</th><th style="width:60px;padding:7px;">Unit</th></tr></thead><tbody>'
+    items.forEach(it => {
+      const qty = (it.quantity_for_po && Number(it.quantity_for_po) > 0) ? it.quantity_for_po : it.quantity
+      html += '<tr style="border-top:1px solid var(--bdr);"><td style="padding:7px 10px;color:var(--txt);font-weight:600;">' + escStk(it.item_name) + '</td>'
+      html += '<td style="padding:7px;text-align:center;font-weight:600;">' + qty + '</td>'
+      html += '<td style="padding:7px;text-align:center;color:var(--txt2);">' + escStk(it.unit||'pcs') + '</td></tr>'
+    })
+    html += '</tbody></table></div>'
+    html += '<p style="font-size:11px;color:var(--txt3);margin-top:5px;">Ito lang ang mga item na kailangang bilhin (PO). Ang iba ay na-issue na mula sa stock.</p>'
+    wrap.innerHTML = html
+  } catch(e) { wrap.innerHTML = ''; console.warn('loadForPoItems', e.message) }
 }
 
 async function loadActuallyIssued(reqId) {
@@ -4619,13 +4646,23 @@ function updatePOTotal() {
 
 async function loadCSRItemsForPO(requestId) {
   if (!requestId) return
-  const items = await loadRequestItems(requestId)
+  // If this request had a per-item PO split, the PO should contain ONLY the items
+  // flagged "for_po" (the rest were already issued from stock).
+  const { data: req } = await SB.from('requests').select('has_po_split').eq('id', requestId).maybeSingle()
+  let items
+  if (req?.has_po_split) {
+    const { data: poItems } = await SB.from('request_items').select('*')
+      .eq('request_id', requestId).eq('fulfillment_type', 'for_po')
+    items = poItems || []
+  } else {
+    items = await loadRequestItems(requestId)
+  }
   if (items.length > 0) {
     state.itemRows = items.map(item => ({
       id: Date.now() + Math.random(),
       item_name: item.item_name,
       item_description: item.item_description || '',
-      quantity: item.quantity,
+      quantity: (item.quantity_for_po && Number(item.quantity_for_po) > 0) ? item.quantity_for_po : item.quantity,
       unit: item.unit || 'pcs',
       unit_price: item.estimated_cost || 0
     }))
@@ -6075,7 +6112,7 @@ async function loadCSRForIssuance(requestId) {
   }
 
   let html = '<div class="items-table-wrap"><table class="items-table"><thead><tr>'
-  html += '<th style="width:36px;"></th><th>Item</th><th>Kailangan</th><th>Naibigay na</th><th>Natira</th><th>Unit</th><th>Ibibigay</th><th>Stock</th>'
+  html += '<th style="width:36px;"></th><th>Item</th><th>Kailangan</th><th>Naibigay na</th><th>Natira</th><th>Unit</th><th>Ibibigay</th><th>Aksyon</th><th>Stock</th>'
   html += '</tr></thead><tbody id="iss_items_body">'
 
   for (const item of items) {
@@ -6105,6 +6142,13 @@ async function loadCSRForIssuance(requestId) {
     html += '<td><input type="text" class="iss_unit_input" data-item-id="' + item.id + '" value="' + escStk(item.unit||'pcs') + '"' + (isDone ? ' disabled' : '') + ' oninput="syncIssUnit(\'' + item.id + '\')" style="width:60px;padding:4px 6px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);text-align:center;"></td>'
     // No max cap — supply officer may over-issue if needed
     html += '<td><input type="number" class="iss_qty_input" data-item-id="' + item.id + '" data-stock-id="' + (stockItem?stockItem.id:'') + '" data-item-name="' + escStk(item.item_name||item.name||'Item') + '" data-unit="' + escStk(item.unit||'pcs') + '" min="0" value="' + defaultIssue + '"' + (isDone ? ' disabled' : '') + ' style="width:70px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+    // Per-item action: Issue from stock now, OR forward this item to Purchasing for a PO.
+    // Defaults to "For PO" when the item isn't in stock, else "Issue Now".
+    const defAction = (stockQty === null || (stockQty !== null && stockQty <= 0)) ? 'for_po' : 'issue'
+    html += '<td><select class="iss_action_select" data-item-id="' + item.id + '"' + (isDone ? ' disabled' : '') + ' onchange="onIssActionChange(\'' + item.id + '\')" style="padding:4px 6px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;">'
+    html += '<option value="issue"' + (defAction==='issue'?' selected':'') + '>📦 Issue Now</option>'
+    html += '<option value="for_po"' + (defAction==='for_po'?' selected':'') + '>🛒 For PO</option>'
+    html += '</select></td>'
     html += '<td style="font-size:12px;color:' + stockColor + ';">' + stockLabel + '</td>'
     html += '</tr>'
   }
@@ -6135,6 +6179,16 @@ function addManualIssItem() {
 // so both the review step and saveIssuance can read them (fixes items not saving).
 // Keep the editable UNIT column in sync with the qty input's data-unit, so the
 // (possibly corrected) unit is what gets saved.
+// When an item's action changes to "For PO", dim its qty (it won't be issued now).
+function onIssActionChange(itemId) {
+  const sel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
+  const qty = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
+  if (sel && qty) {
+    if (sel.value === 'for_po') { qty.style.opacity = '.5'; qty.title = 'Ide-forward sa Purchasing — hindi ii-issue ngayon.' }
+    else { qty.style.opacity = '1'; qty.title = '' }
+  }
+}
+
 function syncIssUnit(itemId) {
   const unitEl = document.querySelector('.iss_unit_input[data-item-id="' + itemId + '"]')
   const qtyEl = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
@@ -6406,6 +6460,64 @@ function reviewIssuance() {
   const receiverName = (document.getElementById('iss_receiver_name')?.value || '').trim()
   if (!receiverName) { showToast('error','Validation','I-type muna ang pangalan ng receiver.'); return }
 
+  // Collect items, splitting by per-item action: issue now vs forward to PO.
+  const qtyInputs = document.querySelectorAll('.iss_qty_input')
+  const issueRows = [], poRows = []
+  qtyInputs.forEach(input => {
+    const itemId = input.dataset.itemId
+    const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
+    if (chk && !chk.checked) return
+    const qty = Number(input.value)
+    if (qty <= 0) return
+    const actionSel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
+    const action = actionSel ? actionSel.value : 'issue'
+    const row = { itemId, name: input.dataset.itemName || 'Item', qty, unit: input.dataset.unit || '', stockId: input.dataset.stockId || '' }
+    if (action === 'for_po') poRows.push(row); else issueRows.push(row)
+  })
+  if (issueRows.length === 0 && poRows.length === 0) { showToast('error','Validation','Walang item na napili.'); return }
+
+  // Build the review modal — issue-now items are editable; PO items shown for confirmation.
+  let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">'
+  html += 'I-review bago i-finalize. Ang <strong>📦 Issue Now</strong> ay ibibigay kay <strong>' + escStk(receiverName) + '</strong> ngayon; ang <strong>🛒 For PO</strong> ay ipapadala sa Purchasing Officer.</div>'
+
+  if (issueRows.length) {
+    html += '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px;">📦 Ii-issue Ngayon</div>'
+    html += '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;margin-bottom:14px;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    html += '<thead><tr style="background:var(--surf2);color:var(--txt3);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:8px 10px;">Item</th><th style="text-align:center;padding:8px;width:90px;">Ibibigay</th><th style="width:40px;"></th></tr></thead><tbody>'
+    issueRows.forEach((r, i) => {
+      html += '<tr style="border-top:1px solid var(--bdr);" id="revRow_' + i + '">'
+      html += '<td style="padding:8px 10px;color:var(--txt);">' + escStk(r.name) + '</td>'
+      html += '<td style="padding:6px 8px;text-align:center;"><input type="number" min="0" value="' + r.qty + '" data-item-id="' + r.itemId + '" data-item-name="' + escStk(r.name) + '" data-unit="' + escStk(r.unit) + '" data-stock-id="' + escStk(r.stockId || '') + '" class="rev_qty_input" style="width:64px;padding:5px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);"> <span style="font-size:11px;color:var(--txt3);">' + escStk(r.unit) + '</span></td>'
+      html += '<td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'revRow_' + i + '\').remove()" title="Alisin" style="color:var(--red);padding:2px 7px;">✕</button></td>'
+      html += '</tr>'
+    })
+    html += '</tbody></table></div>'
+  }
+
+  if (poRows.length) {
+    html += '<div style="font-size:11px;font-weight:700;color:var(--accent,#2222A8);margin-bottom:6px;">🛒 Ipapadala sa Purchasing (For PO)</div>'
+    html += '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;margin-bottom:12px;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    html += '<thead><tr style="background:var(--surf2);color:var(--txt3);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:8px 10px;">Item</th><th style="text-align:center;padding:8px;width:90px;">Dami</th></tr></thead><tbody>'
+    poRows.forEach(r => {
+      html += '<tr style="border-top:1px solid var(--bdr);"><td style="padding:8px 10px;color:var(--txt);">' + escStk(r.name) + '</td>'
+      html += '<td style="text-align:center;padding:6px 8px;"><input type="number" min="0" value="' + r.qty + '" data-item-id="' + r.itemId + '" data-item-name="' + escStk(r.name) + '" data-unit="' + escStk(r.unit) + '" class="rev_po_input" style="width:64px;padding:5px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);"> <span style="font-size:11px;color:var(--txt3);">' + escStk(r.unit) + '</span></td></tr>'
+    })
+    html += '</tbody></table></div>'
+  }
+  html += '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--txt);">⚠️ Kapag pinindot ang <strong>Confirm</strong>: ma-i-issue ang mga 📦 item, at ang mga 🛒 item ay pupunta sa Purchasing Officer para sa PO.</div>'
+
+  document.getElementById('reviewModalTitle').textContent = '📋 Review Issuance'
+  document.getElementById('reviewModalBody').innerHTML = html
+  document.getElementById('reviewModalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'reviewModal\')">← Bumalik / I-edit</button>' +
+    '<button class="btn btn-primary" id="confirmIssueBtn" onclick="saveIssuance()">✅ Confirm</button>'
+  openModal('reviewModal')
+}
+
+function _oldReviewIssuance() {
+  const receiverName = (document.getElementById('iss_receiver_name')?.value || '').trim()
+  if (!receiverName) { showToast('error','Validation','I-type muna ang pangalan ng receiver.'); return }
+
   // Collect the checked items + their quantities (same logic as saveIssuance)
   const qtyInputs = document.querySelectorAll('.iss_qty_input')
   const rows = []
@@ -6502,7 +6614,10 @@ async function saveIssuance() {
     })
   }
 
-  if (issItems.length === 0) { showToast('error','Validation','Please add items to issue.'); releaseClick('saveIssuance'); return }
+  // Allow an "all For PO" case: no items to issue now, but some flagged for PO.
+  const _poInputsEarly = document.querySelectorAll('.rev_po_input')
+  const _hasPoOnly = issItems.length === 0 && _poInputsEarly.length > 0
+  if (issItems.length === 0 && !_hasPoOnly) { showToast('error','Validation','Please add items to issue.'); releaseClick('saveIssuance'); return }
 
   // The supply officer has already chosen exactly what to issue (checkbox + qty),
   // so we issue precisely that. In STRICT mode, the DB guard still blocks issuing
@@ -6510,9 +6625,25 @@ async function saveIssuance() {
   // negative). Whatever isn't fully issued stays owed on the request (computed after).
   const strict = await isStockGuardStrict()
 
-  if (issItems.length === 0) {
-    showToast('warning','Walang Ma-issue', 'Walang item na napili. I-check ang mga ibibigay.')
-    releaseClick('saveIssuance')
+  // If ALL items were forwarded to PO, skip creating an issuance — just do the PO split.
+  if (_hasPoOnly) {
+    try {
+      const reqIdForPo = document.getElementById('iss_csr')?.value || null
+      let didPo = false
+      for (const pin of _poInputsEarly) {
+        const rid = pin.dataset.itemId
+        const pq = Number(pin.value)
+        if (!rid || rid.startsWith('man_') || pq <= 0) continue
+        await SB.from('request_items').update({ fulfillment_type: 'for_po', quantity_for_po: pq }).eq('id', rid)
+        didPo = true
+      }
+      if (didPo && reqIdForPo) {
+        await SB.from('requests').update({ status: 'for_po', current_approval_level: 3, has_po_split: true, updated_at: new Date().toISOString() }).eq('id', reqIdForPo)
+      }
+      closeModal('reviewModal'); closeModal('newRequestModal'); releaseClick('saveIssuance')
+      showToast('success','Na-forward sa PO 🛒','Lahat ng item ay ipinadala sa Purchasing Officer para sa PO.')
+      renderIssuance()
+    } catch(e) { releaseClick('saveIssuance'); showToast('error','Error', e.message) }
     return
   }
 
@@ -6600,12 +6731,51 @@ async function saveIssuance() {
       }
     }
 
+    // ── PER-ITEM PO SPLIT ──
+    // Items the officer marked "For PO" in the review are flagged and the request is
+    // routed to the Purchasing Officer (Level 3). This runs regardless of whether any
+    // items were also issued now (mixed fulfillment is allowed).
+    let hasPoSplit = false
+    const poInputs = document.querySelectorAll('.rev_po_input')
+    if (poInputs.length && csrId) {
+      for (const pin of poInputs) {
+        const rid = pin.dataset.itemId
+        const pq = Number(pin.value)
+        if (!rid || rid.startsWith('man_') || pq <= 0) continue
+        try {
+          await SB.from('request_items').update({ fulfillment_type: 'for_po', quantity_for_po: pq }).eq('id', rid)
+          hasPoSplit = true
+        } catch(_) {}
+      }
+      if (hasPoSplit) {
+        // Forward the request to Purchasing (Level 3) and flag the split.
+        await SB.from('requests').update({
+          status: 'for_po', current_approval_level: 3, has_po_split: true, updated_at: new Date().toISOString()
+        }).eq('id', csrId)
+        // Notify purchasing officers
+        try {
+          const purchasers = (state.users || []).filter(u => ['purchasing_officer','admin'].includes(u.csr_role))
+          for (const p of purchasers) {
+            await SB.from('notifications').insert({
+              user_id: p.id, source_system: 'csr', source_ref_id: csrId,
+              body: 'May items na naka-forward para sa PO mula sa isang request. Pakisuri sa Purchasing queue.',
+              type: 'action_required'
+            })
+          }
+        } catch(_) {}
+      }
+    }
+
     // Update CSR request status by checking what's still owed across ALL items.
+    // NOTE: if we already forwarded to PO above, don't override that status — only
+    // update issue/partial status when there was no PO split.
     let hasRemainder = false
-    if (csrId) {
+    if (csrId && !hasPoSplit) {
       const { data: allReqItems } = await SB.from('request_items')
-        .select('item_name,quantity,quantity_issued,unit').eq('request_id', csrId)
+        .select('item_name,quantity,quantity_issued,unit,fulfillment_type').eq('request_id', csrId)
+      // Only count items NOT flagged for PO toward "remaining to issue".
       const pending = (allReqItems || [])
+        .filter(ri => ri.fulfillment_type !== 'for_po')
         .map(ri => ({ ...ri, left: Number(ri.quantity) - (Number(ri.quantity_issued) || 0) }))
         .filter(ri => ri.left > 0)
       if (pending.length === 0) {
@@ -6629,7 +6799,9 @@ async function saveIssuance() {
 
     closeModal('reviewModal')
     closeModal('newRequestModal')
-    if (hasRemainder) {
+    if (hasPoSplit) {
+      showToast('success', 'Na-proseso ✅', issuanceNo + ' — na-issue ang stock items; ang iba ay na-forward sa Purchasing para sa PO.')
+    } else if (hasRemainder) {
       showToast('warning', 'Na-issue — may natira ⚠️', issuanceNo + ' — narecord ang naibigay. Buhay pa ang request para sa natirang items.')
     } else {
       showToast('success', 'Issued ✅', issuanceNo + ' — narecord ang naibigay.')
