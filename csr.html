@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-13'
+const APP_VERSION = '2026.09.05-14'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1194,7 +1194,7 @@ function renderSidebarNav() {
     roles:['supply_officer','admin'] },
 
   { id:'issuance',        icon:'📤', label:'Issuance',
-    roles:['supply_officer','admin','dept_head'] },
+    roles:['supply_officer','admin'] },
 
   // Stock Inventory — supply_officer + admin
   { id:'stock_inventory', icon:'🏪', label:'Stock Inventory',
@@ -1372,8 +1372,12 @@ async function loadStats() {
       : Promise.resolve({ count: 0 })
 
     // Issuance pending — unconfirmed issuances only
-    const issuancePendingQuery = ['supply_officer','admin','dept_head'].includes(role)
-      ? SB.from('issuances').select('id', { count: 'exact', head: true }).is('confirmed_at', null)
+    // Issuance badge = requests that are READY TO ISSUE (approved / partially issued and
+    // sitting at the Supply Officer stage), NOT issuances already given out awaiting the
+    // receiver's confirmation. Only Supply Officer / admin actually issue.
+    const issuancePendingQuery = ['supply_officer','admin'].includes(role)
+      ? SB.from('requests').select('id', { count: 'exact', head: true })
+          .in('status', ['approved','partially_issued']).neq('current_approval_level', 3).neq('request_type','derp')
       : Promise.resolve({ count: 0 })
 
     // Incoming deliveries — POs waiting to be received
