@@ -798,8 +798,12 @@ function ticketRow(t) {
   const cat = S.categories.find(c => c.id === t.category_id)
   const requester = S.users.find(u => u.id === t.requester_id)
   const assigned = S.users.find(u => u.id === t.assigned_to)
-  const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
-  const slaColor = t.sla_resolution_due && new Date(t.sla_resolution_due) < new Date() ? 'var(--red)' : 'var(--txt3)'
+  const _isDone = ['resolved','closed'].includes(t.status)
+  // Age counts up to resolution time (frozen once resolved), not "now".
+  const _endTime = _isDone && t.resolved_at ? new Date(t.resolved_at) : new Date()
+  const age = Math.floor((_endTime - new Date(t.created_at)) / 3600000)
+  // SLA is only "breached" (red) while the ticket is still OPEN. Resolved = clock stops.
+  const slaColor = (!_isDone && t.sla_resolution_due && new Date(t.sla_resolution_due) < new Date()) ? 'var(--red)' : 'var(--txt3)'
   const isIT = ['technician','supervisor','admin'].includes(S.user.it_role)
   const isMe = t.assigned_to === S.user.id
 
@@ -876,7 +880,8 @@ function buildTicketTable(tickets) {
     const asgn = S.users.find(u => u.id === t.assigned_to)
     const slaDue = t.sla_resolution_due ? new Date(t.sla_resolution_due) : null
     const slaBreached = slaDue && slaDue < new Date() && !['resolved','closed'].includes(t.status)
-    const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+    const _done2 = ['resolved','closed'].includes(t.status)
+    const age = Math.floor(((_done2 && t.resolved_at ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
     tableHTML += '<tr onclick="viewTicket(\'' + t.id + '\')" style="cursor:pointer;">'
     tableHTML += '<td class="td-mono">' + t.id + '</td>'
     tableHTML += '<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><strong>' + t.subject + '</strong></td>'
@@ -1341,8 +1346,9 @@ async function renderKanban() {
     if (!colTickets.length) html += '<div style="text-align:center;padding:20px;color:var(--txt3);font-size:12px;">Empty</div>'
     colTickets.forEach(t => {
       const cat = S.categories.find(c => c.id === t.category_id)
-      const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
-      const slaBreached = t.sla_resolution_due && new Date(t.sla_resolution_due) < new Date()
+      const _done3 = ['resolved','closed'].includes(t.status)
+      const age = Math.floor(((_done3 && t.resolved_at ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
+      const slaBreached = !_done3 && t.sla_resolution_due && new Date(t.sla_resolution_due) < new Date()
       const isMe = t.assigned_to === S.user.id
       const isIT = ['technician','supervisor','admin'].includes(S.user.it_role)
       html += '<div class="kanban-card priority-' + t.priority + '" onclick="viewTicket(\'' + t.id + '\')">'
