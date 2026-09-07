@@ -946,7 +946,7 @@ function statC(icon, label, val, sub, color) {
 function ticketCard(t) {
   const claimedBy = S.users.find(u => u.id === t.claimed_by)
   const dept = S.departments.find(d => d.id === t.dept_id)
-  const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+  const age = Math.floor((((['resolved','closed'].includes(t.status) && t.resolved_at) ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
   const role = S.user.maintenance_role
   const isTech = ['technician','supervisor','admin'].includes(role)
   const isMe = t.claimed_by === S.user.id
@@ -1087,7 +1087,7 @@ function renderTicketsList(tickets, title) {
 function buildOneRow(t) {
   const dept = S.departments.find(d => d.id === t.dept_id)
   const claimed = S.users.find(u => u.id === t.claimed_by)
-  const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+  const age = Math.floor((((['resolved','closed'].includes(t.status) && t.resolved_at) ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
   // Top row: ticket ID + badges
   // Title — big and bold
   // Info row
@@ -1110,7 +1110,7 @@ function buildOneRow(t) {
 function buildOneCard(t) {
   const dept = S.departments.find(d => d.id === t.dept_id)
   const claimed = S.users.find(u => u.id === t.claimed_by)
-  const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+  const age = Math.floor((((['resolved','closed'].includes(t.status) && t.resolved_at) ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
   // Top row: ticket ID + badges
   // Title — big and bold
   // Info row
@@ -2702,7 +2702,7 @@ async function renderKanban() {
     colTickets.forEach(t => {
       const dept = S.departments.find(d => d.id === t.dept_id)
       const claimed = S.users.find(u => u.id === t.claimed_by)
-      const age = Math.floor((Date.now() - new Date(t.created_at)) / 3600000)
+      const age = Math.floor((((['resolved','closed'].includes(t.status) && t.resolved_at) ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
       const isMe = t.claimed_by === S.user.id
       html += '<div class="kanban-card priority-' + t.priority + '"' + (canDrag ? ' draggable="true" ondragstart="kanbanDragStart(event,\'' + t.id + '\',\'' + t.status + '\')" ondragend="kanbanDragEnd(event)"' : '') + ' data-tid="' + t.id + '" onclick="viewTicket(\'' + t.id + '\')">'
       html += '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">'
