@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-1'
+const APP_VERSION = '2026.09.07-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1327,8 +1327,24 @@ async function loadRequestsByDepts(deptIds) {
 }
 
 async function loadRequestItems(requestId) {
-  const { data } = await SB.from('request_items').select('*').eq('request_id', requestId)
-  return data || []
+  try {
+    const { data, error } = await SB.from('request_items').select('*').eq('request_id', requestId)
+    if (error) throw error
+    if (data && data.length) return data
+    // Fallback: use the cached hover index (different field names) if it has items.
+    const cached = state.itemsByRequest && state.itemsByRequest[requestId]
+    if (cached && cached.length) {
+      return cached.map(c => ({ item_name: c.name, quantity: c.qty, unit: c.unit, estimated_cost: 0, category: '' }))
+    }
+    return []
+  } catch(e) {
+    console.error('loadRequestItems', e)
+    const cached = state.itemsByRequest && state.itemsByRequest[requestId]
+    if (cached && cached.length) {
+      return cached.map(c => ({ item_name: c.name, quantity: c.qty, unit: c.unit, estimated_cost: 0, category: '' }))
+    }
+    return []
+  }
 }
 
 async function loadApprovals(requestId) {
