@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-11'
+const APP_VERSION = '2026.09.07-12'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6146,7 +6146,7 @@ async function loadCSRForIssuance(requestId) {
     html += '<tr' + (isDone ? ' style="opacity:.55;"' : '') + '>'
     // Checkbox — include this item in this issuance (unchecked = skip; disabled if done)
     html += '<td style="text-align:center;"><input type="checkbox" class="iss_item_chk" data-item-id="' + item.id + '"' + (isDone ? ' disabled' : ' checked') + ' onchange="onIssItemToggle(\'' + item.id + '\')" style="cursor:pointer;width:16px;height:16px;"></td>'
-    html += '<td><strong>' + escStk(item.item_name) + '</strong>' + (isDone ? ' <span style="font-size:10px;color:var(--green);">✓ Kumpleto na</span>' : '') + '</td>'
+    html += '<td><input type="text" class="iss_name_input" data-item-id="' + item.id + '" value="' + escStk(item.item_name||'') + '"' + (isDone ? ' disabled' : '') + ' oninput="syncIssName(\'' + item.id + '\')" style="width:100%;min-width:130px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-weight:600;">' + (isDone ? ' <span style="font-size:10px;color:var(--green);">✓</span>' : '') + '</td>'
     html += '<td>' + item.quantity + '</td>'
     html += '<td style="color:var(--txt2);">' + alreadyIssued + '</td>'
     html += '<td style="font-weight:600;color:' + (remaining>0?'var(--amber,#b8860b)':'var(--green)') + ';">' + remaining + '</td>'
@@ -6221,6 +6221,14 @@ function onIssActionChange_OLD2(itemId) {
     if (sel.value === 'for_po') { qty.style.opacity = '.5'; qty.title = 'Ide-forward sa Purchasing — hindi ii-issue ngayon.' }
     else { qty.style.opacity = '1'; qty.title = '' }
   }
+}
+
+// Keep the editable item NAME in sync with the qty input's data-item-name so the
+// (possibly corrected) name is what gets saved to the issuance + request item.
+function syncIssName(itemId) {
+  const nameEl = document.querySelector('.iss_name_input[data-item-id="' + itemId + '"]')
+  const qtyEl = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
+  if (qtyEl && nameEl) qtyEl.dataset.itemName = nameEl.value.trim()
 }
 
 function syncIssUnit(itemId) {
@@ -6736,12 +6744,13 @@ async function saveIssuance() {
       })
 
       // Add to the request item's cumulative issued qty (for follow-up tracking),
-      // and persist any edited unit (e.g. box → pcs).
+      // and persist any edited unit and item name (corrections made in the form).
       if (realReqItemId) {
         const { data: ri } = await SB.from('request_items').select('quantity_issued').eq('id', realReqItemId).single()
         const prev = Number(ri?.quantity_issued) || 0
         const upd = { quantity_issued: prev + item.quantity_issued }
         if (item.unit) upd.unit = item.unit
+        if (item.item_name) upd.item_name = item.item_name
         await SB.from('request_items').update(upd).eq('id', realReqItemId)
       }
 
@@ -6785,7 +6794,10 @@ async function saveIssuance() {
         const pq = Number(pin.value)
         if (!rid || rid.startsWith('man_') || pq <= 0) continue
         try {
-          await SB.from('request_items').update({ fulfillment_type: 'for_po', quantity_for_po: pq }).eq('id', rid)
+          const upd = { fulfillment_type: 'for_po', quantity_for_po: pq }
+          if (pin.dataset.itemName) upd.item_name = pin.dataset.itemName
+          if (pin.dataset.unit) upd.unit = pin.dataset.unit
+          await SB.from('request_items').update(upd).eq('id', rid)
           hasPoSplit = true
         } catch(_) {}
       }
