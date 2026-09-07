@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-14'
+const APP_VERSION = '2026.09.07-15'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -9452,7 +9452,9 @@ async function renderReports() {
 // ═══════════════════════════════════════════
 let issRptState = {
   rows: [],            // flattened per-item rows
-  filters: { search:'', dept:'', from:'', to:'', scenario:'', status:'', stock:'' }
+  // Default status = 'confirmed' — the report shows COMPLETED issuances (received &
+  // confirmed) only. Officer can switch to Pending/All via the filter if needed.
+  filters: { search:'', dept:'', from:'', to:'', scenario:'', status:'confirmed', stock:'' }
 }
 
 // ═══════════════════════════════════════════
@@ -9672,7 +9674,7 @@ async function renderIssuanceReport() {
   deptOpts.forEach(d => { html += '<option value="'+d.id+'"'+(issRptState.filters.dept===d.id?' selected':'')+'>'+escStk(d.dept_name)+'</option>' })
   html += '</select>'
   html += '<select id="ir_scenario" onchange="issRptState.filters.scenario=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Types</option><option value="from_stock">📦 From Stock</option><option value="after_po">🚚 After PO</option></select>'
-  html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Status</option><option value="confirmed">✅ Confirmed</option><option value="pending">⏳ Pending</option></select>'
+  html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="confirmed"' + (issRptState.filters.status==='confirmed'?' selected':'') + '>✅ Confirmed (tapos na)</option><option value="pending"' + (issRptState.filters.status==='pending'?' selected':'') + '>⏳ Pending</option><option value=""' + (issRptState.filters.status===''?' selected':'') + '>Lahat</option></select>'
   html += '<span style="font-size:11px;color:var(--txt3);">📅</span>'
   html += '<input type="date" id="ir_from" value="'+escStk(issRptState.filters.from)+'" onchange="issRptState.filters.from=this.value;applyIssRptFilters()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
   html += '<span style="font-size:11px;color:var(--txt3);">→</span>'
