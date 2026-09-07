@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-14'
+const APP_VERSION = '2026.09.07-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6086,7 +6086,7 @@ async function loadCSRForIssuance(requestId) {
     html += '<td>' + item.quantity + '</td>'
     html += '<td style="color:var(--txt2);">' + alreadyIssued + '</td>'
     html += '<td style="font-weight:600;color:' + (remaining>0?'var(--amber,#b8860b)':'var(--green)') + ';">' + remaining + '</td>'
-    html += '<td>' + (item.unit||'pcs') + '</td>'
+    html += '<td><input type="text" class="iss_unit_input" data-item-id="' + item.id + '" value="' + escStk(item.unit||'pcs') + '"' + (isDone ? ' disabled' : '') + ' oninput="syncIssUnit(\'' + item.id + '\')" style="width:60px;padding:4px 6px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);text-align:center;"></td>'
     // No max cap — supply officer may over-issue if needed
     html += '<td><input type="number" class="iss_qty_input" data-item-id="' + item.id + '" data-stock-id="' + (stockItem?stockItem.id:'') + '" data-item-name="' + escStk(item.item_name||item.name||'Item') + '" data-unit="' + escStk(item.unit||'pcs') + '" min="0" value="' + defaultIssue + '"' + (isDone ? ' disabled' : '') + ' style="width:70px;padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
     html += '<td style="font-size:12px;color:' + stockColor + ';">' + stockLabel + '</td>'
@@ -6117,6 +6117,14 @@ function addManualIssItem() {
 
 // Keep the manual item's name/unit in sync onto the qty input's data attributes,
 // so both the review step and saveIssuance can read them (fixes items not saving).
+// Keep the editable UNIT column in sync with the qty input's data-unit, so the
+// (possibly corrected) unit is what gets saved.
+function syncIssUnit(itemId) {
+  const unitEl = document.querySelector('.iss_unit_input[data-item-id="' + itemId + '"]')
+  const qtyEl = document.querySelector('.iss_qty_input[data-item-id="' + itemId + '"]')
+  if (qtyEl && unitEl) qtyEl.dataset.unit = unitEl.value.trim() || 'pcs'
+}
+
 function syncManualIssName(manId) {
   const nameEl = document.querySelector('.iss_man_name[data-for="' + manId + '"]')
   const unitEl = document.querySelector('.iss_man_unit[data-for="' + manId + '"]')
