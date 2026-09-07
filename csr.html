@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-13'
+const APP_VERSION = '2026.09.07-14'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3605,6 +3605,28 @@ async function submitRequest(id) {
 // ═══════════════════════════════════════════
 // INCOMING DELIVERIES
 // ═══════════════════════════════════════════
+// Lazy-load a PO's items into its delivery card when expanded, so the Supply Officer
+// can see exactly what's arriving before receiving it.
+async function loadDeliveryItems(poId) {
+  const wrap = document.getElementById('delivItems_' + poId)
+  if (!wrap || wrap.dataset.loaded === '1') return
+  try {
+    const { data: items } = await SB.from('po_items').select('*').eq('po_id', poId)
+    if (!items || !items.length) { wrap.innerHTML = 'Walang naka-list na item.'; wrap.dataset.loaded = '1'; return }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    html += '<thead><tr style="color:var(--txt3);text-align:left;"><th style="padding:4px 8px;">Item</th><th style="padding:4px;width:60px;">Dami</th><th style="padding:4px;width:50px;">Unit</th><th style="padding:4px;width:90px;">Presyo</th></tr></thead><tbody>'
+    items.forEach(it => {
+      html += '<tr style="border-top:1px solid var(--bdr);"><td style="padding:4px 8px;color:var(--txt);">' + escStk(it.item_name||'Item') + '</td>'
+      html += '<td style="padding:4px;text-align:center;">' + (it.quantity||0) + '</td>'
+      html += '<td style="padding:4px;text-align:center;">' + escStk(it.unit||'pcs') + '</td>'
+      html += '<td style="padding:4px;">₱' + Number(it.unit_price||0).toLocaleString() + '</td></tr>'
+    })
+    html += '</tbody></table>'
+    wrap.innerHTML = html
+    wrap.dataset.loaded = '1'
+  } catch(e) { wrap.innerHTML = 'Error loading items.'; console.warn('loadDeliveryItems', e.message) }
+}
+
 async function renderIncomingDeliveries() {
   const content = document.getElementById('mainContent')
   const role = state.user.csr_role
@@ -3664,6 +3686,9 @@ async function renderIncomingDeliveries() {
       html += '<div><span style="color:var(--txt3);">Total</span><br><strong style="color:var(--accent);">₱' + Number(po.total_amount || 0).toLocaleString() + '</strong></div>'
       html += '<div><span style="color:var(--txt3);">Purpose</span><br><strong>' + (req?.purpose?.substring(0, 30) || '—') + '</strong></div>'
       html += '</div>'
+      // Items in this delivery — so the Supply Officer sees what's arriving.
+      html += '<details style="margin-top:10px;" ontoggle="if(this.open)loadDeliveryItems(\'' + po.id + '\')"><summary style="cursor:pointer;font-size:12px;color:var(--accent);font-weight:600;">📋 Tignan ang mga item na darating</summary>'
+      html += '<div id="delivItems_' + po.id + '" style="margin-top:8px;font-size:12px;color:var(--txt3);">Loading...</div></details>'
       html += '</div>'
 
       // Action button — Supply Officer only can receive
