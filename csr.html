@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.05-12'
+const APP_VERSION = '2026.09.05-13'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1342,9 +1342,20 @@ async function loadStats() {
     const role = state.user.csr_role
     const approvalLevel = roleApprovalLevel(role)
 
-    // Base approval queue count
+    // Base approval queue count — MUST be scoped to what THIS user can actually act on.
     let approvalQueueQuery
-    if (approvalLevel !== null) {
+    if (role === 'dept_head') {
+      // Dept head: only Level-1 requests in the departments they head, excluding their own.
+      const myDepts = state.myHeadedDeptIds || []
+      if (myDepts.length) {
+        approvalQueueQuery = SB.from('requests').select('id', { count: 'exact', head: true })
+          .eq('status', 'pending_approval').eq('current_approval_level', 1)
+          .in('dept_id', myDepts).neq('requested_by', uid).neq('request_type','derp')
+      } else {
+        approvalQueueQuery = Promise.resolve({ count: 0 })
+      }
+    } else if (approvalLevel !== null) {
+      // Supply/Purchasing officers act on their level across all departments.
       approvalQueueQuery = SB.from('requests').select('id', { count: 'exact', head: true })
         .eq('status', 'pending_approval').eq('current_approval_level', approvalLevel).neq('request_type','derp')
     } else if (role === 'admin') {
