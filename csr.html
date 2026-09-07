@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-5'
+const APP_VERSION = '2026.09.07-6'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4612,7 +4612,7 @@ function buildPOItemRows() {
     rows += '<td><input type="text" placeholder="Description" value="' + (row.item_description||'') + '" oninput="updatePOItem(' + row.id + ',\'item_description\',this.value)"></td>'
     rows += '<td><input type="number" min="1" value="' + (row.quantity||1) + '" oninput="updatePOItem(' + row.id + ',\'quantity\',this.value);updatePOTotal()"></td>'
     rows += '<td><input type="text" placeholder="pcs" value="' + (row.unit||'pcs') + '" oninput="updatePOItem(' + row.id + ',\'unit\',this.value)"></td>'
-    rows += '<td><input type="number" min="0" step="0.01" placeholder="0.00" value="' + (row.unit_price||'') + '" oninput="updatePOItem(' + row.id + ',\'unit_price\',this.value);updatePOTotal()"></td>'
+    rows += '<td><input type="text" inputmode="decimal" placeholder="0.00" value="' + (row.unit_price||'') + '" oninput="updatePOItem(' + row.id + ',\'unit_price\',this.value.replace(/[^0-9.]/g,\'\'));updatePOTotal()" style="text-align:right;"></td>'
     rows += '<td style="font-size:12px;font-weight:600;color:var(--txt2);">₱' + total + '</td>'
     rows += '<td><button class="remove-row" onclick="removePOItem(' + row.id + ')" ' + (state.itemRows.length<=1?'disabled':'') + '>✕</button></td>'
     rows += '</tr>'
@@ -4634,14 +4634,25 @@ function removePOItem(id) {
 
 function updatePOItem(id, field, value) {
   const row = state.itemRows.find(r => r.id === id)
-  if (row) row[field] = value
+  if (row) {
+    row[field] = value
+    // Update this row's line total in place (no full re-render → keeps input focus).
+    if (field === 'unit_price' || field === 'quantity') {
+      const rowEl = document.getElementById('po_row_' + id)
+      if (rowEl) {
+        const totalCell = rowEl.querySelector('td:nth-child(6)')
+        if (totalCell) totalCell.innerHTML = '₱' + (Number(row.quantity||0) * Number(row.unit_price||0)).toLocaleString()
+      }
+    }
+  }
 }
 
 function updatePOTotal() {
+  // Only update the grand total — do NOT rebuild the whole table (that steals focus
+  // from the price/qty field the user is typing in).
   const total = state.itemRows.reduce((s, r) => s + (Number(r.quantity) * Number(r.unit_price || 0)), 0)
   const el = document.getElementById('po_total_display')
   if (el) el.textContent = 'Total: ₱' + total.toLocaleString()
-  document.getElementById('poItemsBody').innerHTML = buildPOItemRows()
 }
 
 async function loadCSRItemsForPO(requestId) {
