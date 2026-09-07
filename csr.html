@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-4'
+const APP_VERSION = '2026.09.07-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6601,6 +6601,9 @@ async function saveIssuance() {
       const itemId = input.dataset.itemId
       const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
       if (chk && !chk.checked) return
+      // Skip items marked "For PO" — they are NOT issued from stock.
+      const actionSel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
+      if (actionSel && actionSel.value === 'for_po') return
       const qty = Number(input.value)
       if (qty > 0) {
         issItems.push({
