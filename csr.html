@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-12'
+const APP_VERSION = '2026.09.07-13'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2394,7 +2394,19 @@ async function viewRequest(id) {
     body += '<div style="background:var(--surf2);padding:10px 14px;border-radius:9px;font-size:13px;border:1px solid var(--bdr);">' + req.purpose + '</div></div>'
   }
 
-  // Items table
+  // For the Purchasing Officer, lead with the "For PO" section (what they need to buy)
+  // and tuck the full Requested Items + Actually Issued away in a collapsible — they
+  // rarely need those, so keep the view focused on what to purchase.
+  const isPurchasingView = role === 'purchasing_officer'
+
+  if (isPurchasingView && req.request_type !== 'derp') {
+    body += '<div id="forPoSection" style="margin-bottom:16px;"></div>'
+  }
+
+  // Items table (collapsible for purchasing officer)
+  if (isPurchasingView) {
+    body += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;padding:4px 0;">▸ Buong Request (Requested Items + Naibigay na)</summary><div style="margin-top:10px;">'
+  }
   body += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Requested Items</div>'
   if (items.length === 0) {
     body += '<p style="color:var(--txt2);font-size:13px;">No items listed.</p>'
@@ -2413,10 +2425,16 @@ async function viewRequest(id) {
   }
   body += '</div>'
 
-  // Actually Issued section — shows what was really given out (including manual items
-  // the supply officer added, e.g. extras not in the original request). Loaded async.
+  // Actually Issued — for purchasing this goes INSIDE the collapsible; for others it's
+  // its own section below.
   if (req.request_type !== 'derp') {
     body += '<div id="actuallyIssuedSection" style="margin-bottom:16px;"></div>'
+  }
+
+  if (isPurchasingView) {
+    body += '</div></details>'  // close collapsible
+  } else if (req.request_type !== 'derp') {
+    // Non-purchasing roles: For PO section shows after Actually Issued.
     body += '<div id="forPoSection" style="margin-bottom:16px;"></div>'
   }
   // Approval stepper
@@ -2498,9 +2516,20 @@ async function loadForPoItems(reqId) {
   const wrap = document.getElementById('forPoSection')
   if (!wrap) return
   try {
-    const { data: items } = await SB.from('request_items')
+    // Flagged for_po items (split). If none flagged but the whole request is a PO
+    // (status for_po and no split), show ALL items — the entire request is to be bought.
+    let { data: items } = await SB.from('request_items')
       .select('item_name,quantity,quantity_for_po,unit,fulfillment_type,estimated_cost')
       .eq('request_id', reqId).eq('fulfillment_type', 'for_po')
+    if (!items || !items.length) {
+      const { data: reqRow } = await SB.from('requests').select('status,has_po_split').eq('id', reqId).maybeSingle()
+      if (reqRow && reqRow.status === 'for_po' && !reqRow.has_po_split) {
+        const { data: allItems } = await SB.from('request_items')
+          .select('item_name,quantity,quantity_for_po,unit,fulfillment_type,estimated_cost')
+          .eq('request_id', reqId)
+        items = allItems || []
+      }
+    }
     if (!items || !items.length) { wrap.innerHTML = ''; return }
     let html = '<div style="font-size:11px;font-weight:600;color:var(--accent,#2222A8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🛒 For Purchase Order (need to buy)</div>'
     html += '<div style="border:1px solid var(--accent,#2222A8);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
