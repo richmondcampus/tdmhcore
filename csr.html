@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.07-15'
+const APP_VERSION = '2026.09.08-6'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1542,7 +1542,7 @@ async function renderDashboard() {
   html += '<div class="page-header">'
   html += '<h2>👋 Good day, ' + state.user.full_name.split(' ')[0] + '</h2>'
   html += '<div class="page-header-actions" style="display:flex;gap:8px;">'
-  if (['requester','dept_head','supply_officer','admin'].includes(role)) {
+  if (['requester','dept_head','supply_officer','purchasing_officer','admin'].includes(role)) {
     html += '<button class="btn btn-primary" onclick="openNewRequestModal()">＋ New Request</button>'
   }
   html += '</div></div>'
@@ -1813,7 +1813,7 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '<div class="page-header">'
   html += '<div><h2>' + title + '</h2><p style="font-size:13px;color:var(--txt2);">' + subtitle + '</p></div>'
   html += '<div class="page-header-actions">'
-  if (['requester','dept_head','supply_officer','admin'].includes(state.user.csr_role)) {
+  if (['requester','dept_head','supply_officer','purchasing_officer','admin'].includes(state.user.csr_role)) {
     html += '<button class="btn btn-primary" onclick="openNewRequestModal()">＋ New Request</button>'
   }
   html += '</div></div>'
@@ -1829,6 +1829,10 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '</select>'
   html += '<select onchange="filterRequests(this.value,\'urgency\')" id="filterUrgency"><option value="">All Urgency</option>'
   ;['routine','urgent','emergency'].forEach(u => { html += '<option value="' + u + '">' + u.charAt(0).toUpperCase()+u.slice(1) + '</option>' })
+  html += '</select>'
+  // Department filter — find requests from a specific department quickly.
+  html += '<select onchange="filterRequests(this.value,\'dept\')" id="filterDept"><option value="">🏢 All Depts</option>'
+  ;(state.departments||[]).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).forEach(d => { html += '<option value="' + d.id + '">' + escStk(d.dept_name) + '</option>' })
   html += '</select>'
   html += '</div>'
 
@@ -1943,10 +1947,12 @@ function filterRequests(val, field) {
   const status = document.getElementById('filterStatus') ? document.getElementById('filterStatus').value : ''
   const type = document.getElementById('filterType') ? document.getElementById('filterType').value : ''
   const urgency = document.getElementById('filterUrgency') ? document.getElementById('filterUrgency').value : ''
+  const dept = document.getElementById('filterDept') ? document.getElementById('filterDept').value : ''
   const search = document.getElementById('filterReqSearch') ? document.getElementById('filterReqSearch').value.trim().toLowerCase() : ''
   if (status) filtered = filtered.filter(r => r.status === status)
   if (type) filtered = filtered.filter(r => r.request_type === type)
   if (urgency) filtered = filtered.filter(r => r.urgency === urgency)
+  if (dept) filtered = filtered.filter(r => r.dept_id === dept)
   if (search) {
     filtered = filtered.filter(r => {
       const items = (state.itemsByRequest && state.itemsByRequest[r.id]) || []
@@ -2411,16 +2417,26 @@ async function viewRequest(id) {
   if (items.length === 0) {
     body += '<p style="color:var(--txt2);font-size:13px;">No items listed.</p>'
   } else {
-    body += '<div class="detail-table-wrap"><table><thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>Est. Cost</th><th>Category</th></tr></thead><tbody>'
+    body += '<div class="detail-table-wrap"><table><thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>Est. Cost</th><th>Category</th><th></th></tr></thead><tbody>'
+    const canRemove = ['supply_officer','admin'].includes(role) && !['issued','cancelled','rejected'].includes(req.status)
     items.forEach((item, i) => {
-      body += '<tr><td style="color:var(--txt2);">' + (i+1) + '</td><td><strong>' + item.item_name + '</strong>'
+      const removed = item.is_removed
+      body += '<tr' + (removed ? ' style="opacity:.5;"' : '') + '><td style="color:var(--txt2);">' + (i+1) + '</td><td>'
+      body += '<strong' + (removed ? ' style="text-decoration:line-through;"' : '') + '>' + item.item_name + '</strong>'
+      if (removed) body += ' <span style="font-size:10px;color:var(--red);background:var(--red-a,rgba(240,80,80,.12));padding:1px 7px;border-radius:5px;font-weight:700;">REMOVED</span>'
+      if (removed && item.removed_reason) body += '<br><span style="font-size:10px;color:var(--txt3);">Dahilan: ' + escStk(item.removed_reason) + '</span>'
       if (item.item_description) body += '<br><span style="font-size:11px;color:var(--txt2);">' + item.item_description + '</span>'
       body += '</td><td>' + item.quantity + '</td><td>' + (item.unit || '—') + '</td>'
       body += '<td>₱' + (item.estimated_cost ? Number(item.estimated_cost).toLocaleString() : '—') + '</td>'
-      body += '<td>' + (item.category ? item.category : '—') + '</td></tr>'
+      body += '<td>' + (item.category ? item.category : '—') + '</td>'
+      // Remove button (supply officer) — only for not-yet-removed, not-yet-issued items
+      if (canRemove && !removed && Number(item.quantity_issued||0) === 0) {
+        body += '<td><button class="btn btn-ghost btn-sm" onclick="removeRequestItem(\'' + item.id + '\',\'' + req.id + '\')" title="Alisin ang item (hal. duplicate)" style="color:var(--red);padding:2px 8px;font-size:11px;">🗑 Remove</button></td>'
+      } else { body += '<td></td>' }
+      body += '</tr>'
     })
-    const total = items.reduce((s, i) => s + (Number(i.estimated_cost) * Number(i.quantity)), 0)
-    body += '<tr><td colspan="4" style="text-align:right;font-weight:600;">Total Est.</td><td colspan="2"><strong>₱' + total.toLocaleString() + '</strong></td></tr>'
+    const total = items.filter(x=>!x.is_removed).reduce((s, i) => s + (Number(i.estimated_cost) * Number(i.quantity)), 0)
+    body += '<tr><td colspan="4" style="text-align:right;font-weight:600;">Total Est.</td><td colspan="3"><strong>₱' + total.toLocaleString() + '</strong></td></tr>'
     body += '</tbody></table></div>'
   }
   body += '</div>'
@@ -2512,6 +2528,21 @@ async function viewRequest(id) {
 
 // Show items flagged "For PO" (need purchasing) as a distinct section, so the
 // Purchasing Officer sees exactly what to buy — separate from what was already issued.
+// Supply officer removes a specific request item (e.g. duplicate). Keeps a record
+// with a "removed" label + reason instead of deleting outright.
+async function removeRequestItem(itemId, reqId) {
+  const reason = prompt('Bakit inaalis ang item na ito? (hal. duplicate, mali, hindi na kailangan)')
+  if (reason === null) return  // cancelled
+  try {
+    await SB.from('request_items').update({
+      is_removed: true, removed_reason: (reason||'').trim() || 'Inalis ng supply officer',
+      removed_by: state.user.id, removed_at: new Date().toISOString()
+    }).eq('id', itemId)
+    showToast('success','Na-remove','Naka-label na "removed" ang item.')
+    viewRequest(reqId)  // refresh detail
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
 async function loadForPoItems(reqId) {
   const wrap = document.getElementById('forPoSection')
   if (!wrap) return
@@ -2772,6 +2803,7 @@ function renderNewRequestForm(reqType) {
   html += '</tr></thead><tbody id="itemsBody">'
   html += buildItemRows()
   html += '</tbody></table></div>'
+  html += '<datalist id="unitOptions"><option value="pcs"><option value="box"><option value="ream"><option value="liters"><option value="gal"><option value="sets"><option value="meters"><option value="rolls"><option value="packs"><option value="bottles"><option value="kit"><option value="bundle"><option value="tray"><option value="tube"><option value="can"><option value="sachet"><option value="pack"><option value="dozen"></datalist>'
   html += '<button class="btn btn-ghost btn-sm" onclick="addItemRow()" style="margin-top:8px;">＋ Add Item</button>'
   html += '</div>'
 
@@ -3086,11 +3118,7 @@ function buildItemRows() {
     html += ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();handleItemEnter(' + row.id + ')}"></td>'
     html += '<td><input type="text" placeholder="Description" value="' + (row.item_description||'') + '" oninput="updateItemRow(' + row.id + ',\'item_description\',this.value)"></td>'
     html += '<td><input type="number" min="1" value="' + (row.quantity||1) + '" oninput="updateItemRow(' + row.id + ',\'quantity\',this.value);recomputeItemTotal(' + row.id + ')"></td>'
-    html += '<td><select onchange="updateItemRow(' + row.id + ',\'unit\',this.value);clearItemPrice(' + row.id + ',this.value)" style="font-size:12px;padding:4px 2px;">'
-    ;['pcs','box','ream','liters','sets','meters','rolls','packs','bottles','kit','bundle','gal','tray'].forEach(u => {
-      html += '<option value="' + u + '"' + (row.unit===u?' selected':'') + '>' + u + '</option>'
-    })
-    html += '</select></td>'
+    html += '<td><input type="text" list="unitOptions" value="' + escStk(row.unit||'pcs') + '" oninput="updateItemRow(' + row.id + ',\'unit\',this.value);clearItemPrice(' + row.id + ',this.value)" placeholder="unit" style="font-size:12px;padding:4px 6px;width:70px;"></td>'
     // Cost cell — shows total (unit_price × qty), source icon
     const unitPrice = row.unit_price || row.estimated_cost || 0
     const total = unitPrice * (Number(row.quantity) || 1)
@@ -5892,14 +5920,16 @@ function buildIssuanceRows(issuances) {
   let rows = ''
   for (const iss of issuances) {
     const reqInfo = state.requests?.find(r => r.id === iss.request_id)
-    const dept = reqInfo ? state.departments.find(d => d.id === reqInfo.dept_id) : null
+    // Department: blank issuances carry their own dept_id; linked ones use the request's.
+    const deptId = iss.dept_id || reqInfo?.dept_id
+    const dept = deptId ? state.departments.find(d => d.id === deptId) : null
     const isConfirmed = !!iss.confirmed_at
     const isAuto = iss.confirmation_method === 'auto'
     const emailSent = !!iss.email_sent
 
     rows += '<tr onclick="viewIssuance(\'' + iss.id + '\')" style="cursor:pointer;">'
     rows += '<td class="td-mono" onmouseenter="showIssHover(event,\'' + iss.id + '\')" onmouseleave="hideIssHover()" style="position:relative;">' + iss.issuance_no + ' <span style="font-size:10px;color:var(--txt3);">ⓘ</span></td>'
-    rows += '<td style="font-size:12px;color:var(--txt2);">' + (reqInfo?.request_no || '—') + '</td>'
+    rows += '<td style="font-size:12px;color:var(--txt2);">' + (reqInfo?.request_no || (iss.request_id ? '—' : '⚡ Blank')) + '</td>'
     rows += '<td style="font-size:12px;">' + (dept?.dept_name || '—') + '</td>'
     rows += '<td><span class="badge ' + (iss.scenario === 'from_stock' ? 'badge-approved' : 'badge-issued') + '">' + (iss.scenario === 'from_stock' ? '📦 From Stock' : '🚚 After PO') + '</span></td>'
     rows += '<td>' + (emailSent
@@ -7075,7 +7105,10 @@ async function viewIssuance(id) {
   body += infoField('Request No.', isBlank ? '⚡ Blank (walang request)' : (reqData?.request_no || '—'))
   body += infoField('Department', dept?.dept_name || '—')
   body += infoField('Issued By', issuedBy?.full_name || '—')
-  body += infoField('Date Issued', formatDate(iss.issued_at))
+  body += infoField('Date Prepared', formatDate(iss.issued_at))
+  // Date Issued = when the department actually received & confirmed it (blank until then).
+  const receivedAt = iss.confirmed_at || iss.online_confirmed_at
+  body += infoField('Date Issued (Received)', receivedAt ? formatDate(receivedAt) : '⏳ Hindi pa nakukuha')
   if (isBlank && iss.receiver_name) body += infoField('Received By', iss.receiver_name)
   body += infoField('Scenario', iss.scenario === 'from_stock' ? '📦 From Stock' : '🚚 After PO')
   body += infoField('Purpose', isBlank ? (iss.remarks || '—') : (reqData?.purpose || '—'))
@@ -9702,6 +9735,7 @@ function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, si
   return {
     issuance_no: iss.issuance_no || '',
     date: iss.issued_at ? iss.issued_at.split('T')[0] : '',
+    dateReceived: (iss.confirmed_at || iss.online_confirmed_at) ? (iss.confirmed_at || iss.online_confirmed_at).split('T')[0] : '',
     request_no: iss.request_id ? (req?.request_no || '') : 'Blank (walang request)',
     department: dept?.dept_name || '',
     dept_id: (iss.dept_id || req?.dept_id) || '',
@@ -9783,9 +9817,9 @@ async function exportIssuanceReport(fmt) {
   const list = getFilteredIssRptRows()
   if (!list.length) { showToast('info','No Data','Walang record na i-e-export.'); return }
 
-  const headers = ['Issuance No.','Date Issued','Request No.','Department','Item','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
+  const headers = ['Issuance No.','Date Prepared','Date Received','Request No.','Department','Item','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
   const dataRows = list.map(r => [
-    r.issuance_no, r.date, r.request_no, r.department, r.item, r.qty, r.unit,
+    r.issuance_no, r.date, (r._confirmed ? (r.dateReceived||r.date) : ''), r.request_no, r.department, r.item, r.qty, r.unit,
     r.from_stock, r.received_by, r.issued_by, r.status,
     r.confirmation === 'photo' ? 'Photo' : r.confirmation === 'online_link' ? 'Online Link' : (r.confirmation||''),
     r.scenario === 'from_stock' ? 'From Stock' : r.scenario === 'after_po' ? 'After PO' : (r.scenario||'')
@@ -10798,6 +10832,7 @@ function formatDate(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
   return d.toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' })
+    + ' ' + d.toLocaleTimeString('en-PH', { hour:'numeric', minute:'2-digit', hour12:true })
 }
 
 async function toggleStockGuard(makeStrict) {
