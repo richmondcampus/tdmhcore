@@ -790,7 +790,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-11'
+const APP_VERSION = '2026.09.08-12'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6009,11 +6009,12 @@ async function renderIssuance() {
     html += '<div class="empty-state"><div class="empty-icon">📤</div><h3>No issuances yet</h3><p>Create an issuance from an approved CSR request.</p></div>'
   } else {
     html += '<div style="font-size:12px;color:var(--txt2);margin-bottom:8px;"><span id="iss_result_count">' + issState.issuances.length + ' result' + (issState.issuances.length !== 1 ? 's' : '') + '</span></div>'
-    html += '<div class="table-wrap"><table><thead><tr>'
+    html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
     html += '<th>Issuance No.</th><th>Request No.</th><th>Department</th><th>Scenario</th><th>Email</th><th>Status</th><th>Date</th><th></th>'
     html += '</tr></thead><tbody id="issTableBody">'
     html += buildIssuanceRows(issState.issuances)
     html += '</tbody></table></div>'
+    html += '<div class="mobile-cards" id="issMobileCards">' + buildIssuanceCards(issState.issuances) + '</div>'
   }
 
   content.innerHTML = html
@@ -6052,6 +6053,32 @@ function buildIssuanceRows(issuances) {
     rows += '</tr>'
   }
   return rows
+}
+
+// Mobile card view of the issuance list (no horizontal scroll).
+function buildIssuanceCards(issuances) {
+  let cards = ''
+  for (const iss of issuances) {
+    const reqInfo = iss.request_id ? (issState.reqLookup?.[iss.request_id] || state.requests?.find(r => r.id === iss.request_id)) : null
+    const deptId = iss.dept_id || reqInfo?.dept_id
+    const dept = deptId ? state.departments.find(d => d.id === deptId) : null
+    const isConfirmed = !!iss.confirmed_at
+    const isAuto = iss.confirmation_method === 'auto'
+    const statusHtml = isAuto ? '<span style="color:var(--green);">✅ Auto</span>'
+      : isConfirmed ? '<span style="color:var(--green);">✅ ' + formatDate(iss.confirmed_at) + '</span>'
+      : '<span style="color:var(--amber,#b8860b);">⏳ Pending</span>'
+    cards += '<div onclick="viewIssuance(\'' + iss.id + '\')" style="background:var(--surf1);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;cursor:pointer;">'
+    cards += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+    cards += '<span style="font-family:monospace;font-weight:700;color:var(--accent);">' + iss.issuance_no + '</span>'
+    cards += '<span class="badge ' + (iss.scenario === 'from_stock' ? 'badge-approved' : 'badge-issued') + '" style="font-size:10px;">' + (iss.scenario === 'from_stock' ? '📦 Stock' : '🚚 PO') + '</span></div>'
+    cards += '<div style="font-size:12px;color:var(--txt2);line-height:1.6;">'
+    cards += '📋 ' + (reqInfo?.request_no || (iss.request_id ? '—' : '⚡ Blank')) + '<br>'
+    cards += '🏢 ' + (dept?.dept_name || '—') + '<br>'
+    cards += '📅 ' + formatDate(iss.issued_at) + '<br>'
+    cards += '<span style="font-weight:600;">Status:</span> ' + statusHtml
+    cards += '</div></div>'
+  }
+  return cards
 }
 
 let _issHoverTimer = null
@@ -6176,6 +6203,9 @@ function applyIssuanceFilters() {
       ? buildIssuanceRows(list)
       : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang issuance sa filter na ito.</td></tr>'
   }
+  // Mobile cards
+  const mc = document.getElementById('issMobileCards')
+  if (mc) mc.innerHTML = list.length ? buildIssuanceCards(list) : '<div style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang issuance.</div>'
   // Live count
   const cnt = document.getElementById('iss_result_count')
   if (cnt) cnt.textContent = list.length + ' result' + (list.length !== 1 ? 's' : '')
@@ -8468,11 +8498,12 @@ async function renderDerp() {
   if (requests.length === 0) {
     html += '<div class="empty-state"><div class="empty-icon">♻️</div><h3>No DERP requests yet</h3><p>Submit a DERP request when equipment needs repair or replacement evaluation.</p></div>'
   } else {
-    html += '<div class="table-wrap"><table><thead><tr>'
+    html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
     html += '<th>Request No.</th><th>Category</th><th>Asset</th><th>Decision</th><th>Status</th><th>SLA</th><th>Date</th><th></th>'
     html += '</tr></thead><tbody id="derpTableBody">'
     html += buildDerpRows(requests)
     html += '</tbody></table></div>'
+    html += '<div class="mobile-cards" id="derpMobileCards">' + buildDerpCards(requests) + '</div>'
   }
 
   content.innerHTML = html
@@ -8509,6 +8540,34 @@ function buildDerpRows(requests) {
   return rows
 }
 
+// Mobile card view of the DERP list (no horizontal scroll).
+function buildDerpCards(requests) {
+  let cards = ''
+  for (const r of requests) {
+    const cat = DERP_CATEGORIES[r.derp_category] || {}
+    const slaHours = r.derp_sla_hours || 48
+    const hoursElapsed = Math.floor((Date.now() - new Date(r.created_at)) / 3600000)
+    const slaStatus = r.status === 'closed' ? 'closed' : hoursElapsed > slaHours ? 'breached' : hoursElapsed > slaHours * 0.75 ? 'warning' : 'ok'
+    const slaColors = { ok: 'var(--green)', warning: 'var(--amber,#b8860b)', breached: 'var(--red)', closed: 'var(--txt3)' }
+    const slaLabel = r.status === 'closed' ? '—' : hoursElapsed + 'h / ' + slaHours + 'h'
+    let decision = '<span style="color:var(--txt3);">Pending</span>'
+    if (r.derp_decision === 'for_repair') decision = '<span class="badge badge-approved">For Repair</span>'
+    else if (r.derp_decision === 'for_replacement') decision = '<span class="badge badge-derp">For Replacement</span>'
+    cards += '<div onclick="viewDerp(\'' + r.id + '\')" style="background:var(--surf1);border:1px solid var(--bdr);border-radius:12px;padding:12px 14px;cursor:pointer;">'
+    cards += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+    cards += '<span style="font-family:monospace;font-weight:700;color:var(--accent);">' + r.request_no + '</span>'
+    cards += derpStatusBadge(r.status) + '</div>'
+    cards += '<div style="font-size:12px;color:var(--txt2);line-height:1.6;">'
+    cards += (cat.icon || '♻️') + ' ' + (cat.label || r.derp_category || '—') + '<br>'
+    cards += '🔧 ' + (r.asset_condition_notes || r.purpose || '—') + '<br>'
+    cards += '<span style="font-weight:600;">Decision:</span> ' + decision + '<br>'
+    cards += '<span style="font-weight:600;">SLA:</span> <span style="color:' + slaColors[slaStatus] + ';font-family:monospace;">' + slaLabel + '</span><br>'
+    cards += '📅 ' + formatDate(r.created_at)
+    cards += '</div></div>'
+  }
+  return cards
+}
+
 function filterDerpTable(catVal) {
   const content = document.getElementById('mainContent')
   const requests = content._derpRequests || []
@@ -8520,6 +8579,8 @@ function filterDerpTable(catVal) {
   if (status) filtered = filtered.filter(r => r.status === status)
   const tbody = document.getElementById('derpTableBody')
   if (tbody) tbody.innerHTML = buildDerpRows(filtered)
+  const dmc = document.getElementById('derpMobileCards')
+  if (dmc) dmc.innerHTML = buildDerpCards(filtered)
 }
 
 function derpStatusBadge(status) {
