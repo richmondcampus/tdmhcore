@@ -515,8 +515,11 @@ tr:hover td{background:var(--surf2);}
   .page-header-actions{width:100%;display:flex;flex-wrap:wrap;gap:6px;}
   .page-header-actions .btn{flex:1;min-width:0;font-size:12px;padding:8px 10px;}
 
-  /* Table → hide, show cards */
-  .table-wrap{display:none;}
+  /* Tables: scroll horizontally on mobile so nothing disappears. Lists that HAVE a
+     dedicated mobile card view opt their table out with .table-wrap-desktop. */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .table-wrap table{min-width:640px;}
+  .table-wrap-desktop{display:none;}
   .mobile-cards{display:flex!important;flex-direction:column;gap:10px;}
 
   /* Filter bar */
@@ -787,7 +790,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-7'
+const APP_VERSION = '2026.09.08-11'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1594,7 +1597,7 @@ async function renderDashboard() {
     if (recent.length === 0) {
       html += '<div class="empty-state" style="padding:30px;"><div class="empty-icon">📭</div><h3>No requests yet</h3><p>Submit your first CSR request using the button above.</p></div>'
     } else {
-      html += '<div class="table-wrap"><table><thead><tr>'
+      html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
       html += '<th>Request No.</th><th>Type</th><th>Purpose</th><th>Urgency</th><th>Status</th><th>Date</th>'
       html += '</tr></thead><tbody>'
       for (const r of recent) {
@@ -1830,17 +1833,19 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '<select onchange="filterRequests(this.value,\'urgency\')" id="filterUrgency"><option value="">All Urgency</option>'
   ;['routine','urgent','emergency'].forEach(u => { html += '<option value="' + u + '">' + u.charAt(0).toUpperCase()+u.slice(1) + '</option>' })
   html += '</select>'
-  // Department filter — find requests from a specific department quickly.
-  html += '<select onchange="filterRequests(this.value,\'dept\')" id="filterDept"><option value="">🏢 All Depts</option>'
-  ;(state.departments||[]).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).forEach(d => { html += '<option value="' + d.id + '">' + escStk(d.dept_name) + '</option>' })
-  html += '</select>'
+  // Department filter — type-to-search with suggestions (autocomplete). Faster than a
+  // long dropdown when there are many departments.
+  html += '<input type="text" id="filterDeptInput" list="deptFilterList" placeholder="🏢 Hanapin ang dept..." oninput="onDeptFilterInput(this.value)" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;min-width:160px;">'
+  html += '<datalist id="deptFilterList">'
+  ;(state.departments||[]).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).forEach(d => { html += '<option value="' + escStk(d.dept_name) + '">' })
+  html += '</datalist>'
   html += '</div>'
 
   if (requests.length === 0) {
     html += '<div class="empty-state"><div class="empty-icon">📭</div><h3>No requests found</h3><p>No requests match your current filters.</p></div>'
   } else {
     const built = buildRequestRows(requests)
-    html += '<div class="table-wrap" id="requestsTableWrap"><table><thead><tr>'
+    html += '<div class="table-wrap table-wrap-desktop" id="requestsTableWrap"><table><thead><tr>'
     html += '<th>Request No.</th><th>Type</th><th>Dept</th><th>Purpose</th><th>Urgency</th><th>Status</th><th>Date</th><th></th>'
     html += '</tr></thead><tbody id="requestsTableBody">'
     html += built.rows
@@ -1942,12 +1947,38 @@ function buildRequestRows(requests) {
   return { rows, cards }
 }
 
+// Department typeahead resolvers for the Issuance list + Issuance Report filters.
+function _resolveDeptId(val) {
+  const v = (val||'').trim().toLowerCase()
+  if (!v) return ''
+  const m = (state.departments||[]).find(d => (d.dept_name||'').toLowerCase() === v)
+    || (state.departments||[]).find(d => (d.dept_name||'').toLowerCase().includes(v))
+  return m ? m.id : ''
+}
+function onIssDeptFilter(val) { issState.filters.dept = _resolveDeptId(val); applyIssuanceFilters() }
+function onIrDeptFilter(val) { issRptState.filters.dept = _resolveDeptId(val); applyIssRptFilters() }
+
+// Department filter typeahead: match the typed name to a dept id, then filter.
+// Empty (or no match) = show all departments.
+function onDeptFilterInput(val) {
+  const v = (val||'').trim().toLowerCase()
+  let deptId = ''
+  if (v) {
+    const match = (state.departments||[]).find(d => (d.dept_name||'').toLowerCase() === v)
+      || (state.departments||[]).find(d => (d.dept_name||'').toLowerCase().includes(v))
+    if (match) deptId = match.id
+  }
+  filterRequests(deptId, 'dept')
+}
+
 function filterRequests(val, field) {
   let filtered = state.requests
   const status = document.getElementById('filterStatus') ? document.getElementById('filterStatus').value : ''
   const type = document.getElementById('filterType') ? document.getElementById('filterType').value : ''
   const urgency = document.getElementById('filterUrgency') ? document.getElementById('filterUrgency').value : ''
-  const dept = document.getElementById('filterDept') ? document.getElementById('filterDept').value : ''
+  // Dept comes from the typeahead resolver (onDeptFilterInput); persist it across calls.
+  if (field === 'dept') state._deptFilter = val
+  const dept = state._deptFilter || ''
   const search = document.getElementById('filterReqSearch') ? document.getElementById('filterReqSearch').value.trim().toLowerCase() : ''
   if (status) filtered = filtered.filter(r => r.status === status)
   if (type) filtered = filtered.filter(r => r.request_type === type)
@@ -2130,7 +2161,7 @@ async function renderApprovalQueue() {
     html += '<div style="margin-bottom:12px;">'
     html += '<input type="text" id="approvalSearch" placeholder="🔍 Request no., purpose, o item..." oninput="filterApprovalQueue(this.value)" style="width:100%;max-width:360px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
     html += '</div>'
-    html += '<div class="table-wrap"><table><thead><tr>'
+    html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
     html += '<th>Request No.</th><th>Type</th><th>Dept</th><th>Purpose</th><th>Urgency</th><th>Level</th><th>Date</th><th>Actions</th>'
     html += '</tr></thead><tbody id="approvalTableBody">'
     html += buildApprovalRows(myQueue, role, levelLabels)
@@ -3845,7 +3876,7 @@ async function renderPurchaseOrders() {
       : poState.pos
 
     // Table
-    html += '<div class="table-wrap"><table><thead><tr>'
+    html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
     html += '<th>PO Number</th><th>Supplier</th><th>Items</th><th>Total</th><th>Status</th><th>Expected</th><th>Created</th><th></th>'
     html += '</tr></thead><tbody>'
     for (const po of filtered) {
@@ -4667,6 +4698,7 @@ async function openNewPOModal(requestId) {
   state.itemRows = [{ id: Date.now(), item_name:'', item_description:'', quantity:1, unit:'pcs', unit_price:0 }]
   html += buildPOItemRows()
   html += '</tbody></table></div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-top:6px;">💡 Kung hindi mo pa alam ang presyo, pwede mong iwanang blank o 0 muna. I-save as <strong>Draft</strong>, tapos i-update ang aktwal na presyo pagkatapos bumili (gamit ang <strong>✏️ Update Prices</strong> sa PO).</div>'
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">'
   html += '<button class="btn btn-ghost btn-sm" onclick="addPOItemRow()">＋ Add Item</button>'
   html += '<div style="font-size:13px;font-weight:600;" id="po_total_display">Total: ₱0</div>'
@@ -4900,6 +4932,64 @@ const PO_STEPS = [
 ]
 const PO_STEP_ORDER = { draft:0, sent:1, partial_delivery:2, delivered:2, received:3, issued:4, cancelled:0 }
 
+// Update PO item prices after canvassing/buying (Purchasing Officer). Editable text
+// fields per item; saves back to po_items and recomputes the PO total.
+let _updPoId = null, _updPoRows = []
+async function openUpdatePOPrices(poId) {
+  _updPoId = poId
+  const { data: items } = await SB.from('po_items').select('*').eq('po_id', poId).order('item_name')
+  _updPoRows = (items || []).map(it => ({ id: it.id, name: it.item_name, qty: it.quantity, unit: it.unit, price: it.unit_price || 0 }))
+  renderUpdatePOPrices()
+}
+function renderUpdatePOPrices() {
+  let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">Ilagay ang aktwal na presyo bawat item (pagkatapos bumili/mag-canvass). Mag-a-update ang total.</div>'
+  html += '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
+  html += '<thead><tr style="background:var(--surf2);color:var(--txt3);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:8px 10px;">Item</th><th style="width:50px;padding:8px;">Qty</th><th style="width:120px;padding:8px;">Presyo/Unit</th><th style="width:110px;padding:8px;">Total</th></tr></thead><tbody>'
+  _updPoRows.forEach((r, i) => {
+    const lineTotal = (Number(r.qty)||0) * (Number(r.price)||0)
+    html += '<tr style="border-top:1px solid var(--bdr);"><td style="padding:8px 10px;color:var(--txt);">' + escStk(r.name) + '</td>'
+    html += '<td style="padding:8px;text-align:center;">' + r.qty + ' ' + escStk(r.unit||'') + '</td>'
+    html += '<td style="padding:6px 8px;">₱<input type="text" inputmode="decimal" value="' + (r.price||'') + '" oninput="updPoPrice(' + i + ',this.value)" style="width:80px;padding:5px;text-align:right;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+    html += '<td style="padding:8px;text-align:right;" id="updPoTotal_' + i + '">₱' + lineTotal.toLocaleString() + '</td></tr>'
+  })
+  const grand = _updPoRows.reduce((s,r) => s + (Number(r.qty)||0)*(Number(r.price)||0), 0)
+  html += '<tr style="border-top:2px solid var(--bdr2);"><td colspan="3" style="text-align:right;padding:8px 10px;font-weight:600;">Grand Total</td><td style="text-align:right;padding:8px;font-weight:700;color:var(--accent);" id="updPoGrand">₱' + grand.toLocaleString() + '</td></tr>'
+  html += '</tbody></table></div>'
+  document.getElementById('reviewModalTitle').textContent = '✏️ Update Prices'
+  document.getElementById('reviewModalBody').innerHTML = html
+  document.getElementById('reviewModalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'reviewModal\')">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="saveUpdatePOPrices()">💾 I-save ang Presyo</button>'
+  openModal('reviewModal')
+}
+function updPoPrice(i, val) {
+  const clean = val.replace(/[^0-9.]/g, '')
+  if (_updPoRows[i]) _updPoRows[i].price = clean
+  const lineTotal = (Number(_updPoRows[i].qty)||0) * (Number(clean)||0)
+  const cell = document.getElementById('updPoTotal_' + i)
+  if (cell) cell.textContent = '₱' + lineTotal.toLocaleString()
+  const grand = _updPoRows.reduce((s,r) => s + (Number(r.qty)||0)*(Number(r.price)||0), 0)
+  const g = document.getElementById('updPoGrand')
+  if (g) g.textContent = '₱' + grand.toLocaleString()
+}
+async function saveUpdatePOPrices() {
+  if (!guardClick('saveUpdatePOPrices')) return
+  try {
+    let grand = 0
+    for (const r of _updPoRows) {
+      const price = Number(r.price) || 0
+      const lineTotal = (Number(r.qty)||0) * price
+      grand += lineTotal
+      await SB.from('po_items').update({ unit_price: price, total_price: lineTotal }).eq('id', r.id)
+    }
+    await SB.from('purchase_orders').update({ total_amount: grand, updated_at: new Date().toISOString() }).eq('id', _updPoId)
+    showToast('success','Na-save ✅','Na-update ang presyo. Total: ₱' + grand.toLocaleString())
+    closeModal('reviewModal')
+    releaseClick('saveUpdatePOPrices')
+    viewPO(_updPoId)
+  } catch(e) { releaseClick('saveUpdatePOPrices'); showToast('error','Error', e.message) }
+}
+
 async function viewPO(id) {
   const { data: po } = await SB.from('purchase_orders').select('*').eq('id', id).single()
   if (!po) return
@@ -4970,7 +5060,7 @@ async function viewPO(id) {
     body += '</tr>'
   })
   const grandTotal = (items||[]).reduce((s,i) => s + Number(i.total_price||0), 0)
-  body += '<tr><td colspan="5" style="text-align:right;font-weight:600;">Grand Total</td><td colspan="2"><strong style="color:var(--accent);">₱' + grandTotal.toLocaleString() + '</strong></td></tr>'
+  body += '<tr><td colspan="5" style="text-align:right;font-weight:600;">Grand Total</td><td colspan="2">' + (grandTotal > 0 ? '<strong style="color:var(--accent);">₱' + grandTotal.toLocaleString() + '</strong>' : '<span style="color:var(--amber,#b8860b);font-size:12px;font-weight:600;">⏳ Pending price</span>') + '</td></tr>'
   body += '</tbody></table></div></div>'
 
   if (po.notes) {
@@ -4982,6 +5072,10 @@ async function viewPO(id) {
   let footer = '<button class="btn btn-ghost" onclick="closeModal(\'requestDetailModal\')">Close</button>'
 
   if (['purchasing_officer','admin'].includes(role)) {
+    // Update prices anytime before the delivery is received (after canvassing/buying).
+    if (['draft','sent','partial_delivery'].includes(po.status)) {
+      footer += '<button class="btn btn-ghost" onclick="openUpdatePOPrices(\'' + po.id + '\')">✏️ Update Prices</button>'
+    }
     if (po.status === 'draft') {
       footer += '<button class="btn btn-secondary" onclick="openPOSendOptions(\'' + po.id + '\')">📤 Send to Supplier</button>'
     }
@@ -5884,10 +5978,10 @@ async function renderIssuance() {
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">'
   html += '<input type="text" id="iss_f_search" placeholder="🔍 Issuance/Request no., receiver, o item..." value="' + escStk(issState.filters.search) + '" oninput="issState.filters.search=this.value;applyIssuanceFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   if (!isDeptHead) {
-    html += '<select id="iss_f_dept" onchange="issState.filters.dept=this.value;applyIssuanceFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
-    html += '<option value="">🏢 All Depts</option>'
-    deptOpts.forEach(d => { html += '<option value="' + d.id + '"' + (issState.filters.dept===d.id?' selected':'') + '>' + escStk(d.dept_name) + '</option>' })
-    html += '</select>'
+    html += '<input type="text" id="iss_f_dept" list="issDeptList" placeholder="🏢 Hanapin ang dept..." oninput="onIssDeptFilter(this.value)" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;min-width:160px;">'
+    html += '<datalist id="issDeptList">'
+    deptOpts.forEach(d => { html += '<option value="' + escStk(d.dept_name) + '">' })
+    html += '</datalist>'
   }
   html += '<select id="iss_f_scenario" onchange="issState.filters.scenario=this.value;applyIssuanceFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
   html += '<option value="">All Types</option>'
@@ -9712,9 +9806,10 @@ async function renderIssuanceReport() {
   const deptOpts = [...state.departments].filter(d=>d.is_active!==false).sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||''))
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">'
   html += '<input type="text" id="ir_search" placeholder="🔍 Item, ISS/CSR no., receiver..." value="'+escStk(issRptState.filters.search)+'" oninput="issRptState.filters.search=this.value;applyIssRptFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
-  html += '<select id="ir_dept" onchange="issRptState.filters.dept=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">🏢 All Depts</option>'
-  deptOpts.forEach(d => { html += '<option value="'+d.id+'"'+(issRptState.filters.dept===d.id?' selected':'')+'>'+escStk(d.dept_name)+'</option>' })
-  html += '</select>'
+  html += '<input type="text" id="ir_dept" list="irDeptList" placeholder="🏢 Hanapin ang dept..." oninput="onIrDeptFilter(this.value)" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;min-width:160px;">'
+  html += '<datalist id="irDeptList">'
+  deptOpts.forEach(d => { html += '<option value="'+escStk(d.dept_name)+'">' })
+  html += '</datalist>'
   html += '<select id="ir_scenario" onchange="issRptState.filters.scenario=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Types</option><option value="from_stock">📦 From Stock</option><option value="after_po">🚚 After PO</option></select>'
   html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="confirmed"' + (issRptState.filters.status==='confirmed'?' selected':'') + '>✅ Confirmed (tapos na)</option><option value="pending"' + (issRptState.filters.status==='pending'?' selected':'') + '>⏳ Pending</option><option value=""' + (issRptState.filters.status===''?' selected':'') + '>Lahat</option></select>'
   html += '<span style="font-size:11px;color:var(--txt3);">📅</span>'
