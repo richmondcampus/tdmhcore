@@ -787,7 +787,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-6'
+const APP_VERSION = '2026.09.08-7'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5803,6 +5803,15 @@ async function renderIssuance() {
   issState.batches = batchRes.data || []
   issState.pendingRequests = pendingRes.data || []
 
+  // Load ALL requests linked to these issuances (including fully-issued ones, which
+  // aren't in state.requests) so the list can show Request No. + Department correctly.
+  const linkedReqIds = [...new Set(allIssuances.map(i => i.request_id).filter(Boolean))]
+  issState.reqLookup = {}
+  if (linkedReqIds.length) {
+    const { data: linkedReqs } = await SB.from('requests').select('id,request_no,dept_id').in('id', linkedReqIds.slice(0, 800))
+    ;(linkedReqs || []).forEach(r => { issState.reqLookup[r.id] = r })
+  }
+
   // Preload the line items for the visible issuances so hover cards are instant.
   issState.itemsByIssuance = {}
   const visIds = allIssuances.map(i => i.id)
@@ -5919,7 +5928,7 @@ async function renderIssuance() {
 function buildIssuanceRows(issuances) {
   let rows = ''
   for (const iss of issuances) {
-    const reqInfo = state.requests?.find(r => r.id === iss.request_id)
+    const reqInfo = iss.request_id ? (issState.reqLookup?.[iss.request_id] || state.requests?.find(r => r.id === iss.request_id)) : null
     // Department: blank issuances carry their own dept_id; linked ones use the request's.
     const deptId = iss.dept_id || reqInfo?.dept_id
     const dept = deptId ? state.departments.find(d => d.id === deptId) : null
