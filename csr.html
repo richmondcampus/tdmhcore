@@ -307,6 +307,17 @@ tr:hover td{background:var(--surf2);}
   transition:opacity .2s!important;
 }
 .modal-overlay.open{opacity:1;pointer-events:all;}
+/* Custom department autocomplete — styled to match the app (not the native datalist). */
+.ac-wrap{position:relative;display:inline-block;}
+.ac-input{padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;min-width:170px;font-family:inherit;}
+.ac-input:focus{outline:none;border-color:var(--accent);}
+.ac-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surf1);border:1px solid var(--bdr2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);z-index:5000;max-height:260px;overflow-y:auto;display:none;}
+.ac-menu.open{display:block;}
+.ac-item{padding:9px 13px;font-size:13px;color:var(--txt);cursor:pointer;border-bottom:1px solid var(--bdr);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ac-item:last-child{border-bottom:none;}
+.ac-item:hover,.ac-item.active{background:var(--accent-a,rgba(18,166,47,.12));color:var(--accent,#12A62F);}
+.ac-item .ac-all{color:var(--txt3);font-style:italic;}
+.ac-empty{padding:10px 13px;font-size:12px;color:var(--txt3);}
 /* reviewModal is a secondary modal (edit items / review) that can open on top of the
    request-detail modal — give it a higher z-index so it appears in front, not behind. */
 #reviewModal{z-index:1100;}
@@ -790,7 +801,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-12'
+const APP_VERSION = '2026.09.08-13'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1835,10 +1846,7 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '</select>'
   // Department filter — type-to-search with suggestions (autocomplete). Faster than a
   // long dropdown when there are many departments.
-  html += '<input type="text" id="filterDeptInput" list="deptFilterList" placeholder="🏢 Hanapin ang dept..." oninput="onDeptFilterInput(this.value)" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;min-width:160px;">'
-  html += '<datalist id="deptFilterList">'
-  ;(state.departments||[]).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).forEach(d => { html += '<option value="' + escStk(d.dept_name) + '">' })
-  html += '</datalist>'
+  html += deptAutocompleteHtml('filterDeptInput', 'acPickRequestsDept')
   html += '</div>'
 
   if (requests.length === 0) {
@@ -1957,6 +1965,62 @@ function _resolveDeptId(val) {
 }
 function onIssDeptFilter(val) { issState.filters.dept = _resolveDeptId(val); applyIssuanceFilters() }
 function onIrDeptFilter(val) { issRptState.filters.dept = _resolveDeptId(val); applyIssRptFilters() }
+
+// ── Custom department autocomplete (styled, works on mobile) ──
+// Renders a text input + a styled suggestions menu. onPick(deptId) is called with the
+// chosen department id ('' = All). Returns the HTML; call deptAutocompleteInit after.
+function deptAutocompleteHtml(inputId, onPickFnName) {
+  return '<span class="ac-wrap">'
+    + '<input type="text" id="' + inputId + '" class="ac-input" placeholder="🏢 Lahat ng dept" autocomplete="off" '
+    + 'oninput="deptAcFilter(\'' + inputId + '\',\'' + onPickFnName + '\')" '
+    + 'onfocus="deptAcFilter(\'' + inputId + '\',\'' + onPickFnName + '\')" '
+    + 'onkeydown="deptAcKey(event,\'' + inputId + '\',\'' + onPickFnName + '\')">'
+    + '<div class="ac-menu" id="' + inputId + '_menu"></div>'
+    + '</span>'
+}
+function deptAcFilter(inputId, onPickFnName) {
+  const input = document.getElementById(inputId)
+  const menu = document.getElementById(inputId + '_menu')
+  if (!input || !menu) return
+  const q = (input.value || '').trim().toLowerCase()
+  const depts = (state.departments || []).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||''))
+  const matches = q ? depts.filter(d => (d.dept_name||'').toLowerCase().includes(q)) : depts
+  let html = '<div class="ac-item" data-id="" onclick="deptAcPick(\'' + inputId + '\',\'' + onPickFnName + '\',\'\',\'\')"><span class="ac-all">🏢 Lahat ng dept</span></div>'
+  if (matches.length === 0) html += '<div class="ac-empty">Walang tugmang dept.</div>'
+  matches.slice(0, 50).forEach(d => {
+    html += '<div class="ac-item" data-id="' + d.id + '" onclick="deptAcPick(\'' + inputId + '\',\'' + onPickFnName + '\',\'' + d.id + '\',\'' + escStk(d.dept_name).replace(/'/g,"\\'") + '\')">' + escStk(d.dept_name) + '</div>'
+  })
+  menu.innerHTML = html
+  menu.classList.add('open')
+}
+function deptAcPick(inputId, onPickFnName, deptId, deptName) {
+  const input = document.getElementById(inputId)
+  const menu = document.getElementById(inputId + '_menu')
+  if (input) input.value = deptName || ''
+  if (menu) menu.classList.remove('open')
+  if (typeof window[onPickFnName] === 'function') window[onPickFnName](deptId)
+}
+function deptAcKey(e, inputId, onPickFnName) {
+  const menu = document.getElementById(inputId + '_menu')
+  if (!menu) return
+  const items = [...menu.querySelectorAll('.ac-item')]
+  let idx = items.findIndex(i => i.classList.contains('active'))
+  if (e.key === 'ArrowDown') { e.preventDefault(); idx = Math.min(idx+1, items.length-1) }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); idx = Math.max(idx-1, 0) }
+  else if (e.key === 'Enter') { e.preventDefault(); if (items[idx]) items[idx].click(); return }
+  else if (e.key === 'Escape') { menu.classList.remove('open'); return }
+  else return
+  items.forEach(i => i.classList.remove('active'))
+  if (items[idx]) { items[idx].classList.add('active'); items[idx].scrollIntoView({ block:'nearest' }) }
+}
+// Close any open autocomplete menu when clicking elsewhere.
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.ac-wrap')) document.querySelectorAll('.ac-menu.open').forEach(m => m.classList.remove('open'))
+})
+// Pick handlers for the three filters:
+function acPickRequestsDept(deptId) { filterRequests(deptId, 'dept') }
+function acPickIssDept(deptId) { issState.filters.dept = deptId; applyIssuanceFilters() }
+function acPickIrDept(deptId) { issRptState.filters.dept = deptId; applyIssRptFilters() }
 
 // Department filter typeahead: match the typed name to a dept id, then filter.
 // Empty (or no match) = show all departments.
@@ -5978,10 +6042,7 @@ async function renderIssuance() {
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">'
   html += '<input type="text" id="iss_f_search" placeholder="🔍 Issuance/Request no., receiver, o item..." value="' + escStk(issState.filters.search) + '" oninput="issState.filters.search=this.value;applyIssuanceFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   if (!isDeptHead) {
-    html += '<input type="text" id="iss_f_dept" list="issDeptList" placeholder="🏢 Hanapin ang dept..." oninput="onIssDeptFilter(this.value)" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;min-width:160px;">'
-    html += '<datalist id="issDeptList">'
-    deptOpts.forEach(d => { html += '<option value="' + escStk(d.dept_name) + '">' })
-    html += '</datalist>'
+    html += deptAutocompleteHtml('iss_f_dept', 'acPickIssDept')
   }
   html += '<select id="iss_f_scenario" onchange="issState.filters.scenario=this.value;applyIssuanceFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
   html += '<option value="">All Types</option>'
@@ -9867,10 +9928,7 @@ async function renderIssuanceReport() {
   const deptOpts = [...state.departments].filter(d=>d.is_active!==false).sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||''))
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">'
   html += '<input type="text" id="ir_search" placeholder="🔍 Item, ISS/CSR no., receiver..." value="'+escStk(issRptState.filters.search)+'" oninput="issRptState.filters.search=this.value;applyIssRptFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
-  html += '<input type="text" id="ir_dept" list="irDeptList" placeholder="🏢 Hanapin ang dept..." oninput="onIrDeptFilter(this.value)" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;min-width:160px;">'
-  html += '<datalist id="irDeptList">'
-  deptOpts.forEach(d => { html += '<option value="'+escStk(d.dept_name)+'">' })
-  html += '</datalist>'
+  html += deptAutocompleteHtml('ir_dept', 'acPickIrDept')
   html += '<select id="ir_scenario" onchange="issRptState.filters.scenario=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Types</option><option value="from_stock">📦 From Stock</option><option value="after_po">🚚 After PO</option></select>'
   html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="confirmed"' + (issRptState.filters.status==='confirmed'?' selected':'') + '>✅ Confirmed (tapos na)</option><option value="pending"' + (issRptState.filters.status==='pending'?' selected':'') + '>⏳ Pending</option><option value=""' + (issRptState.filters.status===''?' selected':'') + '>Lahat</option></select>'
   html += '<span style="font-size:11px;color:var(--txt3);">📅</span>'
