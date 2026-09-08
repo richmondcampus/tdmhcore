@@ -801,7 +801,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-13'
+const APP_VERSION = '2026.09.08-14'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1983,6 +1983,12 @@ function deptAcFilter(inputId, onPickFnName) {
   const menu = document.getElementById(inputId + '_menu')
   if (!input || !menu) return
   const q = (input.value || '').trim().toLowerCase()
+  // Responsive: when the field is emptied, auto-reset to "all departments" — no need to
+  // pick "Lahat ng dept" manually. Track last applied so we don't re-filter needlessly.
+  if (q === '' && input.dataset.acApplied !== '') {
+    input.dataset.acApplied = ''
+    if (typeof window[onPickFnName] === 'function') window[onPickFnName]('')
+  }
   const depts = (state.departments || []).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||''))
   const matches = q ? depts.filter(d => (d.dept_name||'').toLowerCase().includes(q)) : depts
   let html = '<div class="ac-item" data-id="" onclick="deptAcPick(\'' + inputId + '\',\'' + onPickFnName + '\',\'\',\'\')"><span class="ac-all">🏢 Lahat ng dept</span></div>'
@@ -1996,7 +2002,7 @@ function deptAcFilter(inputId, onPickFnName) {
 function deptAcPick(inputId, onPickFnName, deptId, deptName) {
   const input = document.getElementById(inputId)
   const menu = document.getElementById(inputId + '_menu')
-  if (input) input.value = deptName || ''
+  if (input) { input.value = deptName || ''; input.dataset.acApplied = deptId || '' }
   if (menu) menu.classList.remove('open')
   if (typeof window[onPickFnName] === 'function') window[onPickFnName](deptId)
 }
