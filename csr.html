@@ -801,7 +801,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-14'
+const APP_VERSION = '2026.09.08-15'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2102,11 +2102,13 @@ function buildApprovalRows(queue, role, levelLabels) {
 }
 
 function filterApprovalQueue(term) {
-  const q = (term || '').trim().toLowerCase()
+  const q = (term !== undefined ? term : (document.getElementById('approvalSearch')?.value || '')).trim().toLowerCase()
+  const deptFilter = state._approvalDeptFilter || ''
   const queue = state.approvalQueue || []
   let list = queue
+  if (deptFilter) list = list.filter(r => r.dept_id === deptFilter)
   if (q) {
-    list = queue.filter(r => {
+    list = list.filter(r => {
       const items = (state.itemsByRequest && state.itemsByRequest[r.id]) || []
       const itemMatch = items.some(it => (it.name || '').toLowerCase().includes(q))
       return (r.request_no || '').toLowerCase().includes(q)
@@ -2122,7 +2124,12 @@ function filterApprovalQueue(term) {
       ? buildApprovalRows(list, role, levelLabels)
       : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang request.</td></tr>'
   }
+  const mc = document.getElementById('approvalMobileCards')
+  if (mc && typeof buildApprovalCards === 'function') {
+    mc.innerHTML = list.length ? buildApprovalCards(list, role, levelLabels) : '<div style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang request.</div>'
+  }
 }
+function acPickApprovalDept(deptId) { state._approvalDeptFilter = deptId; filterApprovalQueue() }
 
 async function renderApprovalQueue() {
   const content = document.getElementById('mainContent')
@@ -2228,8 +2235,9 @@ async function renderApprovalQueue() {
   if (myQueue.length === 0) {
     html += '<div class="empty-state"><div class="empty-icon">✅</div><h3>All clear!</h3><p>No requests pending your approval right now.</p></div>'
   } else {
-    html += '<div style="margin-bottom:12px;">'
-    html += '<input type="text" id="approvalSearch" placeholder="🔍 Request no., purpose, o item..." oninput="filterApprovalQueue(this.value)" style="width:100%;max-width:360px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    html += '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+    html += '<input type="text" id="approvalSearch" placeholder="🔍 Request no., purpose, o item..." oninput="filterApprovalQueue(this.value)" style="flex:1;min-width:200px;max-width:360px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    html += deptAutocompleteHtml('approvalDept', 'acPickApprovalDept')
     html += '</div>'
     html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
     html += '<th>Request No.</th><th>Type</th><th>Dept</th><th>Purpose</th><th>Urgency</th><th>Level</th><th>Date</th><th>Actions</th>'
