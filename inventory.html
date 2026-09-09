@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -228,7 +228,7 @@ tr:hover td{background:var(--surf2);}
   .content{padding:12px;}
   .hamburger{display:flex!important;}
   .page-header{flex-direction:column;align-items:flex-start;gap:8px;}
-  .table-wrap{display:none;}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;} .table-wrap table{min-width:640px;} .table-wrap:has(+ .mobile-cards){display:none;}
   .mobile-cards{display:flex!important;flex-direction:column;gap:10px;}
   .stat-grid{grid-template-columns:1fr 1fr!important;}
   .stat-value{font-size:22px!important;}
@@ -264,6 +264,8 @@ tr:hover td{background:var(--surf2);}
 @keyframes hg-stream{0%,45%{opacity:.9;}50%,100%{opacity:0;}}
 @media(prefers-reduced-motion:reduce){.hourglass-anim,.hg-sand-top,.hg-sand-bot,.hg-stream{animation:none!important;}}
 
+/* Hide the browser native password reveal (Edge/IE) so only our eye toggle shows */
+input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:none;}
 </style>
 </head>
 <body>
@@ -289,7 +291,7 @@ tr:hover td{background:var(--surf2);}
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+      <div style="position:relative;"><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" style="width:100%;padding-right:44px;"><button type="button" onclick="togglePw('loginPass',this)" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px 8px;color:var(--txt3);">👁</button></div>
     </div>
     <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
     <div style="text-align:center;margin-top:12px;">
@@ -504,6 +506,13 @@ function storeAuthSession(authData, profile) {
   if (profile.color !== undefined) session.color = profile.color
   setSession(session)
   return session
+}
+
+function togglePw(id, btn){
+  const el = document.getElementById(id)
+  if(!el) return
+  if(el.type === 'password'){ el.type = 'text'; if(btn) btn.textContent = '🙈' }
+  else { el.type = 'password'; if(btn) btn.textContent = '👁' }
 }
 
 async function doLogin() {
@@ -3226,7 +3235,7 @@ document.getElementById('loginPass').addEventListener('keydown', e => { if (e.ke
 
 
 ;(async function init() {
-  const savedTheme = localStorage.getItem('tdmh_theme') || 'dark'
+  const savedTheme = localStorage.getItem('tdmh_theme') || 'light'
   document.documentElement.setAttribute('data-theme', savedTheme)
 
   // Capture QR scan target early so it survives the login flow
