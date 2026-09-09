@@ -922,7 +922,7 @@ async function renderDashboard() {
     html += statC('📋','Total (All Time)',tickets.length,'All tickets','var(--txt2)')
   } else {
     // Ordinary requester: only their own simple view
-    const myOpen = tickets.filter(t => !['resolved','closed'].includes(t.status)).length
+    const myOpen = tickets.filter(t => !['resolved','closed','cancelled'].includes(t.status)).length
     const myResolved = tickets.filter(t => ['resolved','closed'].includes(t.status)).length
     html += statC('🎫','My Open Tickets',myOpen,'Naghihintay o ginagawa pa','var(--blue)')
     html += statC('✅','Resolved',myResolved,'Tapos na','var(--accent)')
@@ -999,13 +999,13 @@ function formatAge(hours) {
 
 // A ticket is "overdue" only if it's still active (not resolved/closed) and older than 48h
 function isOverdue(t, age) {
-  if (['resolved','closed'].includes(t.status)) return false
+  if (['resolved','closed','cancelled'].includes(t.status)) return false
   return age > 48
 }
 
 function formatStatus(s) {
   const m = { open:'Open', claimed:'Claimed', in_progress:'In Progress', for_parts:'For Parts',
-    resolved:'Resolved', closed:'Closed', reopened:'Reopened' }
+    resolved:'Resolved', closed:'Closed', reopened:'Reopened', cancelled:'❌ Cancelled' }
   return m[s] || s
 }
 
@@ -1201,6 +1201,41 @@ function filterTickets() {
 // ═══════════════════════════════════
 // TICKET DETAIL
 // ═══════════════════════════════════
+// Cancel a ticket (wrong/duplicate/misfiled). Prompts for a reason, keeps a record.
+async function openCancelTicket(ticketId) {
+  const reasons = [
+    'Duplicate ticket',
+    'Wrong filing (mali ang pagka-file)',
+    'Dapat sa ibang system (mali ang napuntahan)',
+    'Hindi na kailangan',
+    'Iba pa'
+  ]
+  let msg = 'Bakit kina-cancel ang ticket na ito?\n\n'
+  reasons.forEach((r, i) => { msg += (i+1) + '. ' + r + '\n' })
+  msg += '\nI-type ang numero (1-' + reasons.length + ') o ang sariling dahilan:'
+  const input = prompt(msg)
+  if (input === null) return
+  let reason = input.trim()
+  const num = parseInt(reason)
+  if (num >= 1 && num <= reasons.length) reason = reasons[num-1]
+  if (!reason) { alert('Kailangan ng dahilan para i-cancel.'); return }
+  if (reason === 'Iba pa') {
+    const other = prompt('I-type ang dahilan:')
+    if (other === null || !other.trim()) return
+    reason = other.trim()
+  }
+  try {
+    await SB.from('maint_tickets').update({
+      status: 'cancelled', cancel_reason: reason,
+      cancelled_by: S.user.id, cancelled_at: new Date().toISOString()
+    }).eq('id', ticketId)
+    showToast('success','Cancelled','Na-cancel ang ticket. Dahilan: ' + reason)
+    closeModal('ticketDetailModal')
+    invalidateTicketCache()
+    showPage(S.currentPage || 'dashboard')
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
 async function viewTicket(ticketId) {
   const t = S.tickets.find(tk => tk.id === ticketId) ||
     (await SB.from('maint_tickets').select('*').eq('id', ticketId).single()).data
@@ -1358,6 +1393,12 @@ async function viewTicket(ticketId) {
   }
   if (['closed','resolved'].includes(t.status) && ['requester','supervisor','admin'].includes(role)) {
     footer += '<button class="btn btn-danger" onclick="reopenTicket(\'' + t.id + '\')">↩ Reopen</button>'
+  }
+  // Cancel ticket — for wrong/duplicate/misfiled tickets. Requester (own ticket) or
+  // maintenance staff, while still active.
+  const isMaintStaff = ['technician','supervisor','admin'].includes(role)
+  if (!['resolved','closed','cancelled'].includes(t.status) && (t.submitted_by === S.user.id || isMaintStaff)) {
+    footer += '<button class="btn btn-ghost" onclick="openCancelTicket(\'' + t.id + '\')" style="color:var(--red);">❌ Cancel Ticket</button>'
   }
 
   document.getElementById('ticketDetailFooter').innerHTML = footer
@@ -1786,7 +1827,7 @@ async function buildSnapshot() {
   const ageOf = (t) => Math.floor((now - new Date(t.created_at)) / 3600000)
 
   const total = tickets.length
-  const active = tickets.filter(t => !['resolved','closed'].includes(t.status))
+  const active = tickets.filter(t => !['resolved','closed','cancelled'].includes(t.status))
   const open = active.length
   const overdue = active.filter(t => ageOf(t) > 48).length
   const resolvedList = tickets.filter(t => t.resolved_at && t.created_at)
