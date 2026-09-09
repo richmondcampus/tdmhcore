@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-25'
+const APP_VERSION = '2026.09.08-26'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2686,6 +2686,12 @@ async function viewRequest(id) {
   else if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level === 3 && ['supply_officer','admin'].includes(role)) {
     footer += '<button class="btn btn-secondary" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue from Stock</button>'
     footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
+  }
+  // FOR_PO (split) request — some items forwarded to Purchasing, but "issue"-type items
+  // may still have a remaining qty. The Supply Officer can STILL issue those from stock,
+  // independently of the PO side. Show the button if any non-PO item still owes qty.
+  else if (req.request_type !== 'derp' && req.status === 'for_po' && ['supply_officer','admin'].includes(role)) {
+    footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue Remaining (Stock)</button>'
   }
   // Supply Officer / Admin can edit items anytime before issue. Dept heads can edit
   // items for their own department's requests while it's still at their level (L1) —
@@ -6523,7 +6529,10 @@ async function openNewIssuanceModal(requestId) {
 
 async function loadCSRForIssuance(requestId) {
   if (!requestId) return
-  const items = await loadRequestItems(requestId)
+  const allItems = await loadRequestItems(requestId)
+  // For issuance, show only items meant to be issued from stock: exclude removed items
+  // and items forwarded to PO (those go through Purchasing, not issuance).
+  const items = (allItems || []).filter(it => !it.is_removed && it.fulfillment_type !== 'for_po')
   const req = issState.pendingRequests.find(r => r.id === requestId)
 
   // Auto-fill receiver name from request (typed field; still editable)
