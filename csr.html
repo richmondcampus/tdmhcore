@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-24'
+const APP_VERSION = '2026.09.08-25'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2339,8 +2339,12 @@ let _itemEditorRows = []
 let _itemEditorReqId = null
 async function openItemEditor(reqId) {
   const role = state.user?.csr_role
-  if (!['supply_officer','admin'].includes(role)) {
-    showToast('error','Not Allowed','Supply Officer o Admin lang ang pwedeng mag-edit ng items.'); return
+  const req = state.requests?.find(r => r.id === reqId) || (await SB.from('requests').select('*').eq('id', reqId).maybeSingle()).data
+  const headsThisReqDept = (state.myHeadedDeptIds || []).includes(req?.dept_id)
+  const allowed = ['supply_officer','admin'].includes(role)
+    || (role === 'dept_head' && headsThisReqDept && req?.status === 'pending_approval' && req?.current_approval_level === 1)
+  if (!allowed) {
+    showToast('error','Not Allowed','Hindi ka pwedeng mag-edit ng items sa request na ito.'); return
   }
   _itemEditorReqId = reqId
   const { data: items } = await SB.from('request_items').select('*').eq('request_id', reqId).order('item_name')
@@ -2683,11 +2687,14 @@ async function viewRequest(id) {
     footer += '<button class="btn btn-secondary" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue from Stock</button>'
     footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
   }
-  // Supply Officer / Admin can edit the request's items (correct names, qty, add/remove)
-  // to match actual stock — available while the request isn't fully issued/closed.
-  if (req.request_type !== 'derp'
-      && ['supply_officer','admin'].includes(role)
-      && !['issued','cancelled','rejected'].includes(req.status)) {
+  // Supply Officer / Admin can edit items anytime before issue. Dept heads can edit
+  // items for their own department's requests while it's still at their level (L1) —
+  // so they can fix names/qty or add items before approving.
+  const headsThisReqDept = (state.myHeadedDeptIds || []).includes(req.dept_id)
+  const canEditItems =
+    (['supply_officer','admin'].includes(role) && !['issued','cancelled','rejected'].includes(req.status))
+    || (role === 'dept_head' && headsThisReqDept && req.status === 'pending_approval' && req.current_approval_level === 1)
+  if (req.request_type !== 'derp' && canEditItems) {
     footer += '<button class="btn btn-ghost" onclick="openItemEditor(\'' + req.id + '\')">✏️ Edit Items</button>'
   }
   document.getElementById('requestDetailFooter').innerHTML = footer
