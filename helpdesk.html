@@ -211,7 +211,7 @@ tr:hover td{background:var(--surf2);}
   .content{padding:12px;}
   .hamburger{display:flex!important;}
   .page-header{flex-direction:column;align-items:flex-start;gap:8px;}
-  .table-wrap{display:none;}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;} .table-wrap table{min-width:640px;} .table-wrap:has(+ .mobile-cards){display:none;}
   .mobile-cards{display:flex!important;flex-direction:column;gap:10px;}
   .stat-grid{grid-template-columns:1fr 1fr!important;}
   .stat-value{font-size:22px!important;}
@@ -721,10 +721,16 @@ function showPage(page) {
 // ═══ DASHBOARD ═══
 async function renderDashboard() {
   const content = document.getElementById('mainContent')
-  const tickets = await loadTickets()
-  S.tickets = tickets
   const role = S.user.it_role
   const isIT = ['technician','supervisor','admin'].includes(role)
+  const isHead = (S.myHeadedDeptIds && S.myHeadedDeptIds.length > 0)
+  // Scope tickets: IT staff see all (operational view); dept heads see their dept's;
+  // ordinary requesters see ONLY their own — so their stats aren't the whole hospital's.
+  let tickets
+  if (isIT) tickets = await loadTickets()
+  else if (isHead) tickets = await loadTickets({ dept_ids: S.myHeadedDeptIds })
+  else tickets = await loadTickets({ requester_id: S.user.id })
+  S.tickets = tickets
 
   const open = tickets.filter(t => t.status === 'open').length
   const inProg = tickets.filter(t => ['assigned','in_progress'].includes(t.status)).length
@@ -739,7 +745,8 @@ async function renderDashboard() {
   html += '<button class="btn btn-primary" onclick="openTicketForm()">🖥️ New Ticket</button>'
   html += '</div>'
 
-  if (critical > 0) {
+  // Critical alert is for IT staff to act on — not shown to ordinary requesters.
+  if (critical > 0 && isIT) {
     html += '<div style="background:var(--red-a);border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">'
     html += '<span style="font-size:20px;">🚨</span><strong style="color:var(--red);">' + critical + ' CRITICAL ticket(s) need immediate attention!</strong>'
     html += '<button class="btn btn-danger btn-sm" style="margin-left:auto;" onclick="showPage(\'open_tickets\')">View</button>'
