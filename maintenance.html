@@ -605,6 +605,27 @@ let S = {
 // ═══════════════════════════════════
 function hourglass(){return '<span class="hourglass-anim" role="img" aria-label="Loading"><svg viewBox="0 0 24 24" fill="none"><path d="M6 2h12M6 22h12M6 2c0 5 6 6 6 10 0-4 6-5 6-10M6 22c0-5 6-6 6-10 0 4 6 5 6 10" stroke="var(--amber,#f0c838)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><polygon class="hg-sand-top" points="7.5,4 16.5,4 12,10.5" fill="var(--amber,#f0c838)"/><polygon class="hg-sand-bot" points="12,13.5 16.5,20 7.5,20" fill="var(--amber,#f0c838)"/><rect class="hg-stream" x="11.55" y="10" width="0.9" height="4" fill="var(--amber,#f0c838)"/></svg></span>'}
 function getSession() { try { return JSON.parse(localStorage.getItem('tdmh_session')) } catch { return null } }
+
+// Accountability audit: record who filed a ticket, from which device + IP. Best-effort
+// (never blocks). Admins review this in the Audit Log page.
+let _cachedIP = null
+async function getPublicIP() {
+  if (_cachedIP) return _cachedIP
+  try { const r = await fetch('https://api.ipify.org?format=json'); const d = await r.json(); _cachedIP = d.ip || null; return _cachedIP } catch(_) { return null }
+}
+async function logAudit(action, refNo, refId) {
+  try {
+    if (!S.user?.id) return
+    const ip = await getPublicIP()
+    await SB.from('request_audit_log').insert({
+      action, ref_no: refNo || null, ref_id: refId || null,
+      user_id: S.user.id, user_name: S.user.full_name || null,
+      ip_address: ip, user_agent: navigator.userAgent || null,
+      platform: navigator.platform || null,
+      screen_info: (window.screen ? (window.screen.width + 'x' + window.screen.height) : null)
+    })
+  } catch(_) {}
+}
 function setSession(d) { localStorage.setItem('tdmh_session', JSON.stringify(d)) }
 function clearSession() { localStorage.removeItem('tdmh_session') }
 
@@ -719,6 +740,7 @@ function renderSidebarNav() {
     { id:'all_tickets',  icon:'🗂', label:'All Tickets',  roles:['technician','supervisor','admin'] },
     { id:'reports',      icon:'📊', label:'Reports & Analytics', roles:['supervisor','admin'] },
     { id:'team',         icon:'👥', label:'Team',         roles:['supervisor','admin'] },
+    { id:'audit_log',    icon:'🔍', label:'Audit Log',    roles:['admin'] },
     { id:'how_to',       icon:'📖', label:'How-To Guide', roles:['requester','technician','supervisor','admin'] },
   ]
   let html = ''
@@ -751,7 +773,7 @@ function showPage(page) {
   content.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
   const pages = { dashboard:renderDashboard, my_tickets:renderMyTickets,
     all_tickets:renderAllTickets, open_tickets:renderOpenTickets,
-    kanban:renderKanban, reports:renderReports, team:renderTeam, how_to:renderHowTo }
+    kanban:renderKanban, reports:renderReports, team:renderTeam, how_to:renderHowTo, audit_log:renderAuditLog }
   if (pages[page]) pages[page]()
 }
 
@@ -903,7 +925,7 @@ async function renderDashboard() {
   let html = '<div class="page-header">'
   html += '<h2>👋 Kamusta, ' + S.user.full_name.split(' ')[0] + '</h2>'
   html += '<div style="display:flex;gap:8px;">'
-  html += '<button class="btn btn-primary" onclick="openNewTicketModal()">🔧 New Ticket</button>'
+  if (canCreateTicket()) html += '<button class="btn btn-primary" onclick="openNewTicketModal()">🔧 New Ticket</button>'
   html += '</div></div>'
 
   if (emergency > 0 && (isTech || isHead)) {
@@ -1056,7 +1078,7 @@ function renderTicketsList(tickets, title) {
   let html = '<div class="page-header"><h2>' + title + '</h2>'
   html += '<div style="display:flex;gap:8px;">'
   if (['requester','supervisor','admin'].includes(role)) {
-    html += '<button class="btn btn-primary" onclick="openNewTicketModal()">🔧 New Ticket</button>'
+    if (canCreateTicket()) html += '<button class="btn btn-primary" onclick="openNewTicketModal()">🔧 New Ticket</button>'
   }
   html += '</div></div>'
 
@@ -1606,7 +1628,12 @@ async function reopenTicket(ticketId) {
 // ═══════════════════════════════════
 // NEW TICKET FORM
 // ═══════════════════════════════════
+// Maintenance technicians fix tickets — they don't file them. Only requesters (and
+// supervisors/admins) can create tickets.
+function canCreateTicket() { return S.user.maintenance_role !== 'technician' }
+
 function openNewTicketModal() {
+  if (!canCreateTicket()) { showToast('info','Hindi pwede','Bilang technician, hindi ka nagfa-file ng ticket — ikaw ang nag-a-ayos nito. Ang requester ang gumagawa ng ticket.'); return }
   const dept = S.departments.find(d => d.id === S.user.dept_id)
   let html = ''
 
@@ -1754,6 +1781,9 @@ async function submitTicket() {
 
     closeModal('newTicketModal')
     showToast('success','Ticket Submitted 🔧', ticketId + ' — Maintenance team notified.')
+
+    // Accountability audit — device + IP of whoever filed this ticket.
+    logAudit('maint_ticket', ticketId, t.id)
 
     // SMS blast to all maintenance technicians
     const maintStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
@@ -2281,6 +2311,48 @@ function howToMaintCommon() {
   return howToCard('🔔 ' + t('Para sa Lahat — Notifications','For Everyone — Notifications'), b)
 }
 
+async function renderAuditLog() {
+  const content = document.getElementById('mainContent')
+  if (S.user?.maintenance_role !== 'admin') { content.innerHTML = '<div class="empty-state"><p>Admin only.</p></div>'; return }
+  content.innerHTML = '<div class="page-header"><div><h2>🔍 Audit Log</h2><p style="font-size:13px;color:var(--txt2);">Tracking ng device + IP kada ticket — para sa accountability.</p></div></div>'
+    + '<div style="margin-bottom:12px;"><input type="text" id="audit_search" placeholder="🔍 Pangalan, ticket no., IP..." oninput="filterAuditLog()" style="width:100%;max-width:360px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"></div>'
+    + '<div class="table-wrap"><table><thead><tr><th>Petsa/Oras</th><th>Account</th><th>Action</th><th>Ref No.</th><th>IP Address</th><th>Device</th></tr></thead><tbody id="auditTableBody"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt3);">Loading...</td></tr></tbody></table></div>'
+  try {
+    const { data } = await SB.from('request_audit_log').select('*').in('action',['maint_ticket']).order('created_at',{ascending:false}).limit(500)
+    S._auditRows = data || []
+    renderAuditRows(S._auditRows)
+  } catch(e) { document.getElementById('auditTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--red);">Error: ' + e.message + '</td></tr>' }
+}
+function renderAuditRows(rows) {
+  const tbody = document.getElementById('auditTableBody')
+  if (!tbody) return
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt3);">Walang record.</td></tr>'; return }
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  tbody.innerHTML = rows.map(r => {
+    const ua = r.user_agent || ''
+    let device = r.platform || ''
+    if (/iphone/i.test(ua)) device = 'iPhone'; else if (/ipad/i.test(ua)) device = 'iPad'
+    else if (/android/i.test(ua)) device = 'Android'; else if (/windows/i.test(ua)) device = 'Windows'; else if (/mac/i.test(ua)) device = 'Mac'
+    const browser = /edg/i.test(ua) ? 'Edge' : /chrome/i.test(ua) ? 'Chrome' : /firefox/i.test(ua) ? 'Firefox' : /safari/i.test(ua) ? 'Safari' : ''
+    return '<tr><td style="white-space:nowrap;font-size:12px;">' + fmtDateTime(r.created_at) + '</td>'
+      + '<td style="font-weight:600;">' + esc(r.user_name||'—') + '</td>'
+      + '<td style="font-size:12px;">🔧 Maint Ticket</td>'
+      + '<td style="font-family:monospace;font-size:12px;">' + esc(r.ref_no||'—') + '</td>'
+      + '<td style="font-family:monospace;font-size:12px;">' + esc(r.ip_address||'—') + '</td>'
+      + '<td style="font-size:12px;color:var(--txt2);" title="' + esc(ua) + '">' + esc((device+' '+browser).trim()||'—') + ' · ' + esc(r.screen_info||'') + '</td></tr>'
+  }).join('')
+}
+function fmtDateTime(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit',hour12:true})
+}
+function filterAuditLog() {
+  const q = (document.getElementById('audit_search')?.value||'').trim().toLowerCase()
+  const rows = (S._auditRows||[]).filter(r => !q || (r.user_name||'').toLowerCase().includes(q) || (r.ref_no||'').toLowerCase().includes(q) || (r.ip_address||'').toLowerCase().includes(q))
+  renderAuditRows(rows)
+}
+
 async function renderTeam() {
   const content = document.getElementById('mainContent')
   const tickets = await loadTickets()
@@ -2734,7 +2806,7 @@ async function renderKanban() {
   ]
 
   let html = '<div class="page-header"><h2>📋 Kanban Board</h2>'
-  html += '<button class="btn btn-primary btn-sm" onclick="openNewTicketModal()">＋ New Ticket</button></div>'
+  html += (canCreateTicket() ? '<button class="btn btn-primary btn-sm" onclick="openNewTicketModal()">＋ New Ticket</button>' : '') + '</div>'
   html += '<style>.kanban-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:16px;min-height:400px;}.kanban-col{min-width:260px;width:260px;flex-shrink:0;}.kanban-col-header{padding:10px 12px;border-radius:10px 10px 0 0;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;}.kanban-col-body{background:var(--surf2);border-radius:0 0 10px 10px;padding:8px;min-height:160px;border:1px solid var(--bdr);border-top:none;}.kanban-card{background:var(--surf1);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;}.kanban-card[draggable="true"]{cursor:grab;}.kanban-card[draggable="true"]:active{cursor:grabbing;}.kanban-col-body{transition:background .12s;}.kanban-card:hover{border-color:var(--bdr2);box-shadow:0 2px 8px rgba(0,0,0,.2);}.kanban-card.priority-emergency,.kanban-card.priority-urgent{border-left:3px solid var(--red);}.kanban-card.priority-high{border-left:3px solid var(--amber);}</style>'
   html += '<div class="kanban-board">'
 
