@@ -340,6 +340,8 @@ canvas{max-height:220px;}
   .hg-sand-top,.hg-sand-bot,.hg-stream{animation:none!important;}
 }
 
+/* Hide the browser native password reveal (Edge/IE) so only our eye toggle shows */
+input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:none;}
 </style>
 </head>
 <body>
