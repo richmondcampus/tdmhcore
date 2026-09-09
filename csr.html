@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-21'
+const APP_VERSION = '2026.09.08-22'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5094,7 +5094,12 @@ async function viewPO(id) {
   const { data: po } = await SB.from('purchase_orders').select('*').eq('id', id).single()
   if (!po) { showToast('error','Hindi nahanap','Walang PO na nahanap.'); return }
   const { data: items } = await SB.from('po_items').select('*').eq('po_id', id)
-  const supplier = poState.suppliers.find(s => s.id === po.supplier_id)
+  // Ensure suppliers are loaded (viewPO may run before the list has loaded them).
+  if (!poState.suppliers || !poState.suppliers.length) {
+    const { data: supps } = await SB.from('suppliers').select('*')
+    poState.suppliers = supps || []
+  }
+  const supplier = (poState.suppliers || []).find(s => s.id === po.supplier_id)
   const role = state.user.csr_role
 
   document.getElementById('detailModalTitle').textContent = po.po_number
