@@ -448,6 +448,27 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
   </div>
 </div>
 
+<!-- Cancel Ticket Modal -->
+<div class="modal-overlay" id="cancelTicketModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3>❌ Cancel Ticket</h3>
+      <button class="modal-close" onclick="closeModal('cancelTicketModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--txt2);font-size:13px;margin-bottom:14px;">Piliin ang dahilan ng pag-cancel:</p>
+      <div id="cancelReasonOptions" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div id="cancelOtherWrap" style="display:none;margin-top:10px;">
+        <input type="text" id="cancelOtherReason" placeholder="I-type ang dahilan..." style="width:100%;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('cancelTicketModal')">Bumalik</button>
+      <button class="btn btn-danger" onclick="confirmCancelTicket()">❌ I-cancel ang Ticket</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeWh3ZHVsaXpvcmduZ2F5eHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjU0NTgsImV4cCI6MjA5NDg0MTQ1OH0.xLdKGNqjNZNRfjAf5NmXGI1GyTbQZAmbZiKokpgAhUo'
@@ -1612,37 +1633,50 @@ function renderTicketDescription(desc) {
 }
 
 // Cancel a ticket (wrong/duplicate/misfiled). Prompts for a reason, keeps a record.
-async function openCancelTicket(ticketId) {
-  const reasons = [
-    'Duplicate ticket',
-    'Wrong filing (mali ang pagka-file)',
-    'Dapat sa ibang system (mali ang napuntahan)',
-    'Hindi na kailangan',
-    'Iba pa'
-  ]
-  let msg = 'Bakit kina-cancel ang ticket na ito?\n\n'
-  reasons.forEach((r, i) => { msg += (i+1) + '. ' + r + '\n' })
-  msg += '\nI-type ang numero (1-' + reasons.length + ') o ang sariling dahilan:'
-  const input = prompt(msg)
-  if (input === null) return
-  let reason = input.trim()
-  const num = parseInt(reason)
-  if (num >= 1 && num <= reasons.length) reason = reasons[num-1]
-  if (!reason) { alert('Kailangan ng dahilan para i-cancel.'); return }
-  // If "Iba pa" was chosen by number, ask for the actual reason
+const CANCEL_REASONS = [
+  'Duplicate ticket',
+  'Wrong filing (mali ang pagka-file)',
+  'Dapat sa ibang system (mali ang napuntahan)',
+  'Hindi na kailangan',
+  'Iba pa'
+]
+let _cancelTicketId = null
+function openCancelTicket(ticketId) {
+  _cancelTicketId = ticketId
+  const opts = document.getElementById('cancelReasonOptions')
+  opts.innerHTML = CANCEL_REASONS.map((r, i) =>
+    '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--bdr2);border-radius:9px;cursor:pointer;font-size:13px;" onclick="onCancelReasonPick(' + i + ')">'
+    + '<input type="radio" name="cancelReason" value="' + i + '" style="accent-color:var(--red);" ' + (i===0?'checked':'') + '>'
+    + '<span>' + r + '</span></label>'
+  ).join('')
+  document.getElementById('cancelOtherWrap').style.display = 'none'
+  document.getElementById('cancelOtherReason').value = ''
+  openModal('cancelTicketModal')
+}
+function onCancelReasonPick(i) {
+  const radio = document.querySelector('input[name="cancelReason"][value="' + i + '"]')
+  if (radio) radio.checked = true
+  const isOther = CANCEL_REASONS[i] === 'Iba pa'
+  document.getElementById('cancelOtherWrap').style.display = isOther ? 'block' : 'none'
+  if (isOther) setTimeout(() => document.getElementById('cancelOtherReason')?.focus(), 50)
+}
+async function confirmCancelTicket() {
+  const picked = document.querySelector('input[name="cancelReason"]:checked')
+  if (!picked) { showToast('error','Pumili','Piliin ang dahilan.'); return }
+  let reason = CANCEL_REASONS[Number(picked.value)]
   if (reason === 'Iba pa') {
-    const other = prompt('I-type ang dahilan:')
-    if (other === null || !other.trim()) return
-    reason = other.trim()
+    reason = (document.getElementById('cancelOtherReason')?.value || '').trim()
+    if (!reason) { showToast('error','Dahilan','I-type ang dahilan.'); return }
   }
   try {
     await SB.from('it_tickets').update({
       status: 'cancelled', cancel_reason: reason,
       cancelled_by: S.user.id, cancelled_at: new Date().toISOString()
-    }).eq('id', ticketId)
+    }).eq('id', _cancelTicketId)
     showToast('success','Cancelled','Na-cancel ang ticket. Dahilan: ' + reason)
+    closeModal('cancelTicketModal')
     closeModal('ticketDetailModal')
-    if (typeof renderDashboard === 'function') showPage(S.currentPage || 'dashboard')
+    showPage(S.currentPage || 'dashboard')
   } catch(e) { showToast('error','Error', e.message) }
 }
 
