@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -258,7 +258,7 @@ tr:hover td{background:var(--surf2);}
   .page-header-actions .btn{flex:1;min-width:0;padding:12px 16px;font-size:15px;}
 
   /* Table → hide on mobile, show cards instead */
-  .table-wrap{display:none;}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;} .table-wrap table{min-width:640px;} .table-wrap:has(+ .mobile-cards){display:none;}
   .mobile-cards{display:flex!important;flex-direction:column;gap:12px;}
 
   /* Stat grid — 2 cols on mobile, bigger numbers */
@@ -396,6 +396,8 @@ tr:hover td{background:var(--surf2);}
 @keyframes hg-stream{0%,45%{opacity:.9;}50%,100%{opacity:0;}}
 @media(prefers-reduced-motion:reduce){.hourglass-anim,.hg-sand-top,.hg-sand-bot,.hg-stream{animation:none!important;}}
 
+/* Hide the browser native password reveal (Edge/IE) so only our eye toggle shows */
+input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:none;}
 </style>
 </head>
 <body>
@@ -421,7 +423,7 @@ tr:hover td{background:var(--surf2);}
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+      <div style="position:relative;"><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" style="width:100%;padding-right:44px;"><button type="button" onclick="togglePw('loginPass',this)" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px 8px;color:var(--txt3);">👁</button></div>
     </div>
     <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
     <div style="text-align:center;margin-top:12px;">
@@ -622,6 +624,13 @@ function storeAuthSession(authData, profile) {
   }
   setSession(session)
   return session
+}
+
+function togglePw(id, btn){
+  const el = document.getElementById(id)
+  if(!el) return
+  if(el.type === 'password'){ el.type = 'text'; if(btn) btn.textContent = '🙈' }
+  else { el.type = 'password'; if(btn) btn.textContent = '👁' }
 }
 
 async function doLogin() {
@@ -2948,7 +2957,7 @@ document.getElementById('loginPass').addEventListener('keydown', e => { if (e.ke
 // INIT
 // ═══════════════════════════════════
 ;(async function init() {
-  const savedTheme = localStorage.getItem('tdmh_theme') || 'dark'
+  const savedTheme = localStorage.getItem('tdmh_theme') || 'light'
   document.documentElement.setAttribute('data-theme', savedTheme)
 
   // Try to restore Supabase auth session from stored tokens first
