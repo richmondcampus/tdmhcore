@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-23'
+const APP_VERSION = '2026.09.08-24'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2708,9 +2708,48 @@ async function removeRequestItem(itemId, reqId) {
       is_removed: true, removed_reason: (reason||'').trim() || 'Inalis ng supply officer',
       removed_by: state.user.id, removed_at: new Date().toISOString()
     }).eq('id', itemId)
+
+    // Auto-close: if NO active items remain (all removed / all issued), close the request.
+    await maybeAutoCloseRequest(reqId)
+
     showToast('success','Na-remove','Naka-label na "removed" ang item.')
     viewRequest(reqId)  // refresh detail
   } catch(e) { showToast('error','Error', e.message) }
+}
+
+// Close a request automatically when there are no more items to act on: every item is
+// either removed, or fully issued. Notifies the source Maintenance/IT ticket so they
+// can close it too.
+async function maybeAutoCloseRequest(reqId) {
+  try {
+    const { data: req } = await SB.from('requests').select('*').eq('id', reqId).maybeSingle()
+    if (!req || ['cancelled','closed','completed'].includes(req.status)) return
+    const { data: items } = await SB.from('request_items').select('quantity,quantity_issued,is_removed,fulfillment_type').eq('request_id', reqId)
+    if (!items || !items.length) return
+    // Active items = not removed AND still owe quantity to issue (and not forwarded to PO).
+    const activeRemaining = items.filter(it =>
+      !it.is_removed
+      && it.fulfillment_type !== 'for_po'
+      && (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0
+    )
+    const anyIssued = items.some(it => (Number(it.quantity_issued)||0) > 0)
+    if (activeRemaining.length === 0) {
+      // Nothing left to do → close. "completed" if something was issued, else "cancelled".
+      const newStatus = anyIssued ? 'issued' : 'cancelled'
+      await SB.from('requests').update({ status: newStatus, pending_items_note: null }).eq('id', reqId)
+      // Notify the source ticket (Maintenance/IT parts request) that the CSR side is done.
+      if (req.source_ref_text) {
+        try {
+          const msg = 'CSR ' + req.request_no + ' (parts para sa ' + req.source_ref_text + ') ay ' + (anyIssued ? 'na-issue na — okay na ang parts.' : 'cancelled — hindi na kailangan ang parts.') + ' Pwede nang i-close ang ticket.'
+          // Notify maintenance/IT staff
+          const staff = (state.users||[]).filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) || ['technician','supervisor','admin'].includes(u.it_role))
+          for (const s of staff.slice(0, 30)) {
+            await SB.from('notifications').insert({ user_id: s.id, source_system: 'csr', source_ref_id: req.source_ref_text, body: msg, type: 'info' })
+          }
+        } catch(_) {}
+      }
+    }
+  } catch(e) { console.warn('maybeAutoCloseRequest', e.message) }
 }
 
 async function loadForPoItems(reqId) {
