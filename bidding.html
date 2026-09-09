@@ -296,6 +296,7 @@ textarea.modal-inp{resize:vertical;min-height:80px}
       <p style="font-size:12px;color:var(--gold);line-height:1.65;margin:0"><strong style="font-weight:700">Notice:</strong> All items are sold on an as-is, where-is basis. No warranties, representations, or guarantees of any kind are expressed or implied. The hospital assumes no liability for the condition, completeness, or fitness for any purpose of the items offered. Bidders are encouraged to assess items prior to bidding.</p>
     </div>
   </div>
+    <div style="max-width:1000px;margin:0 auto;padding:0 32px 4px;display:flex;gap:8px;flex-wrap:wrap" id="batch-filter-wrap"></div>
   <div style="max-width:1000px;margin:0 auto;padding:0 32px 20px;display:flex;gap:8px;flex-wrap:wrap" id="cat-filter-wrap">
     <button class="cat-pill active" onclick="filterByCategory('')">All Items</button>
   </div>
@@ -334,6 +335,7 @@ textarea.modal-inp{resize:vertical;min-height:80px}
       <button class="tab-btn active" onclick="switchTab('items')">Items</button>
       <button class="tab-btn" onclick="switchTab('bids')">All Bids</button>
       <button class="tab-btn" onclick="switchTab('winners')">Winners</button>
+      <button class="tab-btn" onclick="switchTab('batches')">Batches</button>
       <button class="tab-btn" onclick="switchTab('employees')">Employees</button>
       <button class="tab-btn" onclick="switchTab('categories')">Categories</button>
     </div>
@@ -425,6 +427,22 @@ textarea.modal-inp{resize:vertical;min-height:80px}
       </div>
     </div>
 
+    <!-- TAB: BATCHES -->
+    <div id="tab-batches" class="hidden">
+      <div class="admin-section">
+        <div class="section-head">
+          <span class="section-head-title">Batches <span class="badge-count" id="batch-count">0</span></span>
+          <button class="btn-add" onclick="openBatchModal()">+ Add Batch</button>
+        </div>
+        <div style="overflow-x:auto">
+        <table class="admin-table">
+          <thead><tr><th>Batch Name</th><th>Date From</th><th>Date To</th><th>Items</th><th>Winners</th><th>Actions</th></tr></thead>
+          <tbody id="batches-tbody"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:28px">Loading...</td></tr></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
     <!-- TAB: CATEGORIES -->
     <div id="tab-categories" class="hidden">
       <div class="admin-section">
@@ -439,6 +457,40 @@ textarea.modal-inp{resize:vertical;min-height:80px}
           </div>
           <div id="cat-list" style="margin-top:16px;display:flex;flex-direction:column;gap:8px"></div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BATCH MODAL -->
+<div class="modal-bg hidden" id="batch-modal">
+  <div class="modal" style="width:420px">
+    <div class="modal-head">
+      <div class="modal-title" id="batch-modal-title">Add Batch</div>
+      <button class="modal-close" onclick="closeBatchModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="batch-modal-id">
+      <div class="modal-row">
+        <label class="modal-lbl">Batch Name *</label>
+        <input type="text" class="modal-inp" id="b-name" placeholder="e.g. Batch 1, July 2026 Batch">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="modal-row">
+          <label class="modal-lbl">Date From *</label>
+          <input type="datetime-local" class="modal-inp" id="b-from">
+        </div>
+        <div class="modal-row">
+          <label class="modal-lbl">Date To *</label>
+          <input type="datetime-local" class="modal-inp" id="b-to">
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text3);margin-top:4px;line-height:1.6">
+        Items are automatically assigned to a batch based on their <strong>bid close date</strong>. Items whose close date falls within this range will belong to this batch.
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeBatchModal()">Cancel</button>
+        <button class="btn-save" onclick="saveBatch()">Save Batch</button>
       </div>
     </div>
   </div>
@@ -625,7 +677,7 @@ async function checkAndCloseExpired(){
 
 async function loadPublicItems(){
   await checkAndCloseExpired();
-  const{data:items,error}=await sb.from('items').select('*').in('status',['active','closed']).order('created_at',{ascending:false});
+  const{data:items,error}=await sb.from('items').select('*').eq('status','active').order('created_at',{ascending:false});
   const pill=document.getElementById('status-pill');
   if(error){pill.classList.add('error');pill.title='Connection error';document.getElementById('items-container').innerHTML='<div class="empty-state"><div class="empty-title">Failed to load items</div></div>';return;}
   pill.classList.remove('error');pill.title='System online';
@@ -643,7 +695,16 @@ async function loadPublicItems(){
 }
 
 function renderPublicItems(){
-  const all=activeCategory?publicItems.filter(i=>i.category===activeCategory):publicItems;
+  let all=publicItems;
+  if(activeBatch){
+    const batch=allBatches.find(b=>b.id===activeBatch);
+    if(batch) all=all.filter(i=>{
+      if(!i.bid_close_at)return false;
+      const d=new Date(i.bid_close_at);
+      return d>=new Date(batch.date_from)&&d<=new Date(batch.date_to);
+    });
+  }
+  if(activeCategory) all=all.filter(i=>i.category===activeCategory);
   const bidMap=publicBidMap;
   if(all.length===0&&activeCategory){
     document.getElementById('items-container').innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">No items in this category</div><div class="empty-sub">Try selecting a different category.</div></div>';
@@ -661,7 +722,7 @@ function renderPublicItems(){
     const closeDate=item.bid_close_at?new Date(item.bid_close_at):null;
     const isExpired=closeDate&&new Date()>closeDate;
     const isLive=item.status==='active'&&!isExpired;
-    return`<div class="item-card">
+    return`<div class="item-card${!isLive?' closed':''}">
       <div class="item-imgs" onclick="openLightbox(${JSON.stringify(imgs).replace(/"/g,'&quot;')},0)">
         ${imgs[0]?`<img src="${imgs[0]}" alt="${item.name}">${imgs.length>1?`<div class="img-count">${imgs.length} photos</div>`:''}`:`<div class="no-img"><div class="no-img-icon">📷</div><div>No photos</div></div>`}
       </div>
@@ -669,7 +730,7 @@ function renderPublicItems(){
         <div class="item-header">
           <div style="flex:1">
             <div class="item-name">${item.name}</div>
-            <div class="item-cat">${item.category||''}&nbsp;${item.condition?'· '+item.condition:''}</div>
+            <div class="item-cat">${item.category||''}&nbsp;${item.condition?'· '+item.condition:''}${(()=>{const b=getBatchForItem(item);return b?` <span style="font-size:9px;background:var(--blue-bg);color:var(--tdmh-navy);border:1px solid var(--blue-border);border-radius:8px;padding:1px 7px;font-weight:600;letter-spacing:.04em">${b.name}</span>`:''})()}</div>
           </div>
           <div class="status-badge ${isLive?'badge-active':item.status==='closed'||isExpired?'badge-closed':'badge-draft'}">${isLive?'Accepting Bids':item.status==='closed'||isExpired?'Ended':'Pending'}</div>
         </div>
@@ -739,7 +800,7 @@ function lbNav(d){lbIdx=(lbIdx+d+lbImages.length)%lbImages.length;document.getEl
 // ---- ADMIN ----
 async function loadAdminData(){
   await autoCloseExpiredItems();
-  await Promise.all([loadAdminItems(),loadAdminBids(),loadAdminEmployees(),loadAdminCategories()]);
+  await Promise.all([loadAdminItems(),loadAdminBids(),loadAdminEmployees(),loadAdminCategories(),loadBatches()]);
 }
 
 async function loadAdminItems(){
@@ -922,10 +983,11 @@ async function declareWinner(itemId){
 }
 
 function switchTab(tab){
-  ['items','bids','winners','employees','categories'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==tab));
-  document.querySelectorAll('.tab-btn').forEach((btn,i)=>btn.classList.toggle('active',['items','bids','winners','employees','categories'][i]===tab));
+  ['items','bids','winners','batches','employees','categories'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==tab));
+  document.querySelectorAll('.tab-btn').forEach((btn,i)=>btn.classList.toggle('active',['items','bids','winners','batches','employees','categories'][i]===tab));
   if(tab==='bids')loadAdminBids();
   if(tab==='winners'){autoCloseExpiredItems().then(()=>loadAdminWinners());}
+  if(tab==='batches')loadAdminBatches();
   if(tab==='employees')loadAdminEmployees();
   if(tab==='categories')loadAdminCategories();
 }
@@ -1059,6 +1121,150 @@ function exportWinners(){
   a.click();
 }
 
+// ── BATCHES ──
+let allBatches = [];
+
+async function loadBatches(){
+  const{data}=await sb.from('batches').select('*').order('date_from',{ascending:false});
+  allBatches=data||[];
+  return allBatches;
+}
+
+function getBatchForItem(item){
+  if(!item.bid_close_at) return null;
+  const closeDate=new Date(item.bid_close_at);
+  return allBatches.find(b=>closeDate>=new Date(b.date_from)&&closeDate<=new Date(b.date_to))||null;
+}
+
+async function loadAdminBatches(){
+  await loadBatches();
+  document.getElementById('batch-count').textContent=allBatches.length;
+
+  // Get all closed items and bids for counts
+  const{data:items}=await sb.from('items').select('id,bid_close_at,winner_bid_id,status');
+  const tbody=document.getElementById('batches-tbody');
+
+  if(!allBatches.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:28px">No batches yet. Add one to get started.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=allBatches.map(b=>{
+    const batchItems=(items||[]).filter(i=>{
+      if(!i.bid_close_at)return false;
+      const d=new Date(i.bid_close_at);
+      return d>=new Date(b.date_from)&&d<=new Date(b.date_to);
+    });
+    const totalItems=batchItems.length;
+    const totalWinners=batchItems.filter(i=>i.winner_bid_id).length;
+    return`<tr>
+      <td style="font-weight:600;color:var(--text)">${b.name}</td>
+      <td style="font-size:12px">${fmtDate(b.date_from)}</td>
+      <td style="font-size:12px">${fmtDate(b.date_to)}</td>
+      <td style="font-weight:600;color:var(--tdmh-navy)">${totalItems}</td>
+      <td style="font-weight:600;color:var(--tdmh-green)">${totalWinners}</td>
+      <td><div class="action-btns">
+        <button class="btn-sm gold" onclick="exportBatchWinners('${b.id}','${b.name.replace(/'/g,"\'")}')">Export</button>
+        <button class="btn-sm gold" onclick="editBatch('${b.id}')">Edit</button>
+        <button class="btn-sm danger" onclick="deleteBatch('${b.id}')">Delete</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function openBatchModal(batch=null){
+  document.getElementById('batch-modal-title').textContent=batch?'Edit Batch':'Add Batch';
+  document.getElementById('batch-modal-id').value=batch?.id||'';
+  document.getElementById('b-name').value=batch?.name||'';
+  document.getElementById('b-from').value=batch?.date_from?batch.date_from.slice(0,16):'';
+  document.getElementById('b-to').value=batch?.date_to?batch.date_to.slice(0,16):'';
+  document.getElementById('batch-modal').classList.remove('hidden');
+}
+
+function closeBatchModal(){document.getElementById('batch-modal').classList.add('hidden');}
+
+async function editBatch(id){
+  const batch=allBatches.find(b=>b.id===id);
+  if(batch)openBatchModal(batch);
+}
+
+async function saveBatch(){
+  const name=document.getElementById('b-name').value.trim();
+  const from=document.getElementById('b-from').value;
+  const to=document.getElementById('b-to').value;
+  if(!name||!from||!to){toast('Please fill in all fields.',true);return;}
+  if(new Date(from)>new Date(to)){toast('Date From must be before Date To.',true);return;}
+  const btn=document.querySelector('#batch-modal .btn-save');
+  btn.textContent='Saving...';btn.disabled=true;
+  const id=document.getElementById('batch-modal-id').value;
+  const payload={name,date_from:from,date_to:to};
+  const{error}=id
+    ?await sb.from('batches').update(payload).eq('id',id)
+    :await sb.from('batches').insert(payload);
+  btn.textContent='Save Batch';btn.disabled=false;
+  if(error){toast('Error: '+error.message,true);return;}
+  toast('✓ Batch saved!');
+  closeBatchModal();
+  loadAdminBatches();
+}
+
+async function deleteBatch(id){
+  if(!confirm('Delete this batch? Items will not be affected.'))return;
+  await sb.from('batches').delete().eq('id',id);
+  toast('Batch deleted');
+  loadAdminBatches();
+}
+
+async function exportBatchWinners(batchId, batchName){
+  // Get batch date range
+  const batch=allBatches.find(b=>b.id===batchId);
+  if(!batch)return;
+
+  // Get winners in this batch
+  const{data:items}=await sb.from('items')
+    .select('*')
+    .eq('status','closed')
+    .not('winner_bid_id','is',null)
+    .gte('bid_close_at',batch.date_from)
+    .lte('bid_close_at',batch.date_to)
+    .order('lot_number');
+
+  if(!items||!items.length){toast('No winners found in this batch.',true);return;}
+
+  const winnerBidIds=items.map(i=>i.winner_bid_id);
+  const{data:winnerBids}=await sb.from('bids')
+    .select('id,employee_number_input,amount,submitted_at,backed_out')
+    .in('id',winnerBidIds);
+  const bidMap={};(winnerBids||[]).forEach(b=>{bidMap[b.id]=b;});
+
+  // Build CSV
+  const headers=['Lot #','Item','Category','Condition','Employee No.','Winner Name','Winning Bid','Bid Date & Time','Bidding Closed'];
+  const rows=[headers.join(',')];
+  items.forEach(item=>{
+    const wb=bidMap[item.winner_bid_id]||{};
+    const empName=employeeMap[wb.employee_number_input?.toString().trim()]||'';
+    const row=[
+      item.lot_number,
+      `"${item.name}"`,
+      item.category||'',
+      item.condition||'',
+      wb.employee_number_input||'',
+      `"${empName}"`,
+      wb.amount||0,
+      wb.submitted_at?new Date(wb.submitted_at).toLocaleString('en-PH'):'',
+      item.bid_close_at?new Date(item.bid_close_at).toLocaleString('en-PH'):'',
+    ];
+    rows.push(row.join(','));
+  });
+
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`TDMH_CBP_Winners_${batchName.replace(/\s+/g,'_')}.csv`;
+  a.click();
+  toast(`✓ Exported ${items.length} winners for ${batchName}`);
+}
+
 async function ensureBucket(){await sb.storage.createBucket('item-images',{public:true,allowedMimeTypes:['image/*'],fileSizeLimit:5242880}).catch(()=>{});}
 
 // ---- CATEGORIES ----
@@ -1075,6 +1281,22 @@ async function loadCategoryPills(){
   const wrap=document.getElementById('cat-filter-wrap');
   wrap.innerHTML=`<button class="cat-pill active" onclick="filterByCategory(this,'')">All Items</button>`
     +allCategories.map(c=>`<button class="cat-pill" onclick="filterByCategory(this,'${c.name.replace(/'/g,"\\'")}')">${c.name}</button>`).join('');
+
+  // Batch filter pills
+  const bwrap=document.getElementById('batch-filter-wrap');
+  if(!bwrap)return;
+  if(!allBatches.length){bwrap.style.display='none';return;}
+  bwrap.style.display='flex';
+  bwrap.innerHTML=`<button class="cat-pill" style="background:var(--tdmh-navy);border-color:var(--tdmh-navy);color:#fff" onclick="filterByBatch(this,'')">All Batches</button>`
+    +allBatches.map(b=>`<button class="cat-pill" style="border-color:var(--tdmh-navy);color:var(--tdmh-navy)" onclick="filterByBatch(this,'${b.id}')">${b.name}</button>`).join('');
+}
+
+let activeBatch='';
+function filterByBatch(btn,batchId){
+  activeBatch=batchId;
+  document.querySelectorAll('#batch-filter-wrap .cat-pill').forEach(p=>{p.style.background='';p.style.color='var(--tdmh-navy)';});
+  if(btn){btn.style.background='var(--tdmh-navy)';btn.style.color='#fff';}
+  renderPublicItems();
 }
 
 let activeCategory='';
@@ -1133,7 +1355,7 @@ async function init(){
   if(sessionStorage.getItem('cbp_admin')==='1')adminLoggedIn=true;
   ensureBucket();
   await loadEmployees();
-  await loadCategories();
+  await Promise.all([loadCategories(), loadBatches()]);
   route();
   loadPublicItems();
   if(adminLoggedIn&&window.location.hash.replace('#','')=== ADMIN_SLUG)loadAdminData();
