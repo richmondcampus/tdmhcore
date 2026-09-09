@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-26'
+const APP_VERSION = '2026.09.08-28'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1583,6 +1583,7 @@ async function renderDashboard() {
   html += '</div>'
 
   // ── KANBAN VIEW (only) ──
+  await loadPendingIssueFlags(requests)
   html += buildCSRKanban(requests)
   if (false) {
     // (legacy list view removed)
@@ -1666,14 +1667,38 @@ function setDashView(view) {
 }
 
 // ── CSR KANBAN ──
+// True if a for_po request still has non-PO items with remaining quantity to issue.
+// Uses a cache populated by loadPendingIssueFlags (called before rendering the kanban).
+function requestHasPendingIssue(r) {
+  return !!(state._pendingIssueFlags && state._pendingIssueFlags[r.id])
+}
+async function loadPendingIssueFlags(requests) {
+  state._pendingIssueFlags = state._pendingIssueFlags || {}
+  const forPoIds = (requests || []).filter(r => r.status === 'for_po').map(r => r.id)
+  if (!forPoIds.length) return
+  try {
+    const { data: items } = await SB.from('request_items')
+      .select('request_id,quantity,quantity_issued,fulfillment_type,is_removed')
+      .in('request_id', forPoIds.slice(0, 200))
+    // Reset flags for these requests, then set true where a non-PO item still owes qty.
+    forPoIds.forEach(id => { state._pendingIssueFlags[id] = false })
+    ;(items || []).forEach(it => {
+      if (!it.is_removed && it.fulfillment_type !== 'for_po'
+          && (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0) {
+        state._pendingIssueFlags[it.request_id] = true
+      }
+    })
+  } catch(_) {}
+}
+
 function buildCSRKanban(requests) {
   const role = state.user.csr_role
   const allCols = [
     { id:'draft',            label:'📝 Draft',             color:'var(--txt3)',   bg:'var(--surf2)',   filter: r => r.status === 'draft' },
     { id:'pending_approval', label:'⏳ Pending Approval',  color:'var(--amber)',  bg:'var(--amber-a)', filter: r => r.status === 'pending_approval' },
-    // Needs Fulfillment: approved requests ready for the Supply Officer to issue —
-    // auto-approved (99) OR approved and sitting at the Supply Officer level (2).
-    { id:'approved',         label:'⚡ Needs Fulfillment', color:'var(--green)',  bg:'var(--green-a)', filter: r => (r.status === 'approved' || r.status === 'partially_issued') && r.current_approval_level !== 3 },
+    // Needs Fulfillment: approved requests ready to issue (level 2 / auto-approved 99),
+    // OR for_po requests that STILL have non-PO items with remaining qty to issue.
+    { id:'approved',         label:'⚡ Needs Fulfillment', color:'var(--green)',  bg:'var(--green-a)', filter: r => ((r.status === 'approved' || r.status === 'partially_issued') && r.current_approval_level !== 3) || (r.status === 'for_po' && requestHasPendingIssue(r)) },
     // For PO: only requests explicitly forwarded for purchasing (for_po) or at the
     // Purchasing Officer level (3). These are NOT for the Supply Officer to issue.
     { id:'for_po',           label:'💰 For PO',            color:'var(--accent)', bg:'var(--accent-a)', filter: r => r.status === 'for_po' || (r.status === 'approved' && r.current_approval_level === 3) },
@@ -2587,31 +2612,43 @@ async function viewRequest(id) {
   if (isPurchasingView) {
     body += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;padding:4px 0;">▸ Buong Request (Requested Items + Naibigay na)</summary><div style="margin-top:10px;">'
   }
-  body += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Requested Items</div>'
+  body += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Items</div>'
   if (items.length === 0) {
     body += '<p style="color:var(--txt2);font-size:13px;">No items listed.</p>'
   } else {
-    body += '<div class="detail-table-wrap"><table><thead><tr><th>#</th><th>Item</th><th>Qty</th><th>Unit</th><th>Est. Cost</th><th>Category</th><th></th></tr></thead><tbody>'
+    body += '<div class="detail-table-wrap"><table><thead><tr><th>#</th><th>Item</th><th>Req</th><th>Issued</th><th>Natira</th><th>Unit</th><th>Status</th><th></th></tr></thead><tbody>'
     const canRemove = ['supply_officer','admin'].includes(role) && !['issued','cancelled','rejected'].includes(req.status)
     items.forEach((item, i) => {
       const removed = item.is_removed
+      const reqQty = Number(item.quantity) || 0
+      const issuedQty = Number(item.quantity_issued) || 0
+      const remaining = Math.max(0, reqQty - issuedQty)
+      // Status label per item
+      let statusHtml
+      if (removed) statusHtml = '<span style="font-size:10px;color:var(--red);background:var(--red-a,rgba(240,80,80,.12));padding:1px 7px;border-radius:5px;font-weight:700;">REMOVED</span>'
+      else if (item.fulfillment_type === 'for_po') statusHtml = '<span style="font-size:10px;color:var(--accent,#2222A8);background:var(--accent-a,rgba(34,34,168,.1));padding:1px 7px;border-radius:5px;font-weight:700;">🛒 For PO</span>'
+      else if (remaining === 0 && issuedQty > 0) statusHtml = '<span style="font-size:10px;color:var(--green);font-weight:700;">✅ Complete</span>'
+      else if (issuedQty > 0) statusHtml = '<span style="font-size:10px;color:var(--amber,#b8860b);font-weight:700;">⏳ Partial</span>'
+      else statusHtml = '<span style="font-size:10px;color:var(--txt3);">Pending</span>'
+
       body += '<tr' + (removed ? ' style="opacity:.5;"' : '') + '><td style="color:var(--txt2);">' + (i+1) + '</td><td>'
       body += '<strong' + (removed ? ' style="text-decoration:line-through;"' : '') + '>' + item.item_name + '</strong>'
-      if (removed) body += ' <span style="font-size:10px;color:var(--red);background:var(--red-a,rgba(240,80,80,.12));padding:1px 7px;border-radius:5px;font-weight:700;">REMOVED</span>'
       if (removed && item.removed_reason) body += '<br><span style="font-size:10px;color:var(--txt3);">Dahilan: ' + escStk(item.removed_reason) + '</span>'
       if (item.item_description) body += '<br><span style="font-size:11px;color:var(--txt2);">' + item.item_description + '</span>'
-      body += '</td><td>' + item.quantity + '</td><td>' + (item.unit || '—') + '</td>'
-      body += '<td>₱' + (item.estimated_cost ? Number(item.estimated_cost).toLocaleString() : '—') + '</td>'
-      body += '<td>' + (item.category ? item.category : '—') + '</td>'
-      // Remove button (supply officer) — only for not-yet-removed, not-yet-issued items
-      if (canRemove && !removed && Number(item.quantity_issued||0) === 0) {
-        body += '<td><button class="btn btn-ghost btn-sm" onclick="removeRequestItem(\'' + item.id + '\',\'' + req.id + '\')" title="Alisin ang item (hal. duplicate)" style="color:var(--red);padding:2px 8px;font-size:11px;">🗑 Remove</button></td>'
+      body += '</td>'
+      body += '<td>' + reqQty + '</td>'
+      body += '<td style="color:var(--green);font-weight:600;">' + (issuedQty > 0 ? issuedQty : '—') + '</td>'
+      body += '<td style="color:' + (remaining > 0 && !removed && item.fulfillment_type !== 'for_po' ? 'var(--amber,#b8860b)' : 'var(--txt3)') + ';font-weight:600;">' + (remaining > 0 ? remaining : '—') + '</td>'
+      body += '<td>' + (item.unit || '—') + '</td>'
+      body += '<td>' + statusHtml + '</td>'
+      if (canRemove && !removed && issuedQty === 0) {
+        body += '<td><button class="btn btn-ghost btn-sm" onclick="removeRequestItem(\'' + item.id + '\',\'' + req.id + '\')" title="Alisin ang item" style="color:var(--red);padding:2px 8px;font-size:11px;">🗑</button></td>'
       } else { body += '<td></td>' }
       body += '</tr>'
     })
-    const total = items.filter(x=>!x.is_removed).reduce((s, i) => s + (Number(i.estimated_cost) * Number(i.quantity)), 0)
-    body += '<tr><td colspan="4" style="text-align:right;font-weight:600;">Total Est.</td><td colspan="3"><strong>₱' + total.toLocaleString() + '</strong></td></tr>'
     body += '</tbody></table></div>'
+    // Extra/manual items issued that weren't in the original request are still shown in
+    // the separate "Actually Issued" section below (loaded async) so nothing is missed.
   }
   body += '</div>'
 
@@ -2810,23 +2847,26 @@ async function loadActuallyIssued(reqId) {
       .select('issuance_id,request_item_id,stock_item_id,item_name_snapshot,quantity_issued,from_stock')
       .in('issuance_id', issIds)
     if (!iitems || !iitems.length) { wrap.innerHTML = ''; return }
-    const riIds = iitems.map(x => x.request_item_id).filter(Boolean)
-    const stkIds = iitems.map(x => x.stock_item_id).filter(Boolean)
+    // Only show EXTRAS here — manual/stock items that weren't in the original request.
+    // Items linked to a request_item already show their issued qty in the main table.
+    const extras = iitems.filter(it => !it.request_item_id)
+    if (!extras.length) { wrap.innerHTML = ''; return }
+    const riIds = extras.map(x => x.request_item_id).filter(Boolean)
+    const stkIds = extras.map(x => x.stock_item_id).filter(Boolean)
     const riById = {}, stkById = {}
     if (riIds.length) { const { data } = await SB.from('request_items').select('id,item_name,unit').in('id', [...new Set(riIds)]); (data||[]).forEach(r => riById[r.id]=r) }
     if (stkIds.length) { const { data } = await SB.from('stock_items').select('id,item_name,unit').in('id', [...new Set(stkIds)]); (data||[]).forEach(s => stkById[s.id]=s) }
     const issById = {}; isss.forEach(i => issById[i.id] = i)
-    let html = '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">\ud83d\udce6 Actually Issued</div>'
+    let html = '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📦 Dinagdag na Items (extra, na-issue)</div>'
     html += '<div style="border:1px solid var(--bdr2);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
     html += '<thead><tr style="background:var(--surf2);color:var(--txt3);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:7px 10px;">Item</th><th style="width:60px;padding:7px;">Qty</th><th style="width:110px;padding:7px;">Issuance</th></tr></thead><tbody>'
-    iitems.forEach(it => {
-      let name, isExtra = false
-      if (it.request_item_id && riById[it.request_item_id]) { name = riById[it.request_item_id].item_name }
-      else if (it.stock_item_id && stkById[it.stock_item_id]) { name = stkById[it.stock_item_id].item_name; isExtra = true }
-      else { name = it.item_name_snapshot || 'Item'; isExtra = true }
+    extras.forEach(it => {
+      let name
+      if (it.stock_item_id && stkById[it.stock_item_id]) { name = stkById[it.stock_item_id].item_name }
+      else { name = it.item_name_snapshot || 'Item' }
       const iss = issById[it.issuance_id]
       html += '<tr style="border-top:1px solid var(--bdr);">'
-      html += '<td style="padding:7px 10px;color:var(--txt);">' + escStk(name) + (isExtra ? ' <span style="font-size:10px;color:var(--amber,#b8860b);background:var(--amber-a,rgba(240,200,56,.12));padding:1px 6px;border-radius:5px;">dinagdag</span>' : '') + '</td>'
+      html += '<td style="padding:7px 10px;color:var(--txt);">' + escStk(name) + ' <span style="font-size:10px;color:var(--amber,#b8860b);background:var(--amber-a,rgba(240,200,56,.12));padding:1px 6px;border-radius:5px;">dinagdag</span></td>'
       html += '<td style="padding:7px;text-align:center;font-weight:600;">' + it.quantity_issued + '</td>'
       html += '<td style="padding:7px;font-size:11px;color:var(--txt3);">' + escStk(iss?.issuance_no || '') + '</td>'
       html += '</tr>'
