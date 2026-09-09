@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-18'
+const APP_VERSION = '2026.09.08-20'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4858,26 +4858,29 @@ function updatePOTotal() {
 
 async function loadCSRItemsForPO(requestId) {
   if (!requestId) return
-  // If this request had a per-item PO split, the PO should contain ONLY the items
-  // flagged "for_po" (the rest were already issued from stock).
+  // Load only items that DON'T yet have a PO. Split requests further narrow to the
+  // items flagged "for_po". This way a follow-up PO for the same request shows only
+  // the remaining (not-yet-ordered) items — removed/ordered items don't reappear.
   const { data: req } = await SB.from('requests').select('has_po_split').eq('id', requestId).maybeSingle()
-  let items
-  if (req?.has_po_split) {
-    const { data: poItems } = await SB.from('request_items').select('*')
-      .eq('request_id', requestId).eq('fulfillment_type', 'for_po')
-    items = poItems || []
-  } else {
-    items = await loadRequestItems(requestId)
-  }
+  let query = SB.from('request_items').select('*').eq('request_id', requestId).or('po_created.is.null,po_created.eq.false')
+  if (req?.has_po_split) query = query.eq('fulfillment_type', 'for_po')
+  const { data: rawItems } = await query
+  const items = rawItems || []
   if (items.length > 0) {
     state.itemRows = items.map(item => ({
       id: Date.now() + Math.random(),
+      _reqItemId: item.id,   // keep the source request_item id to flag it after PO save
       item_name: item.item_name,
       item_description: item.item_description || '',
       quantity: (item.quantity_for_po && Number(item.quantity_for_po) > 0) ? item.quantity_for_po : item.quantity,
       unit: item.unit || 'pcs',
       unit_price: item.estimated_cost || 0
     }))
+    document.getElementById('poItemsBody').innerHTML = buildPOItemRows()
+    updatePOTotal()
+  } else {
+    // Everything already has a PO — start with one blank row.
+    state.itemRows = [{ id: Date.now(), _reqItemId: null, item_name:'', item_description:'', quantity:1, unit:'pcs', unit_price:0 }]
     document.getElementById('poItemsBody').innerHTML = buildPOItemRows()
     updatePOTotal()
   }
@@ -4988,6 +4991,15 @@ async function savePO(action) {
       unit_price: Number(item.unit_price || 0),
       quantity_received: 0
     })))
+
+    // Flag the source request items that were included in THIS PO, so a follow-up PO
+    // for the same request won't show them again (they've been ordered).
+    if (csrId) {
+      const includedReqItemIds = validItems.map(it => it._reqItemId).filter(Boolean)
+      for (const rid of includedReqItemIds) {
+        try { await SB.from('request_items').update({ po_created: true, po_id: po.id }).eq('id', rid) } catch(_) {}
+      }
+    }
 
     // Update CSR request status if linked
     if (csrId) {
@@ -5154,6 +5166,8 @@ async function viewPO(id) {
     body += '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;font-size:13px;color:var(--txt2);">'
     body += '📝 ' + po.notes + '</div>'
   }
+
+  document.getElementById('requestDetailBody').innerHTML = body
 
   // Footer — role-based per PO status
   let footer = '<button class="btn btn-ghost" onclick="closeModal(\'requestDetailModal\')">Close</button>'
