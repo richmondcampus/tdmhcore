@@ -743,7 +743,7 @@ async function renderDashboard() {
 
   const open = tickets.filter(t => t.status === 'open').length
   const inProg = tickets.filter(t => ['assigned','in_progress'].includes(t.status)).length
-  const critical = tickets.filter(t => t.priority === 'critical' && !['resolved','closed'].includes(t.status)).length
+  const critical = tickets.filter(t => t.priority === 'critical' && !['resolved','closed','cancelled'].includes(t.status)).length
   const resolved = tickets.filter(t => t.status === 'resolved').length
   const myTickets = tickets.filter(t =>
     isIT ? t.assigned_to === S.user.id : t.requester_id === S.user.id
@@ -771,7 +771,7 @@ async function renderDashboard() {
     html += sC('🎫','Total',tickets.length,'All time','var(--txt2)')
   } else {
     // Requester: only their own simple view — open vs resolved, no team/aggregate stats
-    const myOpen = tickets.filter(t => !['resolved','closed'].includes(t.status)).length
+    const myOpen = tickets.filter(t => !['resolved','closed','cancelled'].includes(t.status)).length
     const myResolved = tickets.filter(t => ['resolved','closed'].includes(t.status)).length
     html += sC('🎫','My Open Tickets',myOpen,'Naghihintay o ginagawa pa','var(--accent)')
     html += sC('✅','Resolved',myResolved,'Tapos na','var(--green)')
@@ -782,7 +782,7 @@ async function renderDashboard() {
   // shortcut to raise a ticket; the count badge is hidden for them (no team view).
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:24px;">'
   S.categories.forEach(cat => {
-    const count = isIT ? tickets.filter(t => t.category_id === cat.id && !['resolved','closed'].includes(t.status)).length : 0
+    const count = isIT ? tickets.filter(t => t.category_id === cat.id && !['resolved','closed','cancelled'].includes(t.status)).length : 0
     html += '<div onclick="openTicketFormWithCategory(\'' + cat.id + '\')" style="background:var(--surf1);border:1px solid var(--bdr);border-radius:12px;padding:14px;cursor:pointer;text-align:center;" class="card-hover">'
     html += '<div style="font-size:22px;margin-bottom:6px;">' + cat.icon + '</div>'
     html += '<div style="font-size:12px;font-weight:600;">' + cat.name + '</div>'
@@ -895,7 +895,7 @@ function buildTicketTable(tickets) {
     const req = S.users.find(u => u.id === t.requester_id)
     const asgn = S.users.find(u => u.id === t.assigned_to)
     const slaDue = t.sla_resolution_due ? new Date(t.sla_resolution_due) : null
-    const slaBreached = slaDue && slaDue < new Date() && !['resolved','closed'].includes(t.status)
+    const slaBreached = slaDue && slaDue < new Date() && !['resolved','closed','cancelled'].includes(t.status)
     const _done2 = ['resolved','closed'].includes(t.status)
     const age = Math.floor(((_done2 && t.resolved_at ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
     tableHTML += '<tr onclick="viewTicket(\'' + t.id + '\')" style="cursor:pointer;">'
@@ -1584,6 +1584,41 @@ function renderTicketDescription(desc) {
   return '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 14px;font-size:13px;white-space:pre-wrap;line-height:1.55;">' + esc(desc) + '</div>'
 }
 
+// Cancel a ticket (wrong/duplicate/misfiled). Prompts for a reason, keeps a record.
+async function openCancelTicket(ticketId) {
+  const reasons = [
+    'Duplicate ticket',
+    'Wrong filing (mali ang pagka-file)',
+    'Dapat sa ibang system (mali ang napuntahan)',
+    'Hindi na kailangan',
+    'Iba pa'
+  ]
+  let msg = 'Bakit kina-cancel ang ticket na ito?\n\n'
+  reasons.forEach((r, i) => { msg += (i+1) + '. ' + r + '\n' })
+  msg += '\nI-type ang numero (1-' + reasons.length + ') o ang sariling dahilan:'
+  const input = prompt(msg)
+  if (input === null) return
+  let reason = input.trim()
+  const num = parseInt(reason)
+  if (num >= 1 && num <= reasons.length) reason = reasons[num-1]
+  if (!reason) { alert('Kailangan ng dahilan para i-cancel.'); return }
+  // If "Iba pa" was chosen by number, ask for the actual reason
+  if (reason === 'Iba pa') {
+    const other = prompt('I-type ang dahilan:')
+    if (other === null || !other.trim()) return
+    reason = other.trim()
+  }
+  try {
+    await SB.from('it_tickets').update({
+      status: 'cancelled', cancel_reason: reason,
+      cancelled_by: S.user.id, cancelled_at: new Date().toISOString()
+    }).eq('id', ticketId)
+    showToast('success','Cancelled','Na-cancel ang ticket. Dahilan: ' + reason)
+    closeModal('ticketDetailModal')
+    if (typeof renderDashboard === 'function') showPage(S.currentPage || 'dashboard')
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
 async function viewTicket(ticketId) {
   const { data: t } = await SB.from('it_tickets').select('*').eq('id', ticketId).single()
   if (!t) return
@@ -1624,7 +1659,7 @@ async function viewTicket(ticketId) {
   }
 
   // SLA progress
-  if (t.sla_resolution_due && !['resolved','closed'].includes(t.status)) {
+  if (t.sla_resolution_due && !['resolved','closed','cancelled'].includes(t.status)) {
     const total = t.sla_resolution_due && t.created_at ?
       new Date(t.sla_resolution_due) - new Date(t.created_at) : 1
     const elapsed = Date.now() - new Date(t.created_at)
@@ -1664,7 +1699,7 @@ async function viewTicket(ticketId) {
   body += '</div>'
 
   // Assign to (IT only, if unassigned or admin)
-  if (isIT && (!t.assigned_to || ['supervisor','admin'].includes(role)) && !['resolved','closed'].includes(t.status)) {
+  if (isIT && (!t.assigned_to || ['supervisor','admin'].includes(role)) && !['resolved','closed','cancelled'].includes(t.status)) {
     body += '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:16px;">'
     body += '<div style="font-size:12px;font-weight:600;margin-bottom:8px;">Assign Technician</div>'
     body += '<div style="display:flex;gap:8px;">'
@@ -1682,7 +1717,7 @@ async function viewTicket(ticketId) {
   // Request Parts / Replacement (assigned technician + supervisor/admin, active tickets)
   const canRequestParts = isIT && ['technician','supervisor','admin'].includes(role) &&
     (t.assigned_to === S.user.id || ['supervisor','admin'].includes(role)) &&
-    !['resolved','closed'].includes(t.status)
+    !['resolved','closed','cancelled'].includes(t.status)
   if (canRequestParts) {
     body += '<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:14px;margin-bottom:16px;">'
     body += '<div style="font-size:12px;font-weight:600;color:var(--amber);margin-bottom:4px;">🔧 Kailangan ng parts o kapalit?</div>'
@@ -1753,14 +1788,14 @@ async function viewTicket(ticketId) {
   let footer = '<button class="btn btn-ghost" onclick="closeModal(\'ticketDetailModal\')">Close</button>'
 
   // Link Asset — if no asset linked yet and ticket is active
-  if (!t.asset_id && !['resolved','closed'].includes(t.status) && isIT) {
+  if (!t.asset_id && !['resolved','closed','cancelled'].includes(t.status) && isIT) {
     footer += '<button class="btn btn-ghost btn-sm" onclick="openLinkAssetModal(\'' + t.id + '\')">🏷️ Link Asset</button>'
   }
 
   // Convert to DERP — equipment beyond repair, hand off to CSR
   const derpLink = (S.derpByTicket || {})[t.id]
   const hasDerp = !!derpLink || !!t.source_ref_id || t.retirement_recommended
-  if (isIT && !hasDerp && !['resolved','closed'].includes(t.status)) {
+  if (isIT && !hasDerp && !['resolved','closed','cancelled'].includes(t.status)) {
     footer += '<button class="btn btn-danger" onclick="convertToDerp(\'' + t.id + '\')">🚫 Convert to DERP</button>'
   }
   if (hasDerp) {
@@ -1769,7 +1804,7 @@ async function viewTicket(ticketId) {
   }
 
   if (isIT) {
-    if (!['resolved','closed'].includes(t.status)) {
+    if (!['resolved','closed','cancelled'].includes(t.status)) {
       if (t.status === 'open' || t.status === 'assigned') {
         footer += '<button class="btn btn-secondary" onclick="updateTicketStatus(\'' + t.id + '\',\'in_progress\')">▶ Start Working</button>'
       }
@@ -1784,6 +1819,12 @@ async function viewTicket(ticketId) {
   }
   if (['resolved','closed'].includes(t.status) && t.requester_id === S.user.id) {
     footer += '<button class="btn btn-danger" onclick="reopenTicket(\'' + t.id + '\')">↩ Reopen</button>'
+  }
+  // Cancel ticket — for wrong/duplicate/misfiled tickets. Available to the requester
+  // (own ticket) or IT staff, while the ticket is still active.
+  const isITstaff = ['technician','supervisor','admin'].includes(S.user.it_role)
+  if (!['resolved','closed','cancelled'].includes(t.status) && (t.requester_id === S.user.id || isITstaff)) {
+    footer += '<button class="btn btn-ghost" onclick="openCancelTicket(\'' + t.id + '\')" style="color:var(--red);">❌ Cancel Ticket</button>'
   }
 
   document.getElementById('ticketDetailFooter').innerHTML = footer
@@ -1974,7 +2015,7 @@ async function renderAnalytics() {
   html += sC('🎫','Total Tickets',total,'All time','var(--txt2)')
   html += sC('✅','Resolved',resolved,Math.round(total>0?resolved/total*100:0)+'% rate','var(--green)')
   html += sC('⭐','Avg Rating',avgRating + '/5','User satisfaction','var(--amber)')
-  html += sC('⏳','Open',tickets.filter(t=>!['resolved','closed'].includes(t.status)).length,'Needs attention','var(--accent)')
+  html += sC('⏳','Open',tickets.filter(t=>!['resolved','closed','cancelled'].includes(t.status)).length,'Needs attention','var(--accent)')
   html += '</div>'
 
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
@@ -2014,7 +2055,7 @@ async function renderSLAReport() {
   const now = new Date()
 
   const breached = tickets.filter(t =>
-    t.sla_resolution_due && new Date(t.sla_resolution_due) < now && !['resolved','closed'].includes(t.status)
+    t.sla_resolution_due && new Date(t.sla_resolution_due) < now && !['resolved','closed','cancelled'].includes(t.status)
   )
   const atRisk = tickets.filter(t => {
     if (!t.sla_resolution_due || ['resolved','closed'].includes(t.status)) return false
@@ -2026,7 +2067,7 @@ async function renderSLAReport() {
   html += '<div class="stat-grid" style="margin-bottom:20px;">'
   html += sC('🔴','SLA Breached',breached.length,'Overdue tickets','var(--red)')
   html += sC('🟡','At Risk',atRisk.length,'Due in < 2 hours','var(--amber)')
-  html += sC('🟢','On Track',tickets.filter(t=>!['resolved','closed'].includes(t.status)&&t.sla_resolution_due&&new Date(t.sla_resolution_due)>new Date(now.getTime()+2*3600000)).length,'SLA OK','var(--green)')
+  html += sC('🟢','On Track',tickets.filter(t=>!['resolved','closed','cancelled'].includes(t.status)&&t.sla_resolution_due&&new Date(t.sla_resolution_due)>new Date(now.getTime()+2*3600000)).length,'SLA OK','var(--green)')
   html += '</div>'
 
   if (breached.length > 0) {
@@ -2672,7 +2713,7 @@ async function autoCreateSetupTicket(assetNo, assetName, deptId) {
   return ticketId
 }
 function formatStatus(s) {
-  return { open:'Open', assigned:'Assigned', in_progress:'In Progress', pending_user:'Pending User', resolved:'Resolved', closed:'Closed', reopened:'Reopened' }[s] || s
+  return { open:'Open', assigned:'Assigned', in_progress:'In Progress', pending_user:'Pending User', resolved:'Resolved', closed:'Closed', reopened:'Reopened', cancelled:'❌ Cancelled' }[s] || s
 }
 
 function formatDate(iso) {
