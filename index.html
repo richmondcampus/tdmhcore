@@ -364,7 +364,10 @@ canvas{max-height:220px;}
     </div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+      <div style="position:relative;">
+        <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" style="width:100%;padding-right:44px;">
+        <button type="button" onclick="togglePw('loginPass',this)" aria-label="Show password" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px 8px;color:var(--txt3);">👁</button>
+      </div>
     </div>
     <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
     <div style="text-align:center;margin-top:12px;">
@@ -513,6 +516,14 @@ function storeAuthSession(authData, profile){
     refresh_token:authData.session?.refresh_token
   }
   setSession(s); return s
+}
+
+// Toggle password visibility (show/hide). Swaps the input type + the eye icon.
+function togglePw(id, btn){
+  const el = document.getElementById(id)
+  if(!el) return
+  if(el.type === 'password'){ el.type = 'text'; if(btn) btn.textContent = '🙈' }
+  else { el.type = 'password'; if(btn) btn.textContent = '👁' }
 }
 
 async function doLogin(){
