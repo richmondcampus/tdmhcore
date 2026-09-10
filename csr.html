@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.10-1'
+const APP_VERSION = '2026.09.10-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1584,6 +1584,7 @@ async function renderDashboard() {
 
   // ── KANBAN VIEW (only) ──
   await loadPendingIssueFlags(requests)
+  await loadReceivedPOFlags(requests)
   html += buildCSRKanban(requests)
   if (false) {
     // (legacy list view removed)
@@ -1672,6 +1673,20 @@ function setDashView(view) {
 function requestHasPendingIssue(r) {
   return !!(state._pendingIssueFlags && state._pendingIssueFlags[r.id])
 }
+// True if the request has a PO that's been received but not yet issued (ready to issue).
+function requestHasReceivedPO(r) {
+  return !!(state._receivedPOFlags && state._receivedPOFlags[r.id])
+}
+async function loadReceivedPOFlags(requests) {
+  state._receivedPOFlags = {}
+  const delivered = (requests || []).filter(r => r.status === 'delivered').map(r => r.id)
+  if (!delivered.length) return
+  try {
+    const { data: pos } = await SB.from('purchase_orders').select('request_id,status')
+      .in('request_id', delivered).eq('status', 'received')
+    ;(pos || []).forEach(po => { if (po.request_id) state._receivedPOFlags[po.request_id] = true })
+  } catch(_) {}
+}
 async function loadPendingIssueFlags(requests) {
   state._pendingIssueFlags = state._pendingIssueFlags || {}
   // Check split/partial requests that might have remaining non-PO items to issue.
@@ -1699,11 +1714,11 @@ function buildCSRKanban(requests) {
     // Needs Fulfillment: ready-to-issue requests. Includes approved (L2/auto), plainly
     // partially_issued, AND split requests (for_po OR partially_issued at L3) that still
     // have non-PO items with remaining qty to issue.
-    { id:'approved',         label:'⚡ Needs Fulfillment', color:'var(--green)',  bg:'var(--green-a)', filter: r => ((r.status === 'approved' || r.status === 'partially_issued') && r.current_approval_level !== 3) || ((r.status === 'for_po' || r.status === 'partially_issued') && requestHasPendingIssue(r)) },
+    { id:'approved',         label:'⚡ Needs Fulfillment', color:'var(--green)',  bg:'var(--green-a)', filter: r => ((r.status === 'approved' || r.status === 'partially_issued') && r.current_approval_level !== 3) || ((r.status === 'for_po' || r.status === 'partially_issued') && requestHasPendingIssue(r)) || (r.status === 'delivered' && requestHasReceivedPO(r)) },
     // For PO: only requests explicitly forwarded for purchasing (for_po) or at the
     // Purchasing Officer level (3). These are NOT for the Supply Officer to issue.
     { id:'for_po',           label:'💰 For PO',            color:'var(--accent)', bg:'var(--accent-a)', filter: r => r.status === 'for_po' || (r.status === 'approved' && r.current_approval_level === 3) },
-    { id:'issued',           label:'📦 Issued/Done',       color:'var(--blue)',   bg:'var(--blue-a)',  filter: r => r.status === 'issued' || r.status === 'ordered' || r.status === 'delivered' },
+    { id:'issued',           label:'📦 Issued/Done',       color:'var(--blue)',   bg:'var(--blue-a)',  filter: r => r.status === 'issued' || r.status === 'ordered' },
     { id:'cancelled',        label:'❌ Cancelled',         color:'var(--red)',    bg:'var(--red-a)',   filter: r => r.status === 'cancelled' },
   ]
   // Hide Issued/Done and Cancelled from the active Kanban (less clutter).
@@ -5532,16 +5547,7 @@ async function openIssueFromPO(poId) {
   })
   html += '</tbody></table></div>'
 
-  html += '<div class="field"><label>Receiver\'s Name</label>'
-  html += '<input type="text" id="iss_receiver" placeholder="Name of person receiving the items" style="width:100%;padding:8px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;"></div>'
-
-  html += '<div class="field" style="margin-top:12px;"><label>Confirmation Method</label>'
-  html += '<div style="display:flex;gap:8px;margin-top:6px;">'
-  html += '<label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;cursor:pointer;font-size:13px;">'
-  html += '<input type="radio" name="iss_confirm" value="photo" checked style="accent-color:var(--accent);"> 📷 Take Photo</label>'
-  html += '<label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;cursor:pointer;font-size:13px;">'
-  html += '<input type="radio" name="iss_confirm" value="link" style="accent-color:var(--accent);"> 🔗 Send Confirmation Link</label>'
-  html += '</div></div>'
+  html += '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:9px;padding:10px 12px;font-size:12px;color:var(--txt2);">💡 Kapag pinindot ang <strong>Prepare Issuance</strong>, gagawa ng issuance. Ang <strong>receiver + photo/link confirmation</strong> ay gagawin sa susunod (Awaiting Receipt Confirmation), gaya ng regular issuance.</div>'
 
   document.getElementById('newRequestBody').innerHTML = html
   document.getElementById('newRequestBody').dataset.poId = poId
@@ -5550,7 +5556,7 @@ async function openIssueFromPO(poId) {
 
   document.querySelector('#newRequestModal .modal-footer').innerHTML =
     '<button class="btn btn-ghost" onclick="closeModal(\'newRequestModal\')">Cancel</button>' +
-    '<button class="btn btn-primary" onclick="confirmIssueFromPO()">📤 Confirm Issuance</button>'
+    '<button class="btn btn-primary" onclick="confirmIssueFromPO()">📤 Prepare Issuance</button>'
 
   closeModal('requestDetailModal')
   openModal('newRequestModal')
@@ -5562,10 +5568,9 @@ async function confirmIssueFromPO() {
   const poId = document.getElementById('newRequestBody').dataset.poId
   const reqId = document.getElementById('newRequestBody').dataset.reqId
   const items = JSON.parse(document.getElementById('newRequestBody').dataset.items || '[]')
-  const receiver = document.getElementById('iss_receiver')?.value.trim()
-  const confirmMethod = document.querySelector('input[name="iss_confirm"]:checked')?.value || 'photo'
-
-  if (!receiver) { showToast('error', 'Required', 'Please enter the receiver\'s name.'); return }
+  // Receiver + confirmation are handled in the "Awaiting Receipt Confirmation" step now,
+  // same as regular issuances. Here we only prepare the issuance.
+  const receiver = null
 
   try {
     // Get or create issuance linked to this PO
@@ -5613,9 +5618,9 @@ async function confirmIssueFromPO() {
     }
 
     closeModal('newRequestModal')
-    showToast('success', '✅ Issued!', 'Items issued to department — ' + issNo + '. Awaiting ' + (confirmMethod === 'photo' ? 'photo proof' : 'online confirmation') + '.')
+    showToast('success', '✅ Na-prepare', issNo + ' — i-confirm ang receipt (photo/link) sa susunod.')
 
-    // Open issuance detail for confirmation step
+    // Open issuance detail for the confirmation step (receiver + photo/link)
     if (issId) {
       setTimeout(() => viewIssuance(issId), 500)
     }
