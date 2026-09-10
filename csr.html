@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-31'
+const APP_VERSION = '2026.09.08-36'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1967,7 +1967,7 @@ async function showPoHover(ev, poId) {
   if (token !== _poHoverToken) return  // a newer hover happened
 
   let html = '<div style="font-weight:700;font-size:13px;margin-bottom:2px;">' + escStk(po?.po_number || 'PO') + '</div>'
-  html += '<div style="font-size:11px;color:var(--txt2);margin-bottom:8px;">🏢 ' + escStk(po?.supplier_name || '—') + '</div>'
+  html += '<div style="font-size:11px;color:var(--txt2);margin-bottom:8px;">🏢 ' + escStk(poSupplierName(po||{})) + '</div>'
   html += '<div style="font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;">Items</div>'
   if (items.length) {
     html += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px;">'
@@ -2056,6 +2056,28 @@ function onIrDeptFilter(val) { issRptState.filters.dept = _resolveDeptId(val); a
 // ── Custom department autocomplete (styled, works on mobile) ──
 // Renders a text input + a styled suggestions menu. onPick(deptId) is called with the
 // chosen department id ('' = All). Returns the HTML; call deptAutocompleteInit after.
+// Unit autocomplete for item rows — styled dropdown (not the ugly native datalist).
+const UNIT_OPTIONS = ['pcs','box','ream','liters','gal','sets','meters','rolls','packs','bottles','kit','bundle','tray','tube','can','sachet','pack','dozen','vial','amp','bot','roll','pad']
+function unitAcFilter(input) {
+  const rowId = input.dataset.rowid
+  const menu = document.querySelector('.ac-menu[data-menu-for="' + rowId + '"]')
+  if (!menu) return
+  const q = (input.value||'').trim().toLowerCase()
+  updateItemRow(Number(rowId), 'unit', input.value)
+  input.style.borderColor = input.value.trim() ? 'var(--bdr2)' : 'var(--amber,#f0c838)'
+  const matches = q ? UNIT_OPTIONS.filter(u => u.includes(q)) : UNIT_OPTIONS
+  if (!matches.length) { menu.classList.remove('open'); return }
+  menu.innerHTML = matches.slice(0, 30).map(u => '<div class="ac-item" onmousedown="pickUnit(\'' + rowId + '\',\'' + u + '\')">' + u + '</div>').join('')
+  menu.classList.add('open')
+}
+function pickUnit(rowId, unit) {
+  const input = document.querySelector('.req-unit-input[data-rowid="' + rowId + '"]')
+  if (input) { input.value = unit; input.style.borderColor = 'var(--bdr2)' }
+  updateItemRow(Number(rowId), 'unit', unit)
+  const menu = document.querySelector('.ac-menu[data-menu-for="' + rowId + '"]')
+  if (menu) menu.classList.remove('open')
+}
+
 function deptAutocompleteHtml(inputId, onPickFnName) {
   return '<span class="ac-wrap">'
     + '<input type="text" id="' + inputId + '" class="ac-input" placeholder="🏢 Lahat ng dept" autocomplete="off" '
@@ -2478,6 +2500,11 @@ async function viewRequest(id) {
   const req = state.requests.find(r => r.id === id) || (await SB.from('requests').select('*').eq('id', id).single()).data
   if (!req) { showToast('error', 'Error', 'Request not found'); return }
   const [items, approvals] = await Promise.all([loadRequestItems(id), loadApprovals(id)])
+  // Does this request already have a PO? (Pull Back is only for requests with no PO yet.)
+  try {
+    const { count: poCount } = await SB.from('purchase_orders').select('id', { count:'exact', head:true }).eq('request_id', id)
+    req._hasPO = (poCount || 0) > 0
+  } catch(_) { req._hasPO = false }
   const dept = state.departments.find(d => d.id === req.dept_id)
   const requester = state.users.find(u => u.id === req.requested_by)
   const role = state.user.csr_role
@@ -2731,6 +2758,14 @@ async function viewRequest(id) {
   else if (req.request_type !== 'derp' && (req.status === 'for_po' || req.status === 'partially_issued') && ['supply_officer','admin'].includes(role) && requestItemsHavePendingIssue(items)) {
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue Remaining (Stock)</button>'
   }
+  // Pull Back to Issuance — for for_po requests with NO PO yet (emergency bought directly,
+  // or stock suddenly available). Converts for_po items back to issue and returns the
+  // request to the Supply Officer. Supply Officer / Purchasing / Admin, with a reason.
+  if (req.request_type !== 'derp' && req.status === 'for_po'
+      && ['supply_officer','purchasing_officer','admin'].includes(role)
+      && !req._hasPO) {
+    footer += '<button class="btn btn-ghost" onclick="pullBackToIssuance(\'' + req.id + '\')" style="color:var(--amber,#b8860b);">↩️ Pull Back to Issuance</button>'
+  }
   // Supply Officer / Admin can edit items anytime before issue. Dept heads can edit
   // items for their own department's requests while it's still at their level (L1) —
   // so they can fix names/qty or add items before approving.
@@ -2808,6 +2843,38 @@ async function maybeAutoCloseRequest(reqId) {
       }
     }
   } catch(e) { console.warn('maybeAutoCloseRequest', e.message) }
+}
+
+// Pull a for_po request back to issuance (no PO yet). Converts for_po items to issue,
+// returns to Supply Officer so items can be issued from stock. Records a reason.
+async function pullBackToIssuance(reqId) {
+  const reason = prompt('Bakit ibinabalik sa issuance? (hal. Emergency — binili na direkta / biglang may stock)')
+  if (reason === null) return
+  if (!reason.trim()) { showToast('error','Dahilan','Kailangan ng dahilan.'); return }
+  try {
+    // Safety: block if a PO already exists.
+    const { count: poCount } = await SB.from('purchase_orders').select('id', { count:'exact', head:true }).eq('request_id', reqId)
+    if ((poCount||0) > 0) { showToast('error','May PO na','May PO na para sa request na ito — i-cancel muna ang PO bago mag-pull back.'); return }
+    // Convert for_po items back to issue.
+    await SB.from('request_items').update({ fulfillment_type: 'issue', quantity_for_po: 0 }).eq('request_id', reqId).eq('fulfillment_type', 'for_po')
+    // Return to Supply Officer. If some items were already issued → partially_issued, else approved.
+    const { data: ri } = await SB.from('request_items').select('quantity,quantity_issued,is_removed').eq('request_id', reqId)
+    const anyIssued = (ri||[]).some(x => (Number(x.quantity_issued)||0) > 0)
+    await SB.from('requests').update({
+      status: anyIssued ? 'partially_issued' : 'approved',
+      current_approval_level: 2, has_po_split: false,
+      pending_items_note: 'Pulled back sa issuance: ' + reason.trim()
+    }).eq('id', reqId)
+    // Audit trail via approvals note
+    try {
+      await SB.from('approvals').insert({ request_id: reqId, approver_id: state.user.id, approver_role: state.user.csr_role || 'admin', level: 2, decision: 'returned', remarks: 'Pull back to issuance: ' + reason.trim(), decided_at: new Date().toISOString() })
+    } catch(_) {}
+    showToast('success','Naibalik ✅','Nasa issuance na ulit ang request — pwede nang i-issue from stock.')
+    closeModal('requestDetailModal')
+    if (state.page === 'dashboard') renderDashboard()
+    else if (state.page === 'all_requests') renderAllRequests()
+    else if (state.page === 'issuance') renderIssuance()
+  } catch(e) { showToast('error','Error', e.message) }
 }
 
 async function loadForPoItems(reqId) {
@@ -2934,7 +3001,7 @@ function openNewRequestModal(type) {
   // Fresh idempotency key per opened form — a double-click/retry reuses it so the DB
   // rejects the duplicate; opening the form again (a real new request) gets a new key.
   state.requestIdempotencyKey = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random())
-  state.itemRows = [{ id: Date.now(), item_name:'', item_description:'', quantity:1, unit:'pcs', estimated_cost:0, category:'consumable', image_file:null, image_preview:null }]
+  state.itemRows = [{ id: Date.now(), item_name:'', item_description:'', quantity:1, unit:'', estimated_cost:0, category:'consumable', image_file:null, image_preview:null }]
 
   // Always reset footer to supply request buttons (prevent bleedover from user modal)
   document.getElementById('newRequestTitle').textContent = '＋ New Supply Request'
@@ -3075,6 +3142,7 @@ function renderNewRequestForm(reqType) {
   html += '</tbody></table></div>'
   html += '<datalist id="unitOptions"><option value="pcs"><option value="box"><option value="ream"><option value="liters"><option value="gal"><option value="sets"><option value="meters"><option value="rolls"><option value="packs"><option value="bottles"><option value="kit"><option value="bundle"><option value="tray"><option value="tube"><option value="can"><option value="sachet"><option value="pack"><option value="dozen"></datalist>'
   html += '<button class="btn btn-ghost btn-sm" onclick="addItemRow()" style="margin-top:8px;">＋ Add Item</button>'
+  html += '<button class="btn btn-secondary btn-sm" onclick="openKitPicker()" style="margin-top:8px;margin-left:6px;">📦 Add from Kit</button>'
   html += '</div>'
 
   // Direct issuance option — Supply Officer / Admin only, supply type
@@ -3388,7 +3456,7 @@ function buildItemRows() {
     html += ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();handleItemEnter(' + row.id + ')}"></td>'
     html += '<td><input type="text" placeholder="Description" value="' + (row.item_description||'') + '" oninput="updateItemRow(' + row.id + ',\'item_description\',this.value)"></td>'
     html += '<td><input type="number" min="1" value="' + (row.quantity||1) + '" oninput="updateItemRow(' + row.id + ',\'quantity\',this.value);recomputeItemTotal(' + row.id + ')"></td>'
-    html += '<td><input type="text" list="unitOptions" value="' + escStk(row.unit||'pcs') + '" oninput="updateItemRow(' + row.id + ',\'unit\',this.value);clearItemPrice(' + row.id + ',this.value)" placeholder="unit" style="font-size:12px;padding:4px 6px;width:70px;"></td>'
+    html += '<td><span class="ac-wrap" style="display:block;"><input type="text" class="ac-input req-unit-input" value="' + escStk(row.unit||'') + '" placeholder="unit *" autocomplete="off" data-rowid="' + row.id + '" oninput="unitAcFilter(this)" onfocus="unitAcFilter(this)" style="font-size:12px;padding:4px 6px;width:72px;min-width:0;' + (!row.unit ? 'border-color:var(--amber,#f0c838);' : '') + '"><div class="ac-menu" data-menu-for="' + row.id + '"></div></span></td>'
     // Cost cell — shows total (unit_price × qty), source icon
     const unitPrice = row.unit_price || row.estimated_cost || 0
     const total = unitPrice * (Number(row.quantity) || 1)
@@ -3609,9 +3677,67 @@ function viewItemImage(src) {
   setTimeout(() => { document.getElementById('confirmOkBtn').style.display = '' }, 100)
 }
 
+// ── ITEM KITS/BUNDLES ──
+// Request "N kits" and the system expands each kit to its component items (N of each).
+let _kitCache = null
+async function loadKits() {
+  if (_kitCache) return _kitCache
+  const { data: kits } = await SB.from('item_kits').select('*').eq('is_active', true).order('kit_name')
+  const { data: items } = await SB.from('item_kit_items').select('*').order('sort_order')
+  const byKit = {}
+  ;(items || []).forEach(it => { (byKit[it.kit_id] = byKit[it.kit_id] || []).push(it) })
+  _kitCache = (kits || []).map(k => ({ ...k, items: byKit[k.id] || [] }))
+  return _kitCache
+}
+async function openKitPicker() {
+  const kits = await loadKits()
+  if (!kits.length) { showToast('info','Walang Kit','Wala pang naka-set na kit. Idagdag sa Settings → Kits.'); return }
+  let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">Pumili ng kit at ilagay kung ilang kit ang kailangan. Ida-dagdag lahat ng laman (N kits = N bawat item).</div>'
+  html += '<div style="display:flex;flex-direction:column;gap:10px;">'
+  kits.forEach(k => {
+    html += '<div style="border:1px solid var(--bdr2);border-radius:10px;padding:12px 14px;">'
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">'
+    html += '<div><div style="font-weight:700;font-size:14px;">📦 ' + escStk(k.kit_name) + '</div>'
+    html += '<div style="font-size:11px;color:var(--txt3);">' + k.items.length + ' items: ' + escStk(k.items.map(i => i.item_name).join(', ').substring(0, 80)) + (k.items.map(i=>i.item_name).join(', ').length > 80 ? '...' : '') + '</div></div>'
+    html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">'
+    html += '<span style="font-size:11px;color:var(--txt3);">Ilang kit?</span>'
+    html += '<input type="number" min="1" value="1" id="kitqty_' + k.id + '" style="width:60px;padding:6px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);">'
+    html += '<button class="btn btn-primary btn-sm" onclick="addKitToRequest(\'' + k.id + '\')">Add</button>'
+    html += '</div></div></div>'
+  })
+  html += '</div>'
+  document.getElementById('reviewModalTitle').textContent = '📦 Add from Kit'
+  document.getElementById('reviewModalBody').innerHTML = html
+  document.getElementById('reviewModalFooter').innerHTML = '<button class="btn btn-ghost" onclick="closeModal(\'reviewModal\')">Sara</button>'
+  openModal('reviewModal')
+}
+async function addKitToRequest(kitId) {
+  const kits = await loadKits()
+  const kit = kits.find(k => k.id === kitId)
+  if (!kit) return
+  const nKits = Math.max(1, Number(document.getElementById('kitqty_' + kitId)?.value) || 1)
+  // Remove any empty starter row
+  state.itemRows = state.itemRows.filter(r => r.item_name && r.item_name.trim())
+  kit.items.forEach(it => {
+    state.itemRows.push({
+      id: Date.now() + Math.floor(Math.random()*100000),
+      item_name: it.item_name,
+      item_description: '(mula sa ' + kit.kit_name + ')',
+      quantity: (Number(it.per_kit_qty)||1) * nKits,
+      unit: it.unit || 'pcs',
+      estimated_cost: 0, unit_price: 0, category: 'consumable',
+      image_file: null, image_preview: null
+    })
+  })
+  if (state.itemRows.length === 0) addItemRow()
+  document.getElementById('itemsBody').innerHTML = buildItemRows()
+  closeModal('reviewModal')
+  showToast('success','Kit Added', kit.kit_name + ' × ' + nKits + ' — ' + kit.items.length + ' items idinagdag.')
+}
+
 function addItemRow(focusNew) {
   const newId = Date.now() + Math.floor(Math.random()*100000)
-  state.itemRows.push({ id: newId, item_name:'', item_description:'', quantity:1, unit:'pcs', estimated_cost:0, unit_price:0, category:'equipment', image_file:null, image_preview:null })
+  state.itemRows.push({ id: newId, item_name:'', item_description:'', quantity:1, unit:'', estimated_cost:0, unit_price:0, category:'equipment', image_file:null, image_preview:null })
   document.getElementById('itemsBody').innerHTML = buildItemRows()
   if (focusNew) {
     // Wait for the re-rendered rows to be in the DOM before focusing.
@@ -3665,6 +3791,9 @@ async function saveRequest(action) {
   // Validate items
   const validItems = state.itemRows.filter(r => r.item_name && r.item_name.trim())
   if (validItems.length === 0) { showToast('error', 'Validation', 'Please add at least one item.'); return }
+  // Unit is required — no silent default. Point the user to the missing one.
+  const noUnit = validItems.find(r => !r.unit || !String(r.unit).trim())
+  if (noUnit) { showToast('error', 'Kulang ang Unit', 'Punan ang UNIT ng bawat item (hal. pcs, box). Item: ' + (noUnit.item_name||'—')); return }
 
   try {
     // Generate request number
@@ -4027,17 +4156,27 @@ async function renderIncomingDeliveries() {
   }
 }
 // ═══════════════════════════════════════════
+// Resolve a PO's supplier name: prefer the saved name, else look up by supplier_id.
+// (Older POs saved a blank supplier_name but kept a valid supplier_id.)
+function poSupplierName(po) {
+  if (po.supplier_name && po.supplier_name.trim()) return po.supplier_name
+  const s = (poState.suppliers || []).find(x => x.id === po.supplier_id)
+  return s ? s.name : '—'
+}
+
 async function renderPurchaseOrders() {
   const content = document.getElementById('mainContent')
   const role = state.user.csr_role
   content.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
 
-  const [posRes, reqsRes] = await Promise.all([
+  const [posRes, reqsRes, suppRes] = await Promise.all([
     SB.from('purchase_orders').select('*').order('created_at', { ascending: false }),
     SB.from('requests').select('id,request_no,purpose,dept_id,urgency')
-      .eq('status','for_po').neq('request_type','derp').order('created_at', { ascending: false })
+      .eq('status','for_po').neq('request_type','derp').order('created_at', { ascending: false }),
+    SB.from('suppliers').select('*')
   ])
   poState.pos = posRes.data || []
+  poState.suppliers = suppRes.data || []
   const approvedReqs = reqsRes.data || []
 
   const canCreatePO = ['purchasing_officer','admin'].includes(role)
@@ -4123,7 +4262,7 @@ async function renderPurchaseOrders() {
       const statusLabels = { draft:'Draft', sent:'Sent', partial_delivery:'Partial', delivered:'Delivered', issued:'Issued', cancelled:'Cancelled' }
       html += '<tr onclick="viewPO(\'' + po.id + '\')" style="cursor:pointer;">'
       html += '<td class="td-mono" onmouseenter="showPoHover(event,\'' + po.id + '\')" onmouseleave="hidePoHover()" style="position:relative;color:var(--accent);">' + (po.po_number || '—') + ' <span style="font-size:10px;color:var(--txt3);">ⓘ</span></td>'
-      html += '<td style="font-size:13px;">' + (po.supplier_name || '—') + '</td>'
+      html += '<td style="font-size:13px;">' + poSupplierName(po) + '</td>'
       html += '<td style="font-size:12px;color:var(--txt2);">' + (po.item_count || '—') + ' item(s)</td>'
       html += '<td style="font-weight:600;">₱' + Number(po.total_amount || 0).toLocaleString() + '</td>'
       html += '<td><span style="font-size:11px;padding:3px 9px;border-radius:20px;background:' + (statusColors[po.status] || 'var(--txt2)') + '18;color:' + (statusColors[po.status] || 'var(--txt2)') + ';">' + (statusLabels[po.status] || po.status) + '</span></td>'
@@ -4145,7 +4284,7 @@ async function renderPurchaseOrders() {
       html += '<span class="td-mono" style="font-size:11px;">' + (po.po_number || '—') + '</span>'
       html += '<span style="font-size:11px;font-weight:600;">₱' + Number(po.total_amount || 0).toLocaleString() + '</span>'
       html += '</div>'
-      html += '<div style="font-size:13px;font-weight:600;">' + (po.supplier_name || 'No supplier') + '</div>'
+      html += '<div style="font-size:13px;font-weight:600;">' + poSupplierName(po) + '</div>'
       html += '<div style="font-size:12px;color:var(--txt2);margin-top:4px;">' + formatDate(po.created_at) + '</div>'
       html += '</div>'
     }
@@ -5117,7 +5256,7 @@ async function savePO(action) {
       po_number: poNumber,
       request_id: csrId || null,
       supplier_id: finalSuppId,
-      supplier_name: supplier ? supplier.name : '',
+      supplier_name: (supplier ? supplier.name : '') || (poState.suppliers||[]).find(s=>s.id===finalSuppId)?.name || '',
       supplier_contact: supplier ? (supplier.phone || '') : '',
       total_amount: total,
       po_date: new Date().toISOString().split('T')[0],
@@ -5285,7 +5424,7 @@ async function viewPO(id) {
 
   // Info grid
   body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">'
-  body += infoField('Supplier', supplier ? supplier.name : (po.supplier_name || '—'))
+  body += infoField('Supplier', poSupplierName(po))
   body += infoField('Payment Terms', po.payment_terms || '—')
   body += infoField('PO Date', formatDate(po.po_date))
   body += infoField('Expected Delivery', po.expected_delivery ? formatDate(po.expected_delivery) : '—')
@@ -6817,6 +6956,7 @@ async function openBlankIssuanceModal() {
   html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;">Items</div>'
   html += '<div id="bi_items"></div>'
   html += '<button class="btn btn-ghost btn-sm" onclick="addBlankIssRow()" style="margin-top:6px;">＋ Add Item</button>'
+  html += '<button class="btn btn-secondary btn-sm" onclick="openKitPickerBlank()" style="margin-top:6px;margin-left:6px;">📦 Add from Kit</button>'
 
   document.getElementById('newRequestBody').innerHTML = html
   document.querySelector('#newRequestModal .modal-footer').innerHTML =
@@ -6850,6 +6990,40 @@ function renderBlankIssRows() {
   box.innerHTML = html
 }
 function addBlankIssRow() { _blankIssRows.push({ id: Date.now(), stock_item_id:'', item_name:'', quantity:1, unit:'pcs' }); renderBlankIssRows() }
+
+// Kit picker for Blank Issuance — expands a kit into blank issuance rows.
+async function openKitPickerBlank() {
+  const kits = await loadKits()
+  if (!kits.length) { showToast('info','Walang Kit','Wala pang naka-set na kit.'); return }
+  let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">Pumili ng kit at ilang kit. Ida-dagdag ang laman bilang manual items.</div>'
+  html += '<div style="display:flex;flex-direction:column;gap:10px;">'
+  kits.forEach(k => {
+    html += '<div style="border:1px solid var(--bdr2);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;">'
+    html += '<div><div style="font-weight:700;font-size:14px;">📦 ' + escStk(k.kit_name) + '</div><div style="font-size:11px;color:var(--txt3);">' + k.items.length + ' items</div></div>'
+    html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><span style="font-size:11px;color:var(--txt3);">Ilang kit?</span>'
+    html += '<input type="number" min="1" value="1" id="bkitqty_' + k.id + '" style="width:60px;padding:6px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:7px;color:var(--txt);">'
+    html += '<button class="btn btn-primary btn-sm" onclick="addKitToBlank(\'' + k.id + '\')">Add</button></div></div>'
+  })
+  html += '</div>'
+  document.getElementById('reviewModalTitle').textContent = '📦 Add from Kit'
+  document.getElementById('reviewModalBody').innerHTML = html
+  document.getElementById('reviewModalFooter').innerHTML = '<button class="btn btn-ghost" onclick="closeModal(\'reviewModal\')">Sara</button>'
+  openModal('reviewModal')
+}
+async function addKitToBlank(kitId) {
+  const kits = await loadKits()
+  const kit = kits.find(k => k.id === kitId)
+  if (!kit) return
+  const nKits = Math.max(1, Number(document.getElementById('bkitqty_' + kitId)?.value) || 1)
+  _blankIssRows = _blankIssRows.filter(r => r.item_name && r.item_name.trim())
+  kit.items.forEach(it => {
+    _blankIssRows.push({ id: Date.now() + Math.floor(Math.random()*100000), stock_item_id:'', item_name: it.item_name, quantity: (Number(it.per_kit_qty)||1) * nKits, unit: it.unit || 'pcs' })
+  })
+  if (_blankIssRows.length === 0) addBlankIssRow()
+  renderBlankIssRows()
+  closeModal('reviewModal')
+  showToast('success','Kit Added', kit.kit_name + ' × ' + nKits + ' — ' + kit.items.length + ' items.')
+}
 function removeBlankIssRow(id) { if (_blankIssRows.length > 1) { _blankIssRows = _blankIssRows.filter(r => r.id !== id); renderBlankIssRows() } }
 function updateBlankField(id, field, val) { const r = _blankIssRows.find(x => x.id === id); if (r) r[field] = val }
 function updateBlankStock(id, stockId) {
@@ -10324,6 +10498,64 @@ async function exportReportsCSV() {
 let settingsState = { tab: 'users' }
 let poState = { pos: [], filterStatus: 'all' }
 
+// ── KITS MANAGEMENT (admin) ──
+async function renderKitsSettings(el) {
+  _kitCache = null  // force fresh
+  const kits = await loadKits()
+  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">'
+  html += '<div style="font-size:13px;color:var(--txt2);">I-manage ang mga kit/bundle. Ang "N kits" na request ay N bawat item.</div>'
+  html += '<button class="btn btn-primary btn-sm" onclick="addNewKit()">＋ Bagong Kit</button></div>'
+  if (!kits.length) {
+    html += '<div class="empty-state"><p>Wala pang kit. Pindutin ang "Bagong Kit".</p></div>'
+  } else {
+    kits.forEach(k => {
+      html += '<div style="border:1px solid var(--bdr2);border-radius:12px;padding:14px;margin-bottom:12px;">'
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
+      html += '<input type="text" value="' + escStk(k.kit_name) + '" onchange="renameKit(\'' + k.id + '\',this.value)" style="font-weight:700;font-size:15px;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--txt);padding:2px;" onfocus="this.style.borderBottomColor=\'var(--bdr2)\'" onblur="this.style.borderBottomColor=\'transparent\'">'
+      html += '<button class="btn btn-ghost btn-sm" onclick="deleteKit(\'' + k.id + '\',\'' + escStk(k.kit_name).replace(/'/g,"") + '\')" style="color:var(--red);">🗑 Delete Kit</button></div>'
+      html += '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="color:var(--txt3);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:4px 8px;">Item</th><th style="width:80px;">Qty/Kit</th><th style="width:70px;">Unit</th><th style="width:40px;"></th></tr></thead><tbody>'
+      k.items.forEach(it => {
+        html += '<tr style="border-top:1px solid var(--bdr);">'
+        html += '<td style="padding:4px 8px;"><input type="text" value="' + escStk(it.item_name) + '" onchange="updateKitItem(\'' + it.id + '\',\'item_name\',this.value)" style="width:100%;padding:4px 6px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+        html += '<td style="padding:4px;"><input type="number" min="1" value="' + it.per_kit_qty + '" onchange="updateKitItem(\'' + it.id + '\',\'per_kit_qty\',this.value)" style="width:60px;padding:4px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+        html += '<td style="padding:4px;"><input type="text" value="' + escStk(it.unit||'pcs') + '" onchange="updateKitItem(\'' + it.id + '\',\'unit\',this.value)" style="width:56px;padding:4px;text-align:center;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
+        html += '<td style="text-align:center;"><button class="btn btn-ghost btn-sm" onclick="deleteKitItem(\'' + it.id + '\')" style="color:var(--red);padding:2px 6px;">✕</button></td></tr>'
+      })
+      html += '</tbody></table>'
+      html += '<button class="btn btn-ghost btn-sm" onclick="addKitItem(\'' + k.id + '\')" style="margin-top:8px;">＋ Add Item sa Kit</button>'
+      html += '</div>'
+    })
+  }
+  el.innerHTML = html
+}
+async function addNewKit() {
+  const name = prompt('Pangalan ng bagong kit:')
+  if (!name || !name.trim()) return
+  try { await SB.from('item_kits').insert({ kit_name: name.trim() }); _kitCache=null; renderSettingsTab('kits') }
+  catch(e) { showToast('error','Error', e.message) }
+}
+async function renameKit(id, name) {
+  if (!name.trim()) return
+  try { await SB.from('item_kits').update({ kit_name: name.trim() }).eq('id', id); _kitCache=null } catch(e){ showToast('error','Error',e.message) }
+}
+async function deleteKit(id, name) {
+  confirm2('I-delete ang kit na "' + name + '"? Mawawala ang lahat ng laman nito.', async () => {
+    try { await SB.from('item_kits').delete().eq('id', id); _kitCache=null; showToast('success','Deleted','Na-delete ang kit.'); renderSettingsTab('kits') }
+    catch(e){ showToast('error','Error',e.message) }
+  })
+}
+async function addKitItem(kitId) {
+  try { await SB.from('item_kit_items').insert({ kit_id: kitId, item_name: 'Bagong item', per_kit_qty: 1, unit: 'pcs' }); _kitCache=null; renderSettingsTab('kits') }
+  catch(e){ showToast('error','Error',e.message) }
+}
+async function updateKitItem(id, field, val) {
+  const v = field === 'per_kit_qty' ? Number(val)||1 : val
+  try { await SB.from('item_kit_items').update({ [field]: v }).eq('id', id); _kitCache=null } catch(e){ showToast('error','Error',e.message) }
+}
+async function deleteKitItem(id) {
+  try { await SB.from('item_kit_items').delete().eq('id', id); _kitCache=null; renderSettingsTab('kits') } catch(e){ showToast('error','Error',e.message) }
+}
+
 function renderSettings() {
   const content = document.getElementById('mainContent')
 
@@ -10343,6 +10575,7 @@ function renderSettings() {
     { id:'users',       icon:'👥', label:'Users & Departments' },
     { id:'locations',   icon:'📍', label:'Stock Locations' },
     { id:'thresholds',  icon:'💰', label:'Approval Thresholds' },
+    { id:'kits',        icon:'📦', label:'Item Kits' },
     { id:'preferences', icon:'🔔', label:'Preferences' },
   ]
 
@@ -10371,6 +10604,7 @@ async function renderSettingsTab(tab) {
   if (tab === 'users') await renderUsersSettings(el)
   else if (tab === 'locations') await renderLocationsSettings(el)
   else if (tab === 'thresholds') await renderThresholdsSettings(el)
+  else if (tab === 'kits') await renderKitsSettings(el)
   else if (tab === 'preferences') await renderPreferencesSettings(el)
 }
 
