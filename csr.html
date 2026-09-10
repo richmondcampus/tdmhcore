@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-37'
+const APP_VERSION = '2026.09.08-41'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3737,7 +3737,7 @@ async function addKitToRequest(kitId) {
 
 function addItemRow(focusNew) {
   const newId = Date.now() + Math.floor(Math.random()*100000)
-  state.itemRows.push({ id: newId, item_name:'', item_description:'', quantity:1, unit:'', estimated_cost:0, unit_price:0, category:'equipment', image_file:null, image_preview:null })
+  state.itemRows.push({ id: newId, item_name:'', item_description:'', quantity:1, unit:'', estimated_cost:0, unit_price:0, category:'consumable', image_file:null, image_preview:null })
   document.getElementById('itemsBody').innerHTML = buildItemRows()
   if (focusNew) {
     // Wait for the re-rendered rows to be in the DOM before focusing.
@@ -4128,22 +4128,12 @@ async function renderIncomingDeliveries() {
   }
   html += '</div>'
 
-  // ── Received, pending issuance ──
+  // ── Received → now handled in the Issuance page (Ready to Issue) ──
   if (pendingIssue.length > 0) {
-    html += '<div style="margin-bottom:24px;">'
-    html += '<div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">✅ Received — Ready to Issue (' + pendingIssue.length + ')</div>'
-    pendingIssue.forEach(po => {
-      const req = po.requests
-      const dept = req ? state.departments.find(d => d.id === req.dept_id) : null
-      html += '<div style="background:var(--green-a);border:1px solid var(--green);border-radius:12px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
-      html += '<div>'
-      html += '<div style="font-size:14px;font-weight:700;margin-bottom:4px;">✅ ' + po.po_number + '</div>'
-      html += '<div style="font-size:12px;color:var(--txt2);">' + (req?.request_no || '—') + ' · ' + (dept?.dept_name || '—') + '</div>'
-      html += '<div style="font-size:12px;color:var(--green);margin-top:2px;">Items received — please issue to department</div>'
-      html += '</div>'
-      html += '<button class="btn btn-primary" onclick="openIssueFromPO(\'' + po.id + '\')">📤 Issue to Dept</button>'
-      html += '</div>'
-    })
+    html += '<div style="background:var(--green-a);border:1px solid var(--green);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">'
+    html += '<div><div style="font-size:13px;font-weight:700;color:var(--green);">✅ ' + pendingIssue.length + ' PO(s) na-receive na — handa nang i-issue</div>'
+    html += '<div style="font-size:12px;color:var(--txt2);margin-top:2px;">Pumunta sa <strong>📤 Issuance</strong> para i-issue sa department.</div></div>'
+    html += '<button class="btn btn-primary btn-sm" onclick="showPage(\'issuance\')">Pumunta sa Issuance →</button>'
     html += '</div>'
   }
 
@@ -4170,13 +4160,27 @@ async function renderPurchaseOrders() {
 
   const [posRes, reqsRes, suppRes] = await Promise.all([
     SB.from('purchase_orders').select('*').order('created_at', { ascending: false }),
-    SB.from('requests').select('id,request_no,purpose,dept_id,urgency')
-      .eq('status','for_po').neq('request_type','derp').order('created_at', { ascending: false }),
+    // Requests needing a PO: status for_po, OR split requests (partially_issued) that
+    // still have for_po items. We filter to those with un-PO'd for_po items below.
+    SB.from('requests').select('id,request_no,purpose,dept_id,urgency,status,has_po_split')
+      .or('status.eq.for_po,and(status.eq.partially_issued,has_po_split.eq.true)')
+      .neq('request_type','derp').order('created_at', { ascending: false }),
     SB.from('suppliers').select('*')
   ])
   poState.pos = posRes.data || []
   poState.suppliers = suppRes.data || []
-  const approvedReqs = reqsRes.data || []
+  let approvedReqs = reqsRes.data || []
+  // Keep only requests that still have for_po items WITHOUT a PO yet.
+  if (approvedReqs.length) {
+    const { data: poFlagItems } = await SB.from('request_items')
+      .select('request_id,fulfillment_type,po_created')
+      .in('request_id', approvedReqs.map(r => r.id))
+    const needsPO = {}
+    ;(poFlagItems || []).forEach(it => {
+      if (it.fulfillment_type === 'for_po' && !it.po_created) needsPO[it.request_id] = true
+    })
+    approvedReqs = approvedReqs.filter(r => needsPO[r.id])
+  }
 
   const canCreatePO = ['purchasing_officer','admin'].includes(role)
   let html = '<div class="page-header"><h2>🛒 Purchase Orders</h2>'
@@ -5592,6 +5596,8 @@ async function confirmIssueFromPO() {
     const issItems = items.map(item => ({
       issuance_id: issId,
       quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
+      item_name_snapshot: item.item_name || null,
+      request_item_id: item.request_item_id || null
     })).filter(i => i.quantity_issued > 0)
 
     if (issItems.length > 0) {
@@ -6270,14 +6276,18 @@ async function renderIssuance() {
   const isDeptHead = role === 'dept_head'
   const isSupplyOfficer = ['supply_officer','admin'].includes(role)
 
-  const [issRes, batchRes, pendingRes] = await Promise.all([
+  const [issRes, batchRes, pendingRes, receivedPORes] = await Promise.all([
     SB.from('issuances').select('*').order('issued_at', { ascending: false }).limit(500),
     SB.from('issuance_batches').select('*').order('created_at', { ascending: false }).limit(20),
     SB.from('requests').select('*')
       .in('status', ['approved','delivered','partially_issued','for_po'])
       .in('request_type', ['supply','purchase','issuance'])
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: false }),
+    // Received POs waiting to be issued to the department (dropped here after receiving).
+    SB.from('purchase_orders').select('*, requests(request_no, purpose, dept_id)')
+      .eq('status', 'received').order('received_at', { ascending: false })
   ])
+  issState.receivedPOs = receivedPORes.data || []
 
   // For dept head — filter issuances by requests from ALL departments they head
   let allIssuances = issRes.data || []
@@ -6382,6 +6392,24 @@ async function renderIssuance() {
     html += '<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">'
     html += '<span style="font-size:18px;">⏳</span>'
     html += '<span style="font-size:13px;color:var(--amber);font-weight:600;">' + pendingConfirmCount + ' issuance(s) awaiting receipt confirmation — photo or online link needed.</span>'
+    html += '</div>'
+  }
+
+  // ✅ Received POs — Ready to Issue (dropped here after the delivery is received).
+  const readyPOs = issState.receivedPOs || []
+  if (readyPOs.length && !isDeptHead) {
+    html += '<div style="background:var(--green-a,rgba(18,166,47,.08));border:1px solid var(--green);border-radius:12px;padding:14px 16px;margin-bottom:16px;">'
+    html += '<div style="font-size:12px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">✅ Received POs — Ready to Issue (' + readyPOs.length + ')</div>'
+    readyPOs.forEach(po => {
+      const dept = po.requests ? state.departments.find(d => d.id === po.requests.dept_id) : null
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--bdr);">'
+      html += '<div><span class="td-mono" style="color:var(--accent);font-weight:600;">' + escStk(po.po_number) + '</span>'
+      html += '<span style="font-size:12px;color:var(--txt2);"> · ' + escStk(dept?.dept_name || '—') + '</span>'
+      if (po.requests?.request_no) html += '<span style="font-size:11px;color:var(--txt3);"> · ' + escStk(po.requests.request_no) + '</span>'
+      html += '</div>'
+      html += '<button class="btn btn-primary btn-sm" onclick="openIssueFromPO(\'' + po.id + '\')">📤 Issue to Dept</button>'
+      html += '</div>'
+    })
     html += '</div>'
   }
 
