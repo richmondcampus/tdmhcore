@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-41'
+const APP_VERSION = '2026.09.08-42'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -7761,6 +7761,13 @@ async function viewIssuance(id) {
         const qty = item.quantity_issued != null ? item.quantity_issued : (ri.quantity != null ? ri.quantity : '—')
         return { ri, qty }
       })
+    } else if (iss.po_id) {
+      // PO issuance with no recorded issuance_items → show the PO's RECEIVED items only
+      // (not the full request — only what actually arrived can be issued).
+      const { data: poItems } = await SB.from('po_items').select('*').eq('po_id', iss.po_id)
+      rows = (poItems || [])
+        .filter(pi => Number(pi.quantity_received || 0) > 0)
+        .map(pi => ({ ri: { item_name: pi.item_name, unit: pi.unit || 'pcs', category: '—' }, qty: pi.quantity_received }))
     } else if (reqItems.length > 0) {
       // Legacy fallback — no issuance_items recorded, show what was requested
       rows = reqItems.map(ri => ({ ri, qty: (ri.quantity != null ? ri.quantity : '—') }))
