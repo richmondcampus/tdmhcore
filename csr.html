@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.08-29'
+const APP_VERSION = '2026.09.08-31'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2725,10 +2725,10 @@ async function viewRequest(id) {
     footer += '<button class="btn btn-secondary" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue from Stock</button>'
     footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
   }
-  // FOR_PO (split) request — some items forwarded to Purchasing, but "issue"-type items
-  // may still have a remaining qty. The Supply Officer can STILL issue those from stock,
-  // independently of the PO side. Show the button if any non-PO item still owes qty.
-  else if (req.request_type !== 'derp' && req.status === 'for_po' && ['supply_officer','admin'].includes(role)) {
+  // FOR_PO or PARTIALLY_ISSUED split request — some items forwarded to Purchasing, but
+  // "issue"-type items may still have remaining qty. The Supply Officer can STILL issue
+  // those from stock, independently of the PO side. Show whenever any non-PO item owes qty.
+  else if (req.request_type !== 'derp' && (req.status === 'for_po' || req.status === 'partially_issued') && ['supply_officer','admin'].includes(role) && requestItemsHavePendingIssue(items)) {
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue Remaining (Stock)</button>'
   }
   // Supply Officer / Admin can edit items anytime before issue. Dept heads can edit
@@ -2751,6 +2751,13 @@ async function viewRequest(id) {
 // Purchasing Officer sees exactly what to buy — separate from what was already issued.
 // Supply officer removes a specific request item (e.g. duplicate). Keeps a record
 // with a "removed" label + reason instead of deleting outright.
+// True if any loaded item is a non-PO, non-removed item that still owes quantity.
+function requestItemsHavePendingIssue(items) {
+  return (items || []).some(it =>
+    !it.is_removed && it.fulfillment_type !== 'for_po'
+    && (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0)
+}
+
 async function removeRequestItem(itemId, reqId) {
   const reason = prompt('Bakit inaalis ang item na ito? (hal. duplicate, mali, hindi na kailangan)')
   if (reason === null) return  // cancelled
@@ -6129,7 +6136,7 @@ async function renderIssuance() {
     SB.from('issuances').select('*').order('issued_at', { ascending: false }).limit(500),
     SB.from('issuance_batches').select('*').order('created_at', { ascending: false }).limit(20),
     SB.from('requests').select('*')
-      .in('status', ['approved','delivered','partially_issued'])
+      .in('status', ['approved','delivered','partially_issued','for_po'])
       .in('request_type', ['supply','purchase','issuance'])
       .order('created_at', { ascending: false })
   ])
@@ -6148,7 +6155,23 @@ async function renderIssuance() {
 
   issState.issuances = allIssuances
   issState.batches = batchRes.data || []
-  issState.pendingRequests = pendingRes.data || []
+  // For for_po requests, only keep them in the issuance list if they still have non-PO
+  // items with remaining qty (split requests where some stock items are still owed).
+  let pendingReqs = pendingRes.data || []
+  const forPoReqs = pendingReqs.filter(r => r.status === 'for_po')
+  if (forPoReqs.length) {
+    const { data: forPoItems } = await SB.from('request_items')
+      .select('request_id,quantity,quantity_issued,fulfillment_type,is_removed')
+      .in('request_id', forPoReqs.map(r => r.id))
+    const hasPending = {}
+    ;(forPoItems || []).forEach(it => {
+      if (!it.is_removed && it.fulfillment_type !== 'for_po' && (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0) {
+        hasPending[it.request_id] = true
+      }
+    })
+    pendingReqs = pendingReqs.filter(r => r.status !== 'for_po' || hasPending[r.id])
+  }
+  issState.pendingRequests = pendingReqs
 
   // Load ALL requests linked to these issuances (including fully-issued ones, which
   // aren't in state.requests) so the list can show Request No. + Department correctly.
