@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.10-3'
+const APP_VERSION = '2026.09.10-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2515,11 +2515,13 @@ async function viewRequest(id) {
   const req = state.requests.find(r => r.id === id) || (await SB.from('requests').select('*').eq('id', id).single()).data
   if (!req) { showToast('error', 'Error', 'Request not found'); return }
   const [items, approvals] = await Promise.all([loadRequestItems(id), loadApprovals(id)])
-  // Does this request already have a PO? (Pull Back is only for requests with no PO yet.)
+  // Does this request already have a PO? Also grab a received (ready-to-issue) PO id.
   try {
-    const { count: poCount } = await SB.from('purchase_orders').select('id', { count:'exact', head:true }).eq('request_id', id)
-    req._hasPO = (poCount || 0) > 0
-  } catch(_) { req._hasPO = false }
+    const { data: reqPOs } = await SB.from('purchase_orders').select('id,status').eq('request_id', id)
+    req._hasPO = (reqPOs || []).length > 0
+    const receivedPO = (reqPOs || []).find(p => p.status === 'received')
+    req._receivedPOId = receivedPO ? receivedPO.id : null
+  } catch(_) { req._hasPO = false; req._receivedPOId = null }
   const dept = state.departments.find(d => d.id === req.dept_id)
   const requester = state.users.find(u => u.id === req.requested_by)
   const role = state.user.csr_role
@@ -2780,6 +2782,11 @@ async function viewRequest(id) {
       && ['supply_officer','purchasing_officer','admin'].includes(role)
       && !req._hasPO) {
     footer += '<button class="btn btn-ghost" onclick="pullBackToIssuance(\'' + req.id + '\')" style="color:var(--amber,#b8860b);">↩️ Pull Back to Issuance</button>'
+  }
+  // Delivered request with a RECEIVED PO — items arrived, ready to issue to department.
+  if (req.request_type !== 'derp' && req.status === 'delivered'
+      && ['supply_officer','admin'].includes(role) && req._receivedPOId) {
+    footer += '<button class="btn btn-success" onclick="openIssueFromPO(\'' + req._receivedPOId + '\')">📤 Issue to Department</button>'
   }
   // Supply Officer / Admin can edit items anytime before issue. Dept heads can edit
   // items for their own department's requests while it's still at their level (L1) —
@@ -5521,6 +5528,13 @@ async function viewPO(id) {
 // ─── Issue items from PO delivery to department ───
 async function openIssueFromPO(poId) {
   const { data: po } = await SB.from('purchase_orders').select('*').eq('id', poId).single()
+  if (!po) { showToast('error','Hindi nahanap','Walang PO na nahanap.'); return }
+  // Guard against double-issue: if this PO already has an issuance (or is marked issued),
+  // don't open the issue modal again — jump to the existing issuance instead.
+  if (po.status === 'issued') {
+    const { data: existIss } = await SB.from('issuances').select('id').eq('po_id', poId).maybeSingle()
+    if (existIss) { showToast('info','Na-issue na','Ang PO na ito ay na-issue na.'); viewIssuance(existIss.id); return }
+  }
   const { data: items } = await SB.from('po_items').select('*').eq('po_id', poId)
   const req = po?.request_id ? (await SB.from('requests').select('*').eq('id', po.request_id).single()).data : null
   const dept = req ? state.departments.find(d => d.id === req.dept_id) : null
@@ -5597,8 +5611,10 @@ async function confirmIssueFromPO() {
       await SB.from('issuances').update({ receiver_name: receiver }).eq('id', issId)
     }
 
-    // Insert issuance items
-    const issItems = items.map(item => ({
+    // Insert issuance items — but skip if this issuance already has items (avoids
+    // duplicating when the PO is opened for issue from multiple entry points).
+    const { count: existingItemCount } = await SB.from('issuance_items').select('id', { count:'exact', head:true }).eq('issuance_id', issId)
+    const issItems = (existingItemCount && existingItemCount > 0) ? [] : items.map(item => ({
       issuance_id: issId,
       quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
       item_name_snapshot: item.item_name || null,
