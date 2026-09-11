@@ -716,6 +716,7 @@ function renderSidebarNav() {
     <div class="nav-section">Management</div>
     <div class="nav-item" onclick="showPage('analytics')" id="nav_analytics"><span class="nav-icon">📈</span>Analytics</div>
     <div class="nav-item" onclick="showPage('sla_report')" id="nav_sla_report"><span class="nav-icon">⏱️</span>SLA Report</div>
+    <div class="nav-item" onclick="showPage('reports')" id="nav_reports"><span class="nav-icon">📊</span>Reports</div>
     ` : ''}
     ${role === 'admin' ? `<div class="nav-item" onclick="showPage('audit_log')" id="nav_audit_log"><span class="nav-icon">🔍</span>Audit Log</div>` : ''}
     <div class="nav-section">Resources</div>
@@ -748,7 +749,7 @@ async function refreshOpenTicketBadge() {
 const PAGE_TITLES = {
   dashboard:'Dashboard', my_tickets:'My Tickets', open_tickets:'Open Tickets',
   all_tickets:'All Tickets', assigned_me:'Assigned to Me', kanban:'Kanban Board',
-  analytics:'Analytics', sla_report:'SLA Report', knowledge_base:'Knowledge Base', how_to:'How-To Guide'
+  analytics:'Analytics', sla_report:'SLA Report', reports:'Reports', knowledge_base:'Knowledge Base', how_to:'How-To Guide'
 }
 
 function showPage(page) {
@@ -763,7 +764,7 @@ function showPage(page) {
     dashboard: renderDashboard, my_tickets: renderMyTickets,
     open_tickets: renderOpenTickets, all_tickets: renderAllTickets,
     assigned_me: renderAssignedMe, kanban: renderKanban,
-    analytics: renderAnalytics, sla_report: renderSLAReport,
+    analytics: renderAnalytics, sla_report: renderSLAReport, reports: renderReports,
     knowledge_base: renderKnowledgeBase, how_to: renderHowTo, audit_log: renderAuditLog
   }
   if (pages[page]) pages[page]()
@@ -2112,6 +2113,148 @@ function filterAuditLog() {
   const q = (document.getElementById('audit_search')?.value||'').trim().toLowerCase()
   const rows = (S._auditRows||[]).filter(r => !q || (r.user_name||'').toLowerCase().includes(q) || (r.ref_no||'').toLowerCase().includes(q) || (r.ip_address||'').toLowerCase().includes(q))
   renderAuditRows(rows)
+}
+
+// ═══ REPORTS — DOH-style IT service report (metrics, performance, export) ═══
+let _reportTickets = []
+async function renderReports() {
+  const content = document.getElementById('mainContent')
+  content.innerHTML = '<div class="page-header"><div><h2>📊 Reports</h2><p style="font-size:13px;color:var(--txt2);">IT Service Performance Report — metrics, SLA, at resolution time.</p></div></div>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">'
+    + '<label style="font-size:12px;color:var(--txt2);">Petsa:</label>'
+    + '<input type="date" id="rep_from" onchange="loadReportData()" style="padding:7px 10px;">'
+    + '<span style="color:var(--txt3);">→</span>'
+    + '<input type="date" id="rep_to" onchange="loadReportData()" style="padding:7px 10px;">'
+    + '<button class="btn btn-ghost btn-sm" onclick="setReportRange(\'month\')">Ngayong Buwan</button>'
+    + '<button class="btn btn-ghost btn-sm" onclick="setReportRange(\'quarter\')">Quarter</button>'
+    + '<button class="btn btn-secondary btn-sm" onclick="exportReport()" style="margin-left:auto;">📥 Export Excel</button>'
+    + '</div><div id="reportBody"><div style="padding:40px;text-align:center;color:var(--txt3);">Loading...</div></div>'
+  setReportRange('month')
+}
+function setReportRange(kind) {
+  const now = new Date()
+  let from
+  if (kind === 'quarter') { const q = Math.floor(now.getMonth()/3); from = new Date(now.getFullYear(), q*3, 1) }
+  else from = new Date(now.getFullYear(), now.getMonth(), 1)
+  const fromEl = document.getElementById('rep_from'), toEl = document.getElementById('rep_to')
+  if (fromEl) fromEl.value = from.toISOString().split('T')[0]
+  if (toEl) toEl.value = now.toISOString().split('T')[0]
+  loadReportData()
+}
+async function loadReportData() {
+  const body = document.getElementById('reportBody')
+  if (!body) return
+  const fromV = document.getElementById('rep_from')?.value
+  const toV = document.getElementById('rep_to')?.value
+  const tickets = await loadTickets()
+  let list = tickets
+  if (fromV) { const f = new Date(fromV+'T00:00:00'); list = list.filter(t => new Date(t.created_at) >= f) }
+  if (toV) { const tt = new Date(toV+'T23:59:59'); list = list.filter(t => new Date(t.created_at) <= tt) }
+  _reportTickets = list
+  renderReportBody(list)
+}
+function renderReportBody(list) {
+  const body = document.getElementById('reportBody')
+  if (!body) return
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  const total = list.length
+  const resolved = list.filter(t => ['resolved','closed'].includes(t.status))
+  const cancelled = list.filter(t => t.status === 'cancelled')
+  const open = list.filter(t => !['resolved','closed','cancelled'].includes(t.status))
+  // SLA compliance: resolved on/before due
+  const withDue = resolved.filter(t => t.sla_resolution_due && t.resolved_at)
+  const metSLA = withDue.filter(t => new Date(t.resolved_at) <= new Date(t.sla_resolution_due))
+  const slaRate = withDue.length ? Math.round(metSLA.length / withDue.length * 100) : 0
+  // Avg resolution time (hours) — created → resolved
+  const resTimes = resolved.filter(t => t.resolved_at).map(t => (new Date(t.resolved_at) - new Date(t.created_at)) / 3600000)
+  const avgRes = resTimes.length ? (resTimes.reduce((a,b)=>a+b,0) / resTimes.length) : 0
+  const resolutionRate = total ? Math.round(resolved.length / total * 100) : 0
+
+  let html = ''
+  // Summary cards
+  html += '<div class="stat-grid" style="margin-bottom:22px;">'
+  html += sC('🎫','Total Tickets',total,'Sa napiling period','var(--accent)')
+  html += sC('✅','Resolved',resolved.length,resolutionRate+'% resolution rate','var(--green)')
+  html += sC('🔓','Still Open',open.length,'Hindi pa tapos','var(--amber)')
+  html += sC('⏱️','SLA Compliance',slaRate+'%',metSLA.length+'/'+withDue.length+' on-time','var(--blue)')
+  html += '</div>'
+  html += '<div class="stat-grid" style="margin-bottom:22px;">'
+  html += sC('⚡','Avg Resolution',fmtDur(avgRes),'Mula file hanggang resolve','var(--accent)')
+  html += sC('❌','Cancelled',cancelled.length,'Wrong/duplicate','var(--red)')
+  const emergency = list.filter(t => t.priority === 'critical').length
+  html += sC('🚨','Critical',emergency,'Highest priority','var(--red)')
+  const reopened = list.filter(t => t.status === 'reopened').length
+  html += sC('↩','Reopened',reopened,'Balik na ticket','var(--amber)')
+  html += '</div>'
+
+  // Performance per technician
+  const techMap = {}
+  resolved.forEach(t => {
+    if (!t.assigned_to) return
+    const m = techMap[t.assigned_to] = techMap[t.assigned_to] || { resolved:0, times:[], met:0, due:0 }
+    m.resolved++
+    if (t.resolved_at) m.times.push((new Date(t.resolved_at)-new Date(t.created_at))/3600000)
+    if (t.sla_resolution_due && t.resolved_at) { m.due++; if (new Date(t.resolved_at) <= new Date(t.sla_resolution_due)) m.met++ }
+  })
+  html += '<h3 style="font-size:14px;font-weight:600;margin-bottom:10px;">👥 Performance per Technician</h3>'
+  html += '<div class="table-wrap" style="margin-bottom:24px;"><table><thead><tr><th>Technician</th><th>Resolved</th><th>Avg Resolution</th><th>SLA Compliance</th></tr></thead><tbody>'
+  const techRows = Object.entries(techMap).sort((a,b)=>b[1].resolved-a[1].resolved)
+  if (!techRows.length) html += '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--txt3);">Walang resolved na ticket sa period na ito.</td></tr>'
+  techRows.forEach(([uid, m]) => {
+    const u = S.users.find(x => x.id === uid)
+    const avg = m.times.length ? m.times.reduce((a,b)=>a+b,0)/m.times.length : 0
+    const sla = m.due ? Math.round(m.met/m.due*100) : 0
+    html += '<tr><td style="font-weight:600;">' + esc(u?.full_name||'—') + '</td>'
+      + '<td style="text-align:center;">' + m.resolved + '</td>'
+      + '<td style="text-align:center;">' + fmtDur(avg) + '</td>'
+      + '<td style="text-align:center;color:' + (sla>=90?'var(--green)':sla>=70?'var(--amber)':'var(--red)') + ';font-weight:600;">' + sla + '%</td></tr>'
+  })
+  html += '</tbody></table></div>'
+
+  // Category breakdown
+  const catMap = {}
+  list.forEach(t => { const c = t.category_id || 'none'; catMap[c] = (catMap[c]||0)+1 })
+  html += '<h3 style="font-size:14px;font-weight:600;margin-bottom:10px;">📁 Tickets by Category</h3>'
+  html += '<div class="table-wrap"><table><thead><tr><th>Category</th><th>Tickets</th><th>%</th></tr></thead><tbody>'
+  Object.entries(catMap).sort((a,b)=>b[1]-a[1]).forEach(([cid, cnt]) => {
+    const cat = S.categories.find(c => c.id === cid)
+    html += '<tr><td>' + esc(cat?.name || 'Uncategorized') + '</td><td style="text-align:center;">' + cnt + '</td>'
+      + '<td style="text-align:center;">' + (total?Math.round(cnt/total*100):0) + '%</td></tr>'
+  })
+  html += '</tbody></table></div>'
+  body.innerHTML = html
+}
+function fmtDur(hours) {
+  if (!hours || hours <= 0) return '—'
+  if (hours < 1) return Math.round(hours*60) + 'min'
+  if (hours < 24) return hours.toFixed(1) + 'h'
+  return (hours/24).toFixed(1) + 'd'
+}
+async function exportReport() {
+  const list = _reportTickets || []
+  if (!list.length) { showToast('info','Walang Data','Walang ticket sa period na ito.'); return }
+  if (typeof XLSX === 'undefined') {
+    await new Promise((res, rej) => { const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s) })
+  }
+  const rows = list.map(t => {
+    const req = S.users.find(u => u.id === t.requester_id)
+    const asgn = S.users.find(u => u.id === t.assigned_to)
+    const cat = S.categories.find(c => c.id === t.category_id)
+    const resHrs = t.resolved_at ? ((new Date(t.resolved_at)-new Date(t.created_at))/3600000).toFixed(1) : ''
+    const metSLA = (t.sla_resolution_due && t.resolved_at) ? (new Date(t.resolved_at) <= new Date(t.sla_resolution_due) ? 'Yes' : 'No') : ''
+    return {
+      'Ticket No.': t.id, 'Subject': t.subject, 'Category': cat?.name||'', 'Priority': t.priority,
+      'Status': formatStatus(t.status), 'Requester': req?.full_name||'', 'Assigned To': asgn?.full_name||'',
+      'Date Filed': fmtDateTime(t.created_at), 'Date Resolved': t.resolved_at?fmtDateTime(t.resolved_at):'',
+      'Resolution (hrs)': resHrs, 'SLA Met': metSLA
+    }
+  })
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(rows)
+  XLSX.utils.book_append_sheet(wb, ws, 'IT Report')
+  const stamp = new Date().toISOString().split('T')[0]
+  XLSX.writeFile(wb, 'TDMH_IT_Report_' + stamp + '.xlsx')
+  showToast('success','Na-export ✅','Na-download ang report.')
 }
 
 async function renderAnalytics() {
