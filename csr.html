@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.10-5'
+const APP_VERSION = '2026.09.10-7'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6308,7 +6308,15 @@ async function renderIssuance() {
     SB.from('purchase_orders').select('*, requests(request_no, purpose, dept_id)')
       .eq('status', 'received').order('received_at', { ascending: false })
   ])
-  issState.receivedPOs = receivedPORes.data || []
+  // Received POs ready to issue — but EXCLUDE any that already have an issuance (so a
+  // PO doesn't appear both here AND as an issuance in the list below).
+  let recvPOs = receivedPORes.data || []
+  if (recvPOs.length) {
+    const { data: poIssuances } = await SB.from('issuances').select('po_id').in('po_id', recvPOs.map(p => p.id))
+    const issuedPOIds = new Set((poIssuances || []).map(i => i.po_id))
+    recvPOs = recvPOs.filter(p => !issuedPOIds.has(p.id))
+  }
+  issState.receivedPOs = recvPOs
 
   // For dept head — filter issuances by requests from ALL departments they head
   let allIssuances = issRes.data || []
@@ -6959,6 +6967,7 @@ function updateSMSPreview() {
 // covered by the same stock guard as every other issuance.
 let _blankIssRows = []
 async function openBlankIssuanceModal() {
+  state._blankIssKey = null  // fresh idempotency key for this new issuance
   const role = state.user.csr_role
   if (!['supply_officer','admin'].includes(role)) {
     showToast('error','Not Allowed','Supply Officer o Admin lang ang pwedeng mag-blank issuance.')
@@ -7096,6 +7105,10 @@ async function saveBlankIssuance() {
   if (!guardClick('saveBlankIssuance')) return
   const role = state.user.csr_role
   if (!['supply_officer','admin'].includes(role)) { showToast('error','Not Allowed','Supply Officer o Admin lang.'); releaseClick('saveBlankIssuance'); return }
+  // Idempotency: one key per open modal session. A network retry reuses the same key,
+  // and the DB's unique index rejects the duplicate insert.
+  if (!state._blankIssKey) state._blankIssKey = (crypto.randomUUID ? crypto.randomUUID() : ('blank-' + Date.now() + '-' + Math.random()))
+  const idempKey = state._blankIssKey
 
   const deptId = document.getElementById('bi_dept')?.value
   const receiverName = (document.getElementById('bi_receiver_name')?.value || '').trim()
@@ -7165,9 +7178,19 @@ async function saveBlankIssuance() {
       receipt_photo_url: photoUrl,
       confirmed_at: photoUrl ? new Date().toISOString() : null,
       confirmed_by_name: photoUrl ? receiverName : null,
-      confirmation_method: photoUrl ? 'photo' : null
+      confirmation_method: photoUrl ? 'photo' : null,
+      idempotency_key: idempKey
     }).select().single()
-    if (issErr) throw issErr
+    if (issErr) {
+      // Duplicate (network retry) — the DB rejected the repeated key. Not an error.
+      if (issErr.code === '23505' && String(issErr.message||'').includes('idempotency')) {
+        showToast('info','Na-record na','Na-issue na ito — hindi na inulit (double-submit protection).')
+        closeModal('newRequestModal'); releaseClick('saveBlankIssuance'); state._blankIssKey = null
+        renderIssuance()
+        return
+      }
+      throw issErr
+    }
 
     for (const it of items) {
       await SB.from('issuance_items').insert({
