@@ -1027,8 +1027,7 @@ function renderTicketList(tickets, title) {
   html += '<input type="date" id="tdate_to" onchange="filterTicketList()" title="Hanggang" style="min-width:130px;">'
   html += '</div>'
   const built = buildTicketTable(tickets)
-  html += built.table
-  html += '<div class="mobile-cards" id="ticketsMobileCards">' + built.cards + '</div>'
+  html += '<div id="ticketListWrap">' + built.table + '<div class="mobile-cards" id="ticketsMobileCards">' + built.cards + '</div></div>'
   content.innerHTML = html
   content._tickets = tickets
 }
