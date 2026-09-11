@@ -1457,7 +1457,7 @@ async function renderKanban() {
 // ─── Quick Actions — IT ───
 async function quickClaimStartIT(ticketId) {
   if (!(await ensureAuth())) { handleAuthLost(); return }
-  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'in_progress', updated_at:new Date().toISOString() }).eq('id',ticketId)
+  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'in_progress', first_response_at:new Date().toISOString(), updated_at:new Date().toISOString() }).eq('id',ticketId)
   if (e1) { showToast('error','Error', e1.message); return }
   await SB.from('it_ticket_replies').insert({ ticket_id:ticketId, author_id:S.user.id, body:'⚡ Claimed and started by '+S.user.full_name+'.', is_internal:true })
   const{data:t}=await SB.from('it_tickets').select('requester_id,subject').eq('id',ticketId).single()
@@ -1470,7 +1470,7 @@ async function quickClaimStartIT(ticketId) {
 
 async function quickClaimIT(ticketId) {
   if (!(await ensureAuth())) { handleAuthLost(); return }
-  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'assigned', updated_at:new Date().toISOString() }).eq('id',ticketId)
+  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'assigned', first_response_at:new Date().toISOString(), updated_at:new Date().toISOString() }).eq('id',ticketId)
   if (e1) { showToast('error','Error', e1.message); return }
   const{data:t}=await SB.from('it_tickets').select('requester_id,subject').eq('id',ticketId).single()
   if(t?.requester_id) await SB.from('notifications').insert({ user_id:t.requester_id, title:'👤 Ticket Assigned: '+ticketId, body:S.user.full_name+' will handle: '+t.subject, type:'info', source_system:'it' })
@@ -2166,7 +2166,9 @@ function renderReportBody(list) {
   const metSLA = withDue.filter(t => new Date(t.resolved_at) <= new Date(t.sla_resolution_due))
   const slaRate = withDue.length ? Math.round(metSLA.length / withDue.length * 100) : 0
   // Avg resolution time (hours) — created → resolved
-  const resTimes = resolved.filter(t => t.resolved_at).map(t => (new Date(t.resolved_at) - new Date(t.created_at)) / 3600000)
+  // Resolution time = from when the technician GOT the ticket (first_response_at) to
+  // resolved — not from filing. Falls back to created_at if no first_response recorded.
+  const resTimes = resolved.filter(t => t.resolved_at).map(t => (new Date(t.resolved_at) - new Date(t.first_response_at || t.created_at)) / 3600000)
   const avgRes = resTimes.length ? (resTimes.reduce((a,b)=>a+b,0) / resTimes.length) : 0
   const resolutionRate = total ? Math.round(resolved.length / total * 100) : 0
 
@@ -2193,7 +2195,7 @@ function renderReportBody(list) {
     if (!t.assigned_to) return
     const m = techMap[t.assigned_to] = techMap[t.assigned_to] || { resolved:0, times:[], met:0, due:0 }
     m.resolved++
-    if (t.resolved_at) m.times.push((new Date(t.resolved_at)-new Date(t.created_at))/3600000)
+    if (t.resolved_at) m.times.push((new Date(t.resolved_at)-new Date(t.first_response_at || t.created_at))/3600000)
     if (t.sla_resolution_due && t.resolved_at) { m.due++; if (new Date(t.resolved_at) <= new Date(t.sla_resolution_due)) m.met++ }
   })
   html += '<h3 style="font-size:14px;font-weight:600;margin-bottom:10px;">👥 Performance per Technician</h3>'
@@ -2240,7 +2242,7 @@ async function exportReport() {
     const req = S.users.find(u => u.id === t.requester_id)
     const asgn = S.users.find(u => u.id === t.assigned_to)
     const cat = S.categories.find(c => c.id === t.category_id)
-    const resHrs = t.resolved_at ? ((new Date(t.resolved_at)-new Date(t.created_at))/3600000).toFixed(1) : ''
+    const resHrs = t.resolved_at ? ((new Date(t.resolved_at)-new Date(t.first_response_at || t.created_at))/3600000).toFixed(1) : ''
     const metSLA = (t.sla_resolution_due && t.resolved_at) ? (new Date(t.resolved_at) <= new Date(t.sla_resolution_due) ? 'Yes' : 'No') : ''
     return {
       'Ticket No.': t.id, 'Subject': t.subject, 'Category': cat?.name||'', 'Priority': t.priority,
