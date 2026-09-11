@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.11-1'
+const APP_VERSION = '2026.09.11-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1848,7 +1848,11 @@ async function renderMyRequests() {
 
 async function renderAllRequests() {
   const content = document.getElementById('mainContent')
-  const requests = await loadRequests({})
+  const all = await loadRequests({})
+  // Hide DERP evaluation records that are already done (csr_triggered = has a replacement
+  // request, or closed). They live in the DERP page; showing them here just duplicates
+  // the real request (e.g. the replacement CSR). Active DERPs still show for tracking.
+  const requests = all.filter(r => !(r.request_type === 'derp' && ['csr_triggered','closed','repair_completed'].includes(r.status)))
   state.requests = requests
   // Preload line items so requests can be searched by item name.
   await loadRequestItemsIndex(requests.map(r => r.id))
