@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.10-7'
+const APP_VERSION = '2026.09.11-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3492,7 +3492,7 @@ function buildItemRows() {
       html += '<span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:11px;" title="' + costTitle + '">' + sourceIcon + '</span>'
     }
     html += '</td>'
-    html += '<td><select onchange="updateItemRow(' + row.id + ',\'category\',this.value)" style="font-size:12px;padding:4px 2px;">'
+    html += '<td><select data-catrow="' + row.id + '" onchange="updateItemRow(' + row.id + ',\'category\',this.value)" style="font-size:12px;padding:4px 2px;">'
     const catLabels = { equipment:'Equipment', it_hardware:'IT', medical:'Medical', office:'Office', maintenance_material:'Maint.' }
     Object.entries(catLabels).forEach(([v, l]) => {
       html += '<option value="' + v + '"' + (row.category===v?' selected':'') + '>' + l + '</option>'
@@ -3795,9 +3795,44 @@ function removeItemRow(id) {
   document.getElementById('itemsBody').innerHTML = buildItemRows()
 }
 
+// Auto-detect the category from the item name. Order matters: check IT and durable
+// EQUIPMENT keywords first, then MEDICAL (supplies), OFFICE, MAINTENANCE. Default is
+// medical→no... actually default to 'medical' is wrong; default to 'office' is wrong too.
+// We default UNMATCHED items to 'medical' only if they look clinical, else 'office'.
+// Simpler + safe: only durable EQUIPMENT and IT auto-register as assets; everything
+// else is a supply, so defaulting a supply to medical/office/maintenance is harmless.
+function autoDetectCategory(name) {
+  const n = (name || '').toLowerCase()
+  if (!n.trim()) return null
+  // IT hardware
+  if (/\b(computer|laptop|desktop|cpu|monitor|printer|scanner|router|switch|ups|keyboard|mouse|server|network|wifi|access point|projector|tablet|ipad|hard ?drive|ssd|ram|nas|firewall|modem|lan|ethernet|webcam|headset)\b/.test(n)) return 'it_hardware'
+  // Durable EQUIPMENT (incl. medical equipment / machines / furniture)
+  if (/\b(machine|apparatus|monitor|analyzer|centrifuge|autoclave machine|nebulizer|ventilator|defibrillator|ecg|x-?ray|ultrasound|incubator|sterilizer|pump|aspirator machine|suction machine|wheelchair|stretcher|bed|crib|chair|table|cabinet|shelf|rack|refrigerator|freezer|aircon|fan|microscope|oximeter|thermometer|sphygmo|bp apparatus|weighing scale|scale|otoscope|laryngoscope|stethoscope|drill|saw|generator|compressor|motor|dispenser unit|water dispenser)\b/.test(n)) return 'equipment'
+  // MEDICAL supplies/consumables
+  if (/\b(glove|alcohol|syringe|needle|gauze|cotton|catheter|cannula|iv |i\.v|dextrose|saline|nss|suture|vicryl|chromic|silk|plaster|bandage|povidone|betadine|reagent|antigen|specimen|vial|ampule|heplock|soluset|macroset|nebule|mask|facemask|face mask|swab|lancet|test strip|urine bag|foley|ngt|et tube|oxygen|medicine|tablet|capsule|drug|antibiotic|anesthesia|lidocaine|heparin|insulin|magnesium|sodium|potassium|calcium|solution|sterile water|distilled water|blade|scalpel|forceps|introcan|epidural|bt set|thora|edta|cutasept|saniscrub|cardinal|shoe cover|or cap|bouffant|caterpillar)\b/.test(n)) return 'medical'
+  // OFFICE supplies
+  if (/\b(bond paper|paper|pen|ballpen|pencil|marker|folder|envelope|stapler|staple|clip|tape measure|ribbon|cartridge|toner|ink|cartolina|sticker|label|notebook|logbook|record book|calculator|puncher|scissors|glue|correction|ruler|record)\b/.test(n)) return 'office'
+  // MAINTENANCE / janitorial / tools
+  if (/\b(detergent|soap|bleach|zonrox|lysol|baygon|cleaner|dishwashing|fabcon|rag|mop|broom|dustpan|trash bag|garbage bag|bulb|light|wire|nail|screw|bolt|tool|hammer|wrench|pliers|paint|brush|hose|pipe|faucet|filter|air freshener|insecticide|kleensol|presept|sanitizer|peroxide)\b/.test(n)) return 'maintenance_material'
+  return null  // no confident match — leave whatever the user had
+}
+
 function updateItemRow(id, field, value) {
   const row = state.itemRows.find(r => r.id === id)
-  if (row) row[field] = value
+  if (!row) return
+  row[field] = value
+  // When the item NAME changes, auto-detect and set the category (user can still change it).
+  if (field === 'item_name') {
+    const detected = autoDetectCategory(value)
+    if (detected && row.category !== detected) {
+      row.category = detected
+      row._autoCategory = true
+      // Update the visible category dropdown for this row without a full re-render.
+      const rowEl = document.getElementById('itemRow_' + id) || null
+      const sel = document.querySelector('#itemsBody tr [data-catrow="' + id + '"]')
+      if (sel) sel.value = detected
+    }
+  }
 }
 
 async function saveRequest(action) {
