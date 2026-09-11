@@ -1012,10 +1012,20 @@ function renderTicketList(tickets, title) {
   ;['critical','high','medium','low'].forEach(p => { html += '<option value="' + p + '">' + p.charAt(0).toUpperCase()+p.slice(1) + '</option>' })
   html += '</select>'
   html += '<select id="tstat" onchange="filterTicketList()"><option value="">All Status</option>'
-  ;['open','assigned','in_progress','pending_user','resolved','closed','reopened'].forEach(s => {
+  ;['open','assigned','in_progress','pending_user','resolved','closed','reopened','cancelled'].forEach(s => {
     html += '<option value="' + s + '">' + formatStatus(s) + '</option>'
   })
-  html += '</select></div>'
+  html += '</select>'
+  // Technician (who handled) filter
+  html += '<select id="ttech" onchange="filterTicketList()"><option value="">👤 All Technicians</option>'
+  const techs = (S.users || []).filter(u => ['technician','supervisor','admin'].includes(u.it_role)).sort((a,b)=>(a.full_name||'').localeCompare(b.full_name||''))
+  techs.forEach(u => { html += '<option value="' + u.id + '">' + (u.full_name||'—') + '</option>' })
+  html += '</select>'
+  // Date range (by created date)
+  html += '<input type="date" id="tdate_from" onchange="filterTicketList()" title="Mula" style="min-width:130px;">'
+  html += '<span style="color:var(--txt3);">→</span>'
+  html += '<input type="date" id="tdate_to" onchange="filterTicketList()" title="Hanggang" style="min-width:130px;">'
+  html += '</div>'
   const built = buildTicketTable(tickets)
   html += built.table
   html += '<div class="mobile-cards" id="ticketsMobileCards">' + built.cards + '</div>'
@@ -1030,11 +1040,17 @@ function filterTicketList() {
   const cat = document.getElementById('tcat')?.value
   const pri = document.getElementById('tpri')?.value
   const stat = document.getElementById('tstat')?.value
+  const tech = document.getElementById('ttech')?.value
+  const dateFrom = document.getElementById('tdate_from')?.value
+  const dateTo = document.getElementById('tdate_to')?.value
   let filtered = all
   if (search) filtered = filtered.filter(t => t.id.toLowerCase().includes(search) || t.subject.toLowerCase().includes(search))
   if (cat) filtered = filtered.filter(t => t.category_id === cat)
   if (pri) filtered = filtered.filter(t => t.priority === pri)
   if (stat) filtered = filtered.filter(t => t.status === stat)
+  if (tech) filtered = filtered.filter(t => t.assigned_to === tech)
+  if (dateFrom) { const from = new Date(dateFrom + 'T00:00:00'); filtered = filtered.filter(t => new Date(t.created_at) >= from) }
+  if (dateTo) { const to = new Date(dateTo + 'T23:59:59'); filtered = filtered.filter(t => new Date(t.created_at) <= to) }
   const built = buildTicketTable(filtered)
   const wrap = document.getElementById('ticketListWrap')
   if (wrap) wrap.innerHTML = built.table + '<div class="mobile-cards">' + built.cards + '</div>'
