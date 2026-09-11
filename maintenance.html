@@ -1670,7 +1670,7 @@ async function reopenTicket(ticketId) {
     showToast('warning','Reopened ↩', ticketId + ' has been reopened.')
     // Blast SMS to maintenance team
     const maintStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
-    sendSMS(maintStaff.map(u=>u.phone), '[TDMH Maintenance] ⚠️ REOPENED: ' + ticketId + ' — "' + (t?t.title:'') + '" needs attention again.', 'ticket_reopened', ticketId)
+    sendSMS(maintStaff.map(u=>u.phone), '[TDMH MNT] ⚠️ REOPENED: ' + ticketId + ' — "' + (t?t.title:'') + '" needs attention again.', 'ticket_reopened', ticketId)
     if (['all_tickets','open_tickets','my_tickets','dashboard'].includes(S.page)) showPage(S.page)
   })
 }
@@ -1837,7 +1837,7 @@ async function submitTicket() {
 
     // SMS blast to all maintenance technicians
     const maintStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
-    const smsMsg = '[TDMH] NEW TICKET ' + ticketId + ' — ' + (priority === 'emergency' ? '🚨 EMERGENCY ' : priority === 'urgent' ? '⚠️ URGENT ' : '') + '"' + title + '" at ' + location + ' (' + (deptName||'—') + ')'
+    const smsMsg = '[TDMH MNT] NEW TICKET ' + ticketId + ' — ' + (priority === 'emergency' ? '🚨 EMERGENCY ' : priority === 'urgent' ? '⚠️ URGENT ' : '') + '"' + title + '" at ' + location + ' (' + (deptName||'—') + ')'
     if (maintStaff.length > 0) sendSMS(maintStaff.map(u=>u.phone), smsMsg, 'ticket_new', ticketId)
 
     invalidateTicketCache()
@@ -1887,7 +1887,7 @@ async function openTeamModal(ticketId) {
     const newMembers = selected.filter(uid => !teamIds.includes(uid))
     newMembers.forEach(uid => {
       const u = S.users.find(u => u.id === uid)
-      if (u && u.phone) sendSMS([u.phone], '[TDMH Maintenance] You have been added to ticket ' + ticketId + '. Please check the Maintenance Hub.', 'team_added', ticketId)
+      if (u && u.phone) sendSMS([u.phone], '[TDMH MNT] You have been added to ticket ' + ticketId + '. Please check the Maintenance Hub.', 'team_added', ticketId)
     })
     closeModal('confirmModal')
     showToast('success','Team Updated','Team assignment saved.')
@@ -3186,7 +3186,7 @@ function subscribeNotifications() {
       loadNotifications()
       // SMS tech if it's a parts-available notification
       if (n.source_system === 'maintenance' && n.title?.includes('Parts Available') && S.user.phone) {
-        sendSMS([S.user.phone], '[TDMH Maintenance] ' + n.title + ' — ' + (n.body || '') + ' Open your ticket to continue.', 'parts_available', null)
+        sendSMS([S.user.phone], '[TDMH MNT] ' + n.title + ' — ' + (n.body || '') + ' Open your ticket to continue.', 'parts_available', null)
       }
     }).subscribe()
 }
