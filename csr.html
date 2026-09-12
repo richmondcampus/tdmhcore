@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.11-3'
+const APP_VERSION = '2026.09.11-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2783,10 +2783,12 @@ async function viewRequest(id) {
   else if (req.request_type !== 'derp' && (req.status === 'for_po' || req.status === 'partially_issued') && ['supply_officer','admin'].includes(role) && requestItemsHavePendingIssue(items)) {
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue Remaining (Stock)</button>'
   }
-  // Pull Back to Issuance — for for_po requests with NO PO yet (emergency bought directly,
-  // or stock suddenly available). Converts for_po items back to issue and returns the
-  // request to the Supply Officer. Supply Officer / Purchasing / Admin, with a reason.
-  if (req.request_type !== 'derp' && req.status === 'for_po'
+  // Pull Back to Issuance — for requests with for_po items but NO PO yet (emergency
+  // bought directly, or stock suddenly available). Works for both plain for_po requests
+  // AND split requests that became partially_issued but still have for_po items.
+  const hasForPoItems = (items || []).some(it => it.fulfillment_type === 'for_po' && !it.is_removed)
+  if (req.request_type !== 'derp'
+      && (req.status === 'for_po' || (req.status === 'partially_issued' && hasForPoItems))
       && ['supply_officer','purchasing_officer','admin'].includes(role)
       && !req._hasPO) {
     footer += '<button class="btn btn-ghost" onclick="pullBackToIssuance(\'' + req.id + '\')" style="color:var(--amber,#b8860b);">↩️ Pull Back to Issuance</button>'
