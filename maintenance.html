@@ -1371,6 +1371,11 @@ async function viewTicket(ticketId) {
     body += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Problem Description</div>'
     body += '<div style="background:var(--surf2);padding:10px 14px;border-radius:9px;font-size:13px;border:1px solid var(--bdr);">' + t.description + '</div></div>'
   }
+  // Photo attachment (requester's photo of the problem)
+  if (t.photo_url) {
+    body += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📎 Photo</div>'
+    body += '<a href="' + t.photo_url + '" target="_blank"><img src="' + t.photo_url + '" style="max-width:220px;max-height:220px;border-radius:9px;border:1px solid var(--bdr2);object-fit:cover;cursor:pointer;"></a></div>'
+  }
 
   // Team
   if (teamMembers.length > 0) {
@@ -1390,7 +1395,12 @@ async function viewTicket(ticketId) {
     body += '<div style="display:flex;gap:8px;">'
     body += '<textarea id="noteInput" placeholder="Type a note..." rows="2" style="flex:1;padding:8px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:\'Instrument Sans\',sans-serif;font-size:13px;outline:none;resize:none;"></textarea>'
     body += '<button class="btn btn-primary btn-sm" onclick="addNote(\'' + t.id + '\')" style="align-self:flex-end;">Send</button>'
-    body += '</div></div>'
+    body += '</div>'
+    // Optional progress photo (technician can show what's being done)
+    if (['technician','supervisor','admin'].includes(S.user.maintenance_role)) {
+      body += '<div style="margin-top:8px;"><input type="file" id="notephoto" accept="image/*" onchange="previewTicketPhoto(this,\'notephoto_preview\')" style="font-size:11px;"> <span style="font-size:11px;color:var(--txt3);">📷 Progress photo (optional)</span><div id="notephoto_preview" style="margin-top:6px;"></div></div>'
+    }
+    body += '</div>'
   }
 
   // Notes timeline
@@ -1410,6 +1420,7 @@ async function viewTicket(ticketId) {
         body += '<div class="note-content">'
         body += '<div class="note-header"><span class="note-author">' + (author ? author.full_name : '—') + '</span><span class="note-time">' + formatDate(note.created_at) + '</span></div>'
         body += '<div class="note-text">' + note.note + '</div>'
+        if (note.photo_url) body += '<a href="' + note.photo_url + '" target="_blank"><img src="' + note.photo_url + '" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--bdr2);object-fit:cover;margin-top:6px;cursor:pointer;"></a>'
         body += '</div></div>'
       }
     })
@@ -1485,6 +1496,18 @@ function iF(label, value) {
 // TICKET ACTIONS
 // ═══════════════════════════════════
 async function addNote(ticketId) {
+  const note = document.getElementById('noteInput')?.value.trim()
+  const photoFile = document.getElementById('notephoto')?.files?.[0]
+  if (!note && !photoFile) return
+  let photoUrl = null
+  if (photoFile) photoUrl = await uploadTicketPhoto(photoFile, ticketId)
+  await SB.from('maint_ticket_notes').insert({
+    ticket_id: ticketId, user_id: S.user.id, note: note || '📷 Photo update', note_type: 'comment', photo_url: photoUrl
+  })
+  document.getElementById('noteInput').value = ''
+  viewTicket(ticketId)
+}
+async function _oldAddNote(ticketId) {
   const note = document.getElementById('noteInput')?.value.trim()
   if (!note) return
   await SB.from('maint_ticket_notes').insert({
@@ -1736,6 +1759,10 @@ function openNewTicketModal() {
   // Dept — hidden, auto from profile, shown as info
   html += '<input type="hidden" id="tk_dept" value="' + (S.user.dept_id || '') + '">'
   html += '<input type="hidden" id="tk_dept_name" value="' + (dept?.dept_name || '') + '">'
+  // Optional photo attachment (compressed to save storage)
+  html += '<div style="margin-top:12px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">📎 Photo (optional)</div>'
+  html += '<input type="file" id="tk_photo" accept="image/*" onchange="previewTicketPhoto(this,\'tk_photo_preview\')" style="font-size:12px;">'
+  html += '<div id="tk_photo_preview" style="margin-top:8px;"></div></div>'
   if (dept) {
     html += '<div style="font-size:12px;color:var(--txt2);background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;padding:8px 12px;margin-bottom:4px;">'
     html += '🏢 Filing on behalf of: <strong>' + dept.dept_name + '</strong>'
@@ -1770,6 +1797,49 @@ function autoFillMaintTitle() {
 document.addEventListener('input', e => {
   if (e.target?.id === 'tk_title') e.target.dataset.manualEdit = 'true'
 })
+
+// ── TICKET PHOTOS (compressed to save storage) ──
+// Compress an image file to max 1000px wide, JPEG quality 0.6 → typically 100-200KB.
+function compressTicketImage(file, maxW) {
+  return new Promise((resolve, reject) => {
+    maxW = maxW || 1000
+    const reader = new FileReader()
+    reader.onload = e => {
+      const img = new Image()
+      img.onload = () => {
+        let w = img.width, h = img.height
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compress failed')), 'image/jpeg', 0.6)
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+function previewTicketPhoto(input, previewId) {
+  const el = document.getElementById(previewId)
+  if (!el) return
+  const file = input.files && input.files[0]
+  if (!file) { el.innerHTML = ''; return }
+  const url = URL.createObjectURL(file)
+  el.innerHTML = '<img src="' + url + '" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--bdr2);object-fit:cover;"> <span style="font-size:11px;color:var(--txt3);">Ico-compress bago i-upload</span>'
+}
+async function uploadTicketPhoto(file, ticketId) {
+  if (!file) return null
+  try {
+    const blob = await compressTicketImage(file)
+    const path = 'tickets/' + ticketId + '_' + Date.now() + '.jpg'
+    const { error } = await SB.storage.from('ticket-photos').upload(path, blob, { contentType:'image/jpeg', upsert:true })
+    if (error) throw error
+    const { data } = SB.storage.from('ticket-photos').getPublicUrl(path)
+    return data.publicUrl
+  } catch(e) { console.warn('uploadTicketPhoto', e.message); return null }
+}
 
 async function submitTicket() {
   const desc = document.getElementById('tk_desc')?.value.trim()
@@ -1828,6 +1898,13 @@ async function submitTicket() {
       note: 'Ticket submitted by ' + S.user.full_name + ' from ' + (deptName||'—'),
       note_type: 'system'
     })
+
+    // Upload optional photo (compressed) and attach to the ticket.
+    const photoFile = document.getElementById('tk_photo')?.files?.[0]
+    if (photoFile) {
+      const url = await uploadTicketPhoto(photoFile, ticketId)
+      if (url) await SB.from('maint_tickets').update({ photo_url: url }).eq('id', ticketId)
+    }
 
     closeModal('newTicketModal')
     showToast('success','Ticket Submitted 🔧', ticketId + ' — Maintenance team notified.')
