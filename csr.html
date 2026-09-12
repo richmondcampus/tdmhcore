@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.11-4'
+const APP_VERSION = '2026.09.12-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -8022,7 +8022,65 @@ function clearIssPhoto(issId) {
   document.getElementById('issPhotoPreview_' + issId).style.display = 'none'
 }
 
+// Compress an image to max 1200px, JPEG 0.6 — receipt photos stay small + upload fast.
+function compressReceiptImage(file, maxW) {
+  return new Promise((resolve, reject) => {
+    maxW = maxW || 1200
+    if (!file.type.startsWith('image/')) { resolve(file); return }  // non-image, leave as-is
+    const reader = new FileReader()
+    reader.onload = e => {
+      const img = new Image()
+      img.onload = () => {
+        let w = img.width, h = img.height
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('compress failed')), 'image/jpeg', 0.6)
+      }
+      img.onerror = reject
+      img.src = e.target.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 async function confirmWithPhoto(issId) {
+  if (!_issPhotoFile) { showToast('error','No Photo','Please take or select a photo first.'); return }
+  const receiverName = document.getElementById('iss_receiver_name_photo')?.value.trim()
+  if (!receiverName) { showToast('error','Required','Please enter the receiver\'s name.'); return }
+  if (!guardClick('confirmWithPhoto')) return
+
+  showToast('info','Uploading...','Kino-compress at sina-save ang photo...')
+  try {
+    // Compress first (big phone photos → ~150KB, fast upload even on slow data).
+    const blob = await compressReceiptImage(_issPhotoFile)
+    const path = 'csr-issuances/' + issId + '-' + Date.now() + '.jpg'
+    const { error: upErr } = await SB.storage.from('asset-photos')
+      .upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+    if (upErr) throw upErr
+
+    const { data: urlData } = SB.storage.from('asset-photos').getPublicUrl(path)
+
+    const { error: updErr } = await SB.from('issuances').update({
+      confirmed_at: new Date().toISOString(),
+      confirmed_by_name: state.user.full_name,
+      confirmation_method: 'photo',
+      receipt_photo_url: urlData.publicUrl,
+      receiver_name: receiverName
+    }).eq('id', issId)
+    if (updErr) throw updErr
+
+    _issPhotoFile = null
+    releaseClick('confirmWithPhoto')
+    showToast('success','Confirmed!','Receipt confirmed with photo proof.')
+    closeModal('requestDetailModal')
+    renderIssuance()
+  } catch(e) { releaseClick('confirmWithPhoto'); showToast('error','Error', e.message); console.error('confirmWithPhoto', e) }
+}
+
+async function _oldConfirmWithPhoto(issId) {
   if (!_issPhotoFile) { showToast('error','No Photo','Please take or select a photo first.'); return }
   const receiverName = document.getElementById('iss_receiver_name_photo')?.value.trim()
   if (!receiverName) { showToast('error','Required','Please enter the receiver\'s name.'); return }
