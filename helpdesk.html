@@ -1747,7 +1747,7 @@ async function resumeTicket(ticketId) {
     if (t?.hold_started_at) addSecs = Math.max(0, Math.floor((Date.now() - new Date(t.hold_started_at)) / 1000))
     const newTotal = (Number(t?.hold_total_seconds) || 0) + addSecs
     await SB.from('it_tickets').update({
-      status: t?.status_before_hold || 'in_progress',
+      status: 'in_progress',
       hold_started_at: null, hold_total_seconds: newTotal,
       hold_reason: null, hold_note: null, status_before_hold: null,
       updated_at: new Date().toISOString()
@@ -1986,6 +1986,12 @@ async function viewTicket(ticketId) {
       if (t.status === 'in_progress') {
         footer += '<button class="btn btn-ghost" onclick="updateTicketStatus(\'' + t.id + '\',\'pending_user\')">⏳ Pending User</button>'
         footer += '<button class="btn btn-ghost" onclick="openHoldTicket(\'' + t.id + '\')" style="color:var(--amber,#b8860b);">⏸️ Put On Hold</button>'
+      }
+      if (t.status === 'pending_user') {
+        // Waiting on the USER. But if it's really an EXTERNAL wait (e.g. provider down),
+        // move it to On Hold so the SLA clock stops.
+        footer += '<button class="btn btn-secondary" onclick="updateTicketStatus(\'' + t.id + '\',\'in_progress\')">▶ Back to Working</button>'
+        footer += '<button class="btn btn-ghost" onclick="openHoldTicket(\'' + t.id + '\')" style="color:var(--amber,#b8860b);">⏸️ Ilipat sa On Hold</button>'
       }
       if (t.status === 'on_hold') {
         footer += '<button class="btn btn-secondary" onclick="resumeTicket(\'' + t.id + '\')">▶ Resume (SLA clock)</button>'
