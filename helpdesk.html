@@ -469,6 +469,29 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
   </div>
 </div>
 
+<!-- On Hold Modal -->
+<div class="modal-overlay" id="holdTicketModal">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h3>⏸️ Put On Hold</h3>
+      <button class="modal-close" onclick="closeModal('holdTicketModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--txt2);font-size:13px;margin-bottom:6px;">Naghihintay sa external party? Titigil ang SLA clock habang naka-hold — hindi mabibilang laban sa'yo.</p>
+      <p style="color:var(--txt3);font-size:11px;margin-bottom:14px;">Piliin ang dahilan:</p>
+      <div id="holdReasonOptions" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="margin-top:12px;">
+        <label style="font-size:12px;color:var(--txt2);">Detalye (optional):</label>
+        <input type="text" id="holdNote" placeholder="hal. Reference #, pangalan ng service center..." style="width:100%;margin-top:4px;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('holdTicketModal')">Bumalik</button>
+      <button class="btn btn-amber" onclick="confirmHoldTicket()" style="background:var(--amber,#b8860b);color:#fff;">⏸️ Put On Hold</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeWh3ZHVsaXpvcmduZ2F5eHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjU0NTgsImV4cCI6MjA5NDg0MTQ1OH0.xLdKGNqjNZNRfjAf5NmXGI1GyTbQZAmbZiKokpgAhUo'
@@ -938,7 +961,7 @@ function buildTicketTable(tickets) {
     const req = S.users.find(u => u.id === t.requester_id)
     const asgn = S.users.find(u => u.id === t.assigned_to)
     const slaDue = t.sla_resolution_due ? new Date(t.sla_resolution_due) : null
-    const slaBreached = slaDue && slaDue < new Date() && !['resolved','closed','cancelled'].includes(t.status)
+    const slaBreached = slaDue && slaDue < new Date() && !['resolved','closed','cancelled','on_hold'].includes(t.status)
     const _done2 = ['resolved','closed'].includes(t.status)
     const age = Math.floor(((_done2 && t.resolved_at ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
     tableHTML += '<tr onclick="viewTicket(\'' + t.id + '\')" style="cursor:pointer;">'
@@ -1676,6 +1699,66 @@ function onCancelReasonPick(i) {
   document.getElementById('cancelOtherWrap').style.display = isOther ? 'block' : 'none'
   if (isOther) setTimeout(() => document.getElementById('cancelOtherReason')?.focus(), 50)
 }
+// ── ON HOLD (SLA pause) ──
+const HOLD_REASONS = [
+  { v:'provider',       label:'📡 Provider/Vendor (telephone/internet down)' },
+  { v:'service_center', label:'🔧 Service Center (dinala sa external repair)' },
+  { v:'purchase',       label:'🛒 Waiting for Purchase (hindi sa CSR)' },
+  { v:'parts',          label:'📦 Waiting for Parts' },
+  { v:'user',           label:'⏳ Waiting for User/Requester' },
+  { v:'other',          label:'❓ Iba pa' }
+]
+let _holdTicketId = null
+function openHoldTicket(ticketId) {
+  _holdTicketId = ticketId
+  const opts = document.getElementById('holdReasonOptions')
+  opts.innerHTML = HOLD_REASONS.map((r, i) =>
+    '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--bdr2);border-radius:9px;cursor:pointer;font-size:13px;">'
+    + '<input type="radio" name="holdReason" value="' + r.v + '" style="accent-color:var(--amber,#b8860b);" ' + (i===0?'checked':'') + '>'
+    + '<span>' + r.label + '</span></label>'
+  ).join('')
+  document.getElementById('holdNote').value = ''
+  openModal('holdTicketModal')
+}
+async function confirmHoldTicket() {
+  const picked = document.querySelector('input[name="holdReason"]:checked')
+  if (!picked) { showToast('error','Pumili','Piliin ang dahilan.'); return }
+  const reason = picked.value
+  const note = (document.getElementById('holdNote')?.value || '').trim()
+  try {
+    const { data: t } = await SB.from('it_tickets').select('status').eq('id', _holdTicketId).single()
+    await SB.from('it_tickets').update({
+      status: 'on_hold', hold_reason: reason, hold_note: note || null,
+      hold_started_at: new Date().toISOString(), status_before_hold: t?.status || 'in_progress',
+      updated_at: new Date().toISOString()
+    }).eq('id', _holdTicketId)
+    await SB.from('it_ticket_replies').insert({ ticket_id:_holdTicketId, author_id:S.user.id, body:'⏸️ On Hold — ' + (HOLD_REASONS.find(r=>r.v===reason)?.label||reason) + (note?(' ('+note+')'):'') + '. SLA clock paused.', is_internal:true })
+    showToast('success','On Hold ⏸️','Tumigil ang SLA clock habang naka-hold.')
+    closeModal('holdTicketModal')
+    closeModal('ticketDetailModal')
+    showPage(S.currentPage || 'dashboard')
+  } catch(e) { showToast('error','Error', e.message) }
+}
+async function resumeTicket(ticketId) {
+  try {
+    const { data: t } = await SB.from('it_tickets').select('hold_started_at,hold_total_seconds,status_before_hold').eq('id', ticketId).single()
+    // Accumulate the hold duration into hold_total_seconds.
+    let addSecs = 0
+    if (t?.hold_started_at) addSecs = Math.max(0, Math.floor((Date.now() - new Date(t.hold_started_at)) / 1000))
+    const newTotal = (Number(t?.hold_total_seconds) || 0) + addSecs
+    await SB.from('it_tickets').update({
+      status: t?.status_before_hold || 'in_progress',
+      hold_started_at: null, hold_total_seconds: newTotal,
+      hold_reason: null, hold_note: null, status_before_hold: null,
+      updated_at: new Date().toISOString()
+    }).eq('id', ticketId)
+    await SB.from('it_ticket_replies').insert({ ticket_id:ticketId, author_id:S.user.id, body:'▶ Resumed. SLA clock running again.', is_internal:true })
+    showToast('success','Resumed ▶','Tuloy na ang SLA clock.')
+    closeModal('ticketDetailModal')
+    showPage(S.currentPage || 'dashboard')
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
 async function confirmCancelTicket() {
   const picked = document.querySelector('input[name="cancelReason"]:checked')
   if (!picked) { showToast('error','Pumili','Piliin ang dahilan.'); return }
@@ -1751,7 +1834,7 @@ async function viewTicket(ticketId) {
   }
 
   // SLA progress
-  if (t.sla_resolution_due && !['resolved','closed','cancelled'].includes(t.status)) {
+  if (t.sla_resolution_due && !['resolved','closed','cancelled','on_hold'].includes(t.status)) {
     const total = t.sla_resolution_due && t.created_at ?
       new Date(t.sla_resolution_due) - new Date(t.created_at) : 1
     const elapsed = Date.now() - new Date(t.created_at)
@@ -1902,6 +1985,10 @@ async function viewTicket(ticketId) {
       }
       if (t.status === 'in_progress') {
         footer += '<button class="btn btn-ghost" onclick="updateTicketStatus(\'' + t.id + '\',\'pending_user\')">⏳ Pending User</button>'
+        footer += '<button class="btn btn-ghost" onclick="openHoldTicket(\'' + t.id + '\')" style="color:var(--amber,#b8860b);">⏸️ Put On Hold</button>'
+      }
+      if (t.status === 'on_hold') {
+        footer += '<button class="btn btn-secondary" onclick="resumeTicket(\'' + t.id + '\')">▶ Resume (SLA clock)</button>'
       }
       footer += '<button class="btn btn-success" onclick="resolveTicket(\'' + t.id + '\')">✅ Resolve</button>'
     }
@@ -2007,10 +2094,14 @@ async function doUpdateTicketStatus(ticketId, newStatus, labels) {
 async function resolveTicket(ticketId) {
   guardedClose(ticketId, 'resolve', (overridden) => {
    confirm2('Mark this ticket as Resolved?', async () => {
-    const { data: t } = await SB.from('it_tickets').select('requester_id').eq('id', ticketId).single()
+    const { data: t } = await SB.from('it_tickets').select('requester_id,hold_started_at,hold_total_seconds').eq('id', ticketId).single()
+    // If resolved while still on hold, close out the running hold duration.
+    let holdTotal = Number(t?.hold_total_seconds) || 0
+    if (t?.hold_started_at) holdTotal += Math.max(0, Math.floor((Date.now() - new Date(t.hold_started_at)) / 1000))
     await SB.from('it_tickets').update({
       status: 'resolved',
       resolved_at: new Date().toISOString(),
+      hold_started_at: null, hold_total_seconds: holdTotal,
       updated_at: new Date().toISOString()
     }).eq('id', ticketId)
     await SB.from('it_ticket_replies').insert({
@@ -2167,8 +2258,12 @@ function renderReportBody(list) {
   const slaRate = withDue.length ? Math.round(metSLA.length / withDue.length * 100) : 0
   // Avg resolution time (hours) — created → resolved
   // Resolution time = from when the technician GOT the ticket (first_response_at) to
-  // resolved — not from filing. Falls back to created_at if no first_response recorded.
-  const resTimes = resolved.filter(t => t.resolved_at).map(t => (new Date(t.resolved_at) - new Date(t.first_response_at || t.created_at)) / 3600000)
+  // resolved, MINUS any On Hold time (external waits don't count against the tech).
+  const resTimes = resolved.filter(t => t.resolved_at).map(t => {
+    const gross = (new Date(t.resolved_at) - new Date(t.first_response_at || t.created_at)) / 3600000
+    const holdHrs = (Number(t.hold_total_seconds) || 0) / 3600
+    return Math.max(0, gross - holdHrs)
+  })
   const avgRes = resTimes.length ? (resTimes.reduce((a,b)=>a+b,0) / resTimes.length) : 0
   const resolutionRate = total ? Math.round(resolved.length / total * 100) : 0
 
@@ -2195,7 +2290,10 @@ function renderReportBody(list) {
     if (!t.assigned_to) return
     const m = techMap[t.assigned_to] = techMap[t.assigned_to] || { resolved:0, times:[], met:0, due:0 }
     m.resolved++
-    if (t.resolved_at) m.times.push((new Date(t.resolved_at)-new Date(t.first_response_at || t.created_at))/3600000)
+    if (t.resolved_at) {
+      const gross = (new Date(t.resolved_at)-new Date(t.first_response_at || t.created_at))/3600000
+      m.times.push(Math.max(0, gross - (Number(t.hold_total_seconds)||0)/3600))
+    }
     if (t.sla_resolution_due && t.resolved_at) { m.due++; if (new Date(t.resolved_at) <= new Date(t.sla_resolution_due)) m.met++ }
   })
   html += '<h3 style="font-size:14px;font-weight:600;margin-bottom:10px;">👥 Performance per Technician</h3>'
@@ -2242,13 +2340,14 @@ async function exportReport() {
     const req = S.users.find(u => u.id === t.requester_id)
     const asgn = S.users.find(u => u.id === t.assigned_to)
     const cat = S.categories.find(c => c.id === t.category_id)
-    const resHrs = t.resolved_at ? ((new Date(t.resolved_at)-new Date(t.first_response_at || t.created_at))/3600000).toFixed(1) : ''
+    const resHrs = t.resolved_at ? (Math.max(0, (new Date(t.resolved_at)-new Date(t.first_response_at || t.created_at))/3600000 - (Number(t.hold_total_seconds)||0)/3600)).toFixed(1) : ''
+    const holdHrs = t.hold_total_seconds ? ((Number(t.hold_total_seconds))/3600).toFixed(1) : ''
     const metSLA = (t.sla_resolution_due && t.resolved_at) ? (new Date(t.resolved_at) <= new Date(t.sla_resolution_due) ? 'Yes' : 'No') : ''
     return {
       'Ticket No.': t.id, 'Subject': t.subject, 'Category': cat?.name||'', 'Priority': t.priority,
       'Status': formatStatus(t.status), 'Requester': req?.full_name||'', 'Assigned To': asgn?.full_name||'',
       'Date Filed': fmtDateTime(t.created_at), 'Date Resolved': t.resolved_at?fmtDateTime(t.resolved_at):'',
-      'Resolution (hrs)': resHrs, 'SLA Met': metSLA
+      'Resolution (hrs)': resHrs, 'Hold Time (hrs)': holdHrs, 'SLA Met': metSLA
     }
   })
   const wb = XLSX.utils.book_new()
@@ -2991,7 +3090,7 @@ async function autoCreateSetupTicket(assetNo, assetName, deptId) {
   return ticketId
 }
 function formatStatus(s) {
-  return { open:'Open', assigned:'Assigned', in_progress:'In Progress', pending_user:'Pending User', resolved:'Resolved', closed:'Closed', reopened:'Reopened', cancelled:'❌ Cancelled' }[s] || s
+  return { open:'Open', assigned:'Assigned', in_progress:'In Progress', pending_user:'Pending User', on_hold:'⏸️ On Hold', resolved:'Resolved', closed:'Closed', reopened:'Reopened', cancelled:'❌ Cancelled' }[s] || s
 }
 
 function formatDate(iso) {
