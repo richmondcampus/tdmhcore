@@ -1992,6 +1992,7 @@ async function viewTicket(ticketId) {
       body += '<span class="reply-time">' + formatDate(r.created_at) + '</span>'
       body += '</div>'
       body += '<div class="reply-text">' + r.body + '</div>'
+      if (r.photo_url) body += '<a href="' + r.photo_url + '" target="_blank"><img src="' + r.photo_url + '" style="max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--bdr2);object-fit:cover;margin-top:6px;cursor:pointer;"></a>'
       body += '</div></div>'
     })
     body += '</div>'
@@ -2009,7 +2010,12 @@ async function viewTicket(ticketId) {
       body += '<div></div>'
     }
     body += '<button class="btn btn-primary btn-sm" onclick="addReply(\'' + t.id + '\')">Send Reply</button>'
-    body += '</div></div>'
+    body += '</div>'
+    // Optional progress photo (IT tech can show what's being done)
+    if (isIT) {
+      body += '<div style="margin-top:8px;"><input type="file" id="replyphoto" accept="image/*" onchange="previewTicketPhoto(this,\'replyphoto_preview\')" style="font-size:11px;"> <span style="font-size:11px;color:var(--txt3);">📷 Progress photo (optional)</span><div id="replyphoto_preview" style="margin-top:6px;"></div></div>'
+    }
+    body += '</div>'
   }
 
   document.getElementById('ticketDetailBody').innerHTML = body
@@ -2096,11 +2102,14 @@ async function assignTicket(ticketId) {
 async function addReply(ticketId) {
   const body = document.getElementById('replyBody')?.value.trim()
   const isInternal = document.getElementById('replyInternal')?.checked || false
-  if (!body) { showToast('error','Required','Please enter a reply.'); return }
+  const photoFile = document.getElementById('replyphoto')?.files?.[0]
+  if (!body && !photoFile) { showToast('error','Required','Please enter a reply or attach a photo.'); return }
   try {
+    let photoUrl = null
+    if (photoFile) photoUrl = await uploadTicketPhoto(photoFile, ticketId)
     await SB.from('it_ticket_replies').insert({
       ticket_id: ticketId, author_id: S.user.id,
-      body, is_internal: isInternal
+      body: body || '📷 Photo update', is_internal: isInternal, photo_url: photoUrl
     })
     // Mark first response time if not set
     const { data: t } = await SB.from('it_tickets').select('first_response_at,requester_id,status').eq('id', ticketId).single()
