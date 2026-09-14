@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.12-1'
+const APP_VERSION = '2026.09.12-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4370,11 +4370,28 @@ function filterPOs(status) {
 
 async function markForPO(id) {
   confirm2('Mark this request as For PO (Purchase Order)?', async () => {
-    const { error } = await SB.from('requests').update({ status: 'for_po' }).eq('id', id)
+    // Flag all remaining (not-issued, not-removed) items as for_po — this is what makes
+    // them show up in the Purchasing Officer's Create PO list.
+    await SB.from('request_items')
+      .update({ fulfillment_type: 'for_po' })
+      .eq('request_id', id)
+      .neq('fulfillment_type', 'for_po')
+      .eq('quantity_issued', 0)
+      .or('is_removed.is.null,is_removed.eq.false')
+    // Also copy quantity into quantity_for_po where it's still 0.
+    const { data: flagged } = await SB.from('request_items').select('id,quantity,quantity_for_po').eq('request_id', id).eq('fulfillment_type', 'for_po')
+    for (const it of (flagged || [])) {
+      if (!it.quantity_for_po || Number(it.quantity_for_po) === 0) {
+        await SB.from('request_items').update({ quantity_for_po: it.quantity }).eq('id', it.id)
+      }
+    }
+    const { error } = await SB.from('requests').update({ status: 'for_po', current_approval_level: 3, has_po_split: true }).eq('id', id)
     if (error) { showToast('error', 'Error', error.message); return }
     closeModal('requestDetailModal')
     showToast('success', 'Updated', 'Request moved to PO queue.')
     if (state.page === 'all_requests') renderAllRequests()
+    else if (state.page === 'dashboard') renderDashboard()
+    else if (state.page === 'issuance') renderIssuance()
   })
 }
 
