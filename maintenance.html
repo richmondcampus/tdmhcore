@@ -3140,17 +3140,23 @@ async function sendEmail(to, type, ticket, claimer) {
 async function sendSMS(phones, message, eventType = 'general', ticketNo = null) {
   const list = (phones || []).filter(Boolean)
   if (list.length === 0) return
+  // Strip emoji + non-GSM characters. Emoji turn the SMS into Unicode (70-char parts),
+  // which the gateway sometimes truncates → blank/garbled messages. Plain text = reliable.
+  const cleanMsg = String(message || '')
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
   try {
     await fetch(SMS_URL, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ phones: list, message })
+      body: JSON.stringify({ phones: list, message: cleanMsg })
     })
     // Log for cost tracking (₱0.50 per SMS, 1 SMS per recipient)
     try {
       await SB.from('sms_logs').insert({
         recipients: list,
         sms_count: list.length,
-        message: message,
+        message: cleanMsg,
         event_type: eventType,
         ticket_no: ticketNo,
         sent_by: S.user ? S.user.id : null
