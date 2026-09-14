@@ -3169,8 +3169,13 @@ function formatDate(iso) {
 }
 
 async function sendSMS(phones, message) {
+  // Strip emoji/non-GSM chars — they turn SMS into Unicode and the gateway may
+  // truncate them into blank/garbled messages. Plain text is reliable.
+  const cleanMsg = String(message || '')
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
+    .replace(/\s{2,}/g, ' ').trim()
   try {
-    await fetch(SMS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ phones, message }) })
+    await fetch(SMS_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ phones, message: cleanMsg }) })
   } catch(e) { console.warn('[SMS]', e.message) }
 }
 
