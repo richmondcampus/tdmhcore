@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.12-2'
+const APP_VERSION = '2026.09.14-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4440,6 +4440,26 @@ async function notifyApprovers(req, level) {
 }
 
 // ─── processApproval ───
+// Flag a request's remaining (not-issued, not-removed) items as for_po. This is what
+// makes them appear in the Purchasing Officer's Create PO list. Called whenever a
+// request moves to for_po status (approval or manual forward).
+async function flagItemsForPO(reqId) {
+  try {
+    await SB.from('request_items')
+      .update({ fulfillment_type: 'for_po' })
+      .eq('request_id', reqId)
+      .neq('fulfillment_type', 'for_po')
+      .eq('quantity_issued', 0)
+      .or('is_removed.is.null,is_removed.eq.false')
+    const { data: flagged } = await SB.from('request_items').select('id,quantity,quantity_for_po').eq('request_id', reqId).eq('fulfillment_type', 'for_po')
+    for (const it of (flagged || [])) {
+      if (!it.quantity_for_po || Number(it.quantity_for_po) === 0) {
+        await SB.from('request_items').update({ quantity_for_po: it.quantity }).eq('id', it.id)
+      }
+    }
+  } catch(e) { console.warn('flagItemsForPO', e.message) }
+}
+
 async function processApproval() {
   if (!(await ensureAuth())) { handleAuthLost(); return }
   const remarks = document.getElementById('approvalRemarks')?.value.trim() || ''
@@ -4641,12 +4661,15 @@ async function processApproval() {
         await notifyApprovers(req, 3)
 
       } else if (effLevel === 3) {
-        // Purchasing Officer approved — update status and notify
+        // Purchasing Officer approved — flag remaining items as for_po (so they show in
+        // the Create PO list), update status and notify.
+        await flagItemsForPO(req.id)
         newLevel = 3; newStatus = 'for_po'
         toastMsg = '✅ Approved — Purchasing Officer notified to create PO.'
         await autoCreatePODraft(req) // just notifies, doesn't auto-create PO
 
       } else {
+        await flagItemsForPO(req.id)
         newLevel = 3; newStatus = 'for_po'
         toastMsg = '✅ Approved — ready for Purchase Order.'
       }
