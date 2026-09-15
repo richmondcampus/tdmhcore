@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.14-2'
+const APP_VERSION = '2026.09.15-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1351,7 +1351,7 @@ async function loadRequestsByDepts(deptIds) {
 
 async function loadRequestItems(requestId) {
   try {
-    const { data, error } = await SB.from('request_items').select('*').eq('request_id', requestId)
+    const { data, error } = await SB.from('request_items').select('*').eq('request_id', requestId).order('sort_order', { nullsFirst: false }).order('item_name')
     if (error) throw error
     if (data && data.length) return data
     // Fallback: use the cached hover index (different field names) if it has items.
@@ -2418,7 +2418,7 @@ async function openItemEditor(reqId) {
     showToast('error','Not Allowed','Hindi ka pwedeng mag-edit ng items sa request na ito.'); return
   }
   _itemEditorReqId = reqId
-  const { data: items } = await SB.from('request_items').select('*').eq('request_id', reqId).order('item_name')
+  const { data: items } = await SB.from('request_items').select('*').eq('request_id', reqId).order('sort_order', { nullsFirst: false }).order('item_name')
   _itemEditorRows = (items||[]).map(it => ({
     id: it.id, item_name: it.item_name || '', quantity: it.quantity || 1,
     unit: it.unit || 'pcs', quantity_issued: it.quantity_issued || 0, _new: false, _delete: false
@@ -2491,9 +2491,12 @@ async function saveItemEditor() {
       } else if (r._new) {
         const nm = (r.item_name||'').trim()
         if (!nm) continue
+        // New items go to the BOTTOM — give them the next sort_order.
+        const { data: maxRow } = await SB.from('request_items').select('sort_order').eq('request_id', reqId).order('sort_order', { ascending:false, nullsFirst:false }).limit(1).maybeSingle()
+        const nextSort = (Number(maxRow?.sort_order) || 0) + 1
         await SB.from('request_items').insert({
           request_id: reqId, item_name: nm, quantity: Number(r.quantity)||1,
-          unit: (r.unit||'pcs').trim(), quantity_issued: 0
+          unit: (r.unit||'pcs').trim(), quantity_issued: 0, sort_order: nextSort
         }); added++
       } else if (r.id) {
         await SB.from('request_items').update({
@@ -2509,6 +2512,11 @@ async function saveItemEditor() {
       })
     } catch(_) { /* activity table optional */ }
 
+    // Recompute status: if editing quantities made everything complete (or reopened a
+    // gap), update status + pending note so a shrunk request doesn't stay "partially
+    // issued" with a stale "natira" note.
+    await recomputeRequestStatus(reqId)
+
     showToast('success','Na-save ✅', added + ' idinagdag, ' + updated + ' na-update, ' + removed + ' inalis.')
     closeModal('reviewModal')
     releaseClick('saveItemEditor')
@@ -2517,6 +2525,33 @@ async function saveItemEditor() {
     releaseClick('saveItemEditor')
     showToast('error','Error', e.message)
   }
+}
+
+// Recompute a request's status + pending note from its current items. Called after
+// edits so status stays truthful (e.g. shrinking a qty to match what was issued).
+async function recomputeRequestStatus(reqId) {
+  try {
+    const { data: req } = await SB.from('requests').select('status,has_po_split').eq('id', reqId).maybeSingle()
+    if (!req || ['cancelled','closed','draft','pending_approval','approved'].includes(req.status)) {
+      // Only recompute for requests already in an issuing state.
+      if (req && !['issued','partially_issued','for_po'].includes(req.status)) return
+    }
+    const { data: items } = await SB.from('request_items').select('quantity,quantity_issued,is_removed,fulfillment_type').eq('request_id', reqId)
+    const active = (items||[]).filter(it => !it.is_removed && it.fulfillment_type !== 'for_po')
+    const pending = active.filter(it => (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0)
+    const anyIssued = (items||[]).some(it => (Number(it.quantity_issued)||0) > 0)
+    const anyForPo = (items||[]).some(it => it.fulfillment_type === 'for_po' && !it.is_removed)
+    if (pending.length === 0 && !anyForPo) {
+      // Everything issued (or nothing left owed) → issued, clear note.
+      if (anyIssued) await SB.from('requests').update({ status: 'issued', pending_items_note: null }).eq('id', reqId)
+    } else if (pending.length > 0 && anyIssued) {
+      // Still owes something and some was issued → partially_issued with fresh note.
+      const { data: full } = await SB.from('request_items').select('item_name,quantity,quantity_issued,unit,is_removed,fulfillment_type').eq('request_id', reqId)
+      const note = (full||[]).filter(it => !it.is_removed && it.fulfillment_type !== 'for_po' && (Number(it.quantity)-(Number(it.quantity_issued)||0))>0)
+        .map(it => it.item_name + ' (natira: ' + (Number(it.quantity)-(Number(it.quantity_issued)||0)) + ' ' + (it.unit||'pcs') + ')').join(' • ')
+      await SB.from('requests').update({ status: 'partially_issued', pending_items_note: note || null }).eq('id', reqId)
+    }
+  } catch(e) { console.warn('recomputeRequestStatus', e.message) }
 }
 
 async function viewRequest(id) {
@@ -3940,14 +3975,15 @@ async function saveRequest(action) {
 
     // Insert items (only for with_replacement or non-DERP)
     if (validItems.length > 0) {
-      const itemsPayload = validItems.map(item => ({
+      const itemsPayload = validItems.map((item, idx) => ({
         request_id: req.id,
         item_name: item.item_name,
         item_description: item.item_description || null,
         quantity: Number(item.quantity) || 1,
         unit: item.unit,
         estimated_cost: Number(item.estimated_cost) || 0,
-        category: item.category
+        category: item.category,
+        sort_order: idx + 1
       }))
       const { data: insertedItems } = await SB.from('request_items').insert(itemsPayload).select()
 
@@ -4836,7 +4872,7 @@ function stockInfoHTML(it) {
 
 async function renderApprovalAdjust(wrap, reqId) {
   wrap.innerHTML = '<div style="font-size:12px;color:var(--txt2);padding:8px 0;">Loading items...</div>'
-  const { data: items } = await SB.from('request_items').select('*').eq('request_id', reqId).order('item_name')
+  const { data: items } = await SB.from('request_items').select('*').eq('request_id', reqId).order('sort_order', { nullsFirst: false }).order('item_name')
   // Load active stock items once for auto-matching
   const { data: allStock } = await SB.from('stock_items').select('id,item_name,quantity_on_hand,unit,unit_cost,item_code,brand').eq('is_active', true)
   _approvalStockList = allStock || []
