@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.14-1'
+const APP_VERSION = '2026.09.14-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4283,14 +4283,17 @@ async function renderPurchaseOrders() {
     html += '</div>'
     html += '<button class="btn btn-primary btn-sm" onclick="openNewPOModal(null)">＋ Create PO</button>'
     html += '</div>'
-    // Show list of pending requests
+    // Show list of pending requests — with their ITEMS (hover for full list)
+    await loadRequestItemsIndex(approvedReqs.map(r => r.id))
     html += '<div style="display:flex;flex-direction:column;gap:4px;">'
     approvedReqs.slice(0, 5).forEach(r => {
       const dept = state.departments.find(d => d.id === r.dept_id)
+      const its = (state.itemsByRequest && state.itemsByRequest[r.id]) || []
+      const itemSummary = its.length ? its.map(i => i.name).join(', ') : (r.purpose || '—')
       html += '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surf1);border-radius:6px;padding:6px 10px;font-size:12px;">'
-      html += '<span style="font-family:monospace;color:var(--accent);">' + r.request_no + '</span>'
-      html += '<span style="color:var(--txt2);flex:1;margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (r.purpose || '—') + '</span>'
-      html += '<span style="color:var(--txt3);">' + (dept?.dept_name || '—') + '</span>'
+      html += '<span class="td-mono" onmouseenter="showReqHover(event,\'' + r.id + '\')" onmouseleave="hideReqHover()" style="color:var(--accent);cursor:pointer;position:relative;white-space:nowrap;">' + r.request_no + ' <span style="font-size:10px;color:var(--txt3);">ⓘ</span></span>'
+      html += '<span style="color:var(--txt2);flex:1;margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escStk(itemSummary) + '">📦 ' + escStk(itemSummary) + '</span>'
+      html += '<span style="color:var(--txt3);white-space:nowrap;">' + (dept?.dept_name || '—') + '</span>'
       html += '<button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="openNewPOModal(\'' + r.id + '\')">Create PO</button>'
       html += '</div>'
     })
