@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-4'
+const APP_VERSION = '2026.09.15-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2915,37 +2915,57 @@ async function maybeAutoCloseRequest(reqId) {
 // Pull a for_po request back to issuance (no PO yet). Converts for_po items to issue,
 // returns to Supply Officer so items can be issued from stock. Records a reason.
 async function pullBackToIssuance(reqId) {
-  const reason = prompt('Bakit ibinabalik sa issuance? (hal. Emergency — binili na direkta / biglang may stock)')
-  if (reason === null) return
-  if (!reason.trim()) { showToast('error','Dahilan','Kailangan ng dahilan.'); return }
+  // Show a picker: only for_po items WITHOUT a PO yet. User checks which to pull back.
+  const { data: pullable } = await SB.from('request_items').select('id,item_name,quantity,quantity_for_po,unit')
+    .eq('request_id', reqId).eq('fulfillment_type', 'for_po')
+    .is('po_id', null).or('po_created.is.null,po_created.eq.false')
+    .order('sort_order', { nullsFirst: false }).order('item_name')
+  if (!pullable || !pullable.length) { showToast('info','Walang mahuhugot','Lahat ng for_po items ay may PO na.'); return }
+  _pullBackReqId = reqId
+  let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">Piliin ang mga item na i-i-issue na lang mula sa stock (biglang may stock o binili na direkta). Ang hindi napili ay mananatiling For PO.</div>'
+  html += '<div style="display:flex;flex-direction:column;gap:8px;">'
+  pullable.forEach(it => {
+    html += '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--bdr2);border-radius:9px;cursor:pointer;font-size:13px;">'
+    html += '<input type="checkbox" class="pullback_chk" value="' + it.id + '" checked style="width:16px;height:16px;accent-color:var(--amber,#b8860b);">'
+    html += '<span style="flex:1;"><strong>' + escStk(it.item_name) + '</strong> <span style="color:var(--txt3);">— ' + (it.quantity_for_po || it.quantity) + ' ' + escStk(it.unit||'pcs') + '</span></span></label>'
+  })
+  html += '</div>'
+  html += '<div style="margin-top:12px;"><label style="font-size:12px;color:var(--txt2);">Dahilan:</label>'
+  html += '<input type="text" id="pullback_reason" placeholder="hal. Biglang may stock / binili na direkta" style="width:100%;margin-top:4px;padding:9px 12px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"></div>'
+  document.getElementById('reviewModalTitle').textContent = '↩️ Pull Back to Issuance'
+  document.getElementById('reviewModalBody').innerHTML = html
+  document.getElementById('reviewModalFooter').innerHTML =
+    '<button class="btn btn-ghost" onclick="closeModal(\'reviewModal\')">Cancel</button>' +
+    '<button class="btn btn-primary" onclick="confirmPullBack()">↩️ Issue Selected</button>'
+  openModal('reviewModal')
+}
+let _pullBackReqId = null
+async function confirmPullBack() {
+  const reqId = _pullBackReqId
+  const checked = [...document.querySelectorAll('.pullback_chk:checked')].map(c => c.value)
+  if (!checked.length) { showToast('error','Pumili','Piliin ang mga item na i-i-issue.'); return }
+  const reason = (document.getElementById('pullback_reason')?.value || '').trim()
+  if (!reason) { showToast('error','Dahilan','Kailangan ng dahilan.'); return }
   try {
-    // Convert ONLY for_po items that have NO PO yet (po_id null, not po_created) back to
-    // issue. Items already ordered (with a PO) stay for_po — we don't touch those.
-    const { data: pullable } = await SB.from('request_items').select('id')
-      .eq('request_id', reqId).eq('fulfillment_type', 'for_po')
-      .is('po_id', null).or('po_created.is.null,po_created.eq.false')
-    if (!pullable || !pullable.length) { showToast('info','Walang mahuhugot','Lahat ng for_po items ay may PO na.'); return }
-    for (const it of pullable) {
-      await SB.from('request_items').update({ fulfillment_type: 'issue', quantity_for_po: 0 }).eq('id', it.id)
+    // Convert ONLY the selected items back to issue.
+    for (const id of checked) {
+      await SB.from('request_items').update({ fulfillment_type: 'issue', quantity_for_po: 0 }).eq('id', id)
     }
-    // Recompute status: still has for_po items (with PO)? partially issued? etc.
+    // Recompute status based on what remains.
     const { data: allItems } = await SB.from('request_items').select('quantity,quantity_issued,is_removed,fulfillment_type').eq('request_id', reqId)
     const anyIssued = (allItems||[]).some(x => (Number(x.quantity_issued)||0) > 0)
     const stillForPo = (allItems||[]).some(x => x.fulfillment_type === 'for_po' && !x.is_removed)
-    let newStatus
-    if (stillForPo) newStatus = 'for_po'          // other items still need a PO
-    else if (anyIssued) newStatus = 'partially_issued'
-    else newStatus = 'approved'
+    let newStatus = stillForPo ? 'for_po' : (anyIssued ? 'partially_issued' : 'approved')
     await SB.from('requests').update({
       status: newStatus,
       current_approval_level: stillForPo ? 3 : 2,
-      pending_items_note: 'Pulled back sa issuance (' + pullable.length + ' item): ' + reason.trim()
+      pending_items_note: 'Pulled back sa issuance (' + checked.length + ' item): ' + reason
     }).eq('id', reqId)
     try {
-      await SB.from('approvals').insert({ request_id: reqId, approver_id: state.user.id, approver_role: state.user.csr_role || 'admin', level: 2, decision: 'returned', remarks: 'Pull back to issuance (' + pullable.length + ' item): ' + reason.trim(), decided_at: new Date().toISOString() })
+      await SB.from('approvals').insert({ request_id: reqId, approver_id: state.user.id, approver_role: state.user.csr_role || 'admin', level: 2, decision: 'returned', remarks: 'Pull back to issuance (' + checked.length + ' item): ' + reason, decided_at: new Date().toISOString() })
     } catch(_) {}
-    showToast('success','Naibalik ✅', pullable.length + ' item — pwede nang i-issue from stock.')
-    closeModal('requestDetailModal')
+    showToast('success','Naibalik ✅', checked.length + ' item — pwede nang i-issue from stock.')
+    closeModal('reviewModal'); closeModal('requestDetailModal')
     if (state.page === 'dashboard') renderDashboard()
     else if (state.page === 'all_requests') renderAllRequests()
     else if (state.page === 'issuance') renderIssuance()
