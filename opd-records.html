@@ -233,12 +233,13 @@ dl.kv dd{word-break:break-word}
   <!-- set new password (from email link) -->
   <form class="login-card auth-step hidden" id="stepReset" onsubmit="setNewPassword(event)">
     <h1 style="font-size:24px">Set new password</h1>
-    <p>Pumili ng bagong password para OPD Records.</p>
+    <p>Pumili ng bagong password para OPD Records. <b id="rs_who" style="display:block;margin-top:4px;color:var(--txt)"></b></p>
     <div class="field"><label for="rs_new">New password</label><input class="inp" id="rs_new" type="password" placeholder="Minimum 8 characters" autocomplete="new-password" oninput="checkStrength(this.value,'rs')">
       <div class="strength-bar"><div class="strength-fill" id="rs_fill"></div></div><span class="hint" id="rs_lbl"></span></div>
     <div class="field"><label for="rs_confirm">Confirm password</label><input class="inp" id="rs_confirm" type="password" autocomplete="new-password"></div>
     <div id="rs_err" class="err hidden"></div>
     <button class="btn btn-primary" id="rs_btn" style="width:100%;padding:11px;margin-top:6px">Update password</button>
+    <div style="text-align:center;margin-top:14px"><a href="#" onclick="cancelReset();return false" style="font-size:12px;color:var(--txt2)">Cancel</a></div>
   </form>
 
   <!-- done -->
@@ -384,8 +385,22 @@ const CHART = {
 const FLAG_LBL = { blocklist:'Blocklist', caution:'Caution', note:'Note' }
 
 let ME = null, IS_SUP = false, PHYS = [], CUR = null, lastQ = ''
+// Password-reset state survives refresh / reopening the tab, so a reset link can never
+// drop someone into the app without choosing a new password first.
+const RECOVERY_KEY = 'tdmh_opd_recovery'
+function markRecovery(){ try { localStorage.setItem(RECOVERY_KEY, String(Date.now())) } catch {} }
+function clearRecovery(){ try { localStorage.removeItem(RECOVERY_KEY) } catch {} }
+function recoveryPending(){ try { const t = +localStorage.getItem(RECOVERY_KEY); return !!t && Date.now() - t < 3600e3 } catch { return false } }
 let RECOVERY = /type=recovery/.test(location.hash)
-SB.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY'){ RECOVERY = true; showLogin('stepReset') } })
+if (RECOVERY) markRecovery()
+SB.auth.onAuthStateChange((ev, session) => {
+  if (ev === 'PASSWORD_RECOVERY'){ RECOVERY = true; markRecovery(); showReset(session) }
+})
+function showReset(session){
+  showLogin('stepReset')
+  $('rs_who').textContent = session?.user?.email ? 'Account: ' + session.user.email : ''
+}
+async function cancelReset(){ clearRecovery(); RECOVERY = false; await SB.auth.signOut(); history.replaceState(null, '', location.pathname); authStep('stepLogin') }
 
 // ═══════════ HELPERS ═══════════
 const $ = id => document.getElementById(id)
@@ -423,6 +438,7 @@ async function doLogin(ev){
     const email = emp.toLowerCase()   // email is the only login
     const { data, error } = await SB.auth.signInWithPassword({ email, password: pw })
     if (error || !data.user) return loginErr('Maling email o password.')
+    clearRecovery()
     await boot(data.user)
   }catch(e){ loginErr('Connection error. Subukan muli.') }
   finally{ btn.disabled = false; btn.textContent = 'Sign in' }
@@ -452,7 +468,7 @@ async function sendResetLink(ev){
       method:'POST', headers:{ 'Content-Type':'application/json', apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY },
       body: JSON.stringify({ email })
     })
-    $('fp_ok').textContent = 'Kung ang email ay naka-register, nagpadala ng reset link. I-check ang inbox at spam folder. Ang link ay valid 1 oras.'
+    $('fp_ok').textContent = 'Kung ang email ay naka-register, nagpadala ng reset link. I-check ang inbox at spam folder (pwede 1–2 minuto). Ang link ay valid 1 oras at gumagana isa beses. Huwag humiling muli: ang bagong request ay pinapawalang-bisa ang naunang link.'
     $('fp_ok').classList.remove('hidden')
     btn.textContent = 'Link sent'; $('fp_email').disabled = true
   }catch(e){
@@ -475,8 +491,9 @@ async function setNewPassword(ev){
   btn.disabled = true; btn.textContent = 'Updating…'
   const { error } = await SB.auth.updateUser({ password: a })
   if (error){ btn.disabled = false; btn.textContent = 'Update password'; return showErr('rs_err', /expired|invalid|session/i.test(error.message) ? 'Ang link ay expired. Humiling ng bagong reset link.' : error.message) }
-  RECOVERY = false
+  RECOVERY = false; clearRecovery()
   await SB.auth.signOut()
+  history.replaceState(null, '', location.pathname)
   authStep('stepDone')
 }
 async function signOut(){ await SB.auth.signOut(); location.reload() }
@@ -1076,12 +1093,17 @@ $('modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') clo
 // ═══════════ START ═══════════
 ;(async function init(){
   const t = localStorage.getItem('tdmh_opd_theme'); if (t) document.documentElement.dataset.theme = t
-  if (/error_code=otp_expired|error=access_denied/.test(location.hash)){
-    history.replaceState(null, '', location.pathname); showLogin('stepForgot')
-    return showErr('fp_err', 'Ang reset link ay expired o nagamit na. Humiling ng bago.')
-  }
+  const linkError = /error_code=otp_expired|error=access_denied/.test(location.hash)
+  if (linkError) history.replaceState(null, '', location.pathname)
   const { data:{ session } } = await SB.auth.getSession()
-  if (RECOVERY){ showLogin(session ? 'stepReset' : 'stepLogin'); if (!session) setTimeout(async()=>{ const { data:{ session:s2 } } = await SB.auth.getSession(); if (s2) authStep('stepReset') }, 1000); return }
+  // 1) valid recovery session (fresh link, or page refreshed before saving) → must set password
+  if (session && (RECOVERY || recoveryPending())) return showReset(session)
+  // 2) opened an old / already-used link
+  if (linkError){
+    showLogin('stepForgot')
+    return showErr('fp_err', 'Ang link ay expired o nagamit na. Kung humiling ng higit sa isa, buksan lang ang PINAKABAGONG email, o humiling ng bagong link.')
+  }
+  if (RECOVERY){ showLogin('stepLogin'); setTimeout(async()=>{ const { data:{ session:s2 } } = await SB.auth.getSession(); if (s2) showReset(s2) }, 1000); return }
   if (session?.user){ try { await boot(session.user) } catch { showLogin() } }
   else showLogin()
   resetIdle()
