@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-3'
+const APP_VERSION = '2026.09.15-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2818,15 +2818,15 @@ async function viewRequest(id) {
   else if (req.request_type !== 'derp' && (req.status === 'for_po' || req.status === 'partially_issued') && ['supply_officer','admin'].includes(role) && requestItemsHavePendingIssue(items)) {
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue Remaining (Stock)</button>'
   }
-  // Pull Back to Issuance — for requests with for_po items but NO PO yet (emergency
-  // bought directly, or stock suddenly available). Works for both plain for_po requests
-  // AND split requests that became partially_issued but still have for_po items.
-  const hasForPoItems = (items || []).some(it => it.fulfillment_type === 'for_po' && !it.is_removed)
+  // Pull Back to Issuance — for for_po items that DON'T have a PO yet (emergency bought
+  // directly, or stock suddenly available). Works even if OTHER items already have POs —
+  // only the for_po items without a po_id get pulled back to issuance.
+  const forPoNoPO = (items || []).filter(it => it.fulfillment_type === 'for_po' && !it.is_removed && !it.po_id && !it.po_created)
   if (req.request_type !== 'derp'
-      && (req.status === 'for_po' || (req.status === 'partially_issued' && hasForPoItems))
+      && (req.status === 'for_po' || req.status === 'partially_issued')
       && ['supply_officer','purchasing_officer','admin'].includes(role)
-      && !req._hasPO) {
-    footer += '<button class="btn btn-ghost" onclick="pullBackToIssuance(\'' + req.id + '\')" style="color:var(--amber,#b8860b);">↩️ Pull Back to Issuance</button>'
+      && forPoNoPO.length > 0) {
+    footer += '<button class="btn btn-ghost" onclick="pullBackToIssuance(\'' + req.id + '\')" style="color:var(--amber,#b8860b);">↩️ Pull Back to Issuance (' + forPoNoPO.length + ')</button>'
   }
   // Delivered request with a RECEIVED PO — items arrived, ready to issue to department.
   if (req.request_type !== 'derp' && req.status === 'delivered'
@@ -2919,24 +2919,32 @@ async function pullBackToIssuance(reqId) {
   if (reason === null) return
   if (!reason.trim()) { showToast('error','Dahilan','Kailangan ng dahilan.'); return }
   try {
-    // Safety: block if a PO already exists.
-    const { count: poCount } = await SB.from('purchase_orders').select('id', { count:'exact', head:true }).eq('request_id', reqId)
-    if ((poCount||0) > 0) { showToast('error','May PO na','May PO na para sa request na ito — i-cancel muna ang PO bago mag-pull back.'); return }
-    // Convert for_po items back to issue.
-    await SB.from('request_items').update({ fulfillment_type: 'issue', quantity_for_po: 0 }).eq('request_id', reqId).eq('fulfillment_type', 'for_po')
-    // Return to Supply Officer. If some items were already issued → partially_issued, else approved.
-    const { data: ri } = await SB.from('request_items').select('quantity,quantity_issued,is_removed').eq('request_id', reqId)
-    const anyIssued = (ri||[]).some(x => (Number(x.quantity_issued)||0) > 0)
+    // Convert ONLY for_po items that have NO PO yet (po_id null, not po_created) back to
+    // issue. Items already ordered (with a PO) stay for_po — we don't touch those.
+    const { data: pullable } = await SB.from('request_items').select('id')
+      .eq('request_id', reqId).eq('fulfillment_type', 'for_po')
+      .is('po_id', null).or('po_created.is.null,po_created.eq.false')
+    if (!pullable || !pullable.length) { showToast('info','Walang mahuhugot','Lahat ng for_po items ay may PO na.'); return }
+    for (const it of pullable) {
+      await SB.from('request_items').update({ fulfillment_type: 'issue', quantity_for_po: 0 }).eq('id', it.id)
+    }
+    // Recompute status: still has for_po items (with PO)? partially issued? etc.
+    const { data: allItems } = await SB.from('request_items').select('quantity,quantity_issued,is_removed,fulfillment_type').eq('request_id', reqId)
+    const anyIssued = (allItems||[]).some(x => (Number(x.quantity_issued)||0) > 0)
+    const stillForPo = (allItems||[]).some(x => x.fulfillment_type === 'for_po' && !x.is_removed)
+    let newStatus
+    if (stillForPo) newStatus = 'for_po'          // other items still need a PO
+    else if (anyIssued) newStatus = 'partially_issued'
+    else newStatus = 'approved'
     await SB.from('requests').update({
-      status: anyIssued ? 'partially_issued' : 'approved',
-      current_approval_level: 2, has_po_split: false,
-      pending_items_note: 'Pulled back sa issuance: ' + reason.trim()
+      status: newStatus,
+      current_approval_level: stillForPo ? 3 : 2,
+      pending_items_note: 'Pulled back sa issuance (' + pullable.length + ' item): ' + reason.trim()
     }).eq('id', reqId)
-    // Audit trail via approvals note
     try {
-      await SB.from('approvals').insert({ request_id: reqId, approver_id: state.user.id, approver_role: state.user.csr_role || 'admin', level: 2, decision: 'returned', remarks: 'Pull back to issuance: ' + reason.trim(), decided_at: new Date().toISOString() })
+      await SB.from('approvals').insert({ request_id: reqId, approver_id: state.user.id, approver_role: state.user.csr_role || 'admin', level: 2, decision: 'returned', remarks: 'Pull back to issuance (' + pullable.length + ' item): ' + reason.trim(), decided_at: new Date().toISOString() })
     } catch(_) {}
-    showToast('success','Naibalik ✅','Nasa issuance na ulit ang request — pwede nang i-issue from stock.')
+    showToast('success','Naibalik ✅', pullable.length + ' item — pwede nang i-issue from stock.')
     closeModal('requestDetailModal')
     if (state.page === 'dashboard') renderDashboard()
     else if (state.page === 'all_requests') renderAllRequests()
