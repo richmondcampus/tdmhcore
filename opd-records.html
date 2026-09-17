@@ -511,7 +511,7 @@ async function loadPhysicians(){
 // ═══════════ SEARCH ═══════════
 let qTimer
 $('q').addEventListener('input', () => { clearTimeout(qTimer); qTimer = setTimeout(runSearch, 600) })
-$('q').addEventListener('keydown', e => { if (e.key === 'Enter'){ clearTimeout(qTimer); runSearch(true) } })
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter'){ clearTimeout(qTimer); runSearch() } })   // no duplicate search if already shown
 $('qdob').addEventListener('change', () => runSearch(true))
 
 async function runSearch(force){
@@ -563,7 +563,7 @@ async function openPatient(id){
     SB.from('opd_patient_flags').select('*').eq('patient_id', id).order('created_at', { ascending:false })
   ])
   if (p.error){ $('dHead').innerHTML = ''; $('dBody').innerHTML = `<div class="err">${esc(errMsg(p.error))}</div>`; return }
-  SB.rpc('opd_log_view', { p_patient_id: id })
+  SB.rpc('opd_log_view', { p_patient_id: id }).then(({ error }) => { if (error) console.warn('view log', error.message) })   // must be .then(): supabase-js only sends when awaited
   CUR = { ...p.data, log: log.data || [], flags: flags.data || [] }
 
   // related charts (same name + birthday, or linked)
