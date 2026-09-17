@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-2'
+const APP_VERSION = '2026.09.15-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5742,6 +5742,7 @@ async function confirmIssueFromPO() {
       issuance_id: issId,
       quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
       item_name_snapshot: item.item_name || null,
+      unit_snapshot: item.unit || null,
       request_item_id: item.request_item_id || null
     })).filter(i => i.quantity_issued > 0)
 
@@ -7322,7 +7323,8 @@ async function saveBlankIssuance() {
         quantity_issued: it.quantity,
         from_stock: !!it.stock_item_id,
         stock_item_id: it.stock_item_id || null,
-        item_name_snapshot: it.item_name || null
+        item_name_snapshot: it.item_name || null,
+        unit_snapshot: it.unit || null
       })
       if (it.stock_item_id) {
         const s = (issState.blankStock||[]).find(x => x.id === it.stock_item_id)
@@ -7602,7 +7604,8 @@ async function saveIssuance() {
         quantity_issued: item.quantity_issued,
         from_stock: item.from_stock,
         stock_item_id: item.stock_item_id || null,
-        item_name_snapshot: item.item_name || null
+        item_name_snapshot: item.item_name || null,
+        unit_snapshot: item.unit || null
       })
 
       // Add to the request item's cumulative issued qty (for follow-up tracking),
@@ -10602,7 +10605,7 @@ function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, si
     const src = (it.request_item_id && riById[it.request_item_id]) || (it.stock_item_id && siById[it.stock_item_id])
     itemName = src?.item_name || it.item_name_snapshot || 'Item'
     qty = it.quantity_issued != null ? it.quantity_issued : ''
-    unit = src?.unit || ''
+    unit = src?.unit || it.unit_snapshot || ''
   }
   return {
     issuance_no: iss.issuance_no || '',
