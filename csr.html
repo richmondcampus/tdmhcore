@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-8'
+const APP_VERSION = '2026.09.15-9'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4327,17 +4327,12 @@ async function renderPurchaseOrders() {
   poState.pos = posRes.data || []
   poState.suppliers = suppRes.data || []
   let approvedReqs = reqsRes.data || []
-  // Keep only requests that still have for_po items WITHOUT a PO yet.
-  if (approvedReqs.length) {
-    const { data: poFlagItems } = await SB.from('request_items')
-      .select('request_id,fulfillment_type,po_created')
-      .in('request_id', approvedReqs.map(r => r.id))
-    const needsPO = {}
-    ;(poFlagItems || []).forEach(it => {
-      if (it.fulfillment_type === 'for_po' && !it.po_created) needsPO[it.request_id] = true
-    })
-    approvedReqs = approvedReqs.filter(r => needsPO[r.id])
-  }
+  // Use the server-side function to accurately find requests still needing a PO (avoids
+  // the client 1000-row cap that could otherwise include already-PO'd requests).
+  try {
+    const { data: needsPo } = await SB.rpc('requests_needing_po')
+    if (needsPo) approvedReqs = needsPo
+  } catch(e) { console.warn('requests_needing_po', e.message) }
 
   const canCreatePO = ['purchasing_officer','admin'].includes(role)
   let html = '<div class="page-header"><h2>🛒 Purchase Orders</h2>'
@@ -4373,10 +4368,10 @@ async function renderPurchaseOrders() {
     html += '</div>'
     html += '<button class="btn btn-primary btn-sm" onclick="openNewPOModal(null)">＋ Create PO</button>'
     html += '</div>'
-    // Show list of pending requests — with their ITEMS (hover for full list)
+    // Show ALL pending requests (scrollable) — with their ITEMS (hover for full list)
     await loadRequestItemsIndex(approvedReqs.map(r => r.id))
-    html += '<div style="display:flex;flex-direction:column;gap:4px;">'
-    approvedReqs.slice(0, 5).forEach(r => {
+    html += '<div style="display:flex;flex-direction:column;gap:4px;max-height:420px;overflow-y:auto;">'
+    approvedReqs.forEach(r => {
       const dept = state.departments.find(d => d.id === r.dept_id)
       const its = (state.itemsByRequest && state.itemsByRequest[r.id]) || []
       const itemSummary = its.length ? its.map(i => i.name).join(', ') : (r.purpose || '—')
@@ -4387,9 +4382,6 @@ async function renderPurchaseOrders() {
       html += '<button class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="openNewPOModal(\'' + r.id + '\')">Create PO</button>'
       html += '</div>'
     })
-    if (approvedReqs.length > 5) {
-      html += '<div style="font-size:11px;color:var(--txt3);text-align:center;padding:4px;">+' + (approvedReqs.length - 5) + ' more</div>'
-    }
     html += '</div></div>'
   }
 
