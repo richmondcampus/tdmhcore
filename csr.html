@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-5'
+const APP_VERSION = '2026.09.15-6'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1231,6 +1231,7 @@ function renderSidebarNav() {
   { id:'reports',         icon:'📈', label:'Reports',    roles:['admin'] },
   { id:'issuance_report', icon:'📑', label:'Issuance Report', roles:['supply_officer','admin'] },
   { id:'settings',        icon:'⚙️', label:'Settings',   roles:['admin'] },
+  { id:'health_check',    icon:'🩺', label:'Health Check', roles:['admin'] },
   { id:'how_to',          icon:'📖', label:'How To Guide', roles:['requester','dept_head','supply_officer','purchasing_officer','admin'] },
   ]
   let html = ''
@@ -1285,7 +1286,7 @@ function showPage(page) {
     approval_queue: renderApprovalQueue, all_requests: renderAllRequests,
     purchase_orders: renderPurchaseOrders, incoming_deliveries: renderIncomingDeliveries, issuance: renderIssuance,
     stock_inventory: renderStockInventory, derp: renderDerp,
-    reports: renderReports, settings: renderSettings,
+    reports: renderReports, settings: renderSettings, health_check: renderHealthCheck,
     issuance_report: renderIssuanceReport,
     how_to: renderHowTo,
     notifications: renderNotifications, new_request: openNewRequestModal
@@ -2529,27 +2530,52 @@ async function saveItemEditor() {
 
 // Recompute a request's status + pending note from its current items. Called after
 // edits so status stays truthful (e.g. shrinking a qty to match what was issued).
+// Single source of truth for a request's post-approval status. Derives the correct
+// status from the ACTUAL items — call after any action that changes items or issuance
+// (edit, issue, PO, pull back). Only touches requests already in an issuing state, so it
+// never disturbs drafts / pending approvals. Safe to call redundantly.
 async function recomputeRequestStatus(reqId) {
   try {
-    const { data: req } = await SB.from('requests').select('status,has_po_split').eq('id', reqId).maybeSingle()
-    if (!req || ['cancelled','closed','draft','pending_approval','approved'].includes(req.status)) {
-      // Only recompute for requests already in an issuing state.
-      if (req && !['issued','partially_issued','for_po'].includes(req.status)) return
+    const { data: req } = await SB.from('requests').select('status,current_approval_level').eq('id', reqId).maybeSingle()
+    if (!req) return
+    // Only manage the issuing-phase statuses; leave approval/draft/cancelled alone.
+    if (!['issued','partially_issued','for_po','approved','delivered'].includes(req.status)) return
+
+    const { data: items } = await SB.from('request_items')
+      .select('item_name,quantity,quantity_issued,unit,is_removed,fulfillment_type').eq('request_id', reqId)
+    const active = (items||[]).filter(it => !it.is_removed)
+    const forPo = active.filter(it => it.fulfillment_type === 'for_po')
+    const issueItems = active.filter(it => it.fulfillment_type !== 'for_po')
+    const pendingIssue = issueItems.filter(it => (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0)
+    const anyIssued = active.some(it => (Number(it.quantity_issued)||0) > 0)
+
+    // Fresh pending note from the issue items still owed.
+    const note = pendingIssue
+      .map(it => it.item_name + ' (natira: ' + (Number(it.quantity) - (Number(it.quantity_issued)||0)) + ' ' + (it.unit||'pcs') + ')')
+      .join(' • ') || null
+
+    let newStatus, newLevel = req.current_approval_level
+    if (forPo.length > 0) {
+      // Still has items to purchase → for_po (Purchasing owns it at L3). Issue items with
+      // remaining qty can still be issued from the for_po view; note tracks them.
+      newStatus = 'for_po'; newLevel = 3
+    } else if (pendingIssue.length === 0) {
+      // Nothing left to issue and no PO items → done (if anything was issued).
+      newStatus = anyIssued ? 'issued' : (req.status === 'delivered' ? 'delivered' : req.status)
+    } else if (anyIssued) {
+      newStatus = 'partially_issued'; newLevel = 2
+    } else {
+      // Approved but nothing issued yet — leave as approved (ready to issue).
+      newStatus = 'approved'; newLevel = 2
     }
-    const { data: items } = await SB.from('request_items').select('quantity,quantity_issued,is_removed,fulfillment_type').eq('request_id', reqId)
-    const active = (items||[]).filter(it => !it.is_removed && it.fulfillment_type !== 'for_po')
-    const pending = active.filter(it => (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0)
-    const anyIssued = (items||[]).some(it => (Number(it.quantity_issued)||0) > 0)
-    const anyForPo = (items||[]).some(it => it.fulfillment_type === 'for_po' && !it.is_removed)
-    if (pending.length === 0 && !anyForPo) {
-      // Everything issued (or nothing left owed) → issued, clear note.
-      if (anyIssued) await SB.from('requests').update({ status: 'issued', pending_items_note: null }).eq('id', reqId)
-    } else if (pending.length > 0 && anyIssued) {
-      // Still owes something and some was issued → partially_issued with fresh note.
-      const { data: full } = await SB.from('request_items').select('item_name,quantity,quantity_issued,unit,is_removed,fulfillment_type').eq('request_id', reqId)
-      const note = (full||[]).filter(it => !it.is_removed && it.fulfillment_type !== 'for_po' && (Number(it.quantity)-(Number(it.quantity_issued)||0))>0)
-        .map(it => it.item_name + ' (natira: ' + (Number(it.quantity)-(Number(it.quantity_issued)||0)) + ' ' + (it.unit||'pcs') + ')').join(' • ')
-      await SB.from('requests').update({ status: 'partially_issued', pending_items_note: note || null }).eq('id', reqId)
+
+    // Only write if something actually changed (avoids needless updates).
+    if (newStatus !== req.status || (newStatus === 'partially_issued' || newStatus === 'for_po')) {
+      await SB.from('requests').update({
+        status: newStatus,
+        current_approval_level: newLevel,
+        pending_items_note: (newStatus === 'issued') ? null : note
+      }).eq('id', reqId)
     }
   } catch(e) { console.warn('recomputeRequestStatus', e.message) }
 }
@@ -7753,6 +7779,8 @@ async function saveIssuance() {
     } else {
       showToast('success', 'Issued ✅', issuanceNo + ' — narecord ang naibigay.')
     }
+    // Safety net: recompute status from actual items so it can never drift.
+    if (csrId) await recomputeRequestStatus(csrId)
     renderIssuance()
   } catch(e) { releaseClick('saveIssuance'); const cb=document.getElementById('confirmIssueBtn'); if(cb){cb.disabled=false;cb.textContent='✅ Confirm & Issue';} if (handleSupabaseError(e, 'action')) return; showToast('error','Error', e.message); console.error(e) }
 }
@@ -10845,6 +10873,87 @@ async function updateKitItem(id, field, val) {
 }
 async function deleteKitItem(id) {
   try { await SB.from('item_kit_items').delete().eq('id', id); _kitCache=null; renderSettingsTab('kits') } catch(e){ showToast('error','Error',e.message) }
+}
+
+// ═══ HEALTH CHECK — detect & fix request status/item mismatches (admin) ═══
+async function renderHealthCheck() {
+  const content = document.getElementById('mainContent')
+  if (state.user?.csr_role !== 'admin') { content.innerHTML = '<div class="empty-state"><p>Admin only.</p></div>'; return }
+  content.innerHTML = '<div class="page-header"><div><h2>🩺 Health Check</h2><p style="font-size:13px;color:var(--txt2);">Naghahanap ng mga request na hindi tugma ang status sa aktwal na items. I-fix nang isang click.</p></div>'
+    + '<button class="btn btn-primary btn-sm" onclick="renderHealthCheck()">🔄 I-scan ulit</button></div>'
+    + '<div id="healthBody"><div style="padding:40px;text-align:center;color:var(--txt3);">Sina-scan...</div></div>'
+  try {
+    // Pull recent issuing-phase requests + their items and check for mismatches client-side.
+    const { data: reqs } = await SB.from('requests').select('id,request_no,status,current_approval_level,request_type')
+      .in('status', ['issued','partially_issued','for_po','approved','delivered'])
+      .neq('request_type','derp')
+      .order('created_at', { ascending:false }).limit(500)
+    const ids = (reqs||[]).map(r => r.id)
+    const { data: items } = ids.length ? await SB.from('request_items').select('request_id,quantity,quantity_issued,is_removed,fulfillment_type,po_id,po_created').in('request_id', ids.slice(0,500)) : { data: [] }
+    const byReq = {}
+    ;(items||[]).forEach(it => { (byReq[it.request_id] = byReq[it.request_id] || []).push(it) })
+
+    const issues = []
+    ;(reqs||[]).forEach(r => {
+      const its = (byReq[r.id] || []).filter(it => !it.is_removed)
+      if (!its.length) return
+      const forPo = its.filter(it => it.fulfillment_type === 'for_po')
+      const pendingIssue = its.filter(it => it.fulfillment_type !== 'for_po' && (Number(it.quantity)-(Number(it.quantity_issued)||0))>0)
+      const anyIssued = its.some(it => (Number(it.quantity_issued)||0)>0)
+      // Derive the correct status
+      let correct
+      if (forPo.length > 0) correct = 'for_po'
+      else if (pendingIssue.length === 0) correct = anyIssued ? 'issued' : (r.status==='delivered'?'delivered':r.status)
+      else if (anyIssued) correct = 'partially_issued'
+      else correct = 'approved'
+      // Flag: status is for_po but no for_po items (won't show in Purchasing)
+      const forPoNoItems = r.status === 'for_po' && forPo.length === 0
+      // Flag: status issued but still has pending issue or for_po
+      const issuedButPending = r.status === 'issued' && (pendingIssue.length > 0 || forPo.length > 0)
+      if (r.status !== correct || forPoNoItems || issuedButPending) {
+        issues.push({ ...r, correct, forPo: forPo.length, pendingIssue: pendingIssue.length, forPoNoItems, issuedButPending })
+      }
+    })
+
+    let html = ''
+    if (!issues.length) {
+      html = '<div class="empty-state"><div class="empty-icon">✅</div><h3>Malusog ang system!</h3><p>Walang nahanap na status mismatch sa ' + (reqs||[]).length + ' recent requests.</p></div>'
+    } else {
+      html = '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;">⚠️ ' + issues.length + ' request(s) na may mismatch. Pindutin ang "Fix" para itama.</div>'
+      html += '<button class="btn btn-primary btn-sm" onclick="fixAllHealthIssues()" style="margin-bottom:14px;">🔧 Fix All (' + issues.length + ')</button>'
+      html += '<div class="detail-table-wrap"><table><thead><tr><th>Request</th><th>Kasalukuyang Status</th><th>Tamang Status</th><th>Isyu</th><th></th></tr></thead><tbody>'
+      issues.forEach(iss => {
+        let problem = []
+        if (iss.forPoNoItems) problem.push('For PO pero walang for_po item (hindi lalabas sa Purchasing)')
+        if (iss.issuedButPending) problem.push('Issued pero may ' + (iss.pendingIssue + iss.forPo) + ' pang natira')
+        if (!problem.length) problem.push('Status mismatch')
+        html += '<tr><td class="td-mono" style="color:var(--accent);">' + iss.request_no + '</td>'
+          + '<td><span class="badge badge-' + iss.status + '">' + iss.status + '</span></td>'
+          + '<td><span class="badge badge-approved">' + iss.correct + '</span></td>'
+          + '<td style="font-size:12px;color:var(--txt2);">' + problem.join('; ') + '</td>'
+          + '<td><button class="btn btn-primary btn-sm" onclick="fixHealthIssue(\'' + iss.id + '\',this)">Fix</button></td></tr>'
+      })
+      html += '</tbody></table></div>'
+    }
+    document.getElementById('healthBody').innerHTML = html
+    state._healthIssues = issues
+  } catch(e) {
+    document.getElementById('healthBody').innerHTML = '<div style="color:var(--red);padding:20px;">Error: ' + escStk(e.message) + '</div>'
+  }
+}
+async function fixHealthIssue(reqId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '...' }
+  await recomputeRequestStatus(reqId)
+  showToast('success','Fixed ✅','Naitama ang status.')
+  renderHealthCheck()
+}
+async function fixAllHealthIssues() {
+  const issues = state._healthIssues || []
+  if (!issues.length) return
+  showToast('info','Fixing...','Ina-ayos ang ' + issues.length + ' request...')
+  for (const iss of issues) { await recomputeRequestStatus(iss.id) }
+  showToast('success','Fixed ✅','Naitama lahat.')
+  renderHealthCheck()
 }
 
 function renderSettings() {
