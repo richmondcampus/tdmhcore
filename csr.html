@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-6'
+const APP_VERSION = '2026.09.15-7'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -10887,9 +10887,9 @@ async function renderHealthCheck() {
     const { data: reqs } = await SB.from('requests').select('id,request_no,status,current_approval_level,request_type')
       .in('status', ['issued','partially_issued','for_po','approved','delivered'])
       .neq('request_type','derp')
-      .order('created_at', { ascending:false }).limit(500)
+      .order('created_at', { ascending:false }).limit(300)
     const ids = (reqs||[]).map(r => r.id)
-    const { data: items } = ids.length ? await SB.from('request_items').select('request_id,quantity,quantity_issued,is_removed,fulfillment_type,po_id,po_created').in('request_id', ids.slice(0,500)) : { data: [] }
+    const { data: items } = ids.length ? await SB.from('request_items').select('request_id,quantity,quantity_issued,is_removed,fulfillment_type,po_id,po_created').in('request_id', ids.slice(0,300)).limit(20000) : { data: [] }
     const byReq = {}
     ;(items||[]).forEach(it => { (byReq[it.request_id] = byReq[it.request_id] || []).push(it) })
 
