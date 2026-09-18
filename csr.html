@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-7'
+const APP_VERSION = '2026.09.15-8'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -10883,41 +10883,19 @@ async function renderHealthCheck() {
     + '<button class="btn btn-primary btn-sm" onclick="renderHealthCheck()">🔄 I-scan ulit</button></div>'
     + '<div id="healthBody"><div style="padding:40px;text-align:center;color:var(--txt3);">Sina-scan...</div></div>'
   try {
-    // Pull recent issuing-phase requests + their items and check for mismatches client-side.
-    const { data: reqs } = await SB.from('requests').select('id,request_no,status,current_approval_level,request_type')
-      .in('status', ['issued','partially_issued','for_po','approved','delivered'])
-      .neq('request_type','derp')
-      .order('created_at', { ascending:false }).limit(300)
-    const ids = (reqs||[]).map(r => r.id)
-    const { data: items } = ids.length ? await SB.from('request_items').select('request_id,quantity,quantity_issued,is_removed,fulfillment_type,po_id,po_created').in('request_id', ids.slice(0,300)).limit(20000) : { data: [] }
-    const byReq = {}
-    ;(items||[]).forEach(it => { (byReq[it.request_id] = byReq[it.request_id] || []).push(it) })
-
-    const issues = []
-    ;(reqs||[]).forEach(r => {
-      const its = (byReq[r.id] || []).filter(it => !it.is_removed)
-      if (!its.length) return
-      const forPo = its.filter(it => it.fulfillment_type === 'for_po')
-      const pendingIssue = its.filter(it => it.fulfillment_type !== 'for_po' && (Number(it.quantity)-(Number(it.quantity_issued)||0))>0)
-      const anyIssued = its.some(it => (Number(it.quantity_issued)||0)>0)
-      // Derive the correct status
-      let correct
-      if (forPo.length > 0) correct = 'for_po'
-      else if (pendingIssue.length === 0) correct = anyIssued ? 'issued' : (r.status==='delivered'?'delivered':r.status)
-      else if (anyIssued) correct = 'partially_issued'
-      else correct = 'approved'
-      // Flag: status is for_po but no for_po items (won't show in Purchasing)
-      const forPoNoItems = r.status === 'for_po' && forPo.length === 0
-      // Flag: status issued but still has pending issue or for_po
-      const issuedButPending = r.status === 'issued' && (pendingIssue.length > 0 || forPo.length > 0)
-      if (r.status !== correct || forPoNoItems || issuedButPending) {
-        issues.push({ ...r, correct, forPo: forPo.length, pendingIssue: pendingIssue.length, forPoNoItems, issuedButPending })
-      }
-    })
+    // Server-side check — no client row-limit issue. Returns only real mismatches.
+    const { data: mismatches, error } = await SB.rpc('check_request_status_health')
+    if (error) throw error
+    const issues = (mismatches || []).map(m => ({
+      id: m.request_id, request_no: m.request_no, status: m.current_status, correct: m.correct_status,
+      forPo: m.forpo_items, pendingIssue: m.pending_issue,
+      forPoNoItems: m.current_status === 'for_po' && m.forpo_items === 0,
+      issuedButPending: m.current_status === 'issued' && (m.pending_issue > 0 || m.forpo_items > 0)
+    }))
 
     let html = ''
     if (!issues.length) {
-      html = '<div class="empty-state"><div class="empty-icon">✅</div><h3>Malusog ang system!</h3><p>Walang nahanap na status mismatch sa ' + (reqs||[]).length + ' recent requests.</p></div>'
+      html = '<div class="empty-state"><div class="empty-icon">✅</div><h3>Malusog ang system!</h3><p>Walang nahanap na status mismatch. Automated na ang pag-aayos — hindi mo na kailangang mag-fix manually.</p></div>'
     } else {
       html = '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;">⚠️ ' + issues.length + ' request(s) na may mismatch. Pindutin ang "Fix" para itama.</div>'
       html += '<button class="btn btn-primary btn-sm" onclick="fixAllHealthIssues()" style="margin-bottom:14px;">🔧 Fix All (' + issues.length + ')</button>'
