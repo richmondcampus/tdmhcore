@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.15-11'
+const APP_VERSION = '2026.09.19-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2092,12 +2092,14 @@ function unitAcFilter(input) {
   const matches = q ? UNIT_OPTIONS.filter(u => u.includes(q)) : UNIT_OPTIONS
   if (!matches.length) { menu.classList.remove('open'); return }
   menu.innerHTML = matches.slice(0, 30).map(u => '<div class="ac-item" onmousedown="pickUnit(\'' + rowId + '\',\'' + u + '\')">' + u + '</div>').join('')
-  // Position as FIXED relative to the viewport so the table cell can't clip/hide it.
+  // Move the menu to <body> so NO table/modal overflow can clip it, and position it
+  // fixed under the input.
+  if (menu.parentElement !== document.body) document.body.appendChild(menu)
   const rect = input.getBoundingClientRect()
   menu.style.position = 'fixed'
   menu.style.left = rect.left + 'px'
   menu.style.top = (rect.bottom + 4) + 'px'
-  menu.style.width = Math.max(rect.width, 120) + 'px'
+  menu.style.width = Math.max(rect.width, 130) + 'px'
   menu.style.zIndex = '99999'
   menu.classList.add('open')
 }
