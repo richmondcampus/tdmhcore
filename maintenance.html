@@ -1441,7 +1441,7 @@ async function viewTicket(ticketId) {
   if (t.status === 'open' && ['technician','supervisor','admin'].includes(role)) {
     footer += '<button class="btn btn-primary" onclick="claimTicket(\'' + t.id + '\')">🙋 Claim Ticket</button>'
   }
-  if (t.status === 'in_progress' && (t.claimed_by === S.user.id || ['supervisor','admin'].includes(role))) {
+  if ((t.status === 'in_progress' || t.status === 'reopened') && (t.claimed_by === S.user.id || ['supervisor','admin'].includes(role))) {
     footer += '<button class="btn btn-ghost" onclick="openTeamModal(\'' + t.id + '\')">👥 Add Team</button>'
     footer += '<button class="btn btn-ghost" onclick="openPartsRequestModal(\'' + t.id + '\',\'' + t.title.replace(/'/g,"\\'") + '\')">🔩 Request Parts</button>'
     footer += '<button class="btn btn-success" onclick="resolveTicket(\'' + t.id + '\')">✅ Mark Resolved</button>'
