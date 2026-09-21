@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.19-1'
+const APP_VERSION = '2026.09.19-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4220,6 +4220,20 @@ async function loadDeliveryItems(poId) {
   } catch(e) { wrap.innerHTML = 'Error loading items.'; console.warn('loadDeliveryItems', e.message) }
 }
 
+function acPickIncDept(deptId) { incomingState.filters.dept = deptId; renderIncomingDeliveries() }
+function applyIncomingFilters() {
+  // Debounce-free re-render; keeps the search box focused by re-rendering then restoring.
+  const val = document.getElementById('inc_f_search')?.value
+  renderIncomingDeliveries().then(() => {
+    const el = document.getElementById('inc_f_search')
+    if (el && val != null) { el.focus(); el.value = val; el.setSelectionRange(val.length, val.length) }
+  })
+}
+function clearIncomingFilters() {
+  incomingState.filters = { search: '', dept: '' }
+  renderIncomingDeliveries()
+}
+
 async function renderIncomingDeliveries() {
   const content = document.getElementById('mainContent')
   const role = state.user.csr_role
@@ -4234,13 +4248,38 @@ async function renderIncomingDeliveries() {
       .order('received_at', { ascending: false })
   ])
 
-  const incoming = posRes.data || []
-  const pendingIssue = receivedRes.data || []
+  const incomingRaw = posRes.data || []
+  const pendingIssueRaw = receivedRes.data || []
+  incomingState.incoming = incomingRaw
+  incomingState.pendingIssue = pendingIssueRaw
+  // Apply search + dept filters
+  const f = incomingState.filters || { search:'', dept:'' }
+  const matchPO = (po) => {
+    if (f.dept && po.requests?.dept_id !== f.dept) return false
+    if (f.search) {
+      const s = f.search.toLowerCase()
+      const hay = [po.po_number, po.supplier_name, poSupplierName(po), po.requests?.request_no].filter(Boolean).join(' ').toLowerCase()
+      if (!hay.includes(s)) return false
+    }
+    return true
+  }
+  const incoming = incomingRaw.filter(matchPO)
+  const pendingIssue = pendingIssueRaw.filter(matchPO)
 
   let html = '<div class="page-header">'
   html += '<div><h2>📦 Incoming Deliveries</h2>'
   html += '<p style="font-size:13px;color:var(--txt2);">POs sent to supplier — receive items when they arrive</p>'
   html += '</div></div>'
+
+  // Search + department filter (same pattern as other tabs)
+  if (!incomingState.filters) incomingState.filters = { search: '', dept: '' }
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">'
+  html += '<input type="text" id="inc_f_search" placeholder="🔍 PO no., supplier, o request no..." value="' + escStk(incomingState.filters.search) + '" oninput="incomingState.filters.search=this.value;applyIncomingFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+  html += deptAutocompleteHtml('inc_f_dept', 'acPickIncDept')
+  if (incomingState.filters.search || incomingState.filters.dept) {
+    html += '<button class="btn btn-ghost btn-sm" onclick="clearIncomingFilters()">✕ Clear</button>'
+  }
+  html += '</div>'
 
   // ── Pending Receipt (sent/partial) ──
   html += '<div style="margin-bottom:24px;">'
@@ -10833,6 +10872,7 @@ async function exportReportsCSV() {
 // ═══════════════════════════════════════════
 let settingsState = { tab: 'users' }
 let poState = { pos: [], filterStatus: 'all' }
+let incomingState = { filters: { search: '', dept: '' }, incoming: [], pendingIssue: [] }
 
 // ── KITS MANAGEMENT (admin) ──
 async function renderKitsSettings(el) {
