@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.19-2'
+const APP_VERSION = '2026.09.19-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4220,18 +4220,22 @@ async function loadDeliveryItems(poId) {
   } catch(e) { wrap.innerHTML = 'Error loading items.'; console.warn('loadDeliveryItems', e.message) }
 }
 
-function acPickIncDept(deptId) { incomingState.filters.dept = deptId; renderIncomingDeliveries() }
+function acPickIncDept(deptId) {
+  incomingState.filters.dept = deptId
+  const body = document.getElementById('incomingBody')
+  if (body) body.innerHTML = buildIncomingBody()
+}
 function applyIncomingFilters() {
-  // Debounce-free re-render; keeps the search box focused by re-rendering then restoring.
-  const val = document.getElementById('inc_f_search')?.value
-  renderIncomingDeliveries().then(() => {
-    const el = document.getElementById('inc_f_search')
-    if (el && val != null) { el.focus(); el.value = val; el.setSelectionRange(val.length, val.length) }
-  })
+  // Update only the list — keeps the search box focused while typing.
+  const body = document.getElementById('incomingBody')
+  if (body) body.innerHTML = buildIncomingBody()
 }
 function clearIncomingFilters() {
   incomingState.filters = { search: '', dept: '' }
-  renderIncomingDeliveries()
+  const si = document.getElementById('inc_f_search'); if (si) si.value = ''
+  const di = document.getElementById('inc_f_dept'); if (di) di.value = ''
+  const body = document.getElementById('incomingBody')
+  if (body) body.innerHTML = buildIncomingBody()
 }
 
 async function renderIncomingDeliveries() {
@@ -4248,23 +4252,13 @@ async function renderIncomingDeliveries() {
       .order('received_at', { ascending: false })
   ])
 
-  const incomingRaw = posRes.data || []
-  const pendingIssueRaw = receivedRes.data || []
-  incomingState.incoming = incomingRaw
-  incomingState.pendingIssue = pendingIssueRaw
-  // Apply search + dept filters
-  const f = incomingState.filters || { search:'', dept:'' }
-  const matchPO = (po) => {
-    if (f.dept && po.requests?.dept_id !== f.dept) return false
-    if (f.search) {
-      const s = f.search.toLowerCase()
-      const hay = [po.po_number, po.supplier_name, poSupplierName(po), po.requests?.request_no].filter(Boolean).join(' ').toLowerCase()
-      if (!hay.includes(s)) return false
-    }
-    return true
+  incomingState.incoming = posRes.data || []
+  incomingState.pendingIssue = receivedRes.data || []
+  // Load suppliers first (poSupplierName needs them for the search).
+  if (!poState.suppliers?.length) {
+    const { data } = await SB.from('suppliers').select('*').eq('is_active', true)
+    poState.suppliers = data || []
   }
-  const incoming = incomingRaw.filter(matchPO)
-  const pendingIssue = pendingIssueRaw.filter(matchPO)
 
   let html = '<div class="page-header">'
   html += '<div><h2>📦 Incoming Deliveries</h2>'
@@ -4280,6 +4274,27 @@ async function renderIncomingDeliveries() {
     html += '<button class="btn btn-ghost btn-sm" onclick="clearIncomingFilters()">✕ Clear</button>'
   }
   html += '</div>'
+
+  html += '<div id="incomingBody">' + buildIncomingBody() + '</div>'
+  content.innerHTML = html
+}
+
+// Builds just the deliveries list (filtered) — so the filter/search updates only this,
+// not the whole page (keeps the search box focused while typing).
+function buildIncomingBody() {
+  const f = incomingState.filters || { search:'', dept:'' }
+  const matchPO = (po) => {
+    if (f.dept && po.requests?.dept_id !== f.dept) return false
+    if (f.search) {
+      const s = f.search.toLowerCase()
+      const hay = [po.po_number, po.supplier_name, poSupplierName(po), po.requests?.request_no].filter(Boolean).join(' ').toLowerCase()
+      if (!hay.includes(s)) return false
+    }
+    return true
+  }
+  const incoming = (incomingState.incoming || []).filter(matchPO)
+  const pendingIssue = (incomingState.pendingIssue || []).filter(matchPO)
+  let html = ''
 
   // ── Pending Receipt (sent/partial) ──
   html += '<div style="margin-bottom:24px;">'
@@ -4341,13 +4356,11 @@ async function renderIncomingDeliveries() {
     html += '<button class="btn btn-primary btn-sm" onclick="showPage(\'issuance\')">Pumunta sa Issuance →</button>'
     html += '</div>'
   }
-
-  content.innerHTML = html
-  // Load suppliers for receive modal
-  if (!poState.suppliers?.length) {
-    const { data } = await SB.from('suppliers').select('*').eq('is_active', true)
-    poState.suppliers = data || []
+  // Empty state when filters match nothing
+  if (!incoming.length && !pendingIssue.length && (f.search || f.dept)) {
+    html += '<div style="background:var(--surf2);border:1px dashed var(--bdr2);border-radius:12px;padding:24px;text-align:center;color:var(--txt3);font-size:13px;">Walang delivery na tumugma sa filter.</div>'
   }
+  return html
 }
 // ═══════════════════════════════════════════
 // Resolve a PO's supplier name: prefer the saved name, else look up by supplier_id.
