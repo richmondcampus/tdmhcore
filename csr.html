@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.19-3'
+const APP_VERSION = '2026.09.19-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4282,6 +4282,7 @@ async function renderIncomingDeliveries() {
 // Builds just the deliveries list (filtered) — so the filter/search updates only this,
 // not the whole page (keeps the search box focused while typing).
 function buildIncomingBody() {
+  const role = state.user.csr_role
   const f = incomingState.filters || { search:'', dept:'' }
   const matchPO = (po) => {
     if (f.dept && po.requests?.dept_id !== f.dept) return false
