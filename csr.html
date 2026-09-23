@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.23-2'
+const APP_VERSION = '2026.09.23-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5783,7 +5783,10 @@ async function openIssueFromPO(poId) {
     const { data: existIss } = await SB.from('issuances').select('id').eq('po_id', poId).maybeSingle()
     if (existIss) { showToast('info','Na-issue na','Ang PO na ito ay na-issue na.'); viewIssuance(existIss.id); return }
   }
-  const { data: items } = await SB.from('po_items').select('*').eq('po_id', poId)
+  const { data: rawItems } = await SB.from('po_items').select('*').eq('po_id', poId)
+  // Exclude non-physical charge lines (shipping/handling/freight/delivery fees) — those
+  // are PO costing only, not items to issue.
+  const items = (rawItems || []).filter(it => !/\b(shipping|handling|freight|delivery fee|service fee|charge)\b/i.test(it.item_name || ''))
   const req = po?.request_id ? (await SB.from('requests').select('*').eq('id', po.request_id).single()).data : null
   const dept = req ? state.departments.find(d => d.id === req.dept_id) : null
 
