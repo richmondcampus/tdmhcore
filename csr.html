@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.23-1'
+const APP_VERSION = '2026.09.23-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -10709,12 +10709,23 @@ async function renderIssuanceReport() {
     const confirmed = !!(iss.confirmed_at || iss.online_confirmed_at)
     const items = itemsByIss[iss.id] || []
     if (items.length === 0) {
-      rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, null, riById, siById))
+      rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, null, riById, siById, 0))
     } else {
-      items.forEach(it => rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById)))
+      items.forEach((it, idx) => rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById, idx)))
     }
   })
   issRptState.rows = rows
+  // Keep every issuance's items together and in a stable order (the report groups by
+  // issuance — items from one kit/issuance must appear consecutively, newest issuance
+  // first). Sort by issued_at desc, then by issuance_no, so same-timestamp issuances
+  // don't interleave.
+  issRptState.rows.sort((a, b) => {
+    const ta = a._issuedAtTs || 0, tb = b._issuedAtTs || 0
+    if (tb !== ta) return tb - ta
+    const na = a._issNo || '', nb = b._issNo || ''
+    if (na !== nb) return na < nb ? 1 : -1
+    return (a._itemIdx || 0) - (b._itemIdx || 0)
+  })
 
   // Build the page
   let html = '<div class="page-header"><div><h2>📑 Issuance Report</h2>'
@@ -10747,7 +10758,7 @@ async function renderIssuanceReport() {
   applyIssRptFilters()
 }
 
-function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById) {
+function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById, itemIdx) {
   let itemName = '—', qty = '', unit = ''
   if (it) {
     const src = (it.request_item_id && riById[it.request_item_id]) || (it.stock_item_id && siById[it.stock_item_id])
@@ -10757,6 +10768,9 @@ function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, si
   }
   return {
     issuance_no: iss.issuance_no || '',
+    _issNo: iss.issuance_no || '',
+    _issuedAtTs: iss.issued_at ? new Date(iss.issued_at).getTime() : 0,
+    _itemIdx: itemIdx || 0,
     date: iss.issued_at ? iss.issued_at.split('T')[0] : '',
     dateReceived: (iss.confirmed_at || iss.online_confirmed_at) ? (iss.confirmed_at || iss.online_confirmed_at).split('T')[0] : '',
     request_no: iss.request_id ? (req?.request_no || '') : 'Blank (walang request)',
