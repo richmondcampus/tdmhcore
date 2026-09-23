@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.23-3'
+const APP_VERSION = '2026.09.23-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5344,7 +5344,7 @@ async function openNewPOModal(requestId) {
   // PO Items
   html += '<div class="field"><label>Items <span style="color:var(--red);">*</span></label>'
   html += '<div class="items-table-wrap"><table class="items-table"><thead><tr>'
-  html += '<th style="width:30%">Item</th><th style="width:20%">Description</th><th style="width:8%">Qty</th><th style="width:8%">Unit</th><th style="width:12%">Unit Price</th><th style="width:12%">Total</th><th style="width:5%"></th>'
+  html += '<th style="width:28%">Item</th><th style="width:18%">Description</th><th style="width:8%">Qty</th><th style="width:8%">Unit</th><th style="width:12%">Unit Price</th><th style="width:11%">Total</th><th style="width:6%" title="Charge/Fee — hindi i-issue">💰 Fee</th><th style="width:5%"></th>'
   html += '</tr></thead><tbody id="poItemsBody">'
   state.itemRows = [{ id: Date.now(), item_name:'', item_description:'', quantity:1, unit:'pcs', unit_price:0 }]
   html += buildPOItemRows()
@@ -5379,6 +5379,7 @@ function buildPOItemRows() {
     rows += '<td><input type="text" placeholder="pcs" value="' + (row.unit||'pcs') + '" oninput="updatePOItem(' + row.id + ',\'unit\',this.value)"></td>'
     rows += '<td><input type="text" inputmode="decimal" placeholder="0.00" value="' + (row.unit_price||'') + '" oninput="updatePOItem(' + row.id + ',\'unit_price\',this.value.replace(/[^0-9.]/g,\'\'));updatePOTotal()" style="text-align:right;"></td>'
     rows += '<td style="font-size:12px;font-weight:600;color:var(--txt2);">₱' + total + '</td>'
+    rows += '<td style="text-align:center;"><input type="checkbox" ' + (row.is_fee?'checked':'') + ' onchange="updatePOItem(' + row.id + ',\'is_fee\',this.checked)" title="Charge/Fee — hindi i-issue sa department" style="width:16px;height:16px;accent-color:var(--amber,#b8860b);cursor:pointer;"></td>'
     rows += '<td><button class="remove-row" onclick="removePOItem(' + row.id + ')" ' + (state.itemRows.length<=1?'disabled':'') + '>✕</button></td>'
     rows += '</tr>'
   })
@@ -5553,7 +5554,8 @@ async function savePO(action) {
       quantity: Number(item.quantity),
       unit: item.unit || 'pcs',
       unit_price: Number(item.unit_price || 0),
-      quantity_received: 0
+      quantity_received: 0,
+      is_fee: !!item.is_fee
     })))
 
     // Flag the source request items that were included in THIS PO, so a follow-up PO
@@ -5720,6 +5722,7 @@ async function viewPO(id) {
     body += '<tr>'
     body += '<td style="color:var(--txt2);">' + (i+1) + '</td>'
     body += '<td><strong>' + item.item_name + '</strong>'
+    if (item.is_fee) body += ' <span style="font-size:10px;font-weight:600;color:var(--amber,#b8860b);background:var(--amber-a,rgba(240,200,56,.15));padding:1px 6px;border-radius:10px;">💰 Fee</span>'
     if (item.description) body += '<br><span style="font-size:11px;color:var(--txt2);">' + item.description + '</span>'
     body += '</td>'
     body += '<td>' + item.quantity + '</td><td>' + (item.unit||'—') + '</td>'
@@ -5784,9 +5787,9 @@ async function openIssueFromPO(poId) {
     if (existIss) { showToast('info','Na-issue na','Ang PO na ito ay na-issue na.'); viewIssuance(existIss.id); return }
   }
   const { data: rawItems } = await SB.from('po_items').select('*').eq('po_id', poId)
-  // Exclude non-physical charge lines (shipping/handling/freight/delivery fees) — those
-  // are PO costing only, not items to issue.
-  const items = (rawItems || []).filter(it => !/\b(shipping|handling|freight|delivery fee|service fee|charge)\b/i.test(it.item_name || ''))
+  // Exclude charge/fee lines from issuance: the is_fee flag (set by Purchasing), plus a
+  // name-based backup for older POs where the flag wasn't set.
+  const items = (rawItems || []).filter(it => !it.is_fee && !/\b(shipping|handling|freight|delivery fee|service fee|charge)\b/i.test(it.item_name || ''))
   const req = po?.request_id ? (await SB.from('requests').select('*').eq('id', po.request_id).single()).data : null
   const dept = req ? state.departments.find(d => d.id === req.dept_id) : null
 
