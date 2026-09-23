@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.19-4'
+const APP_VERSION = '2026.09.23-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -10647,30 +10647,52 @@ async function renderIssuanceReport() {
 
   content.innerHTML = '<div class="empty-state"><div class="skeleton" style="width:220px;height:20px;margin:0 auto 10px;"></div><div class="skeleton" style="width:320px;height:14px;margin:0 auto;"></div></div>'
 
-  // Pull issuances + their items, then flatten to one row per item.
-  const [issRes, itemRes] = await Promise.all([
-    SB.from('issuances').select('*').order('issued_at', { ascending: false }).limit(2000),
-    SB.from('issuance_items').select('*').limit(8000)
+  // Pull ALL issuances + their items (paginated — the 1000-row cap would otherwise
+  // silently drop rows, leaving blank items in the export).
+  async function fetchAll(table, order) {
+    let all = [], from = 0, size = 1000
+    while (true) {
+      let q = SB.from(table).select('*').range(from, from + size - 1)
+      if (order) q = q.order(order.col, { ascending: order.asc })
+      const { data, error } = await q
+      if (error) break
+      all = all.concat(data || [])
+      if (!data || data.length < size) break
+      from += size
+      if (from > 50000) break // safety
+    }
+    return all
+  }
+  const [issuances, allItems] = await Promise.all([
+    fetchAll('issuances', { col: 'issued_at', asc: false }),
+    fetchAll('issuance_items')
   ])
-  const issuances = issRes.data || []
-  const allItems = itemRes.data || []
 
   // Resolve item names from request_items + stock_items
   const reqItemIds = [...new Set(allItems.map(x => x.request_item_id).filter(Boolean))]
   const stockIds = [...new Set(allItems.map(x => x.stock_item_id).filter(Boolean))]
-  const [riRes, siRes] = await Promise.all([
-    reqItemIds.length ? SB.from('request_items').select('id,item_name,unit,category').in('id', reqItemIds) : Promise.resolve({ data: [] }),
-    stockIds.length ? SB.from('stock_items').select('id,item_name,unit').in('id', stockIds) : Promise.resolve({ data: [] })
+  // Chunked lookups — .in() with >1000 ids would hit the row cap and drop names.
+  async function lookupByIds(table, cols, ids) {
+    const out = []
+    for (let i = 0; i < ids.length; i += 500) {
+      const { data } = await SB.from(table).select(cols).in('id', ids.slice(i, i + 500))
+      if (data) out.push(...data)
+    }
+    return out
+  }
+  const [riData, siData] = await Promise.all([
+    reqItemIds.length ? lookupByIds('request_items', 'id,item_name,unit,category', reqItemIds) : Promise.resolve([]),
+    stockIds.length ? lookupByIds('stock_items', 'id,item_name,unit', stockIds) : Promise.resolve([])
   ])
-  const riById = {}; (riRes.data||[]).forEach(r => riById[r.id] = r)
-  const siById = {}; (siRes.data||[]).forEach(s => siById[s.id] = s)
+  const riById = {}; riData.forEach(r => riById[r.id] = r)
+  const siById = {}; siData.forEach(s => siById[s.id] = s)
 
   // Requests (for request_no + dept when issuance has no own dept_id)
   const reqIds = [...new Set(issuances.map(i => i.request_id).filter(Boolean))]
   const reqById = {}
   if (reqIds.length) {
-    const { data: reqs } = await SB.from('requests').select('id,request_no,dept_id').in('id', reqIds)
-    ;(reqs||[]).forEach(r => reqById[r.id] = r)
+    const reqs = await lookupByIds('requests', 'id,request_no,dept_id', reqIds)
+    reqs.forEach(r => reqById[r.id] = r)
   }
 
   const itemsByIss = {}
