@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.29-1'
+const APP_VERSION = '2026.09.29-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -8108,7 +8108,7 @@ async function viewIssuance(id) {
         body += '<td>' + (ri.estimated_cost ? '₱' + Number(ri.estimated_cost).toLocaleString() : '—') + '</td>'
         // Control number — editable for supply officer/admin, read-only otherwise.
         if (canEditCtrl && row.iiId) {
-          body += '<td><input type="text" id="ctrledit_' + row.iiId + '" value="' + escStk(row.control || '') + '" placeholder="control / serial" onblur="saveControlNumber(\'' + row.iiId + '\',this.value)" style="min-width:130px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;"></td>'
+          body += '<td><input type="text" id="ctrledit_' + row.iiId + '" value="' + escStk(row.control || '') + '" placeholder="control / serial" onblur="saveControlNumber(\'' + row.iiId + '\',this.value)" onkeydown="if(event.key===\'Enter\'){this.blur();}" style="min-width:130px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;"></td>'
         } else {
           body += '<td style="font-size:12px;color:var(--accent);">' + (row.control ? '🔖 ' + escStk(row.control) : '—') + '</td>'
         }
@@ -10779,7 +10779,7 @@ async function renderIssuanceReport() {
 
   html += '<div style="font-size:12px;color:var(--txt2);margin-bottom:8px;"><span id="ir_count">'+rows.length+' item rows</span></div>'
   html += '<div class="table-wrap"><table><thead><tr>'
-  html += '<th>Issuance No.</th><th>Date</th><th>Request No.</th><th>Department</th><th>Item</th><th>Qty</th><th>Unit</th><th>From Stock</th><th>Received By</th><th>Issued By</th><th>Status</th><th>Confirmation</th>'
+  html += '<th>Issuance No.</th><th>Date</th><th>Request No.</th><th>Department</th><th>Item</th><th>Control No.</th><th>Qty</th><th>Unit</th><th>From Stock</th><th>Received By</th><th>Issued By</th><th>Status</th><th>Confirmation</th>'
   html += '</tr></thead><tbody id="irTableBody"></tbody></table></div>'
 
   content.innerHTML = html
@@ -10805,6 +10805,7 @@ function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, si
     department: dept?.dept_name || '',
     dept_id: (iss.dept_id || req?.dept_id) || '',
     item: itemName,
+    control: it ? (it.control_number || '') : '',
     qty: qty,
     unit: unit,
     from_stock: it ? (it.from_stock ? 'Oo' : 'Hindi') : '',
@@ -10857,6 +10858,7 @@ function applyIssRptFilters() {
           + '<td class="td-mono" style="font-size:11px;">'+escStk(r.request_no)+'</td>'
           + '<td>'+escStk(r.department||'—')+'</td>'
           + '<td><strong>'+escStk(r.item)+'</strong></td>'
+          + '<td style="font-size:12px;color:var(--accent);">'+(r.control?('🔖 '+escStk(r.control)):'—')+'</td>'
           + '<td>'+escStk(String(r.qty))+'</td>'
           + '<td>'+escStk(r.unit||'')+'</td>'
           + '<td>'+escStk(r.from_stock||'')+'</td>'
@@ -10882,9 +10884,9 @@ async function exportIssuanceReport(fmt) {
   const list = getFilteredIssRptRows()
   if (!list.length) { showToast('info','No Data','Walang record na i-e-export.'); return }
 
-  const headers = ['Issuance No.','Date Prepared','Date Received','Request No.','Department','Item','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
+  const headers = ['Issuance No.','Date Prepared','Date Received','Request No.','Department','Item','Control No.','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
   const dataRows = list.map(r => [
-    r.issuance_no, r.date, (r._confirmed ? (r.dateReceived||r.date) : ''), r.request_no, r.department, r.item, r.qty, r.unit,
+    r.issuance_no, r.date, (r._confirmed ? (r.dateReceived||r.date) : ''), r.request_no, r.department, r.item, r.control || '', r.qty, r.unit,
     r.from_stock, r.received_by, r.issued_by, r.status,
     r.confirmation === 'photo' ? 'Photo' : r.confirmation === 'online_link' ? 'Online Link' : (r.confirmation||''),
     r.scenario === 'from_stock' ? 'From Stock' : r.scenario === 'after_po' ? 'After PO' : (r.scenario||'')
