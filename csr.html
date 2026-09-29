@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.23-4'
+const APP_VERSION = '2026.09.29-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5801,16 +5801,17 @@ async function openIssueFromPO(poId) {
   html += '</div>'
 
   html += '<div class="table-wrap" style="margin-bottom:14px;"><table><thead><tr>'
-  html += '<th>Item</th><th>Ordered</th><th>Received</th><th>Issuing</th><th>Unit</th>'
+  html += '<th>Item</th><th>Ordered</th><th>Received</th><th>Issuing</th><th>Unit</th><th>Control No. / Remarks</th>'
   html += '</tr></thead><tbody>'
   ;(items||[]).forEach(item => {
     const available = Number(item.quantity_received || item.quantity)
     html += '<tr>'
-    html += '<td><strong>' + item.item_name + '</strong></td>'
+    html += '<td><input type="text" id="issname_' + item.id + '" value="' + (item.item_name||'').replace(/"/g,'&quot;') + '" style="min-width:160px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-weight:600;"></td>'
     html += '<td>' + item.quantity + '</td>'
     html += '<td style="color:var(--green);">' + available + '</td>'
     html += '<td><input type="number" id="iss_' + item.id + '" min="0" max="' + available + '" value="' + available + '" style="width:70px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
     html += '<td>' + (item.unit || 'pcs') + '</td>'
+    html += '<td><input type="text" id="issctrl_' + item.id + '" placeholder="Control no. / serial / note (optional)" style="min-width:180px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;"></td>'
     html += '</tr>'
   })
   html += '</tbody></table></div>'
@@ -5871,8 +5872,9 @@ async function confirmIssueFromPO() {
     const issItems = (existingItemCount && existingItemCount > 0) ? [] : items.map(item => ({
       issuance_id: issId,
       quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
-      item_name_snapshot: item.item_name || null,
+      item_name_snapshot: (document.getElementById('issname_' + item.id)?.value || item.item_name || '').trim() || null,
       unit_snapshot: item.unit || null,
+      control_number: (document.getElementById('issctrl_' + item.id)?.value || '').trim() || null,
       request_item_id: item.request_item_id || null
     })).filter(i => i.quantity_issued > 0)
 
@@ -7970,6 +7972,19 @@ async function printAllAssetLabels(requestId) {
   win.document.close()
 }
 
+// Save/update an item's control number (serial, asset control no.) from the issuance
+// detail. Supply officer / admin — works for any issuance type, even after issuing.
+async function saveControlNumber(issuanceItemId, value) {
+  try {
+    const v = (value || '').trim() || null
+    const { error } = await SB.from('issuance_items').update({ control_number: v }).eq('id', issuanceItemId)
+    if (error) throw error
+    const el = document.getElementById('ctrledit_' + issuanceItemId)
+    if (el) el.style.borderColor = 'var(--green)'
+    setTimeout(() => { if (el) el.style.borderColor = 'var(--bdr2)' }, 1000)
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
 async function viewIssuance(id) {
   const { data: iss } = await SB.from('issuances').select('*').eq('id', id).single()
   if (!iss) return
@@ -8062,7 +8077,7 @@ async function viewIssuance(id) {
           }
         }
         const qty = item.quantity_issued != null ? item.quantity_issued : (ri.quantity != null ? ri.quantity : '—')
-        return { ri, qty }
+        return { ri, qty, control: item.control_number || null, iiId: item.id }
       })
     } else if (iss.po_id) {
       // PO issuance with no recorded issuance_items → show the PO's RECEIVED items only
@@ -8079,7 +8094,8 @@ async function viewIssuance(id) {
     if (rows.length > 0) {
       body += '<div style="margin-bottom:16px;">'
       body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📦 Items to Receive</div>'
-      body += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item &amp; Specs</th><th>Qty</th><th>Unit</th><th>Category</th><th>Est. Cost</th></tr></thead><tbody>'
+      const canEditCtrl = ['supply_officer','admin'].includes(state.user.csr_role)
+      body += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item &amp; Specs</th><th>Qty</th><th>Unit</th><th>Category</th><th>Est. Cost</th><th>🔖 Control No.</th></tr></thead><tbody>'
       rows.forEach((row, i) => {
         const ri = row.ri || {}
         body += '<tr><td style="color:var(--txt2);">' + (i+1) + '</td>'
@@ -8090,6 +8106,12 @@ async function viewIssuance(id) {
         body += '<td>' + (ri.unit || 'pcs') + '</td>'
         body += '<td>' + (ri.category ? ri.category : '—') + '</td>'
         body += '<td>' + (ri.estimated_cost ? '₱' + Number(ri.estimated_cost).toLocaleString() : '—') + '</td>'
+        // Control number — editable for supply officer/admin, read-only otherwise.
+        if (canEditCtrl && row.iiId) {
+          body += '<td><input type="text" id="ctrledit_' + row.iiId + '" value="' + escStk(row.control || '') + '" placeholder="control / serial" onblur="saveControlNumber(\'' + row.iiId + '\',this.value)" style="min-width:130px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;"></td>'
+        } else {
+          body += '<td style="font-size:12px;color:var(--accent);">' + (row.control ? '🔖 ' + escStk(row.control) : '—') + '</td>'
+        }
         body += '</tr>'
       })
       const totalCost = rows.reduce((s, row) => {
