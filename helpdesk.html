@@ -1530,8 +1530,20 @@ async function renderKanban() {
 // ─── Quick Actions — IT ───
 async function quickClaimStartIT(ticketId) {
   if (!(await ensureAuth())) { handleAuthLost(); return }
-  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'in_progress', first_response_at:new Date().toISOString(), updated_at:new Date().toISOString() }).eq('id',ticketId)
+  // Atomic claim: only succeeds if nobody has claimed it yet. Prevents one tech from
+  // overriding a ticket another tech already took.
+  const { data: claimed, error: e1 } = await SB.from('it_tickets')
+    .update({ assigned_to:S.user.id, status:'in_progress', first_response_at:new Date().toISOString(), updated_at:new Date().toISOString() })
+    .eq('id',ticketId).is('assigned_to', null).select()
   if (e1) { showToast('error','Error', e1.message); return }
+  if (!claimed || !claimed.length) {
+    // Someone already has it — find out who.
+    const { data: cur } = await SB.from('it_tickets').select('assigned_to').eq('id', ticketId).single()
+    const who = cur?.assigned_to ? (S.users.find(u => u.id === cur.assigned_to)?.full_name || 'ibang tech') : 'ibang tech'
+    showToast('error','Kinuha na', 'Nakuha na ang ticket na ito ni ' + who + '. Hindi mo na pwedeng kunin.')
+    if(S.page==='kanban')renderKanban(); else showPage(S.page)
+    return
+  }
   await SB.from('it_ticket_replies').insert({ ticket_id:ticketId, author_id:S.user.id, body:'⚡ Claimed and started by '+S.user.full_name+'.', is_internal:true })
   const{data:t}=await SB.from('it_tickets').select('requester_id,subject').eq('id',ticketId).single()
   if(t?.requester_id) await SB.from('notifications').insert({ user_id:t.requester_id, title:'⚡ Ticket In Progress: '+ticketId, body:S.user.full_name+' is now working on: '+t.subject, type:'info', source_system:'it' })
@@ -1543,8 +1555,17 @@ async function quickClaimStartIT(ticketId) {
 
 async function quickClaimIT(ticketId) {
   if (!(await ensureAuth())) { handleAuthLost(); return }
-  const { error: e1 } = await SB.from('it_tickets').update({ assigned_to:S.user.id, status:'assigned', first_response_at:new Date().toISOString(), updated_at:new Date().toISOString() }).eq('id',ticketId)
+  const { data: claimed, error: e1 } = await SB.from('it_tickets')
+    .update({ assigned_to:S.user.id, status:'assigned', first_response_at:new Date().toISOString(), updated_at:new Date().toISOString() })
+    .eq('id',ticketId).is('assigned_to', null).select()
   if (e1) { showToast('error','Error', e1.message); return }
+  if (!claimed || !claimed.length) {
+    const { data: cur } = await SB.from('it_tickets').select('assigned_to').eq('id', ticketId).single()
+    const who = cur?.assigned_to ? (S.users.find(u => u.id === cur.assigned_to)?.full_name || 'ibang tech') : 'ibang tech'
+    showToast('error','Kinuha na', 'Nakuha na ang ticket na ito ni ' + who + '. Hindi mo na pwedeng kunin.')
+    if(S.page==='kanban')renderKanban(); else showPage(S.page)
+    return
+  }
   const{data:t}=await SB.from('it_tickets').select('requester_id,subject').eq('id',ticketId).single()
   if(t?.requester_id) await SB.from('notifications').insert({ user_id:t.requester_id, title:'👤 Ticket Assigned: '+ticketId, body:S.user.full_name+' will handle: '+t.subject, type:'info', source_system:'it' })
   showToast('success','Claimed ✅',ticketId+' assigned to you.')
@@ -2039,7 +2060,10 @@ async function viewTicket(ticketId) {
       + (derpLink ? ' — ' + derpLink.request_no : '') + '</div>'
   }
 
-  if (isIT) {
+  // Work actions (Start/Resolve/Hold/etc.) — ONLY the assigned technician, or a
+  // supervisor/admin, can act. Prevents another tech from overriding a claimed ticket.
+  const canWorkTicket = isIT && (t.assigned_to === S.user.id || ['supervisor','admin'].includes(role))
+  if (canWorkTicket) {
     if (!['resolved','closed','cancelled'].includes(t.status)) {
       if (t.status === 'open' || t.status === 'assigned') {
         footer += '<button class="btn btn-secondary" onclick="updateTicketStatus(\'' + t.id + '\',\'in_progress\')">▶ Start Working</button>'
@@ -2162,6 +2186,13 @@ async function doUpdateTicketStatus(ticketId, newStatus, labels) {
 }
 
 async function resolveTicket(ticketId) {
+  // Ownership guard: only the assigned tech or a supervisor/admin can resolve.
+  const { data: chk } = await SB.from('it_tickets').select('assigned_to').eq('id', ticketId).single()
+  if (chk && chk.assigned_to && chk.assigned_to !== S.user.id && !['supervisor','admin'].includes(S.user.it_role)) {
+    const who = S.users.find(u => u.id === chk.assigned_to)?.full_name || 'ibang tech'
+    showToast('error','Hindi pwede', 'Ang ticket na ito ay hawak ni ' + who + '. Siya o ang admin lang ang pwedeng mag-resolve.')
+    return
+  }
   guardedClose(ticketId, 'resolve', (overridden) => {
    confirm2('Mark this ticket as Resolved?', async () => {
     const { data: t } = await SB.from('it_tickets').select('requester_id,hold_started_at,hold_total_seconds').eq('id', ticketId).single()
