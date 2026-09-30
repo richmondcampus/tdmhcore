@@ -744,7 +744,7 @@ async function bootApp(session) {
 }
 
 function formatMaintRole(r) {
-  const m = { requester:'Requester', technician:'Technician', supervisor:'Supervisor', admin:'Admin' }
+  const m = { requester:'Requester', technician:'Technician', supervisor:'Supervisor', gsd:'GSD / Biomedical', admin:'Admin' }
   return m[r] || r || '—'
 }
 
@@ -754,15 +754,15 @@ function formatMaintRole(r) {
 function renderSidebarNav() {
   const role = S.user.maintenance_role
   const items = [
-    { id:'dashboard',    icon:'📊', label:'Dashboard',    roles:['requester','technician','supervisor','admin'] },
-    { id:'my_tickets',   icon:'🎫', label:'My Tickets',   roles:['requester','technician','supervisor','admin'] },
-    { id:'open_tickets', icon:'🔓', label:'Open Tickets', roles:['technician','supervisor','admin'] },
-    { id:'kanban',       icon:'📋', label:'Kanban Board', roles:['technician','supervisor','admin'] },
-    { id:'all_tickets',  icon:'🗂', label:'All Tickets',  roles:['technician','supervisor','admin'] },
+    { id:'dashboard',    icon:'📊', label:'Dashboard',    roles:['requester','technician','supervisor','gsd','admin'] },
+    { id:'my_tickets',   icon:'🎫', label:'My Tickets',   roles:['requester','technician','supervisor','gsd','admin'] },
+    { id:'open_tickets', icon:'🔓', label:'Open Tickets', roles:['technician','supervisor','gsd','admin'] },
+    { id:'kanban',       icon:'📋', label:'Kanban Board', roles:['technician','supervisor','gsd','admin'] },
+    { id:'all_tickets',  icon:'🗂', label:'All Tickets',  roles:['technician','supervisor','gsd','admin'] },
     { id:'reports',      icon:'📊', label:'Reports & Analytics', roles:['supervisor','admin'] },
     { id:'team',         icon:'👥', label:'Team',         roles:['supervisor','admin'] },
     { id:'audit_log',    icon:'🔍', label:'Audit Log',    roles:['admin'] },
-    { id:'how_to',       icon:'📖', label:'How-To Guide', roles:['requester','technician','supervisor','admin'] },
+    { id:'how_to',       icon:'📖', label:'How-To Guide', roles:['requester','technician','supervisor','gsd','admin'] },
   ]
   let html = ''
   items.forEach(item => {
@@ -829,6 +829,14 @@ async function loadTickets(filter = {}) {
     return S.tickets
   }
   let q = SB.from('maint_tickets').select('*').order('created_at', { ascending: false })
+  // Category access: GSD sees ONLY medical_equipment; maintenance staff (technician/
+  // supervisor) see everything EXCEPT medical_equipment. Admin sees all.
+  const mRole = S.user.maintenance_role
+  if (mRole === 'gsd') {
+    q = q.eq('category', 'medical_equipment')
+  } else if (['technician','supervisor'].includes(mRole)) {
+    q = q.neq('category', 'medical_equipment')
+  }
   if (filter.submitted_by) q = q.eq('submitted_by', filter.submitted_by)
   if (filter.dept_id) q = q.eq('dept_id', filter.dept_id)
   if (filter.dept_ids && filter.dept_ids.length) q = q.in('dept_id', filter.dept_ids)
@@ -919,7 +927,7 @@ function flashEl(el) {
 async function renderDashboard() {
   const content = document.getElementById('mainContent')
   const role = S.user.maintenance_role
-  const isTech = ['technician','supervisor','admin'].includes(role)
+  const isTech = ['technician','supervisor','gsd','admin'].includes(role)
   const isHead = (S.myHeadedDeptIds && S.myHeadedDeptIds.length > 0)
 
   // Ticket scope by role:
@@ -1000,7 +1008,7 @@ function ticketCard(t) {
   const dept = S.departments.find(d => d.id === t.dept_id)
   const age = Math.floor((((['resolved','closed'].includes(t.status) && t.resolved_at) ? new Date(t.resolved_at) : new Date()) - new Date(t.created_at)) / 3600000)
   const role = S.user.maintenance_role
-  const isTech = ['technician','supervisor','admin'].includes(role)
+  const isTech = ['technician','supervisor','gsd','admin'].includes(role)
   const isMe = t.claimed_by === S.user.id
 
   // Quick action button based on status
@@ -1186,7 +1194,7 @@ function buildOneCard(t) {
   cd += '</div>'
   // Direct action button — one tap for older staff (no need to open the modal first)
   const role = S.user.maintenance_role
-  const isTech = ['technician','supervisor','admin'].includes(role)
+  const isTech = ['technician','supervisor','gsd','admin'].includes(role)
   const isMe = t.claimed_by === S.user.id
   let actionBtn = ''
   if (t.status === 'open' && isTech) {
@@ -1397,7 +1405,7 @@ async function viewTicket(ticketId) {
     body += '<button class="btn btn-primary btn-sm" onclick="addNote(\'' + t.id + '\')" style="align-self:flex-end;">Send</button>'
     body += '</div>'
     // Optional progress photo (technician can show what's being done)
-    if (['technician','supervisor','admin'].includes(S.user.maintenance_role)) {
+    if (['technician','supervisor','gsd','admin'].includes(S.user.maintenance_role)) {
       body += '<div style="margin-top:8px;"><input type="file" id="notephoto" accept="image/*" onchange="previewTicketPhoto(this,\'notephoto_preview\')" style="font-size:11px;"> <span style="font-size:11px;color:var(--txt3);">📷 Progress photo (optional)</span><div id="notephoto_preview" style="margin-top:6px;"></div></div>'
     }
     body += '</div>'
@@ -1434,11 +1442,11 @@ async function viewTicket(ticketId) {
   let footer = '<button class="btn btn-ghost" onclick="closeModal(\'ticketDetailModal\')">Close</button>'
 
   // Link Asset button — always available for active tickets without asset link
-  if (!t.asset_id && !['closed','resolved'].includes(t.status) && ['technician','supervisor','admin'].includes(role)) {
+  if (!t.asset_id && !['closed','resolved'].includes(t.status) && ['technician','supervisor','gsd','admin'].includes(role)) {
     footer += '<button class="btn btn-ghost btn-sm" onclick="openLinkAssetModal(\'' + t.id + '\')">🏷️ Link Asset</button>'
   }
 
-  if (t.status === 'open' && ['technician','supervisor','admin'].includes(role)) {
+  if (t.status === 'open' && ['technician','supervisor','gsd','admin'].includes(role)) {
     footer += '<button class="btn btn-primary" onclick="claimTicket(\'' + t.id + '\')">🙋 Claim Ticket</button>'
   }
   if ((t.status === 'in_progress' || t.status === 'reopened') && (t.claimed_by === S.user.id || ['supervisor','admin'].includes(role))) {
@@ -1479,7 +1487,7 @@ async function viewTicket(ticketId) {
   }
   // Cancel ticket — for wrong/duplicate/misfiled tickets. Requester (own ticket) or
   // maintenance staff, while still active.
-  const isMaintStaff = ['technician','supervisor','admin'].includes(role)
+  const isMaintStaff = ['technician','supervisor','gsd','admin'].includes(role)
   if (!['resolved','closed','cancelled'].includes(t.status) && (t.submitted_by === S.user.id || isMaintStaff)) {
     footer += '<button class="btn btn-ghost" onclick="openCancelTicket(\'' + t.id + '\')" style="color:var(--red);">❌ Cancel Ticket</button>'
   }
@@ -1692,7 +1700,7 @@ async function reopenTicket(ticketId) {
     closeModal('ticketDetailModal')
     showToast('warning','Reopened ↩', ticketId + ' has been reopened.')
     // Blast SMS to maintenance team
-    const maintStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
+    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone)
     sendSMS(maintStaff.map(u=>u.phone), '[TDMH MNT] ⚠️ REOPENED: ' + ticketId + ' — "' + (t?t.title:'') + '" needs attention again.', 'ticket_reopened', ticketId)
     if (['all_tickets','open_tickets','my_tickets','dashboard'].includes(S.page)) showPage(S.page)
   })
@@ -1713,10 +1721,14 @@ function openNewTicketModal() {
   // Category + Problem Description first — title flows from these
   html += '<div class="field-row">'
   html += '<div class="field"><label>Category</label><select id="tk_cat" onchange="autoFillMaintTitle()">'
-  const catIcons = { electrical:'⚡',plumbing:'🚿',hvac:'❄️',civil:'🏗️',equipment:'⚙️',it_infra:'🖥️',general:'🔧' }
-  ;['electrical','plumbing','hvac','civil','equipment','it_infra','general'].forEach(c => {
+  const catIcons = { electrical:'⚡',plumbing:'🚿',hvac:'❄️',civil:'🏗️',equipment:'⚙️',it_infra:'🖥️',general:'🔧',medical_equipment:'🏥' }
+  // GSD users file Medical Equipment tickets only; maintenance staff file everything else.
+  const isGSD = S.user.maintenance_role === 'gsd'
+  const catList = isGSD ? ['medical_equipment'] : ['electrical','plumbing','hvac','civil','equipment','it_infra','general']
+  catList.forEach(c => {
     const icon = catIcons[c] || '🔧'
-    html += '<option value="' + c + '" data-icon="' + icon + '">' + icon + ' ' + c.charAt(0).toUpperCase()+c.slice(1).replace('_',' ') + '</option>'
+    const label = c === 'medical_equipment' ? 'Medical Equipment' : c.charAt(0).toUpperCase()+c.slice(1).replace('_',' ')
+    html += '<option value="' + c + '" data-icon="' + icon + '">' + icon + ' ' + label + '</option>'
   })
   html += '</select></div>'
   html += '<div class="field"><label>Priority</label><select id="tk_priority">'
@@ -1913,7 +1925,7 @@ async function submitTicket() {
     logAudit('maint_ticket', ticketId, t.id)
 
     // SMS blast to all maintenance technicians
-    const maintStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
+    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone)
     const smsMsg = '[TDMH MNT] NEW TICKET ' + ticketId + ' — ' + (priority === 'emergency' ? '🚨 EMERGENCY ' : priority === 'urgent' ? '⚠️ URGENT ' : '') + '"' + title + '" at ' + location + ' (' + (deptName||'—') + ')'
     if (maintStaff.length > 0) sendSMS(maintStaff.map(u=>u.phone), smsMsg, 'ticket_new', ticketId)
 
@@ -1928,7 +1940,7 @@ async function submitTicket() {
 async function openTeamModal(ticketId) {
   const team = await loadTicketTeam(ticketId)
   const teamIds = team.map(t => t.user_id)
-  const techStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role))
+  const techStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role))
 
   let html = '<div style="margin-bottom:14px;font-size:13px;color:var(--txt2);">Select team members to work on this ticket:</div>'
   html += '<div style="display:flex;flex-direction:column;gap:6px;">'
@@ -2362,7 +2374,7 @@ function renderHowTo() {
 
   html += howToCard('🔄 ' + t('Ang Buong Daloy ng Maintenance','The Full Maintenance Flow'), howToFlowSVG(role))
   if (role === 'requester' || role === 'admin') html += howToMaintRequester()
-  if (['technician','supervisor','admin'].includes(role)) html += howToMaintTechnician()
+  if (['technician','supervisor','gsd','admin'].includes(role)) html += howToMaintTechnician()
   if (['supervisor','admin'].includes(role)) html += howToMaintSupervisor()
   html += howToMaintCommon()
   content.innerHTML = html
@@ -2483,7 +2495,7 @@ function filterAuditLog() {
 async function renderTeam() {
   const content = document.getElementById('mainContent')
   const tickets = await loadTickets()
-  const techStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role))
+  const techStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role))
 
   let html = '<div class="page-header"><h2>👥 Team</h2>'
   html += '<button class="btn btn-primary" onclick="openAddTeamMemberModal()">＋ Add Member</button>'
@@ -2938,7 +2950,7 @@ async function renderKanban() {
   html += '<div class="kanban-board">'
 
   const role = S.user.maintenance_role
-  const isTech = ['technician','supervisor','admin'].includes(role)
+  const isTech = ['technician','supervisor','gsd','admin'].includes(role)
   // Drag-and-drop on desktop only (touch devices use tap → modal, friendlier for staff)
   const canDrag = isTech && !('ontouchstart' in window) && window.matchMedia('(pointer:fine)').matches
 
