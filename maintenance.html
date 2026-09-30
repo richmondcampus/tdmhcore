@@ -1726,7 +1726,8 @@ function openNewTicketModal() {
   // GSD staff file Medical Equipment only; maintenance staff file everything else.
   const mRole = S.user.maintenance_role
   let catList
-  if (mRole === 'gsd') catList = ['medical_equipment']
+  if (mRole === 'admin') catList = ['electrical','plumbing','hvac','civil','equipment','it_infra','medical_equipment','general'] // admin: all
+  else if (mRole === 'gsd') catList = ['medical_equipment']
   else if (['technician','supervisor'].includes(mRole)) catList = ['electrical','plumbing','hvac','civil','equipment','it_infra','general']
   else catList = ['electrical','plumbing','hvac','civil','equipment','it_infra','medical_equipment','general'] // requester / others
   catList.forEach(c => {
