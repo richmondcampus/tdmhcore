@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.30-1'
+const APP_VERSION = '2026.09.30-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -8065,8 +8065,10 @@ async function viewIssuance(id) {
       rows = items.map((item, i) => {
         let ri
         if (item.request_item_id && riById[item.request_item_id]) {
-          // Linked to a real request item — use it.
-          ri = riById[item.request_item_id]
+          // Linked to a real request item — use it, BUT if the supply officer edited the
+          // item name (item_name_snapshot set), that edit wins (e.g. added control no.).
+          ri = { ...riById[item.request_item_id] }
+          if (item.item_name_snapshot) ri.item_name = item.item_name_snapshot
         } else {
           // Manual / blank / from-stock item (no request_item_id): the name MUST come
           // from the snapshot or stock item — NOT from reqItems[i], which would grab
@@ -8103,7 +8105,7 @@ async function viewIssuance(id) {
         body += '<tr><td style="color:var(--txt2);">' + (i+1) + '</td>'
         // Item & Specs — editable for supply officer/admin (control number goes here).
         if (canEditCtrl && row.iiId) {
-          const nameVal = (ri.item_name || '') + (row.control ? ' — ' + row.control : '')
+          const nameVal = ri.item_name || ''
           body += '<td><input type="text" id="itemedit_' + row.iiId + '" value="' + escStk(nameVal) + '" onblur="saveItemSpec(\'' + row.iiId + '\',this.value)" onkeydown="if(event.key===\'Enter\'){this.blur();}" style="min-width:220px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-weight:600;font-size:13px;"></td>'
         } else {
           body += '<td><strong>' + (ri.item_name || '—') + '</strong>'
