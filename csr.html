@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.29-2'
+const APP_VERSION = '2026.09.29-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1193,7 +1193,7 @@ function renderSidebarNav() {
   const items = [
     // ── Nav items — role-based visibility ──
   { id:'dashboard',       icon:'📊', label:'Dashboard',
-    roles:['requester','dept_head','supply_officer','purchasing_officer','admin'] },
+    roles:['requester','dept_head','supply_officer','purchasing_officer','gsd','admin'] },
 
   // My Requests / Dept Requests / All Requests — label changes by role
   { id:'my_requests', icon:'📋',
@@ -1225,14 +1225,14 @@ function renderSidebarNav() {
 
   // DERP — everyone except purchasing_officer (not relevant to them)
   { id:'derp',            icon:'♻️', label:'DERP',
-    roles:['requester','dept_head','supply_officer','purchasing_officer','admin'] },
+    roles:['requester','dept_head','supply_officer','purchasing_officer','gsd','admin'] },
 
   // Reports — admin only
   { id:'reports',         icon:'📈', label:'Reports',    roles:['admin'] },
   { id:'issuance_report', icon:'📑', label:'Issuance Report', roles:['supply_officer','admin'] },
   { id:'settings',        icon:'⚙️', label:'Settings',   roles:['admin'] },
   { id:'health_check',    icon:'🩺', label:'Health Check', roles:['admin'] },
-  { id:'how_to',          icon:'📖', label:'How To Guide', roles:['requester','dept_head','supply_officer','purchasing_officer','admin'] },
+  { id:'how_to',          icon:'📖', label:'How To Guide', roles:['requester','dept_head','supply_officer','purchasing_officer','gsd','admin'] },
   ]
   let html = ''
   html += '<div class="nav-section">'
@@ -3204,10 +3204,9 @@ function renderNewRequestForm(reqType) {
   html += '</select></div>'
   html += '</div>'
 
-  // Purpose
-  html += '<div class="field"><label>Purpose / Justification <span style="color:var(--txt3);font-weight:400;">(optional)</span></label>'
-  html += '<textarea id="f_purpose" placeholder="Describe why this request is needed... (optional)" rows="3"></textarea></div>'
-
+  // Purpose field removed — was being misused for entering items. Keep a hidden input
+  // so any code that reads f_purpose still works (stays empty).
+  html += '<input type="hidden" id="f_purpose" value="">'
   // DERP-specific fields
   if (reqType === 'derp') {
     html += '<div style="background:var(--violet-a);border:1px solid var(--violet);border-radius:10px;padding:14px;margin-bottom:14px;">'
@@ -5801,7 +5800,7 @@ async function openIssueFromPO(poId) {
   html += '</div>'
 
   html += '<div class="table-wrap" style="margin-bottom:14px;"><table><thead><tr>'
-  html += '<th>Item</th><th>Ordered</th><th>Received</th><th>Issuing</th><th>Unit</th><th>Control No. / Remarks</th>'
+  html += '<th>Item (editable)</th><th>Ordered</th><th>Received</th><th>Issuing</th><th>Unit</th>'
   html += '</tr></thead><tbody>'
   ;(items||[]).forEach(item => {
     const available = Number(item.quantity_received || item.quantity)
@@ -5811,7 +5810,6 @@ async function openIssueFromPO(poId) {
     html += '<td style="color:var(--green);">' + available + '</td>'
     html += '<td><input type="number" id="iss_' + item.id + '" min="0" max="' + available + '" value="' + available + '" style="width:70px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);"></td>'
     html += '<td>' + (item.unit || 'pcs') + '</td>'
-    html += '<td><input type="text" id="issctrl_' + item.id + '" placeholder="Control no. / serial / note (optional)" style="min-width:180px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;"></td>'
     html += '</tr>'
   })
   html += '</tbody></table></div>'
@@ -5874,7 +5872,6 @@ async function confirmIssueFromPO() {
       quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
       item_name_snapshot: (document.getElementById('issname_' + item.id)?.value || item.item_name || '').trim() || null,
       unit_snapshot: item.unit || null,
-      control_number: (document.getElementById('issctrl_' + item.id)?.value || '').trim() || null,
       request_item_id: item.request_item_id || null
     })).filter(i => i.quantity_issued > 0)
 
@@ -7972,16 +7969,16 @@ async function printAllAssetLabels(requestId) {
   win.document.close()
 }
 
-// Save/update an item's control number (serial, asset control no.) from the issuance
-// detail. Supply officer / admin — works for any issuance type, even after issuing.
-async function saveControlNumber(issuanceItemId, value) {
+// Save the edited Item & Specs from the issuance detail (supply officer / admin can add
+// a control number / serial right into the item name — rare, so kept simple here).
+async function saveItemSpec(issuanceItemId, value) {
   try {
-    const v = (value || '').trim() || null
-    const { error } = await SB.from('issuance_items').update({ control_number: v }).eq('id', issuanceItemId)
+    const v = (value || '').trim()
+    if (!v) { showToast('error','Kailangan','Hindi pwedeng blangko ang item.'); return }
+    const { error } = await SB.from('issuance_items').update({ item_name_snapshot: v }).eq('id', issuanceItemId)
     if (error) throw error
-    const el = document.getElementById('ctrledit_' + issuanceItemId)
-    if (el) el.style.borderColor = 'var(--green)'
-    setTimeout(() => { if (el) el.style.borderColor = 'var(--bdr2)' }, 1000)
+    const el = document.getElementById('itemedit_' + issuanceItemId)
+    if (el) { el.style.borderColor = 'var(--green)'; setTimeout(() => { if (el) el.style.borderColor = 'var(--bdr2)' }, 1000) }
   } catch(e) { showToast('error','Error', e.message) }
 }
 
@@ -8095,23 +8092,24 @@ async function viewIssuance(id) {
       body += '<div style="margin-bottom:16px;">'
       body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📦 Items to Receive</div>'
       const canEditCtrl = ['supply_officer','admin'].includes(state.user.csr_role)
-      body += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item &amp; Specs</th><th>Qty</th><th>Unit</th><th>Category</th><th>Est. Cost</th><th>🔖 Control No.</th></tr></thead><tbody>'
+      body += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item &amp; Specs' + (canEditCtrl ? ' <span style="font-size:10px;color:var(--txt3);font-weight:400;">(editable — pwedeng lagyan ng control no.)</span>' : '') + '</th><th>Qty</th><th>Unit</th><th>Category</th><th>Est. Cost</th></tr></thead><tbody>'
       rows.forEach((row, i) => {
         const ri = row.ri || {}
         body += '<tr><td style="color:var(--txt2);">' + (i+1) + '</td>'
-        body += '<td><strong>' + (ri.item_name || '—') + '</strong>'
-        if (ri.item_description) body += '<br><span style="font-size:11px;color:var(--txt2);">' + ri.item_description + '</span>'
-        body += '</td>'
+        // Item & Specs — editable for supply officer/admin (control number goes here).
+        if (canEditCtrl && row.iiId) {
+          const nameVal = (ri.item_name || '') + (row.control ? ' — ' + row.control : '')
+          body += '<td><input type="text" id="itemedit_' + row.iiId + '" value="' + escStk(nameVal) + '" onblur="saveItemSpec(\'' + row.iiId + '\',this.value)" onkeydown="if(event.key===\'Enter\'){this.blur();}" style="min-width:220px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-weight:600;font-size:13px;"></td>'
+        } else {
+          body += '<td><strong>' + (ri.item_name || '—') + '</strong>'
+          if (ri.item_description) body += '<br><span style="font-size:11px;color:var(--txt2);">' + ri.item_description + '</span>'
+          if (row.control) body += '<br><span style="font-size:11px;color:var(--accent);">🔖 ' + escStk(row.control) + '</span>'
+          body += '</td>'
+        }
         body += '<td><strong>' + row.qty + '</strong></td>'
         body += '<td>' + (ri.unit || 'pcs') + '</td>'
         body += '<td>' + (ri.category ? ri.category : '—') + '</td>'
         body += '<td>' + (ri.estimated_cost ? '₱' + Number(ri.estimated_cost).toLocaleString() : '—') + '</td>'
-        // Control number — editable for supply officer/admin, read-only otherwise.
-        if (canEditCtrl && row.iiId) {
-          body += '<td><input type="text" id="ctrledit_' + row.iiId + '" value="' + escStk(row.control || '') + '" placeholder="control / serial" onblur="saveControlNumber(\'' + row.iiId + '\',this.value)" onkeydown="if(event.key===\'Enter\'){this.blur();}" style="min-width:130px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-size:12px;"></td>'
-        } else {
-          body += '<td style="font-size:12px;color:var(--accent);">' + (row.control ? '🔖 ' + escStk(row.control) : '—') + '</td>'
-        }
         body += '</tr>'
       })
       const totalCost = rows.reduce((s, row) => {
@@ -9227,8 +9225,8 @@ const DERP_CATEGORIES = {
     examples: 'Laptop, Desktop, Printer, Router, Switch, Monitor, Scanner'
   },
   gsd: {
-    label: 'GSD-DERP', icon: '🏥', dept: 'General Services / Biomedical', sla: 24,
-    evaluator_roles: ['admin'], color: 'var(--green)',
+    label: 'Medical Equipment-DERP', icon: '🏥', dept: 'General Services / Biomedical', sla: 24,
+    evaluator_roles: ['admin','gsd'], color: 'var(--green)',
     description: 'For medical equipment, biomedical devices, and general services equipment. GSD/Biomedical team will assess DOH/FDA compliance and patient safety implications.',
     examples: 'ECG Machine, Infusion Pump, Suction Machine, Autoclave, Oxygen Concentrator'
   },
@@ -9297,7 +9295,14 @@ async function renderDerp() {
     }
   }
   const { data: derpRequests } = await derpQuery
-  const requests = derpRequests || []
+  let requests = derpRequests || []
+
+  // Category access control: evaluator roles see only their own DERP category.
+  // gsd → Medical Equipment; (IT/maintenance handled in their own systems). Admin sees all.
+  const roleCategory = { gsd: 'gsd' }
+  if (roleCategory[role]) {
+    requests = requests.filter(r => r.derp_category === roleCategory[role])
+  }
 
   // Stats per category
   const stats = { it: 0, gsd: 0, maintenance: 0, open: 0, closed: 0 }
@@ -9945,14 +9950,18 @@ async function viewDerp(id) {
     footer += '<button class="btn btn-ghost btn-sm" onclick="openDerpReturn(\'' + req.id + '\')" title="Return to requester for revision">↩ Return</button>'
   }
 
-  if (req.status === 'submitted' && ['admin','supply_officer'].includes(role)) {
+  // Can this user evaluate this DERP? Admin + supply_officer always; gsd only for the
+  // Medical Equipment (gsd) category.
+  const canEvalDerp = ['admin','supply_officer'].includes(role) || (role === 'gsd' && req.derp_category === 'gsd')
+
+  if (req.status === 'submitted' && canEvalDerp) {
     footer += '<button class="btn btn-secondary" onclick="assignDerpEvaluator(\'' + req.id + '\')">Assign Evaluator</button>'
     footer += '<button class="btn btn-primary" onclick="startDerpEvaluation(\'' + req.id + '\')">Start Evaluation</button>'
   }
-  if (req.status === 'under_evaluation' && !req.derp_decision) {
+  if (req.status === 'under_evaluation' && !req.derp_decision && canEvalDerp) {
     footer += '<button class="btn btn-primary" onclick="submitDerpEvaluation(\'' + req.id + '\')">Submit Evaluation</button>'
   }
-  if (req.status === 'for_repair' && ['admin','supply_officer'].includes(role)) {
+  if (req.status === 'for_repair' && canEvalDerp) {
     footer += '<button class="btn btn-success" onclick="updateDerpStatus(\'' + req.id + '\',\'repair_in_progress\')">Start Repair</button>'
   }
   if (req.status === 'repair_in_progress' && ['admin','supply_officer'].includes(role)) {
@@ -10779,7 +10788,7 @@ async function renderIssuanceReport() {
 
   html += '<div style="font-size:12px;color:var(--txt2);margin-bottom:8px;"><span id="ir_count">'+rows.length+' item rows</span></div>'
   html += '<div class="table-wrap"><table><thead><tr>'
-  html += '<th>Issuance No.</th><th>Date</th><th>Request No.</th><th>Department</th><th>Item</th><th>Control No.</th><th>Qty</th><th>Unit</th><th>From Stock</th><th>Received By</th><th>Issued By</th><th>Status</th><th>Confirmation</th>'
+  html += '<th>Issuance No.</th><th>Date</th><th>Request No.</th><th>Department</th><th>Item</th><th>Qty</th><th>Unit</th><th>From Stock</th><th>Received By</th><th>Issued By</th><th>Status</th><th>Confirmation</th>'
   html += '</tr></thead><tbody id="irTableBody"></tbody></table></div>'
 
   content.innerHTML = html
@@ -10858,7 +10867,6 @@ function applyIssRptFilters() {
           + '<td class="td-mono" style="font-size:11px;">'+escStk(r.request_no)+'</td>'
           + '<td>'+escStk(r.department||'—')+'</td>'
           + '<td><strong>'+escStk(r.item)+'</strong></td>'
-          + '<td style="font-size:12px;color:var(--accent);">'+(r.control?('🔖 '+escStk(r.control)):'—')+'</td>'
           + '<td>'+escStk(String(r.qty))+'</td>'
           + '<td>'+escStk(r.unit||'')+'</td>'
           + '<td>'+escStk(r.from_stock||'')+'</td>'
@@ -10884,9 +10892,9 @@ async function exportIssuanceReport(fmt) {
   const list = getFilteredIssRptRows()
   if (!list.length) { showToast('info','No Data','Walang record na i-e-export.'); return }
 
-  const headers = ['Issuance No.','Date Prepared','Date Received','Request No.','Department','Item','Control No.','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
+  const headers = ['Issuance No.','Date Prepared','Date Received','Request No.','Department','Item','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
   const dataRows = list.map(r => [
-    r.issuance_no, r.date, (r._confirmed ? (r.dateReceived||r.date) : ''), r.request_no, r.department, r.item, r.control || '', r.qty, r.unit,
+    r.issuance_no, r.date, (r._confirmed ? (r.dateReceived||r.date) : ''), r.request_no, r.department, r.item, r.qty, r.unit,
     r.from_stock, r.received_by, r.issued_by, r.status,
     r.confirmation === 'photo' ? 'Photo' : r.confirmation === 'online_link' ? 'Online Link' : (r.confirmation||''),
     r.scenario === 'from_stock' ? 'From Stock' : r.scenario === 'after_po' ? 'After PO' : (r.scenario||'')
