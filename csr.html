@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.29-5'
+const APP_VERSION = '2026.09.30-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2667,6 +2667,12 @@ async function viewRequest(id) {
         body += '<div style="font-size:16px;">' + stepIcon + '</div>'
         body += '<div style="font-size:11px;font-weight:600;color:' + color + ';margin-top:2px;">' + step.label + '</div>'
         if (approver) body += '<div style="font-size:10px;color:var(--txt3);">' + approver.full_name.split(' ')[0] + '</div>'
+        // Show WHEN it was approved (better tracking)
+        if (approved && approved.decided_at) {
+          const d = new Date(approved.decided_at)
+          const ds = d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true })
+          body += '<div style="font-size:9px;color:var(--txt3);margin-top:1px;">' + ds + '</div>'
+        }
         if (current) body += '<div style="font-size:10px;color:var(--accent);">Waiting...</div>'
         body += '</div>'
         if (i < approvalSteps.length - 1) body += '<div style="width:1px;background:var(--bdr);"></div>'
