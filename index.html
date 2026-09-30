@@ -1806,8 +1806,8 @@ async function deleteDocument(id){
 const UM = { users: [], headMap: {}, filter: '', roleFilter: '', statusFilter: 'active' }
 
 const ROLE_OPTS = {
-  csr: ['requester','dept_head','supply_officer','purchasing_officer','admin'],
-  maintenance: ['requester','technician','supervisor','admin'],
+  csr: ['requester','dept_head','supply_officer','purchasing_officer','gsd','admin'],
+  maintenance: ['requester','technician','supervisor','gsd','admin'],
   it: ['requester','technician','supervisor','admin'],
   inventory: ['viewer','encoder','admin']
 }
@@ -2091,8 +2091,8 @@ async function downloadUserTemplate() {
   }
 
   // Valid role values
-  const csrRoles = ['requester','dept_head','supply_officer','purchasing_officer','admin']
-  const maintRoles = ['requester','technician','supervisor','admin']
+  const csrRoles = ['requester','dept_head','supply_officer','purchasing_officer','gsd','admin']
+  const maintRoles = ['requester','technician','supervisor','gsd','admin']
   const itRoles = ['requester','technician','supervisor','admin']
   const invRoles = ['viewer','encoder','admin']
   const deptNames = (S.departments||[]).map(d => d.dept_name).filter(Boolean)
@@ -2146,8 +2146,8 @@ async function downloadUserTemplate() {
     ['phone','Optional.'],
     ['department','Optional — pumili sa dropdown (dept name).'],
     ['position','Optional.'],
-    ['csr_role','Optional — dropdown: requester/dept_head/supply_officer/purchasing_officer/admin'],
-    ['maintenance_role','Optional — dropdown: requester/technician/supervisor/admin'],
+    ['csr_role','Optional — dropdown: requester/dept_head/supply_officer/purchasing_officer/gsd/admin'],
+    ['maintenance_role','Optional — dropdown: requester/technician/supervisor/gsd/admin'],
     ['it_role','Optional — dropdown: requester/technician/supervisor/admin'],
     ['inventory_role','Optional — dropdown: viewer/encoder/admin'],
     ['is_dept_head','yes = department head (approval + makikita dept tickets). no/blank = ordinary.'],
