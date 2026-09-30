@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.29-4'
+const APP_VERSION = '2026.09.29-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3265,7 +3265,7 @@ function renderNewRequestForm(reqType) {
   html += '<div class="field"><label>Items Requested</label>'
   html += '<div class="items-table-wrap">'
   html += '<table class="items-table"><thead><tr>'
-  html += '<th style="width:28%">Item Name</th><th style="width:15%">Description</th><th style="width:5%">Qty</th><th style="width:8%">Unit</th><th style="width:10%">Cost (₱)</th><th style="width:10%">Category</th><th style="width:8%">Photo</th><th style="width:4%"></th>'
+  html += '<th style="width:35%">Item Name</th><th style="width:6%">Qty</th><th style="width:10%">Unit</th><th style="width:12%">Cost (₱)</th><th style="width:13%">Category</th><th style="width:10%">Photo</th><th style="width:4%"></th>'
   html += '</tr></thead><tbody id="itemsBody">'
   html += buildItemRows()
   html += '</tbody></table></div>'
@@ -3583,7 +3583,6 @@ function buildItemRows() {
     html += '<td><input type="text" placeholder="Item name" value="' + (row.item_name||'') + '"'
     html += ' oninput="updateItemRow(' + row.id + ',\'item_name\',this.value)"'
     html += ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();handleItemEnter(' + row.id + ')}"></td>'
-    html += '<td><input type="text" placeholder="Description" value="' + (row.item_description||'') + '" oninput="updateItemRow(' + row.id + ',\'item_description\',this.value)"></td>'
     html += '<td><input type="number" min="1" value="' + (row.quantity||1) + '" oninput="updateItemRow(' + row.id + ',\'quantity\',this.value);recomputeItemTotal(' + row.id + ')"></td>'
     html += '<td><span class="ac-wrap" style="display:block;"><input type="text" class="ac-input req-unit-input" value="' + escStk(row.unit||'') + '" placeholder="unit *" autocomplete="off" data-rowid="' + row.id + '" oninput="unitAcFilter(this)" onfocus="unitAcFilter(this)" style="font-size:12px;padding:4px 6px;width:72px;min-width:0;' + (!row.unit ? 'border-color:var(--amber,#f0c838);' : '') + '"><div class="ac-menu" data-menu-for="' + row.id + '"></div></span></td>'
     // Cost cell — shows total (unit_price × qty), source icon
