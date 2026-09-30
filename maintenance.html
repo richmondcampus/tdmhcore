@@ -1722,9 +1722,13 @@ function openNewTicketModal() {
   html += '<div class="field-row">'
   html += '<div class="field"><label>Category</label><select id="tk_cat" onchange="autoFillMaintTitle()">'
   const catIcons = { electrical:'⚡',plumbing:'🚿',hvac:'❄️',civil:'🏗️',equipment:'⚙️',it_infra:'🖥️',general:'🔧',medical_equipment:'🏥' }
-  // GSD users file Medical Equipment tickets only; maintenance staff file everything else.
-  const isGSD = S.user.maintenance_role === 'gsd'
-  const catList = isGSD ? ['medical_equipment'] : ['electrical','plumbing','hvac','civil','equipment','it_infra','general']
+  // Requesters can report ANY category (incl. Medical Equipment → routes to GSD).
+  // GSD staff file Medical Equipment only; maintenance staff file everything else.
+  const mRole = S.user.maintenance_role
+  let catList
+  if (mRole === 'gsd') catList = ['medical_equipment']
+  else if (['technician','supervisor'].includes(mRole)) catList = ['electrical','plumbing','hvac','civil','equipment','it_infra','general']
+  else catList = ['electrical','plumbing','hvac','civil','equipment','it_infra','medical_equipment','general'] // requester / others
   catList.forEach(c => {
     const icon = catIcons[c] || '🔧'
     const label = c === 'medical_equipment' ? 'Medical Equipment' : c.charAt(0).toUpperCase()+c.slice(1).replace('_',' ')
