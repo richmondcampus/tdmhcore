@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.30-2'
+const APP_VERSION = '2026.09.30-7'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1894,7 +1894,7 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '<div class="filter-bar">'
   html += '<input type="text" id="filterReqSearch" placeholder="\u{1F50D} Request no., purpose, o item..." oninput="filterRequests(this.value,\'search\')" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   html += '<select onchange="filterRequests(this.value,\'status\')" id="filterStatus"><option value="">All Status</option>'
-  const statuses = ['draft','pending_approval','approved','for_po','ordered','delivered','issued','cancelled']
+  const statuses = ['draft','pending_approval','approved','for_po','ordered','delivered','partially_issued','issued','cancelled']
   statuses.forEach(s => { html += '<option value="' + s + '">' + formatStatus(s) + '</option>' })
   html += '</select>'
   html += '<select onchange="filterRequests(this.value,\'type\')" id="filterType"><option value="">All Types</option>'
@@ -2762,6 +2762,7 @@ async function viewRequest(id) {
 
       body += '<tr' + (removed ? ' style="opacity:.5;"' : '') + '><td style="color:var(--txt2);">' + (i+1) + '</td><td>'
       body += '<strong' + (removed ? ' style="text-decoration:line-through;"' : '') + '>' + item.item_name + '</strong>'
+      if (item.image_url) body += ' <img src="' + item.image_url + '" style="width:32px;height:32px;object-fit:cover;border-radius:5px;border:1px solid var(--bdr2);vertical-align:middle;cursor:pointer;" onclick="viewItemImage(\'' + item.image_url + '\')" title="I-click para lumaki">'
       if (removed && item.removed_reason) body += '<br><span style="font-size:10px;color:var(--txt3);">Dahilan: ' + escStk(item.removed_reason) + '</span>'
       if (item.item_description) body += '<br><span style="font-size:11px;color:var(--txt2);">' + item.item_description + '</span>'
       body += '</td>'
@@ -3026,9 +3027,11 @@ async function loadForPoItems(reqId) {
       const { data: reqRow } = await SB.from('requests').select('status,has_po_split').eq('id', reqId).maybeSingle()
       if (reqRow && reqRow.status === 'for_po' && !reqRow.has_po_split) {
         const { data: allItems } = await SB.from('request_items')
-          .select('item_name,quantity,quantity_for_po,unit,fulfillment_type,estimated_cost')
+          .select('item_name,quantity,quantity_for_po,unit,fulfillment_type,estimated_cost,is_removed')
           .eq('request_id', reqId)
-        items = allItems || []
+        // Exclude items pulled back to issuance (now 'issue') and removed items — only
+        // show what's actually still For PO.
+        items = (allItems || []).filter(it => it.fulfillment_type !== 'issue' && !it.is_removed)
       }
     }
     if (!items || !items.length) { wrap.innerHTML = ''; return }
@@ -5805,11 +5808,12 @@ async function openIssueFromPO(poId) {
   html += '</div>'
 
   html += '<div class="table-wrap" style="margin-bottom:14px;"><table><thead><tr>'
-  html += '<th>Item (editable)</th><th>Ordered</th><th>Received</th><th>Issuing</th><th>Unit</th>'
+  html += '<th style="width:5%" title="Piliin kung alin ang i-issue">✓</th><th>Item (editable)</th><th>Ordered</th><th>Received</th><th>Issuing</th><th>Unit</th>'
   html += '</tr></thead><tbody>'
   ;(items||[]).forEach(item => {
     const available = Number(item.quantity_received || item.quantity)
     html += '<tr>'
+    html += '<td style="text-align:center;"><input type="checkbox" id="isschk_' + item.id + '" checked onchange="togglePOIssueRow(\'' + item.id + '\')" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"></td>'
     html += '<td><input type="text" id="issname_' + item.id + '" value="' + (item.item_name||'').replace(/"/g,'&quot;') + '" style="min-width:160px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-weight:600;"></td>'
     html += '<td>' + item.quantity + '</td>'
     html += '<td style="color:var(--green);">' + available + '</td>'
@@ -5818,6 +5822,7 @@ async function openIssueFromPO(poId) {
     html += '</tr>'
   })
   html += '</tbody></table></div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin:-8px 0 10px;">💡 Alisin ang check sa mga item na hindi pa dumating / hindi pa i-issue (partial delivery). Mananatili silang For PO.</div>'
 
   html += '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:9px;padding:10px 12px;font-size:12px;color:var(--txt2);">💡 Kapag pinindot ang <strong>Prepare Issuance</strong>, gagawa ng issuance. Ang <strong>receiver + photo/link confirmation</strong> ay gagawin sa susunod (Awaiting Receipt Confirmation), gaya ng regular issuance.</div>'
 
@@ -5832,6 +5837,16 @@ async function openIssueFromPO(poId) {
 
   closeModal('requestDetailModal')
   openModal('newRequestModal')
+}
+
+// Dim the row + disable its qty when unchecked (not being issued).
+function togglePOIssueRow(itemId) {
+  const chk = document.getElementById('isschk_' + itemId)
+  const qty = document.getElementById('iss_' + itemId)
+  const name = document.getElementById('issname_' + itemId)
+  const on = chk?.checked
+  if (qty) qty.disabled = !on
+  ;[qty, name].forEach(el => { if (el) el.style.opacity = on ? '1' : '0.4' })
 }
 
 async function confirmIssueFromPO() {
@@ -5872,13 +5887,18 @@ async function confirmIssueFromPO() {
     // Insert issuance items — but skip if this issuance already has items (avoids
     // duplicating when the PO is opened for issue from multiple entry points).
     const { count: existingItemCount } = await SB.from('issuance_items').select('id', { count:'exact', head:true }).eq('issuance_id', issId)
-    const issItems = (existingItemCount && existingItemCount > 0) ? [] : items.map(item => ({
-      issuance_id: issId,
-      quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
-      item_name_snapshot: (document.getElementById('issname_' + item.id)?.value || item.item_name || '').trim() || null,
-      unit_snapshot: item.unit || null,
-      request_item_id: item.request_item_id || null
-    })).filter(i => i.quantity_issued > 0)
+    const issItems = (existingItemCount && existingItemCount > 0) ? [] : items
+      .filter(item => document.getElementById('isschk_' + item.id)?.checked)  // only checked items
+      .map(item => ({
+        issuance_id: issId,
+        quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
+        item_name_snapshot: (document.getElementById('issname_' + item.id)?.value || item.item_name || '').trim() || null,
+        unit_snapshot: item.unit || null,
+        request_item_id: item.request_item_id || null
+      })).filter(i => i.quantity_issued > 0)
+    if (issItems.length === 0 && !(existingItemCount && existingItemCount > 0)) {
+      releaseClick('confirmIssueFromPO'); showToast('error','Pumili','Pumili ng kahit isang item na i-i-issue.'); return
+    }
 
     if (issItems.length > 0) {
       await SB.from('issuance_items').insert(issItems)
@@ -6075,20 +6095,31 @@ async function emailPO(poId) {
 // ─────────────────────────────
 // RECEIVE DELIVERY
 // ─────────────────────────────
+// Dim + disable qty for unchecked (not-yet-delivered) rows in the receive modal.
+function toggleReceiveRow(itemId) {
+  const chk = document.getElementById('rcvchk_' + itemId)
+  const qty = document.getElementById('rcv_' + itemId)
+  const stk = document.getElementById('stock_' + itemId)
+  const on = chk?.checked
+  if (qty) { qty.disabled = !on; qty.style.opacity = on ? '1' : '0.4' }
+  if (stk) stk.disabled = !on
+}
+
 async function openReceiveDelivery(poId) {
   const { data: po } = await SB.from('purchase_orders').select('*').eq('id', poId).single()
   const { data: items } = await SB.from('po_items').select('*').eq('po_id', poId)
 
   document.getElementById('newRequestTitle').textContent = '📦 Receive Delivery — ' + po.po_number
 
-  let html = '<div style="margin-bottom:14px;font-size:13px;color:var(--txt2);">Enter quantities received per item. Leave 0 if not yet received.</div>'
+  let html = '<div style="margin-bottom:14px;font-size:13px;color:var(--txt2);">Alisin ang check sa mga item na HINDI pa dumating (partial delivery). I-adjust ang qty kung kulang ang dumating.</div>'
   html += '<div class="table-wrap" style="margin-bottom:14px;"><table><thead><tr>'
-  html += '<th>Item</th><th>Ordered</th><th>Previously Received</th><th>Receiving Now</th><th>Add to Stock?</th>'
+  html += '<th style="width:5%" title="Dumating na ba?">✓</th><th>Item</th><th>Ordered</th><th>Previously Received</th><th>Receiving Now</th><th>Add to Stock?</th>'
   html += '</tr></thead><tbody>'
 
   ;(items||[]).forEach(item => {
     const remaining = Number(item.quantity) - Number(item.quantity_received||0)
     html += '<tr>'
+    html += '<td style="text-align:center;"><input type="checkbox" id="rcvchk_' + item.id + '" checked onchange="toggleReceiveRow(\'' + item.id + '\')" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"></td>'
     html += '<td><strong>' + item.item_name + '</strong><br><span style="font-size:11px;color:var(--txt2);">' + (item.unit||'') + '</span></td>'
     html += '<td>' + item.quantity + '</td>'
     html += '<td>' + Number(item.quantity_received||0) + '</td>'
@@ -6128,7 +6159,8 @@ async function confirmReceiveDelivery() {
     let anyReceived = false
 
     for (const item of items) {
-      const rcvQty = Number(document.getElementById('rcv_' + item.id)?.value || 0)
+      const isChecked = document.getElementById('rcvchk_' + item.id)?.checked
+      const rcvQty = isChecked ? Number(document.getElementById('rcv_' + item.id)?.value || 0) : 0
       const addToStock = document.getElementById('stock_' + item.id)?.checked
 
       if (rcvQty <= 0) continue
