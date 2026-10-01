@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.30-7'
+const APP_VERSION = '2026.09.30-8'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2526,6 +2526,9 @@ async function saveItemEditor() {
     // gap), update status + pending note so a shrunk request doesn't stay "partially
     // issued" with a stale "natira" note.
     await recomputeRequestStatus(reqId)
+    // Auto-close if nothing active remains (all removed/issued) — keeps status truthful
+    // after a supply officer trims a request.
+    await maybeAutoCloseRequest(reqId)
 
     showToast('success','Na-save ✅', added + ' idinagdag, ' + updated + ' na-update, ' + removed + ' inalis.')
     closeModal('reviewModal')
