@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.30-8'
+const APP_VERSION = '2026.09.30-9'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3955,6 +3955,7 @@ function updateItemRow(id, field, value) {
 
 async function saveRequest(action) {
   if (!guardClick('saveRequest')) return
+  if (!(await ensureAuth())) { releaseClick('saveRequest'); handleAuthLost(); return }
 
   const dept = document.getElementById('f_dept') ? document.getElementById('f_dept').value : state.user.dept_id
   const urgency = document.getElementById('f_urgency') ? document.getElementById('f_urgency').value : 'routine'
@@ -7397,6 +7398,7 @@ function onBlankReceiverInput(val) {
 
 async function saveBlankIssuance() {
   if (!guardClick('saveBlankIssuance')) return
+  if (!(await ensureAuth())) { releaseClick('saveBlankIssuance'); handleAuthLost(); return }
   const role = state.user.csr_role
   if (!['supply_officer','admin'].includes(role)) { showToast('error','Not Allowed','Supply Officer o Admin lang.'); releaseClick('saveBlankIssuance'); return }
   // Idempotency: one key per open modal session. A network retry reuses the same key,
@@ -7633,6 +7635,7 @@ function _oldReviewIssuance() {
 
 async function saveIssuance() {
   if (!guardClick('saveIssuance')) return
+  if (!(await ensureAuth())) { releaseClick('saveIssuance'); handleAuthLost(); return }
   // Disable the confirm button immediately (defense against double-click)
   const confirmBtn = document.getElementById('confirmIssueBtn')
   if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Processing...' }
