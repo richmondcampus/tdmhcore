@@ -1859,6 +1859,7 @@ async function uploadTicketPhoto(file, ticketId) {
 }
 
 async function submitTicket() {
+  if (!(await ensureAuth())) { handleAuthLost(); return }
   const desc = document.getElementById('tk_desc')?.value.trim()
   const location = document.getElementById('tk_location')?.value.trim()
   const deptId = document.getElementById('tk_dept')?.value
