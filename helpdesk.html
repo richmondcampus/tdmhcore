@@ -1410,6 +1410,8 @@ async function uploadTicketPhoto(file, ticketId) {
 }
 
 async function submitTicket() {
+  // Refresh/restore the session first — a stale token causes "permission denied".
+  if (!(await ensureAuth())) { handleAuthLost(); return }
   const subject = document.getElementById('tf_subject')?.value.trim()
   const catId = document.getElementById('tf_cat')?.value
   const priority = document.getElementById('tf_priority')?.value || 'medium'
@@ -1471,7 +1473,7 @@ async function submitTicket() {
     logAudit('it_ticket', ticketId, ticket?.id)
     viewTicket(ticketId)
     if (['dashboard','my_tickets'].includes(S.page)) showPage(S.page)
-  } catch(e) { showToast('error','Error', e.message); console.error(e) }
+  } catch(e) { if (/permission denied/i.test(e.message||'')) { handleAuthLost(); return } showToast('error','Error', e.message); console.error(e) }
 }
 
 // ═══════════════════════════════════
