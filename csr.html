@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.30-10'
+const APP_VERSION = '2026.09.30-11'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5814,7 +5814,11 @@ async function openIssueFromPO(poId) {
   html += '<div class="table-wrap" style="margin-bottom:14px;"><table><thead><tr>'
   html += '<th style="width:5%" title="Piliin kung alin ang i-issue">✓</th><th>Item (editable)</th><th>Ordered</th><th>Received</th><th>Issuing</th><th>Unit</th>'
   html += '</tr></thead><tbody>'
-  ;(items||[]).forEach(item => {
+  // Only items that have actually been received can be issued (partial deliveries show
+  // just what arrived).
+  const receivedItems = (items||[]).filter(it => Number(it.quantity_received || 0) > 0)
+  const issuableItems = receivedItems.length ? receivedItems : (items||[])
+  issuableItems.forEach(item => {
     const available = Number(item.quantity_received || item.quantity)
     html += '<tr>'
     html += '<td style="text-align:center;"><input type="checkbox" id="isschk_' + item.id + '" checked onchange="togglePOIssueRow(\'' + item.id + '\')" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"></td>'
@@ -5832,7 +5836,7 @@ async function openIssueFromPO(poId) {
 
   document.getElementById('newRequestBody').innerHTML = html
   document.getElementById('newRequestBody').dataset.poId = poId
-  document.getElementById('newRequestBody').dataset.items = JSON.stringify(items||[])
+  document.getElementById('newRequestBody').dataset.items = JSON.stringify(issuableItems||[])
   document.getElementById('newRequestBody').dataset.reqId = req?.id || ''
 
   document.querySelector('#newRequestModal .modal-footer').innerHTML =
@@ -6599,9 +6603,10 @@ async function renderIssuance() {
       .in('status', ['approved','delivered','partially_issued','for_po'])
       .in('request_type', ['supply','purchase','issuance'])
       .order('created_at', { ascending: false }),
-    // Received POs waiting to be issued to the department (dropped here after receiving).
+    // Received POs waiting to be issued — includes PARTIAL deliveries so the items that
+    // already arrived can be issued without waiting for the full order.
     SB.from('purchase_orders').select('*, requests(request_no, purpose, dept_id)')
-      .eq('status', 'received').order('received_at', { ascending: false })
+      .in('status', ['received','partial_delivery']).order('received_at', { ascending: false })
   ])
   // Received POs ready to issue — but EXCLUDE any that already have an issuance (so a
   // PO doesn't appear both here AND as an issuance in the list below).
