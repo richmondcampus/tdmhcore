@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.30-9'
+const APP_VERSION = '2026.09.30-10'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -6765,6 +6765,7 @@ async function renderIssuance() {
     html += '<button onclick="filterIssTab(\'pending\')" id="iss_tab_pending" style="padding:8px 16px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-family:inherit;font-size:13px;">Pending</button>'
   }
   html += '<button onclick="filterIssTab(\'confirmed\')" id="iss_tab_confirmed" style="padding:8px 16px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-family:inherit;font-size:13px;">Confirmed</button>'
+  html += '<button onclick="filterIssTab(\'cancelled\')" id="iss_tab_cancelled" style="padding:8px 16px;border:none;background:transparent;color:var(--txt2);cursor:pointer;font-family:inherit;font-size:13px;">❌ Cancelled</button>'
   html += '</div>'
 
   // Issuance list
@@ -6920,8 +6921,10 @@ function applyIssuanceFilters() {
   let list = issState.issuances.slice()
 
   // Tab
-  if (f.tab === 'pending') list = list.filter(i => !i.confirmed_at)
-  else if (f.tab === 'confirmed') list = list.filter(i => !!i.confirmed_at)
+  if (f.tab === 'pending') list = list.filter(i => !i.confirmed_at && !i.cancelled_at)
+  else if (f.tab === 'confirmed') list = list.filter(i => !!i.confirmed_at && !i.cancelled_at)
+  else if (f.tab === 'cancelled') list = list.filter(i => !!i.cancelled_at)
+  else list = list.filter(i => !i.cancelled_at) // 'all' hides cancelled by default
 
   // Department (issuance's own dept_id, or via the linked request)
   if (f.dept) {
@@ -8025,6 +8028,53 @@ async function saveItemSpec(issuanceItemId, value) {
   } catch(e) { showToast('error','Error', e.message) }
 }
 
+// Cancel a PENDING issuance (not yet confirmed/received). Restores any deducted stock,
+// resets the request items' issued counts, and records who/why.
+let _cancelIssId = null
+async function openCancelIssuance(issId) {
+  // Guard: only pending (not confirmed) can be cancelled.
+  const { data: iss } = await SB.from('issuances').select('confirmed_at,online_confirmed_at,receipt_photo_url').eq('id', issId).maybeSingle()
+  if (iss && (iss.confirmed_at || iss.online_confirmed_at || iss.receipt_photo_url)) {
+    showToast('error','Hindi pwede','Confirmed/received na ang issuance — hindi na pwedeng i-cancel.'); return
+  }
+  _cancelIssId = issId
+  const reason = prompt('Bakit kina-cancel ang issuance na ito? (hal. doble, mali, hindi na kailangan)')
+  if (reason === null) return
+  if (!reason.trim()) { showToast('error','Dahilan','Kailangan ng dahilan.'); return }
+  await confirmCancelIssuance(issId, reason.trim())
+}
+async function confirmCancelIssuance(issId, reason) {
+  try {
+    // Re-check it's still pending (race safety).
+    const { data: iss } = await SB.from('issuances').select('*').eq('id', issId).single()
+    if (iss.confirmed_at || iss.online_confirmed_at || iss.receipt_photo_url) {
+      showToast('error','Hindi pwede','Confirmed na — hindi na ma-cancel.'); return
+    }
+    // Restore stock for stock-linked items + roll back request_items issued counts.
+    const { data: issItems } = await SB.from('issuance_items').select('*').eq('issuance_id', issId)
+    for (const it of (issItems || [])) {
+      if (it.from_stock && it.stock_item_id) {
+        const { data: stk } = await SB.from('stock_items').select('quantity_on_hand').eq('id', it.stock_item_id).maybeSingle()
+        if (stk) await SB.from('stock_items').update({ quantity_on_hand: Number(stk.quantity_on_hand || 0) + Number(it.quantity_issued || 0), last_updated: new Date().toISOString() }).eq('id', it.stock_item_id)
+      }
+      if (it.request_item_id) {
+        const { data: ri } = await SB.from('request_items').select('quantity_issued').eq('id', it.request_item_id).maybeSingle()
+        if (ri) await SB.from('request_items').update({ quantity_issued: Math.max(0, Number(ri.quantity_issued || 0) - Number(it.quantity_issued || 0)) }).eq('id', it.request_item_id)
+      }
+    }
+    // Mark the issuance cancelled (keep the record for audit) + remove its items.
+    await SB.from('issuances').update({
+      cancelled_at: new Date().toISOString(), cancelled_by: state.user.id, cancel_reason: reason
+    }).eq('id', issId)
+    await SB.from('issuance_items').delete().eq('issuance_id', issId)
+    // Recompute the linked request's status (items are no longer issued).
+    if (iss.request_id) await recomputeRequestStatus(iss.request_id)
+    showToast('success','Na-cancel ✅','Naibalik ang stock at na-reset ang issued count.')
+    closeModal('requestDetailModal')
+    renderIssuance()
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
 async function viewIssuance(id) {
   const { data: iss } = await SB.from('issuances').select('*').eq('id', id).single()
   if (!iss) return
@@ -8136,7 +8186,8 @@ async function viewIssuance(id) {
     if (rows.length > 0) {
       body += '<div style="margin-bottom:16px;">'
       body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📦 Items to Receive</div>'
-      const canEditCtrl = ['supply_officer','admin'].includes(state.user.csr_role)
+      // Editable only while NOT yet confirmed (received). Once confirmed, it's final.
+      const canEditCtrl = ['supply_officer','admin'].includes(state.user.csr_role) && !isConfirmed
       body += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item &amp; Specs' + (canEditCtrl ? ' <span style="font-size:10px;color:var(--txt3);font-weight:400;">(editable — pwedeng lagyan ng control no.)</span>' : '') + '</th><th>Qty</th><th>Unit</th><th>Category</th><th>Est. Cost</th></tr></thead><tbody>'
       rows.forEach((row, i) => {
         const ri = row.ri || {}
@@ -8269,6 +8320,20 @@ async function viewIssuance(id) {
       body += '<button class="btn btn-ghost btn-sm" onclick="sendConfirmLink(\'' + id + '\',false)">✉️ Send Confirmation Link</button>'
     }
     body += '</div></div></div>'
+    body += '</div>'
+    // Cancel Issuance — only while pending (not confirmed, no photo). Supply officer/admin.
+    if (['supply_officer','admin'].includes(state.user.csr_role)) {
+      body += '<div style="margin-top:8px;text-align:right;"><button class="btn btn-ghost btn-sm" onclick="openCancelIssuance(\'' + id + '\')" style="color:var(--red);">❌ Cancel Issuance</button></div>'
+    }
+  }
+
+  // Show cancelled banner if this issuance was cancelled
+  if (iss.cancelled_at) {
+    const cb = state.users.find(u => u.id === iss.cancelled_by)
+    body += '<div style="background:var(--red-a,rgba(220,50,50,.1));border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-top:12px;font-size:13px;">'
+    body += '<div style="font-weight:700;color:var(--red);">❌ Cancelled</div>'
+    body += '<div style="color:var(--txt2);margin-top:4px;">Dahilan: ' + escStk(iss.cancel_reason || '—') + '</div>'
+    body += '<div style="color:var(--txt3);font-size:11px;margin-top:2px;">Ni-cancel ni ' + escStk(cb?.full_name || '—') + ' · ' + formatDate(iss.cancelled_at) + '</div>'
     body += '</div>'
   }
 
