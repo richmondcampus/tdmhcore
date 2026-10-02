@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.09.30-11'
+const APP_VERSION = '2026.10.02-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3024,7 +3024,7 @@ async function loadForPoItems(reqId) {
     // Flagged for_po items (split). If none flagged but the whole request is a PO
     // (status for_po and no split), show ALL items — the entire request is to be bought.
     let { data: items } = await SB.from('request_items')
-      .select('item_name,quantity,quantity_for_po,unit,fulfillment_type,estimated_cost')
+      .select('item_name,quantity,quantity_for_po,unit,fulfillment_type,estimated_cost,po_id,po_created')
       .eq('request_id', reqId).eq('fulfillment_type', 'for_po')
     if (!items || !items.length) {
       const { data: reqRow } = await SB.from('requests').select('status,has_po_split').eq('id', reqId).maybeSingle()
@@ -3040,15 +3040,35 @@ async function loadForPoItems(reqId) {
     if (!items || !items.length) { wrap.innerHTML = ''; return }
     let html = '<div style="font-size:11px;font-weight:600;color:var(--accent,#2222A8);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🛒 For Purchase Order (need to buy)</div>'
     html += '<div style="border:1px solid var(--accent,#2222A8);border-radius:10px;overflow:hidden;"><table style="width:100%;border-collapse:collapse;font-size:13px;">'
-    html += '<thead><tr style="background:var(--accent-a,rgba(34,34,168,.1));color:var(--accent,#2222A8);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:7px 10px;">Item</th><th style="width:70px;padding:7px;">Dami</th><th style="width:60px;padding:7px;">Unit</th></tr></thead><tbody>'
+    // Collect PO numbers for any items that already have a PO.
+    const poIds = [...new Set(items.filter(it => it.po_id).map(it => it.po_id))]
+    const poNumById = {}
+    if (poIds.length) {
+      const { data: pos } = await SB.from('purchase_orders').select('id,po_number,status').in('id', poIds)
+      ;(pos || []).forEach(p => { poNumById[p.id] = p })
+    }
+    html += '<thead><tr style="background:var(--accent-a,rgba(34,34,168,.1));color:var(--accent,#2222A8);font-size:11px;text-transform:uppercase;"><th style="text-align:left;padding:7px 10px;">Item</th><th style="width:70px;padding:7px;">Dami</th><th style="width:60px;padding:7px;">Unit</th><th style="padding:7px;">PO Status</th></tr></thead><tbody>'
     items.forEach(it => {
       const qty = (it.quantity_for_po && Number(it.quantity_for_po) > 0) ? it.quantity_for_po : it.quantity
+      // PO status per item: has a PO, or still needs one.
+      let poCell
+      if (it.po_id && poNumById[it.po_id]) {
+        const p = poNumById[it.po_id]
+        poCell = '<span style="font-size:11px;color:var(--green);font-weight:600;">🛒 ' + escStk(p.po_number) + ' (' + escStk(p.status) + ')</span>'
+      } else {
+        poCell = '<span style="font-size:11px;color:var(--amber,#b8860b);font-weight:600;">⏳ Walang PO pa</span>'
+      }
       html += '<tr style="border-top:1px solid var(--bdr);"><td style="padding:7px 10px;color:var(--txt);font-weight:600;">' + escStk(it.item_name) + '</td>'
       html += '<td style="padding:7px;text-align:center;font-weight:600;">' + qty + '</td>'
-      html += '<td style="padding:7px;text-align:center;color:var(--txt2);">' + escStk(it.unit||'pcs') + '</td></tr>'
+      html += '<td style="padding:7px;text-align:center;color:var(--txt2);">' + escStk(it.unit||'pcs') + '</td>'
+      html += '<td style="padding:7px;text-align:center;">' + poCell + '</td></tr>'
     })
     html += '</tbody></table></div>'
     html += '<p style="font-size:11px;color:var(--txt3);margin-top:5px;">Ito lang ang mga item na kailangang bilhin (PO). Ang iba ay na-issue na mula sa stock.</p>'
+    // If any item already has a PO, explain why Pull Back isn't available for it.
+    if (items.some(it => it.po_id)) {
+      html += '<p style="font-size:11px;color:var(--amber,#b8860b);margin-top:3px;">⚠️ May PO na ang ilang item — hindi na pwedeng i-Pull Back (kailangang i-cancel muna ang PO). Ang "⏳ Walang PO pa" lang ang pwedeng hugutin.</p>'
+    }
     wrap.innerHTML = html
   } catch(e) { wrap.innerHTML = ''; console.warn('loadForPoItems', e.message) }
 }
@@ -5912,11 +5932,15 @@ async function confirmIssueFromPO() {
       await SB.from('issuance_items').insert(issItems)
     }
 
-    // Update PO status to issued
-    await SB.from('purchase_orders').update({ status: 'issued' }).eq('id', poId)
+    // PO status: 'issued' only if everything ordered has been received AND issued.
+    // If some items haven't fully arrived yet (partial delivery), keep it partial_delivery
+    // so it stays in Incoming Deliveries for the remaining items.
+    const { data: allPoItems } = await SB.from('po_items').select('quantity,quantity_received,is_fee').eq('po_id', poId)
+    const fullyReceived = (allPoItems || []).every(pi => pi.is_fee || Number(pi.quantity_received || 0) >= Number(pi.quantity || 0))
+    await SB.from('purchase_orders').update({ status: fullyReceived ? 'issued' : 'partial_delivery' }).eq('id', poId)
 
-    // Update request status to issued
-    if (reqId) {
+    // Update request status only if the PO is fully done; otherwise let the trigger decide.
+    if (reqId && fullyReceived) {
       await SB.from('requests').update({ status: 'issued', updated_at: new Date().toISOString() }).eq('id', reqId)
     }
 
@@ -6608,13 +6632,37 @@ async function renderIssuance() {
     SB.from('purchase_orders').select('*, requests(request_no, purpose, dept_id)')
       .in('status', ['received','partial_delivery']).order('received_at', { ascending: false })
   ])
-  // Received POs ready to issue — but EXCLUDE any that already have an issuance (so a
-  // PO doesn't appear both here AND as an issuance in the list below).
+  // Received POs ready to issue. A fully-received PO ('received') is excluded once it has
+  // any issuance. A partial_delivery PO stays listed as long as it has received items that
+  // haven't been issued yet (so later-arriving batches can still be issued).
   let recvPOs = receivedPORes.data || []
   if (recvPOs.length) {
-    const { data: poIssuances } = await SB.from('issuances').select('po_id').in('po_id', recvPOs.map(p => p.id))
+    const poIds = recvPOs.map(p => p.id)
+    const [{ data: poIssuances }, { data: allPoItems }] = await Promise.all([
+      SB.from('issuances').select('po_id').in('po_id', poIds),
+      SB.from('po_items').select('po_id,quantity,quantity_received').in('po_id', poIds)
+    ])
     const issuedPOIds = new Set((poIssuances || []).map(i => i.po_id))
-    recvPOs = recvPOs.filter(p => !issuedPOIds.has(p.id))
+    // Total received per PO (what should be issuable overall).
+    const recvByPO = {}
+    ;(allPoItems || []).forEach(pi => { recvByPO[pi.po_id] = (recvByPO[pi.po_id] || 0) + Number(pi.quantity_received || 0) })
+    // Total already issued per PO.
+    const { data: issByPO } = poIds.length ? await SB.from('issuances').select('id,po_id').in('po_id', poIds) : { data: [] }
+    const issIds = (issByPO || []).map(i => i.id)
+    const issuedByPO = {}
+    if (issIds.length) {
+      const { data: issItems } = await SB.from('issuance_items').select('issuance_id,quantity_issued').in('issuance_id', issIds)
+      const poOfIss = {}; (issByPO || []).forEach(i => poOfIss[i.id] = i.po_id)
+      ;(issItems || []).forEach(ii => { const po = poOfIss[ii.issuance_id]; if (po) issuedByPO[po] = (issuedByPO[po] || 0) + Number(ii.quantity_issued || 0) })
+    }
+    recvPOs = recvPOs.filter(p => {
+      if (p.status === 'partial_delivery') {
+        // Keep if there are received-but-not-yet-issued units.
+        return (recvByPO[p.id] || 0) > (issuedByPO[p.id] || 0)
+      }
+      // Fully received: exclude once it has any issuance.
+      return !issuedPOIds.has(p.id)
+    })
   }
   issState.receivedPOs = recvPOs
 
