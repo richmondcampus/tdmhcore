@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.02-3'
+const APP_VERSION = '2026.10.02-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5910,6 +5910,18 @@ async function confirmIssueFromPO() {
   // same as regular issuances. Here we only prepare the issuance.
   const receiver = null
 
+  // Build the items to issue FIRST — if none, bail out before creating any issuance
+  // (prevents 0-item issuances that show blank in the report).
+  const plannedItems = items
+    .filter(item => document.getElementById('isschk_' + item.id)?.checked)
+    .map(item => ({
+      quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
+      item_name_snapshot: (document.getElementById('issname_' + item.id)?.value || item.item_name || '').trim() || null,
+      unit_snapshot: item.unit || null,
+      request_item_id: item.request_item_id || null
+    })).filter(i => i.quantity_issued > 0)
+  if (!plannedItems.length) { releaseClick('confirmIssueFromPO'); showToast('error','Pumili','Pumili ng kahit isang item na i-i-issue.'); return }
+
   try {
     // Get or create issuance linked to this PO
     const { data: existing } = await SB.from('issuances').select('id,issuance_no').eq('po_id', poId).maybeSingle()
@@ -5938,21 +5950,9 @@ async function confirmIssueFromPO() {
     // Insert issuance items — but skip if this issuance already has items (avoids
     // duplicating when the PO is opened for issue from multiple entry points).
     const { count: existingItemCount } = await SB.from('issuance_items').select('id', { count:'exact', head:true }).eq('issuance_id', issId)
-    const issItems = (existingItemCount && existingItemCount > 0) ? [] : items
-      .filter(item => document.getElementById('isschk_' + item.id)?.checked)  // only checked items
-      .map(item => ({
-        issuance_id: issId,
-        quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
-        item_name_snapshot: (document.getElementById('issname_' + item.id)?.value || item.item_name || '').trim() || null,
-        unit_snapshot: item.unit || null,
-        request_item_id: item.request_item_id || null
-      })).filter(i => i.quantity_issued > 0)
-    if (issItems.length === 0 && !(existingItemCount && existingItemCount > 0)) {
-      releaseClick('confirmIssueFromPO'); showToast('error','Pumili','Pumili ng kahit isang item na i-i-issue.'); return
-    }
-
-    if (issItems.length > 0) {
-      await SB.from('issuance_items').insert(issItems)
+    // Only insert if this issuance doesn't already have items (avoids duplicates).
+    if (!(existingItemCount && existingItemCount > 0)) {
+      await SB.from('issuance_items').insert(plannedItems.map(it => ({ ...it, issuance_id: issId })))
     }
 
     // PO status: 'issued' only if everything ordered has been received AND issued.
