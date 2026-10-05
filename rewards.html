@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TDMH Rewards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#17283A; --ink-2:#22384F; --paper:#F4F6F5; --panel:#FFFFFF; --line:#DCE2DF;
+  --text:#1D2730; --muted:#5D6A74; --gold:#C4912F; --gold-soft:#F6ECD7;
+  --earn:#2A7558; --earn-soft:#E3F1EA; --redeem:#AE3846; --redeem-soft:#F8E6E8;
+  --focus:#3D7DD8; --radius:10px;
+  --display:"Bricolage Grotesque", "Segoe UI", sans-serif;
+  --body:"Figtree", "Segoe UI", Arial, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--body);font-size:15px;color:var(--text);background:var(--paper);line-height:1.45}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.15;color:var(--ink)}
+h1{font-size:1.75rem;font-weight:700}
+h2{font-size:1.15rem;font-weight:700}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- buttons & inputs ---------- */
+.btn{display:inline-flex;align-items:center;gap:.4rem;border:0;border-radius:8px;padding:.6rem 1rem;
+  background:var(--ink);color:#fff;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--ink-2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.ghost:hover{background:#fff}
+.btn.earn{background:var(--earn)} .btn.redeem{background:var(--redeem)}
+.btn.sm{padding:.35rem .7rem;font-size:.85rem}
+.btn.link{background:none;color:var(--ink);padding:.2rem .3rem;text-decoration:underline;font-weight:500}
+label.f{display:flex;flex-direction:column;gap:.3rem;font-size:.85rem;font-weight:600;color:var(--muted)}
+label.f small{font-weight:400}
+input.i,select.i,textarea.i{border:1px solid var(--line);border-radius:8px;padding:.55rem .7rem;background:#fff;min-width:0;width:100%;font-size:.95rem;color:var(--text);font-weight:400}
+input.i:focus,select.i:focus{border-color:var(--focus);outline:none;box-shadow:0 0 0 3px #3d7dd82e}
+.req::after{content:" *";color:var(--redeem)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.9rem}
+
+/* ---------- login ---------- */
+#login{min-height:100%;display:grid;grid-template-columns:1.1fr 1fr}
+#login .side{background:var(--ink);color:#fff;padding:3rem;display:flex;flex-direction:column;justify-content:space-between}
+#login .side h1{color:#fff;font-size:3rem;font-weight:800;max-width:10ch}
+#login .side p{color:#B8C4CF;max-width:36ch}
+#login .stripe{height:10px;width:120px;background:var(--gold);border-radius:3px}
+#login form{align-self:center;justify-self:center;width:min(360px,90%);display:flex;flex-direction:column;gap:1rem}
+#login .err{color:var(--redeem);font-size:.9rem;min-height:1.2em}
+@media (max-width:800px){#login{grid-template-columns:1fr}#login .side{padding:2rem}#login .side h1{font-size:2.2rem}}
+
+/* ---------- shell ---------- */
+#app{display:none;min-height:100%;grid-template-columns:230px 1fr}
+nav#side{background:var(--ink);color:#C9D3DC;padding:1.2rem .8rem;display:flex;flex-direction:column;gap:.15rem;position:sticky;top:0;height:100vh;overflow:auto}
+nav#side .brand{font-family:var(--display);font-weight:800;font-size:1.25rem;color:#fff;padding:.2rem .6rem 1rem;display:flex;align-items:center;gap:.5rem}
+nav#side .brand i{display:inline-block;width:18px;height:12px;background:var(--gold);border-radius:2px}
+nav#side .grp{font-size:.78rem;color:#8396A8;padding:.9rem .6rem .3rem}
+nav#side a{color:#DDE5EC;text-decoration:none;padding:.5rem .6rem;border-radius:7px;font-weight:500}
+nav#side a:hover{background:#ffffff12}
+nav#side a.on{background:#fff;color:var(--ink);font-weight:700}
+nav#side .me{margin-top:auto;padding:.8rem .6rem 0;border-top:1px solid #ffffff1f;font-size:.85rem}
+nav#side .me b{color:#fff;display:block}
+nav#side .me button{margin-top:.6rem;background:none;border:1px solid #ffffff33;color:#fff;border-radius:7px;padding:.35rem .7rem;cursor:pointer}
+main{padding:1.8rem 2.2rem 4rem;min-width:0}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem}
+.head p{margin:.3rem 0 0;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:1.3rem}
+.panel + .panel{margin-top:1rem}
+@media (max-width:900px){
+  #app{grid-template-columns:1fr}
+  nav#side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;gap:.3rem;padding:.7rem}
+  nav#side .grp{display:none} nav#side .brand{width:100%;padding-bottom:.4rem}
+  nav#side .me{margin:0;border:0;width:100%;display:flex;justify-content:space-between;align-items:center}
+  nav#side .me button{margin:0}
+  main{padding:1.2rem}
+}
+
+/* ---------- tap zone ---------- */
+.tap{border:2px dashed #B9C6C0;border-radius:14px;background:#fff;padding:2.4rem 1.5rem;display:grid;justify-items:center;gap:1rem;text-align:center}
+.tap.live{border-color:var(--gold);background:linear-gradient(#fff,#fff) padding-box}
+.tap .waves{width:72px;height:72px;border-radius:50%;background:var(--gold-soft);display:grid;place-items:center}
+.tap .waves svg{width:38px;height:38px;color:var(--gold)}
+@media (prefers-reduced-motion:no-preference){.tap.live .waves{animation:pulse 1.8s ease-in-out infinite}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #c4912f55}50%{box-shadow:0 0 0 14px #c4912f00}}
+.tap p.big{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);margin:0}
+.tap form{display:flex;gap:.5rem;width:min(420px,100%)}
+.facts{display:flex;gap:2.5rem;flex-wrap:wrap;margin:1.4rem 0 0;padding:0}
+.facts div dt{font-size:.82rem;color:var(--muted)}
+.facts div dd{margin:0;font-weight:700;font-size:1.05rem}
+
+/* ---------- member card (the one bold thing) ---------- */
+.txn{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:1.2rem;align-items:start}
+@media (max-width:1100px){.txn{grid-template-columns:1fr}}
+.mcard{background:var(--ink);color:#fff;border-radius:16px;padding:1.4rem 1.5rem;position:relative;overflow:hidden}
+.mcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--gold)}
+.mcard .top{display:flex;justify-content:space-between;font-size:.82rem;color:#AFC0CF}
+.mcard .name{font-family:var(--display);font-size:1.45rem;font-weight:700;margin:.9rem 0 1.2rem;line-height:1.2}
+.mcard .avail small{display:block;color:#AFC0CF;font-size:.82rem}
+.mcard .avail b{font-family:var(--display);font-size:3rem;font-weight:800;color:var(--gold);line-height:1;letter-spacing:-.02em}
+.mcard .row{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-top:1.3rem;padding-top:1rem;border-top:1px solid #ffffff22;font-size:.8rem;color:#AFC0CF}
+.mcard .row b{display:block;color:#fff;font-size:1rem;font-weight:600;margin-top:.1rem}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:.35rem 1rem;margin:0;font-size:.92rem}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:1.1rem}
+.seg button{border:0;background:#fff;padding:.7rem;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button.on[data-mode=earn]{background:var(--earn);color:#fff}
+.seg button.on[data-mode=redeem]{background:var(--redeem);color:#fff}
+.calc{display:flex;justify-content:space-between;align-items:center;background:var(--earn-soft);border-radius:8px;padding:.8rem 1rem;margin:1rem 0}
+.calc b{font-family:var(--display);font-size:1.5rem;color:var(--earn)}
+.calc.bad{background:var(--redeem-soft)} .calc.bad b{color:var(--redeem)}
+.hint{font-size:.85rem;color:var(--muted);margin:.3rem 0 0}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:#fff}
+table.t{width:100%;border-collapse:collapse;font-size:.9rem}
+table.t th{text-align:left;font-weight:600;color:var(--muted);background:#F9FAFA;padding:.6rem .75rem;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:.55rem .75rem;border-bottom:1px solid #EEF1F0;vertical-align:middle}
+table.t tr:last-child td{border-bottom:0}
+table.t td.r,table.t th.r{text-align:right}
+table.t tr.void td{color:#98A3AB;text-decoration:line-through}
+table.t tr.void td.keep{text-decoration:none}
+.empty{padding:2rem;text-align:center;color:var(--muted)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:99px;font-size:.78rem;font-weight:600;background:#EEF1F0;color:var(--muted)}
+.tag.ok{background:var(--earn-soft);color:var(--earn)} .tag.no{background:var(--redeem-soft);color:var(--redeem)}
+.tag.gold{background:var(--gold-soft);color:#8A6418}
+.filters{display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-end;margin-bottom:1rem}
+.filters label.f{min-width:150px;flex:1 1 150px;max-width:240px}
+.pager{display:flex;justify-content:space-between;align-items:center;margin-top:.8rem;color:var(--muted);font-size:.88rem;gap:.5rem}
+.pager div{display:flex;gap:.4rem}
+
+/* ---------- stats ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));border:1px solid var(--line);border-radius:var(--radius);background:#fff;overflow:hidden}
+.stats div{padding:1.1rem 1.2rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.stats dt{color:var(--muted);font-size:.85rem}
+.stats dd{margin:.25rem 0 0;font-family:var(--display);font-size:1.6rem;font-weight:700;color:var(--ink)}
+
+/* ---------- dialog & toast ---------- */
+dialog{border:0;border-radius:14px;padding:0;width:min(480px,94vw);box-shadow:0 20px 60px #0b1a2a40}
+dialog::backdrop{background:#17283a99}
+dialog .dh{padding:1.2rem 1.4rem .4rem} dialog .db{padding:.4rem 1.4rem 1rem} dialog .df{padding:1rem 1.4rem;background:#F9FAFA;display:flex;justify-content:flex-end;gap:.5rem}
+#toasts{position:fixed;right:1rem;bottom:1rem;display:flex;flex-direction:column;gap:.5rem;z-index:99}
+.toast{background:var(--ink);color:#fff;padding:.75rem 1rem;border-radius:9px;max-width:380px;font-size:.92rem;box-shadow:0 8px 24px #0003}
+.toast.error{background:var(--redeem)} .toast.ok{background:var(--earn)}
+.ok-line{display:flex;align-items:center;gap:.6rem;background:var(--earn-soft);color:var(--earn);border-radius:8px;padding:.7rem 1rem;font-weight:600}
+.bad-line{background:var(--redeem-soft);color:var(--redeem);border-radius:8px;padding:.7rem 1rem;font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login">
+  <div class="side">
+    <div class="stripe"></div>
+    <div>
+      <h1>TDMH Rewards</h1>
+      <p>Earn and redeem rewards points for Taytay Doctors Multispecialty Hospital patients.</p>
+    </div>
+    <p style="font-size:.8rem">Sign-in details are issued by the System Administrator.</p>
+  </div>
+  <form id="loginForm" autocomplete="on">
+    <h2>Sign in</h2>
+    <label class="f">Username<input class="i" id="lu" autocomplete="username" required></label>
+    <label class="f">Password<input class="i" id="lp" type="password" autocomplete="current-password" required></label>
+    <div class="err" id="lerr" role="alert"></div>
+    <button class="btn" id="lbtn">Sign in</button>
+  </form>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <nav id="side" aria-label="Main"></nav>
+  <main id="main" tabindex="-1"></main>
+</div>
+
+<dialog id="dlg"><div class="dh"><h2 id="dlgT"></h2></div><div class="db" id="dlgB"></div><div class="df" id="dlgF"></div></dialog>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+/* ================== CONFIG ================== */
+const SUPABASE_URL = "https://bmdasoubyfmyheoapghb.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtZGFzb3VieWZteWhlb2FwZ2hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExNjU5OTIsImV4cCI6MjEwNjc0MTk5Mn0.qxlygck7QQPQcH62pac7p-ttpgC8KS7G3O5lwqTGOlU";
+const EMAIL_DOMAIN = "tdmh-rewards.local";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const S = { profile: null, settings: {}, scan: null };
+const ROLE_LABEL = { cashier: "Cashier", admin: "Administrator", sysadmin: "System Admin" };
+
+/* ================== HELPERS ================== */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pts = n => Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const peso = n => "₱" + pts(n);
+const TZ = { timeZone: "Asia/Manila" };
+const dt = s => s ? new Date(s).toLocaleString("en-PH", { ...TZ, year: "numeric", month: "short", day: "2-digit", hour: "numeric", minute: "2-digit" }) : "—";
+const dOnly = s => s ? new Date(s).toLocaleDateString("en-PH", { ...TZ, year: "numeric", month: "short", day: "2-digit" }) : "—";
+const bday = s => s ? new Date(s + "T00:00:00").toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "2-digit" }) : "—";
+const fullName = m => m ? [m.last_name + ",", m.first_name, m.middle_name ? m.middle_name[0] + "." : ""].join(" ").trim() : "—";
+const cleanKey = k => String(k || "").trim().replace(/[^A-Za-z0-9-]/g, "");
+const cleanQ = q => String(q || "").replace(/[%,()*\\]/g, " ").trim();
+const dayStart = d => `${d}T00:00:00+08:00`;
+const dayEnd = d => `${d}T23:59:59.999+08:00`;
+const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+function toast(msg, type = "") {
+  const t = document.createElement("div");
+  t.className = "toast " + type; t.textContent = msg;
+  $("#toasts").appendChild(t);
+  setTimeout(() => t.remove(), type === "error" ? 6000 : 3500);
+}
+function errText(e) { return (e && (e.message || e.error_description)) || String(e); }
+
+function dialog({ title, body, ok = "Confirm", cancel = "Cancel", tone = "", onOpen }) {
+  return new Promise(res => {
+    const d = $("#dlg");
+    $("#dlgT").textContent = title;
+    $("#dlgB").innerHTML = body;
+    $("#dlgF").innerHTML = (cancel ? `<button class="btn ghost" data-r="0">${esc(cancel)}</button>` : "") +
+      (ok ? `<button class="btn ${tone}" data-r="1">${esc(ok)}</button>` : "");
+    const done = v => { d.close(); res(v); };
+    $$("#dlgF button").forEach(b => b.onclick = () => done(b.dataset.r === "1"));
+    d.oncancel = e => { e.preventDefault(); done(false); };
+    d.showModal();
+    onOpen && onOpen(d, done);
+  });
+}
+
+async function log(action, parameter = "", message = "", log_type = "info") {
+  try { await sb.from("app_logs").insert({ action, parameter, message, log_type, username: S.profile?.username }); } catch {}
+}
+
+/* Global card-scan capture: the reader types the UID then Enter. */
+let scanBuf = "", scanAt = 0;
+document.addEventListener("keydown", e => {
+  const t = e.target;
+  if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+  if ($("#dlg").open) return;
+  const now = Date.now();
+  if (now - scanAt > 100) scanBuf = "";
+  scanAt = now;
+  if (e.key === "Enter") { if (scanBuf.length >= 4 && S.scan) S.scan(scanBuf); scanBuf = ""; return; }
+  if (e.key.length === 1) scanBuf += e.key;
+});
+
+async function findCard(key) {
+  const k = cleanKey(key);
+  if (!k) return null;
+  const { data, error } = await sb.from("rewards_cards").select("*")
+    .or(`card_uid.eq.${k.toUpperCase()},card_number.eq.${k}`).limit(1);
+  if (error) throw error;
+  return data[0] || null;
+}
+
+const TAP_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="7" width="12" height="9" rx="1.5"/><path d="M18 8.5a5 5 0 0 1 0 6M20.5 6a8.5 8.5 0 0 1 0 11"/></svg>`;
+
+/* ================== AUTH ================== */
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const u = $("#lu").value.trim().toLowerCase(), p = $("#lp").value;
+  $("#lerr").textContent = ""; $("#lbtn").disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email: `${u}@${EMAIL_DOMAIN}`, password: p });
+  $("#lbtn").disabled = false;
+  if (error) {
+    $("#lerr").textContent = /banned/i.test(error.message) ? "This account is deactivated. Contact the System Administrator." : "Wrong username or password.";
+    return;
+  }
+  if (await boot()) log("LOGIN", u);
+});
+
+async function signOut() {
+  await log("LOGOUT", S.profile?.username || "");
+  await sb.auth.signOut();
+  location.hash = ""; location.reload();
+}
+
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { showLogin(); return false; }
+  const { data: prof } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
+  if (!prof || !prof.is_active) {
+    await sb.auth.signOut(); showLogin();
+    $("#lerr").textContent = "This account is deactivated. Contact the System Administrator.";
+    return false;
+  }
+  S.profile = prof;
+  await loadSettings();
+  $("#login").style.display = "none";
+  $("#app").style.display = "grid";
+  renderNav(); route();
+  return true;
+}
+function showLogin() { $("#app").style.display = "none"; $("#login").style.display = "grid"; $("#lu").focus(); }
+
+async function loadSettings() {
+  const { data } = await sb.from("app_settings").select("*");
+  S.settings = Object.fromEntries((data || []).map(r => [r.key, r]));
+}
+function convRate() {
+  const v = Number(S.settings.CONVERSION_RATE?.value);
+  return Number.isInteger(v) && v > 0 ? v : 100;
+}
+
+/* ================== ROUTING ================== */
+const ROUTES = {
+  "home":                 { roles: ["cashier"], label: "Begin transaction", fn: viewHome },
+  "txn":                  { roles: ["cashier"], fn: viewTxn },
+  "dashboard":            { roles: ["admin", "sysadmin"], label: "Dashboard", fn: viewDashboard },
+  "members/register":     { roles: ["cashier", "sysadmin"], label: "Register member", fn: viewRegister },
+  "members/update":       { roles: ["cashier", "sysadmin"], label: "Update member", fn: viewUpdate },
+  "reports/members":      { roles: ["admin", "sysadmin"], label: "Members", fn: viewRptMembers },
+  "reports/transactions": { roles: ["admin", "sysadmin"], label: "Transactions", fn: viewRptTxn },
+  "reports/cards":        { roles: ["admin", "sysadmin"], label: "Rewards cards", fn: viewRptCards },
+  "reports/users":        { roles: ["admin", "sysadmin"], label: "Users", fn: viewRptUsers },
+  "admin/cards":          { roles: ["sysadmin"], label: "Manage cards", fn: viewAdmCards },
+  "admin/users":          { roles: ["sysadmin"], label: "Manage users", fn: viewAdmUsers },
+  "admin/settings":       { roles: ["sysadmin"], label: "Settings", fn: viewSettings },
+  "admin/logs":           { roles: ["sysadmin"], label: "Application logs", fn: viewLogs },
+  "profile":              { roles: ["cashier", "admin", "sysadmin"], label: "My profile", fn: viewProfile },
+};
+const NAV = [
+  { grp: null, items: ["home", "dashboard"] },
+  { grp: "Members", items: ["members/register", "members/update"] },
+  { grp: "Reports", items: ["reports/members", "reports/transactions", "reports/cards", "reports/users"] },
+  { grp: "Administration", items: ["admin/cards", "admin/users", "admin/settings", "admin/logs"] },
+  { grp: "Account", items: ["profile"] },
+];
+const homeOf = r => r === "cashier" ? "home" : "dashboard";
+
+function renderNav() {
+  const role = S.profile.role;
+  let h = `<div class="brand"><i></i>TDMH Rewards</div>`;
+  for (const g of NAV) {
+    const items = g.items.filter(k => ROUTES[k].roles.includes(role));
+    if (!items.length) continue;
+    if (g.grp) h += `<div class="grp">${g.grp}</div>`;
+    h += items.map(k => `<a href="#/${k}" data-k="${k}">${ROUTES[k].label}</a>`).join("");
+  }
+  h += `<div class="me"><span><b>${esc(S.profile.first_name || "")} ${esc(S.profile.last_name || "")}</b>${ROLE_LABEL[role]}</span><button id="out">Sign out</button></div>`;
+  $("#side").innerHTML = h;
+  $("#out").onclick = signOut;
+}
+
+function parseHash() {
+  const raw = location.hash.replace(/^#\/?/, "");
+  const [path, qs] = raw.split("?");
+  return { path, params: Object.fromEntries(new URLSearchParams(qs || "")) };
+}
+function route() {
+  if (!S.profile) return;
+  let { path, params } = parseHash();
+  let key = path, arg = null;
+  if (path.startsWith("txn/")) { key = "txn"; arg = decodeURIComponent(path.slice(4)); }
+  const r = ROUTES[key];
+  if (!r || !r.roles.includes(S.profile.role)) { location.hash = "#/" + homeOf(S.profile.role); return; }
+  S.scan = null;
+  $$("#side a").forEach(a => a.classList.toggle("on", a.dataset.k === key));
+  r.fn(arg, params);
+  $("#main").focus({ preventScroll: true });
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+const setMain = h => { $("#main").innerHTML = h; };
+
+/* ================== CASHIER: HOME ================== */
+function viewHome() {
+  const s = S.settings;
+  setMain(`
+    <div class="head"><div><h1>Begin transaction</h1><p>Tap the member's rewards card, or type the card number.</p></div></div>
+    <div class="tap live">
+      <div class="waves">${TAP_SVG}</div>
+      <p class="big">Tap a rewards card on the reader</p>
+      <form id="ff"><input class="i" id="key" placeholder="Or type card number" autocomplete="off" aria-label="Card number">
+      <button class="btn">Find member</button></form>
+    </div>
+    <dl class="facts">
+      <div><dt>Points conversion</dt><dd class="num">${peso(convRate())} = 1 point</dd></div>
+      <div><dt>Card cost</dt><dd>${esc(s.CARD_COST?.value || "—")}</dd></div>
+      <div><dt>Card validity</dt><dd>${s.EXPIRY_YEAR?.value ? esc(s.EXPIRY_YEAR.value) + " year(s)" : "No expiry"}</dd></div>
+    </dl>`);
+  $("#key").focus();
+  $("#ff").onsubmit = e => { e.preventDefault(); openMember($("#key").value); };
+  S.scan = openMember;
+}
+
+async function openMember(key) {
+  try {
+    const card = await findCard(key);
+    if (!card) return toast("Card not found. It may not be pre-registered by the System Admin.", "error");
+    if (!card.is_activated) return toast(`Card ${card.card_number} is deactivated.`, "error");
+    const { data: m } = await sb.from("members").select("member_id").eq("card_number", card.card_number).maybeSingle();
+    if (!m) {
+      const go = await dialog({ title: "Card has no member yet", body: `<p>Card <b>${esc(card.card_number)}</b> is valid but not registered to a member.</p>`, ok: "Register member" });
+      if (go) { sessionStorage.setItem("prefillCard", card.card_number); location.hash = "#/members/register"; }
+      return;
+    }
+    location.hash = "#/txn/" + encodeURIComponent(m.member_id);
+  } catch (e) { toast(errText(e), "error"); }
+}
+
+/* ================== CASHIER: TRANSACTION ================== */
+async function viewTxn(memberId) {
+  setMain(`<p class="hint">Loading member…</p>`);
+  const { data: m, error } = await sb.from("members").select("*, rewards_cards(card_uid,is_activated,expiry_date)").eq("member_id", memberId).maybeSingle();
+  if (error || !m) { setMain(`<div class="panel empty">Member not found. <a href="#/home">Back to transactions</a></div>`); return; }
+  const card = m.rewards_cards || {};
+  const rate = convRate();
+  let mode = "earn";
+
+  setMain(`
+    <div class="head"><div><h1>Transaction</h1><p>Tap another card anytime to switch members.</p></div>
+      <a class="btn ghost" href="#/home">Done</a></div>
+    <div class="txn">
+      <div>
+        <div class="mcard">
+          <div class="top"><span>TDMH Rewards</span><span class="num">Card ${esc(m.card_number || "—")}</span></div>
+          <div class="name">${esc(fullName(m))}</div>
+          <div class="avail"><small>Available points</small><b class="num" id="avail">${pts(m.available_points)}</b></div>
+          <div class="row">
+            <div>Total earned<b class="num" id="tot">${pts(m.total_points)}</b></div>
+            <div>Redeemed<b class="num" id="red">${pts(m.redeemed_points)}</b></div>
+            <div>Expires<b>${card.expiry_date ? dOnly(card.expiry_date) : "Never"}</b></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:1rem">
+          <dl class="kv">
+            <dt>Birthdate</dt><dd>${bday(m.birthdate)}</dd>
+            <dt>Contact</dt><dd>${esc(m.contact_no || "—")}</dd>
+            <dt>Email</dt><dd>${esc(m.email || "—")}</dd>
+            <dt>Member since</dt><dd>${dOnly(m.created_at)}</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="seg" role="tablist">
+          <button data-mode="earn" class="on" type="button">Earn points</button>
+          <button data-mode="redeem" type="button">Redeem points</button>
+        </div>
+        <form id="tx" novalidate>
+          <div class="grid2">
+            <label class="f" id="prRow" hidden><span class="req">Points to redeem</span><input class="i num" id="pr" type="number" min="1" step="1" inputmode="numeric"></label>
+            <label class="f"><span class="req">Receipt number</span><input class="i" id="rn" autocomplete="off"></label>
+            <label class="f"><span class="req">Total amount</span><input class="i num" id="ta" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
+          </div>
+          <p class="hint" id="taHint">Amount of the product or service availed.</p>
+          <div class="calc" id="calc"><span id="calcL">Points to earn</span><b class="num" id="pe">0.00</b></div>
+          <button class="btn earn" id="go">Process transaction</button>
+        </form>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:1.2rem">
+      <div class="head" style="margin-bottom:.8rem"><h2>Transaction history</h2>
+        <button class="btn ghost sm" id="voidBtn">Void last transaction</button></div>
+      <div id="hist"><p class="hint">Loading…</p></div>
+    </div>`);
+
+  const avail = () => Number(m.available_points || 0);
+  function recalc() {
+    const ta = Number($("#ta").value || 0), pr = Number($("#pr").value || 0);
+    $("#pe").textContent = pts(round2(ta / rate));
+    const bad = mode === "redeem" && pr > avail();
+    $("#calc").classList.toggle("bad", bad);
+    $("#calcL").textContent = bad ? `Not enough points (available ${pts(avail())})` : "Points to earn";
+  }
+  function setMode(md) {
+    mode = md;
+    $$(".seg button").forEach(b => b.classList.toggle("on", b.dataset.mode === md));
+    $("#prRow").hidden = md !== "redeem";
+    $("#go").className = "btn " + md;
+    $("#taHint").textContent = md === "redeem" ? "Amount to pay after the points discount. Points are earned on this amount." : "Amount of the product or service availed.";
+    (md === "redeem" ? $("#pr") : $("#rn")).focus();
+    recalc();
+  }
+  $$(".seg button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  ["ta", "pr"].forEach(id => $("#" + id).addEventListener("input", recalc));
+  $("#rn").focus();
+
+  $("#tx").onsubmit = async e => {
+    e.preventDefault();
+    const rn = $("#rn").value.trim(), ta = Number($("#ta").value), pr = mode === "redeem" ? Number($("#pr").value) : 0;
+    if (mode === "redeem" && (!pr || pr <= 0 || !Number.isInteger(pr))) return toast("Enter the points to redeem (whole number).", "error");
+    if (pr > avail()) return toast(`Not enough points. Available: ${pts(avail())}`, "error");
+    if (!rn) return toast("Receipt number is required.", "error");
+    if (!(ta > 0)) return toast("Total amount must be greater than 0.", "error");
+    const earn = round2(ta / rate);
+    const ok = await dialog({
+      title: "Confirm transaction", ok: "Confirm", tone: mode,
+      body: `<dl class="kv">
+        <dt>Member</dt><dd>${esc(fullName(m))}</dd>
+        <dt>Receipt no.</dt><dd>${esc(rn)}</dd>
+        <dt>Total amount</dt><dd class="num">${peso(ta)}</dd>
+        ${pr ? `<dt>Points redeemed</dt><dd class="num" style="color:var(--redeem)">− ${pts(pr)}</dd>` : ""}
+        <dt>Points earned</dt><dd class="num" style="color:var(--earn)">+ ${pts(earn)}</dd>
+      </dl><hr style="border:0;border-top:1px solid var(--line);margin:1rem 0">
+      <dl class="kv">
+        <dt>Total points earned</dt><dd class="num">${pts(Number(m.total_points) + earn)}</dd>
+        <dt>Total points redeemed</dt><dd class="num">${pts(Number(m.redeemed_points) + pr)}</dd>
+        <dt><b>Available points left</b></dt><dd class="num"><b>${pts(avail() + earn - pr)}</b></dd>
+      </dl>` });
+    if (!ok) return;
+    $("#go").disabled = true;
+    const { data, error } = await sb.rpc("process_transaction", { p_member_id: m.member_id, p_receipt_number: rn, p_total_amount: ta, p_redeem_points: pr });
+    $("#go").disabled = false;
+    if (error) return toast(errText(error), "error");
+    Object.assign(m, { total_points: data.total_points, redeemed_points: data.redeemed_points, available_points: data.available_points });
+    refreshCard(); $("#tx").reset(); setMode("earn");
+    toast("Transaction processed.", "ok");
+    if (localStorage.getItem("rw_autoprint") === "1") printReceipt(m, { txn: data.transaction_id, rn, ta, earn: data.earned, redeem: data.redeemed });
+    loadHist();
+  };
+
+  function refreshCard() {
+    $("#avail").textContent = pts(m.available_points);
+    $("#tot").textContent = pts(m.total_points);
+    $("#red").textContent = pts(m.redeemed_points);
+  }
+
+  let hist = [];
+  async function loadHist() {
+    const { data, error } = await sb.from("rewards_transactions")
+      .select("transaction_id,receipt_number,total_amount,created_at,created_by,rewards_transaction_details(transaction_type,points,status)")
+      .eq("member_id", m.member_id).order("transaction_id", { ascending: false }).limit(30);
+    if (error) { $("#hist").innerHTML = `<p class="bad-line">${esc(errText(error))}</p>`; return; }
+    hist = data;
+    if (!data.length) { $("#hist").innerHTML = `<div class="empty">No transactions yet.</div>`; $("#voidBtn").disabled = true; return; }
+    $("#voidBtn").disabled = !data.some(t => t.rewards_transaction_details.some(d => d.status === 1));
+    $("#hist").innerHTML = `<div class="tw"><table class="t"><thead><tr>
+      <th>Date</th><th>Receipt no.</th><th class="r">Amount</th><th class="r">Earned</th><th class="r">Redeemed</th><th>Status</th><th>By</th><th></th></tr></thead><tbody>
+      ${data.map(t => {
+        const d = t.rewards_transaction_details;
+        const e = d.filter(x => x.transaction_type === 1).reduce((a, x) => a + Number(x.points), 0);
+        const r = d.filter(x => x.transaction_type === 2).reduce((a, x) => a + Number(x.points), 0);
+        const v = !d.some(x => x.status === 1);
+        return `<tr class="${v ? "void" : ""}"><td>${dt(t.created_at)}</td><td>${esc(t.receipt_number)}</td>
+          <td class="r num">${peso(t.total_amount)}</td><td class="r num">${e ? "+" + pts(e) : "—"}</td>
+          <td class="r num">${r ? "−" + pts(r) : "—"}</td>
+          <td class="keep">${v ? '<span class="tag no">Voided</span>' : '<span class="tag ok">Approved</span>'}</td>
+          <td>${esc(t.created_by || "")}</td>
+          <td class="keep">${v ? "" : `<button class="btn link" data-print="${t.transaction_id}">Reprint</button>`}</td></tr>`;
+      }).join("")}</tbody></table></div>`;
+    $$("[data-print]").forEach(b => b.onclick = () => {
+      const t = hist.find(x => String(x.transaction_id) === b.dataset.print);
+      const d = t.rewards_transaction_details;
+      printReceipt(m, { txn: t.transaction_id, rn: t.receipt_number, ta: t.total_amount, date: t.created_at, reprint: true,
+        earn: d.filter(x => x.transaction_type === 1).reduce((a, x) => a + Number(x.points), 0),
+        redeem: d.filter(x => x.transaction_type === 2).reduce((a, x) => a + Number(x.points), 0) });
+    });
+  }
+  loadHist();
+
+  $("#voidBtn").onclick = async () => {
+    const t = hist.find(x => x.rewards_transaction_details.some(d => d.status === 1));
+    if (!t) return;
+    const d = t.rewards_transaction_details.filter(x => x.status === 1);
+    const e = d.filter(x => x.transaction_type === 1).reduce((a, x) => a + Number(x.points), 0);
+    const r = d.filter(x => x.transaction_type === 2).reduce((a, x) => a + Number(x.points), 0);
+    const ok = await dialog({
+      title: "Void last transaction?", ok: "Void transaction", tone: "redeem",
+      body: `<p>This will cancel receipt <b>${esc(t.receipt_number)}</b> from ${dt(t.created_at)}.</p>
+        <dl class="kv"><dt>Earned points removed</dt><dd class="num">− ${pts(e)}</dd>
+        ${r ? `<dt>Redeemed points returned</dt><dd class="num">+ ${pts(r)}</dd>` : ""}
+        <dt><b>Available after void</b></dt><dd class="num"><b>${pts(avail() - e + r)}</b></dd></dl>` });
+    if (!ok) return;
+    const { data, error } = await sb.rpc("void_last_transaction", { p_member_id: m.member_id });
+    if (error) return toast(errText(error), "error");
+    Object.assign(m, { total_points: data.total_points, redeemed_points: data.redeemed_points, available_points: data.available_points });
+    refreshCard(); toast("Transaction voided.", "ok"); loadHist();
+  };
+
+  S.scan = openMember;
+}
+
+function printReceipt(m, r) {
+  const w = Number(localStorage.getItem("rw_paper") || 80);
+  const line = (a, b) => `<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+    @page{size:${w}mm auto;margin:2mm}body{font:12px/1.35 "Courier New",monospace;width:${w - 6}mm;margin:0 auto;color:#000}
+    h1{font-size:14px;text-align:center;margin:0}p{text-align:center;margin:2px 0}table{width:100%;border-collapse:collapse}
+    hr{border:0;border-top:1px dashed #000;margin:6px 0}</style></head><body>
+    <h1>TAYTAY DOCTORS</h1><p>Multispecialty Hospital</p><p>REWARDS ${r.reprint ? "(REPRINT)" : ""}</p><hr>
+    <table>${line("Date", dt(r.date || new Date()))}${line("Txn #", r.txn)}${line("Receipt #", esc(r.rn))}
+    ${line("Card #", esc(m.card_number))}</table><p style="text-align:left">${esc(fullName(m))}</p><hr>
+    <table>${line("Amount", peso(r.ta))}${r.redeem ? line("Redeemed", "-" + pts(r.redeem)) : ""}${line("Earned", "+" + pts(r.earn))}</table><hr>
+    <table>${line("<b>Available pts</b>", "<b>" + pts(m.available_points) + "</b>")}</table><hr>
+    <p>Cashier: ${esc(S.profile.username)}</p><p>Thank you!</p></body></html>`;
+  const f = document.createElement("iframe");
+  f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(f);
+  f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+  setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); setTimeout(() => f.remove(), 1500); }, 250);
+}
+
+/* ================== MEMBERS: REGISTER ================== */
+function memberFields(m = {}) {
+  return `<div class="grid2">
+    <label class="f"><span class="req">First name</span><input class="i" name="first" value="${esc(m.first_name)}" required></label>
+    <label class="f">Middle name<input class="i" name="middle" value="${esc(m.middle_name)}"></label>
+    <label class="f"><span class="req">Last name</span><input class="i" name="last" value="${esc(m.last_name)}" required></label>
+    <label class="f"><span class="req">Birthdate</span><input class="i" name="birthdate" type="date" value="${esc(m.birthdate)}" required></label>
+    <label class="f">Contact number<input class="i" name="contact" value="${esc(m.contact_no)}" inputmode="tel"></label>
+    <label class="f">Email address<input class="i" name="email" type="email" value="${esc(m.email)}"></label>
+  </div>
+  <label class="f" style="margin-top:.9rem">Address<input class="i" name="address" value="${esc(m.address)}"></label>`;
+}
+
+async function checkNewCard(key) {
+  const card = await findCard(key);
+  if (!card) return { err: "Invalid card. It has not been pre-registered by the System Admin." };
+  if (!card.is_activated) return { err: `Card ${card.card_number} is deactivated.` };
+  if (card.registered) return { err: `Card ${card.card_number} is already registered to another member.` };
+  const { data } = await sb.from("members").select("member_id").eq("card_number", card.card_number).maybeSingle();
+  if (data) return { err: `Card ${card.card_number} is already registered to another member.` };
+  return { card };
+}
+
+function viewRegister() {
+  let card = null;
+  setMain(`
+    <div class="head"><div><h1>Register member</h1><p>Tap the new rewards card, then fill in the member's details.</p></div></div>
+    <div class="panel">
+      <h2 style="margin-bottom:.8rem">Rewards card</h2>
+      <form id="cf" style="display:flex;gap:.5rem;max-width:460px">
+        <input class="i" id="ck" placeholder="Tap card or type card number" autocomplete="off" aria-label="Card">
+        <button class="btn ghost">Check card</button></form>
+      <div id="cres" style="margin-top:.8rem"></div>
+    </div>
+    <form class="panel" id="mf">
+      <h2 style="margin-bottom:.8rem">Member details</h2>
+      ${memberFields()}
+      <div style="margin-top:1.2rem"><button class="btn" id="save">Register member</button></div>
+    </form>`);
+  async function check(k) {
+    $("#ck").value = k;
+    card = null;
+    const r = await checkNewCard(k).catch(e => ({ err: errText(e) }));
+    if (r.err) { $("#cres").innerHTML = `<div class="bad-line">${esc(r.err)}</div>`; return; }
+    card = r.card;
+    $("#cres").innerHTML = `<div class="ok-line">Card ${esc(card.card_number)} is valid and ready to use.</div>`;
+    $("[name=first]").focus();
+  }
+  $("#cf").onsubmit = e => { e.preventDefault(); check($("#ck").value); };
+  S.scan = check;
+  const pre = sessionStorage.getItem("prefillCard");
+  if (pre) { sessionStorage.removeItem("prefillCard"); check(pre); } else $("#ck").focus();
+
+  $("#mf").onsubmit = async e => {
+    e.preventDefault();
+    if (!card) return toast("Tap or check a valid card first.", "error");
+    const f = Object.fromEntries(new FormData(e.target));
+    if (!f.first.trim() || !f.last.trim() || !f.birthdate) return toast("First name, last name and birthdate are required.", "error");
+    $("#save").disabled = true;
+    const { data, error } = await sb.rpc("register_member", {
+      p_card_key: card.card_number, p_first: f.first, p_middle: f.middle, p_last: f.last, p_birthdate: f.birthdate,
+      p_address: f.address, p_contact: f.contact, p_email: f.email });
+    $("#save").disabled = false;
+    if (error) return toast(errText(error), "error");
+    const go = await dialog({ title: "Member registered", body: `<p><b>${esc(f.last)}, ${esc(f.first)}</b> is now linked to card ${esc(data.card_number)}.</p>`,
+      ok: S.profile.role === "cashier" ? "Start transaction" : "Register another", cancel: "Close" });
+    if (go && S.profile.role === "cashier") location.hash = "#/txn/" + encodeURIComponent(data.member_id);
+    else viewRegister();
+  };
+}
+
+/* ================== MEMBERS: UPDATE ================== */
+function viewUpdate() {
+  setMain(`
+    <div class="head"><div><h1>Update member</h1><p>Search by name or card number, or tap the member's card.</p></div></div>
+    <form class="filters" id="sf">
+      <label class="f" style="max-width:420px;flex:1 1 300px">Search<input class="i" id="sq" autocomplete="off" placeholder="e.g. Dela Cruz Juan, or 71127056"></label>
+      <button class="btn">Search</button></form>
+    <div id="res"></div><div id="edit"></div>`);
+  $("#sq").focus();
+  $("#sf").onsubmit = e => { e.preventDefault(); search($("#sq").value); };
+  S.scan = async k => {
+    const c = await findCard(k).catch(() => null);
+    if (!c) return toast("Card not found.", "error");
+    const { data } = await sb.from("members").select("*").eq("card_number", c.card_number).maybeSingle();
+    if (!data) return toast(`Card ${c.card_number} is not linked to any member.`, "error");
+    $("#res").innerHTML = ""; editMember(data);
+  };
+
+  async function search(q) {
+    q = cleanQ(q);
+    if (!q) return;
+    let query = sb.from("members").select("*").order("last_name").limit(50);
+    if (/^\d{4,}$/.test(q)) query = query.eq("card_number", q);
+    else for (const w of q.split(/\s+/)) query = query.or(`first_name.ilike.%${w}%,middle_name.ilike.%${w}%,last_name.ilike.%${w}%`);
+    const { data, error } = await query;
+    if (error) return toast(errText(error), "error");
+    $("#edit").innerHTML = "";
+    $("#res").innerHTML = !data.length ? `<div class="panel empty">No members match “${esc(q)}”.</div>` :
+      `<div class="tw"><table class="t"><thead><tr><th>Name</th><th>Card no.</th><th>Birthdate</th><th class="r">Available points</th><th></th></tr></thead><tbody>
+      ${data.map((m, i) => `<tr><td>${esc(fullName(m))}</td><td>${esc(m.card_number)}</td><td>${bday(m.birthdate)}</td>
+        <td class="r num">${pts(m.available_points)}</td><td class="r"><button class="btn sm ghost" data-i="${i}">Select</button></td></tr>`).join("")}
+      </tbody></table></div>${data.length === 50 ? `<p class="hint">Showing the first 50 matches. Add more words to narrow the search.</p>` : ""}`;
+    $$("[data-i]").forEach(b => b.onclick = () => { $("#res").innerHTML = ""; editMember(data[b.dataset.i]); });
+  }
+
+  function editMember(m) {
+    let newCard = null;
+    $("#edit").innerHTML = `
+      <form class="panel" id="ef">
+        <div class="head" style="margin-bottom:1rem"><h2>${esc(fullName(m))}</h2>
+          <span class="tag gold num">${pts(m.available_points)} points available</span></div>
+        ${memberFields(m)}
+        <div class="panel" style="margin-top:1.2rem;background:#F9FAFA">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+            <div><b>Rewards card</b><div id="cardTxt">Card ${esc(m.card_number)}</div></div>
+            <div id="cardBtns"><button type="button" class="btn ghost sm" id="setCard">Set new card</button></div>
+          </div>
+          <p class="hint">For lost cards. The old card is deactivated automatically and points stay with the member.</p>
+        </div>
+        <div style="margin-top:1.2rem;display:flex;gap:.5rem"><button class="btn" id="upd">Update member</button>
+          <button type="button" class="btn ghost" id="cancel">Cancel</button></div>
+      </form>`;
+    $("#cancel").onclick = () => { $("#edit").innerHTML = ""; $("#sq").focus(); };
+    const drawCard = () => {
+      $("#cardTxt").innerHTML = newCard ? `<s>Card ${esc(m.card_number)}</s> → <b>Card ${esc(newCard.card_number)}</b> <span class="tag gold">Not saved yet</span>` : `Card ${esc(m.card_number)}`;
+      $("#cardBtns").innerHTML = newCard ? `<button type="button" class="btn ghost sm" id="rmCard">Remove</button>` : `<button type="button" class="btn ghost sm" id="setCard">Set new card</button>`;
+      if (newCard) $("#rmCard").onclick = () => { newCard = null; drawCard(); };
+      else $("#setCard").onclick = tapNew;
+    };
+    async function tapNew() {
+      const prevScan = S.scan;
+      await dialog({
+        title: "Tap new card", ok: null, cancel: "Close",
+        body: `<div class="tap live" style="padding:1.4rem"><div class="waves">${TAP_SVG}</div>
+          <form id="nf" style="display:flex;gap:.5rem;width:100%"><input class="i" id="nk" placeholder="Tap or type card number" autocomplete="off" aria-label="New card">
+          <button class="btn">Check</button></form><div id="nres" style="width:100%"></div></div>`,
+        onOpen: (d, done) => {
+          $("#nk").focus();
+          $("#nf").onsubmit = async e => {
+            e.preventDefault();
+            const r = await checkNewCard($("#nk").value).catch(er => ({ err: errText(er) }));
+            if (r.err) { $("#nres").innerHTML = `<div class="bad-line">${esc(r.err)}</div>`; $("#nk").select(); return; }
+            newCard = r.card; done(true);
+          };
+        }
+      });
+      S.scan = prevScan; drawCard();
+    }
+    drawCard();
+    $("[name=first]").focus();
+
+    $("#ef").onsubmit = async e => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      if (!f.first.trim() || !f.last.trim() || !f.birthdate) return toast("First name, last name and birthdate are required.", "error");
+      const ok = await dialog({ title: "Update member?", body: `<p>Save changes to <b>${esc(fullName(m))}</b>${newCard ? ` and move points to card <b>${esc(newCard.card_number)}</b>` : ""}?</p>`, ok: "Update member" });
+      if (!ok) return;
+      const { error } = await sb.rpc("update_member", { p_member_id: m.member_id, p_first: f.first, p_middle: f.middle, p_last: f.last,
+        p_birthdate: f.birthdate, p_address: f.address, p_contact: f.contact, p_email: f.email });
+      if (error) return toast(errText(error), "error");
+      if (newCard) {
+        const { error: ce } = await sb.rpc("set_new_card", { p_member_id: m.member_id, p_card_key: newCard.card_number });
+        if (ce) return toast("Details saved, but the card change failed: " + errText(ce), "error");
+      }
+      toast("Member updated.", "ok");
+      $("#edit").innerHTML = ""; $("#sq").value = ""; $("#sq").focus();
+    };
+  }
+}
+
+/* ================== DASHBOARD ================== */
+async function viewDashboard() {
+  setMain(`<div class="head"><div><h1>Dashboard</h1><p>Rewards program at a glance.</p></div></div><div id="st"><p class="hint">Loading…</p></div>`);
+  const { data: s, error } = await sb.rpc("dashboard_stats");
+  if (error) { $("#st").innerHTML = `<div class="bad-line">${esc(errText(error))}</div>`; return; }
+  const n = v => Number(v).toLocaleString("en-PH");
+  const items = [
+    ["Registered members", n(s.total_members)], ["New members this month", n(s.new_members_month)],
+    ["Transactions today", n(s.txn_today)], ["Transactions this month", n(s.txn_month)],
+    ["Sales with rewards this month", peso(s.sales_month)], ["Points earned (all time)", pts(s.points_earned)],
+    ["Points redeemed (all time)", pts(s.points_redeemed)], ["Points still available", pts(s.points_available)],
+    ["Cards pre-registered", n(s.total_cards)], ["Cards ready to issue", n(s.available_cards)], ["Deactivated cards", n(s.deactivated_cards)],
+  ];
+  $("#st").innerHTML = `<dl class="stats">${items.map(([a, b]) => `<div><dt>${a}</dt><dd class="num">${b}</dd></div>`).join("")}</dl>`;
+}
+
+/* ================== GENERIC REPORT ================== */
+async function report(cfg) {
+  setMain(`
+    <div class="head"><div><h1>${cfg.title}</h1>${cfg.sub ? `<p>${cfg.sub}</p>` : ""}</div>
+      <button class="btn ghost" id="exp">Export list to Excel</button></div>
+    ${cfg.pre || ""}
+    <form class="filters" id="ff">${cfg.filters}
+      <button class="btn">Apply filters</button><button type="button" class="btn ghost" id="clr">Clear</button></form>
+    <div class="tw"><table class="t"><thead><tr>${cfg.cols.map(c => `<th class="${c.r ? "r" : ""}">${c.h}</th>`).join("")}${cfg.actions ? "<th></th>" : ""}</tr></thead>
+    <tbody id="tb"></tbody></table></div>
+    <div class="pager"><span id="pi"></span><div><button class="btn ghost sm" id="prev">Previous</button><button class="btn ghost sm" id="next">Next</button></div></div>`);
+  const SIZE = 50; let page = 0, rows = [];
+  if (cfg.prefill) for (const [k, v] of Object.entries(cfg.prefill)) { const el = $(`#ff [name="${k}"]`); if (el) el.value = v; }
+  const F = () => Object.fromEntries(new FormData($("#ff")));
+  async function load() {
+    $("#tb").innerHTML = `<tr><td colspan="99" class="empty">Loading…</td></tr>`;
+    const { data, count, error } = await cfg.query(F(), true).range(page * SIZE, page * SIZE + SIZE - 1);
+    if (error) { $("#tb").innerHTML = `<tr><td colspan="99" class="empty">${esc(errText(error))}</td></tr>`; return; }
+    rows = data;
+    $("#tb").innerHTML = data.length ? data.map((r, i) => `<tr class="${cfg.rowClass ? cfg.rowClass(r) : ""}">${cfg.cols.map(c => `<td class="${c.r ? "r num" : ""} keep">${c.v(r)}</td>`).join("")}
+      ${cfg.actions ? `<td class="r" style="white-space:nowrap">${cfg.actions(r, i)}</td>` : ""}</tr>`).join("")
+      : `<tr><td colspan="99" class="empty">No records match these filters.</td></tr>`;
+    const from = count ? page * SIZE + 1 : 0, to = Math.min(count, page * SIZE + SIZE);
+    $("#pi").textContent = `${from.toLocaleString()}–${to.toLocaleString()} of ${(count || 0).toLocaleString()}`;
+    $("#prev").disabled = page === 0; $("#next").disabled = to >= count;
+    cfg.bind && cfg.bind(rows, load);
+  }
+  $("#ff").onsubmit = e => { e.preventDefault(); page = 0; load(); };
+  $("#clr").onclick = () => { $("#ff").reset(); $$("#ff input[type=hidden]").forEach(i => i.value = ""); page = 0; load(); };
+  $("#prev").onclick = () => { page--; load(); };
+  $("#next").onclick = () => { page++; load(); };
+  $("#exp").onclick = async () => {
+    $("#exp").disabled = true; $("#exp").textContent = "Exporting…";
+    try {
+      const all = []; const f = F();
+      for (let p = 0; ; p++) {
+        const { data, error } = await cfg.query(f, false).range(p * 1000, p * 1000 + 999);
+        if (error) throw error;
+        all.push(...data); if (data.length < 1000) break;
+      }
+      const sheet = XLSX.utils.json_to_sheet(all.map(r => Object.fromEntries(cfg.cols.map(c => [c.h, c.x ? c.x(r) : c.v(r)]))));
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, sheet, "Report");
+      XLSX.writeFile(wb, `${cfg.file}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      log("EXPORT", cfg.file, `${all.length} rows`);
+    } catch (e) { toast(errText(e), "error"); }
+    $("#exp").disabled = false; $("#exp").textContent = "Export list to Excel";
+  };
+  cfg.mount && cfg.mount(load);
+  load();
+  return load;
+}
+const dateFilters = (label = "Date") => `<label class="f">${label} from<input class="i" type="date" name="from"></label><label class="f">${label} to<input class="i" type="date" name="to"></label>`;
+function applyDates(q, f, col = "created_at") {
+  if (f.from) q = q.gte(col, dayStart(f.from));
+  if (f.to) q = q.lte(col, dayEnd(f.to));
+  return q;
+}
+function applyName(q, name) {
+  for (const w of cleanQ(name).split(/\s+/).filter(Boolean)) q = q.or(`first_name.ilike.%${w}%,middle_name.ilike.%${w}%,last_name.ilike.%${w}%`);
+  return q;
+}
+
+/* ================== REPORTS ================== */
+function viewRptMembers() {
+  report({
+    title: "Members", file: "members",
+    filters: `<label class="f">Name<input class="i" name="name"></label><label class="f">Card no.<input class="i" name="card"></label>
+      ${dateFilters("Registered")}
+      <label class="f">Status<select class="i" name="status"><option value="">All</option><option value="1">Active</option><option value="0">Inactive</option></select></label>`,
+    query: (f, c) => {
+      let q = sb.from("members").select("*", c ? { count: "exact" } : undefined).order("created_at", { ascending: false }).order("member_id");
+      q = applyName(q, f.name); if (f.card) q = q.eq("card_number", cleanKey(f.card));
+      q = applyDates(q, f); if (f.status !== "") q = q.eq("status", f.status);
+      return q;
+    },
+    cols: [
+      { h: "Name", v: r => esc(fullName(r)), x: r => fullName(r) },
+      { h: "Card no.", v: r => esc(r.card_number), x: r => r.card_number },
+      { h: "Birthdate", v: r => bday(r.birthdate) },
+      { h: "Contact", v: r => esc(r.contact_no || ""), x: r => r.contact_no || "" },
+      { h: "Total points", r: 1, v: r => pts(r.total_points), x: r => Number(r.total_points) },
+      { h: "Available", r: 1, v: r => pts(r.available_points), x: r => Number(r.available_points) },
+      { h: "Redeemed", r: 1, v: r => pts(r.redeemed_points), x: r => Number(r.redeemed_points) },
+      { h: "Registered", v: r => dOnly(r.created_at) },
+      { h: "Status", v: r => r.status === 1 ? '<span class="tag ok">Active</span>' : '<span class="tag">Inactive</span>', x: r => r.status === 1 ? "Active" : "Inactive" },
+    ],
+    actions: r => `<a class="btn link" target="_blank" href="#/reports/transactions?member=${encodeURIComponent(r.member_id)}&name=${encodeURIComponent(fullName(r))}">View transactions</a>`,
+  });
+}
+
+function viewRptTxn(_, params) {
+  report({
+    title: "Transactions", file: "transactions", sub: params.name ? `Showing transactions of ${esc(params.name)}.` : "",
+    prefill: { member: params.member || "" },
+    filters: `<input type="hidden" name="member">${dateFilters()}
+      <label class="f">Type<select class="i" name="type"><option value="">All</option><option value="1">Earn</option><option value="2">Redeem</option></select></label>
+      <label class="f">Status<select class="i" name="status"><option value="">All</option><option value="1">Approved</option><option value="0">Voided</option></select></label>
+      <label class="f">Receipt no.<input class="i" name="receipt"></label>`,
+    query: (f, c) => {
+      let q = sb.from("v_transaction_report").select("*", c ? { count: "exact" } : undefined).order("detail_id", { ascending: false });
+      if (f.member) q = q.eq("member_id", f.member);
+      q = applyDates(q, f); if (f.type) q = q.eq("transaction_type", f.type); if (f.status !== "") q = q.eq("status", f.status);
+      if (f.receipt) q = q.ilike("receipt_number", `%${cleanQ(f.receipt)}%`);
+      return q;
+    },
+    rowClass: r => r.status === 0 ? "void" : "",
+    cols: [
+      { h: "Date", v: r => dt(r.created_at) },
+      { h: "Txn #", v: r => r.transaction_id },
+      { h: "Receipt no.", v: r => esc(r.receipt_number), x: r => r.receipt_number },
+      { h: "Member", v: r => esc(fullName(r)), x: r => fullName(r) },
+      { h: "Card no.", v: r => esc(r.card_number), x: r => r.card_number },
+      { h: "Type", v: r => r.transaction_type === 1 ? '<span class="tag ok">Earn</span>' : '<span class="tag no">Redeem</span>', x: r => r.transaction_type === 1 ? "Earn" : "Redeem" },
+      { h: "Points", r: 1, v: r => pts(r.points), x: r => Number(r.points) },
+      { h: "Amount", r: 1, v: r => peso(r.total_amount), x: r => Number(r.total_amount) },
+      { h: "Status", v: r => r.status === 1 ? "Approved" : "Voided" },
+      { h: "By", v: r => esc(r.created_by || ""), x: r => r.created_by || "" },
+    ],
+  });
+}
+
+function cardsCfg(extra = {}) {
+  return {
+    title: "Rewards cards", file: "rewards_cards",
+    filters: `<label class="f">Card no. or UID<input class="i" name="card"></label>${dateFilters("Created")}
+      <label class="f">Status<select class="i" name="status"><option value="">All</option><option value="true">Activated</option><option value="false">Deactivated</option></select></label>
+      <label class="f">Issued to member<select class="i" name="reg"><option value="">All</option><option value="true">Yes</option><option value="false">No</option></select></label>`,
+    query: (f, c) => {
+      let q = sb.from("rewards_cards").select("*", c ? { count: "exact" } : undefined).order("created_at", { ascending: false }).order("card_number");
+      const k = cleanKey(f.card); if (k) q = q.or(`card_number.eq.${k},card_uid.eq.${k.toUpperCase()}`);
+      q = applyDates(q, f); if (f.status) q = q.eq("is_activated", f.status === "true"); if (f.reg) q = q.eq("registered", f.reg === "true");
+      return q;
+    },
+    cols: [
+      { h: "Card no.", v: r => esc(r.card_number), x: r => r.card_number },
+      { h: "Card UID", v: r => esc(r.card_uid), x: r => r.card_uid },
+      { h: "Issued", v: r => r.registered ? "Yes" : "No" },
+      { h: "Expiry", v: r => r.expiry_date ? dOnly(r.expiry_date) : "None" },
+      { h: "Created", v: r => dOnly(r.created_at) },
+      { h: "Status", v: r => r.is_activated ? '<span class="tag ok">Activated</span>' : '<span class="tag no">Deactivated</span>', x: r => r.is_activated ? "Activated" : "Deactivated" },
+    ],
+    ...extra,
+  };
+}
+function viewRptCards() { report(cardsCfg()); }
+
+function usersCfg(extra = {}) {
+  return {
+    title: "Users", file: "users",
+    filters: `<label class="f">Name or username<input class="i" name="name"></label>
+      <label class="f">Role<select class="i" name="role"><option value="">All</option>${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+      <label class="f">Status<select class="i" name="status"><option value="">All</option><option value="true">Active</option><option value="false">Inactive</option></select></label>`,
+    query: (f, c) => {
+      let q = sb.from("profiles").select("*", c ? { count: "exact" } : undefined).order("username");
+      const n = cleanQ(f.name); if (n) q = q.or(`username.ilike.%${n}%,first_name.ilike.%${n}%,last_name.ilike.%${n}%`);
+      if (f.role) q = q.eq("role", f.role); if (f.status) q = q.eq("is_active", f.status === "true");
+      return q;
+    },
+    cols: [
+      { h: "Username", v: r => esc(r.username), x: r => r.username },
+      { h: "Name", v: r => esc(`${r.first_name || ""} ${r.last_name || ""}`), x: r => `${r.first_name || ""} ${r.last_name || ""}` },
+      { h: "Role", v: r => ROLE_LABEL[r.role] },
+      { h: "Contact", v: r => esc(r.contact_no || ""), x: r => r.contact_no || "" },
+      { h: "Email", v: r => esc(r.email || ""), x: r => r.email || "" },
+      { h: "Status", v: r => r.is_active ? '<span class="tag ok">Active</span>' : '<span class="tag no">Inactive</span>', x: r => r.is_active ? "Active" : "Inactive" },
+    ],
+    ...extra,
+  };
+}
+function viewRptUsers() { report(usersCfg()); }
+
+/* ================== ADMIN: CARDS ================== */
+function viewAdmCards() {
+  let uid = null;
+  report(cardsCfg({
+    title: "Manage cards", sub: "Pre-register new cards so cashiers can issue them, or deactivate lost cards.",
+    pre: `<div class="panel" style="margin-bottom:1.2rem">
+      <h2 style="margin-bottom:.8rem">Register a new card</h2>
+      <form id="rc" class="filters" style="margin:0">
+        <label class="f" style="max-width:260px"><span class="req">Card UID</span><input class="i" id="ru" placeholder="Tap the card" autocomplete="off"></label>
+        <label class="f" style="max-width:260px">Card number <small>(printed on card; blank = auto)</small><input class="i" id="rnum" autocomplete="off"></label>
+        <button class="btn">Register card</button>
+        <label style="display:flex;gap:.4rem;align-items:center;font-size:.9rem;padding-bottom:.6rem"><input type="checkbox" id="auto"> Auto-register after tap</label>
+      </form><div id="rres" style="margin-top:.8rem"></div></div>`,
+    actions: (r, i) => `<button class="btn sm ${r.is_activated ? "ghost" : ""}" data-tog="${i}">${r.is_activated ? "Deactivate" : "Activate"}</button>`,
+    bind: (rows, load) => $$("[data-tog]").forEach(b => b.onclick = async () => {
+      const r = rows[b.dataset.tog], act = !r.is_activated;
+      const ok = await dialog({ title: act ? "Activate card?" : "Deactivate card?", tone: act ? "" : "redeem", ok: act ? "Activate" : "Deactivate",
+        body: act ? `<p>Card <b>${esc(r.card_number)}</b> will be usable again.</p>` : `<p>Card <b>${esc(r.card_number)}</b> will no longer work for transactions. You can activate it again later.</p>` });
+      if (!ok) return;
+      const { error } = await sb.from("rewards_cards").update({ is_activated: act, updated_at: new Date().toISOString(), updated_by: S.profile.username }).eq("card_number", r.card_number);
+      if (error) return toast(errText(error), "error");
+      log(act ? "ACTIVATE_CARD" : "DEACTIVATE_CARD", r.card_number);
+      toast(act ? "Card activated." : "Card deactivated.", "ok"); load();
+    }),
+    mount: load => {
+      const register = async () => {
+        const u = cleanKey($("#ru").value).toUpperCase();
+        if (!u) return toast("Tap the card to read its UID.", "error");
+        const { data, error } = await sb.rpc("register_card", { p_card_uid: u, p_card_number: $("#rnum").value.trim() || null });
+        if (error) { $("#rres").innerHTML = `<div class="bad-line">${esc(errText(error))}</div>`; return; }
+        $("#rres").innerHTML = `<div class="ok-line">Registered card ${esc(data.card_number)} (UID ${esc(data.card_uid)}).</div>`;
+        $("#ru").value = ""; $("#rnum").value = ""; $("#ru").focus(); load();
+      };
+      $("#rc").onsubmit = e => { e.preventDefault(); register(); };
+      S.scan = k => {
+        $("#ru").value = k; $("#rres").innerHTML = `<div class="ok-line">Card UID: ${esc(k.toUpperCase())}</div>`;
+        if ($("#auto").checked) register(); else $("#rnum").focus();
+      };
+      $("#ru").addEventListener("keydown", e => { if (e.key === "Enter" && !$("#auto").checked) { e.preventDefault(); $("#rnum").focus(); } });
+      $("#ru").focus();
+    },
+  }));
+}
+
+/* ================== ADMIN: USERS ================== */
+async function adminUsers(body) {
+  const { data, error } = await sb.functions.invoke("admin-users", { body });
+  if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch {} throw new Error(msg); }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+function viewAdmUsers() {
+  let editing = null, reload = null;
+  const form = u => `
+    <form class="panel" id="uf" style="margin-bottom:1.2rem">
+      <h2 style="margin-bottom:.8rem">${u ? "Edit user: " + esc(u.username) : "Add new user"}</h2>
+      <div class="grid2">
+        <label class="f"><span class="req">Username</span><input class="i" name="username" value="${esc(u?.username)}" ${u ? "disabled" : "required"} autocomplete="off"></label>
+        <label class="f"><span class="${u ? "" : "req"}">${u ? "New password" : "Password"}</span><input class="i" name="password" type="password" autocomplete="new-password" placeholder="${u ? "Leave blank to keep current" : "At least 6 characters"}"></label>
+        <label class="f"><span class="req">First name</span><input class="i" name="first_name" value="${esc(u?.first_name)}" required></label>
+        <label class="f"><span class="req">Last name</span><input class="i" name="last_name" value="${esc(u?.last_name)}" required></label>
+        <label class="f"><span class="req">Role</span><select class="i" name="role">${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}" ${u?.role === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+        <label class="f">Contact number<input class="i" name="contact_no" value="${esc(u?.contact_no)}"></label>
+        <label class="f">Email address<input class="i" name="email" type="email" value="${esc(u?.email)}"></label>
+      </div>
+      <div style="margin-top:1rem;display:flex;gap:.5rem"><button class="btn">${u ? "Save changes" : "Add user"}</button>
+        ${u ? `<button type="button" class="btn ghost" id="ucancel">Cancel</button>` : ""}</div>
+    </form>`;
+  function mountForm() {
+    $("#ufWrap").innerHTML = form(editing);
+    if ($("#ucancel")) $("#ucancel").onclick = () => { editing = null; mountForm(); };
+    $("#uf").onsubmit = async e => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      try {
+        if (editing) {
+          await adminUsers({ action: "update", id: editing.id, first_name: f.first_name, last_name: f.last_name, role: f.role,
+            contact_no: f.contact_no, email: f.email, ...(f.password ? { password: f.password } : {}) });
+          toast(f.password ? "User updated and password reset." : "User updated.", "ok");
+        } else {
+          await adminUsers({ action: "create", ...f });
+          toast("User added.", "ok");
+        }
+        editing = null; mountForm(); reload && reload();
+      } catch (er) { toast(errText(er), "error"); }
+    };
+  }
+  report(usersCfg({
+    title: "Manage users", sub: "Add staff accounts, reset passwords, and activate or deactivate access.",
+    pre: `<div id="ufWrap"></div>`,
+    actions: (r, i) => `<button class="btn sm ghost" data-ed="${i}">Edit</button>
+      <button class="btn sm ${r.is_active ? "ghost" : ""}" data-act="${i}" ${r.id === S.profile.id ? "disabled" : ""}>${r.is_active ? "Deactivate" : "Activate"}</button>`,
+    bind: (rows, load) => {
+      reload = load;
+      $$("[data-ed]").forEach(b => b.onclick = () => { editing = rows[b.dataset.ed]; mountForm(); $("#uf").scrollIntoView({ behavior: "smooth" }); });
+      $$("[data-act]").forEach(b => b.onclick = async () => {
+        const r = rows[b.dataset.act], act = !r.is_active;
+        const ok = await dialog({ title: act ? "Activate user?" : "Deactivate user?", tone: act ? "" : "redeem", ok: act ? "Activate" : "Deactivate",
+          body: `<p><b>${esc(r.username)}</b> ${act ? "will be able to sign in again." : "will no longer be able to sign in."}</p>` });
+        if (!ok) return;
+        try { await adminUsers({ action: "update", id: r.id, is_active: act }); toast(act ? "User activated." : "User deactivated.", "ok"); load(); }
+        catch (er) { toast(errText(er), "error"); }
+      });
+    },
+    mount: () => mountForm(),
+  }));
+}
+
+/* ================== ADMIN: SETTINGS ================== */
+function viewSettings() {
+  const s = S.settings;
+  setMain(`
+    <div class="head"><div><h1>Settings</h1><p>Changes apply to new transactions and new card registrations only.</p></div></div>
+    <form class="panel" id="sf" style="max-width:640px">
+      <div class="grid2">
+        <label class="f"><span class="req">Conversion rate</span><input class="i num" name="CONVERSION_RATE" type="number" min="1" step="1" value="${esc(s.CONVERSION_RATE?.value)}">
+          <small>Amount in pesos equal to 1 point.</small></label>
+        <label class="f">Card validity (years)<input class="i num" name="EXPIRY_YEAR" type="number" min="1" step="1" value="${esc(s.EXPIRY_YEAR?.value)}">
+          <small>Leave blank for no expiry. Existing cards keep their current expiry.</small></label>
+        <label class="f">Card cost<input class="i" name="CARD_COST" value="${esc(s.CARD_COST?.value)}"><small>Shown to cashiers, e.g. FREE or 50.</small></label>
+      </div>
+      <div style="margin-top:1.2rem"><button class="btn">Save settings</button></div>
+    </form>`);
+  $("#sf").onsubmit = async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const r = Number(f.CONVERSION_RATE);
+    if (!Number.isInteger(r) || r <= 0) return toast("Conversion rate must be a whole number greater than 0.", "error");
+    if (f.EXPIRY_YEAR && (!Number.isInteger(Number(f.EXPIRY_YEAR)) || Number(f.EXPIRY_YEAR) <= 0)) return toast("Card validity must be a whole number of years, or blank.", "error");
+    const ok = await dialog({ title: "Save settings?", body: `<dl class="kv"><dt>Conversion rate</dt><dd>${peso(r)} = 1 point</dd><dt>Card validity</dt><dd>${f.EXPIRY_YEAR ? esc(f.EXPIRY_YEAR) + " year(s)" : "No expiry"}</dd><dt>Card cost</dt><dd>${esc(f.CARD_COST || "—")}</dd></dl>`, ok: "Save settings" });
+    if (!ok) return;
+    for (const k of ["CONVERSION_RATE", "EXPIRY_YEAR", "CARD_COST"]) {
+      const v = f[k].trim() || null;
+      if ((s[k]?.value ?? null) === v) continue;
+      const { error } = await sb.from("app_settings").update({ value: v, updated_at: new Date().toISOString(), updated_by: S.profile.username }).eq("key", k);
+      if (error) return toast(errText(error), "error");
+      log("UPDATE_SETTING", k, `${s[k]?.value ?? ""} -> ${v ?? ""}`);
+    }
+    await loadSettings(); toast("Settings saved.", "ok"); viewSettings();
+  };
+}
+
+/* ================== ADMIN: LOGS ================== */
+function viewLogs() {
+  report({
+    title: "Application logs", file: "app_logs",
+    filters: `<label class="f">Action or detail<input class="i" name="q"></label>${dateFilters()}
+      <label class="f">Type<select class="i" name="type"><option value="">All</option><option value="info">Info</option><option value="error">Error</option></select></label>`,
+    query: (f, c) => {
+      let q = sb.from("app_logs").select("*", c ? { count: "exact" } : undefined).order("id", { ascending: false });
+      const t = cleanQ(f.q); if (t) q = q.or(`action.ilike.%${t}%,parameter.ilike.%${t}%,message.ilike.%${t}%,username.ilike.%${t}%`);
+      q = applyDates(q, f); if (f.type) q = q.eq("log_type", f.type);
+      return q;
+    },
+    cols: [
+      { h: "Date", v: r => dt(r.created_at) },
+      { h: "Type", v: r => r.log_type === "error" ? '<span class="tag no">Error</span>' : '<span class="tag">Info</span>', x: r => r.log_type },
+      { h: "Action", v: r => esc(r.action), x: r => r.action },
+      { h: "Parameter", v: r => esc(r.parameter || ""), x: r => r.parameter || "" },
+      { h: "Details", v: r => esc(r.message || ""), x: r => r.message || "" },
+      { h: "User", v: r => esc(r.username || ""), x: r => r.username || "" },
+    ],
+  });
+}
+
+/* ================== PROFILE ================== */
+function viewProfile() {
+  const p = S.profile;
+  setMain(`
+    <div class="head"><div><h1>My profile</h1><p>${esc(p.username)} · ${ROLE_LABEL[p.role]}</p></div></div>
+    <form class="panel" id="pf" style="max-width:640px">
+      <h2 style="margin-bottom:.8rem">Contact details</h2>
+      <div class="grid2">
+        <label class="f">Contact number<input class="i" name="contact_no" value="${esc(p.contact_no)}"></label>
+        <label class="f">Email address<input class="i" name="email" type="email" value="${esc(p.email)}"></label>
+      </div>
+      <div style="margin-top:1rem"><button class="btn">Save contact details</button></div>
+    </form>
+    <form class="panel" id="pw" style="max-width:640px">
+      <h2 style="margin-bottom:.8rem">Change password</h2>
+      <div class="grid2">
+        <label class="f">New password<input class="i" name="p1" type="password" autocomplete="new-password"></label>
+        <label class="f">Confirm new password<input class="i" name="p2" type="password" autocomplete="new-password"></label>
+      </div>
+      <div style="margin-top:1rem"><button class="btn">Change password</button></div>
+    </form>
+    ${p.role === "cashier" ? `<form class="panel" id="pc" style="max-width:640px">
+      <h2 style="margin-bottom:.3rem">Receipt printing on this computer</h2>
+      <p class="hint" style="margin-bottom:.8rem">Saved on this PC only.</p>
+      <div class="grid2">
+        <label class="f">After each transaction<select class="i" name="auto"><option value="0">Don't print</option><option value="1">Print receipt</option></select></label>
+        <label class="f">Paper width<select class="i" name="paper"><option value="80">80 mm</option><option value="58">58 mm</option></select></label>
+      </div>
+      <div style="margin-top:1rem"><button class="btn">Save printing</button></div>
+    </form>` : ""}`);
+  $("#pf").onsubmit = async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const { error } = await sb.from("profiles").update({ contact_no: f.contact_no || null, email: f.email || null, updated_by: p.username }).eq("id", p.id);
+    if (error) return toast(errText(error), "error");
+    Object.assign(p, { contact_no: f.contact_no, email: f.email }); toast("Contact details saved.", "ok");
+  };
+  $("#pw").onsubmit = async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    if (f.p1.length < 6) return toast("Password must be at least 6 characters.", "error");
+    if (f.p1 !== f.p2) return toast("Passwords do not match.", "error");
+    const { error } = await sb.auth.updateUser({ password: f.p1 });
+    if (error) return toast(errText(error), "error");
+    e.target.reset(); log("CHANGE_PASSWORD", p.username); toast("Password changed.", "ok");
+  };
+  if ($("#pc")) {
+    $("#pc [name=auto]").value = localStorage.getItem("rw_autoprint") || "0";
+    $("#pc [name=paper]").value = localStorage.getItem("rw_paper") || "80";
+    $("#pc").onsubmit = e => {
+      e.preventDefault();
+      localStorage.setItem("rw_autoprint", $("#pc [name=auto]").value);
+      localStorage.setItem("rw_paper", $("#pc [name=paper]").value);
+      toast("Printing preference saved.", "ok");
+    };
+  }
+}
+
+/* ================== START ================== */
+sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") { S.profile = null; showLogin(); } });
+boot();
+</script>
+</body>
+</html>
