@@ -80,30 +80,67 @@ main{padding:1.8rem 2.2rem 4rem;min-width:0}
   main{padding:1.2rem}
 }
 
-/* ---------- tap zone ---------- */
-.tap{border:2px dashed #B9C6C0;border-radius:14px;background:#fff;padding:2.4rem 1.5rem;display:grid;justify-items:center;gap:1rem;text-align:center}
-.tap.live{border-color:var(--gold);background:linear-gradient(#fff,#fff) padding-box}
-.tap .waves{width:72px;height:72px;border-radius:50%;background:var(--gold-soft);display:grid;place-items:center}
-.tap .waves svg{width:38px;height:38px;color:var(--gold)}
-@media (prefers-reduced-motion:no-preference){.tap.live .waves{animation:pulse 1.8s ease-in-out infinite}}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #c4912f55}50%{box-shadow:0 0 0 14px #c4912f00}}
-.tap p.big{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--ink);margin:0}
-.tap form{display:flex;gap:.5rem;width:min(420px,100%)}
-.facts{display:flex;gap:2.5rem;flex-wrap:wrap;margin:1.4rem 0 0;padding:0}
+/* ---------- tap stage & rewards card replica (the one bold thing) ---------- */
+.tapstage{display:grid;justify-items:center;gap:1.1rem;padding:1rem 0 2rem;text-align:center}
+.listen{display:inline-flex;align-items:center;gap:.5rem;font-size:.9rem;color:var(--muted);font-weight:600}
+.listen .dot{width:10px;height:10px;border-radius:50%;background:#4B6BD8}
+@media (prefers-reduced-motion:no-preference){.listen .dot{animation:blink 1.6s ease-in-out infinite}}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 #4b6bd866}50%{opacity:.5;box-shadow:0 0 0 7px #4b6bd800}}
+.tapmsg{margin:0;min-height:1.6em;font-size:1rem;color:var(--muted);max-width:46ch}
+.tapmsg.ok{color:var(--earn);font-weight:600} .tapmsg.ok b{font-family:var(--display);font-size:1.4rem}
+.tapmsg.bad{color:var(--redeem);font-weight:600}
+.manual{display:flex;gap:.5rem;width:min(420px,100%)}
+.facts{display:flex;gap:2.5rem;flex-wrap:wrap;justify-content:center;margin:.8rem 0 0;padding:1rem 0 0;border-top:1px solid var(--line);width:min(560px,100%)}
 .facts div dt{font-size:.82rem;color:var(--muted)}
 .facts div dd{margin:0;font-weight:700;font-size:1.05rem}
 
-/* ---------- member card (the one bold thing) ---------- */
-.txn{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:1.2rem;align-items:start}
+.rcard{--rc-navy:#2B2E83;--rc-green:#2E9D4E;position:relative;width:min(440px,100%);aspect-ratio:85.6/54;border-radius:18px;overflow:hidden;
+  background:#BDB9E2;color:var(--rc-navy);padding:clamp(.9rem,4vw,1.4rem) clamp(1.1rem,5vw,1.8rem) clamp(1rem,4.5vw,1.5rem);display:flex;flex-direction:column;text-align:left;
+  box-shadow:inset 0 1px 0 #ffffff80,0 22px 44px -22px #2b2e83a6;transition:box-shadow .3s,transform .3s}
+.rcard::before{content:"";position:absolute;left:0;right:0;top:0;height:56%;background:#D3D0EE}
+.rcard::after{content:"";position:absolute;right:0;top:0;width:40%;height:56%;background:#ffffff26}
+.rcard>*{position:relative;z-index:1}
+.rc-logo{display:flex;justify-content:center;align-items:center;height:30%;flex:none}
+.rc-logo img{max-height:100%;max-width:82%;object-fit:contain}
+.rc-word{display:none;text-align:center;line-height:1.05}
+.rc-logo.nologo .rc-word{display:block}
+.rc-word b{display:block;font-family:var(--display);font-weight:800;font-size:clamp(1rem,3.6vw,1.55rem);letter-spacing:.01em}
+.rc-word small{display:block;color:var(--rc-green);font-weight:700;font-size:clamp(.5rem,1.6vw,.72rem);letter-spacing:.12em;margin-top:.15em}
+.rc-title{text-align:center;font-family:var(--display);font-weight:800;font-size:clamp(1.15rem,4.3vw,1.95rem);letter-spacing:.05em;margin-top:.15em}
+.rc-num{margin-top:auto;font-weight:700;letter-spacing:.2em;font-size:clamp(.85rem,2.5vw,1.1rem)}
+.rc-name{font-weight:600;letter-spacing:.2em;font-size:clamp(.78rem,2.3vw,1.02rem);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:68%;margin-top:.2em}
+.rc-since{position:absolute;right:6%;bottom:7%;font-size:clamp(.45rem,1.3vw,.6rem);letter-spacing:.14em;font-weight:700}
+.rcard.idle .rc-num,.rcard.idle .rc-name{opacity:.45}
+.rc-shine{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(105deg,transparent 30%,#ffffffb3 48%,transparent 66%);transform:translateX(-120%)}
+.rcard.ok{box-shadow:inset 0 1px 0 #ffffff80,0 0 0 4px var(--earn),0 22px 44px -22px #2a7558}
+.rcard.bad{box-shadow:inset 0 1px 0 #ffffff80,0 0 0 4px var(--redeem),0 22px 44px -22px #ae3846}
+.rcard.bad .rc-shine{transform:none;background:#ae384626}
+@media (prefers-reduced-motion:no-preference){
+  .rcard.reading .rc-shine{animation:shine .8s ease-in-out infinite}
+  .rcard.ok .rc-shine{animation:shine .7s ease-out 1}
+  .rcard.ok{transform:translateY(-4px)}
+  .rcard.bad{animation:shake .38s ease-in-out}
+}
+@keyframes shine{to{transform:translateX(120%)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+
+/* transaction layout */
+.txn{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:1.2rem;align-items:start}
 @media (max-width:1100px){.txn{grid-template-columns:1fr}}
-.mcard{background:var(--ink);color:#fff;border-radius:16px;padding:1.4rem 1.5rem;position:relative;overflow:hidden}
-.mcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:8px;background:var(--gold)}
-.mcard .top{display:flex;justify-content:space-between;font-size:.82rem;color:#AFC0CF}
-.mcard .name{font-family:var(--display);font-size:1.45rem;font-weight:700;margin:.9rem 0 1.2rem;line-height:1.2}
+.mcard{background:var(--ink);color:#fff;border-radius:14px;padding:1.2rem 1.4rem;margin-top:1rem}
 .mcard .avail small{display:block;color:#AFC0CF;font-size:.82rem}
-.mcard .avail b{font-family:var(--display);font-size:3rem;font-weight:800;color:var(--gold);line-height:1;letter-spacing:-.02em}
-.mcard .row{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-top:1.3rem;padding-top:1rem;border-top:1px solid #ffffff22;font-size:.8rem;color:#AFC0CF}
+.mcard .avail b{font-family:var(--display);font-size:2.8rem;font-weight:800;color:var(--gold);line-height:1.05;letter-spacing:-.02em}
+.mcard .row{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-top:1rem;padding-top:.9rem;border-top:1px solid #ffffff22;font-size:.8rem;color:#AFC0CF}
 .mcard .row b{display:block;color:#fff;font-size:1rem;font-weight:600;margin-top:.1rem}
+.regcard{display:grid;grid-template-columns:1fr minmax(240px,340px);gap:1.5rem;align-items:center}
+@media (max-width:800px){.regcard{grid-template-columns:1fr}}
+/* small tap box used in dialogs */
+.tap{border:2px dashed #B9C6C0;border-radius:14px;background:#fff;display:grid;justify-items:center;gap:1rem;text-align:center}
+.tap.live{border-color:var(--gold)}
+.tap .waves{width:64px;height:64px;border-radius:50%;background:var(--gold-soft);display:grid;place-items:center}
+.tap .waves svg{width:34px;height:34px;color:var(--gold)}
+@media (prefers-reduced-motion:no-preference){.tap.live .waves{animation:pulse 1.8s ease-in-out infinite}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 #c4912f55}50%{box-shadow:0 0 0 14px #c4912f00}}
 dl.kv{display:grid;grid-template-columns:auto 1fr;gap:.35rem 1rem;margin:0;font-size:.92rem}
 dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
 
@@ -236,18 +273,33 @@ async function log(action, parameter = "", message = "", log_type = "info") {
   try { await sb.from("app_logs").insert({ action, parameter, message, log_type, username: S.profile?.username }); } catch {}
 }
 
-/* Global card-scan capture: the reader types the UID then Enter. */
-let scanBuf = "", scanAt = 0;
+/* Global card-scan capture: the reader utility types the UID very fast, then Enter.
+   - Nothing focused: the burst goes straight to the current page's tap handler.
+   - A normal field focused (e.g. Receipt no.): the burst is removed from that field
+     and handled as a tap, so a card tap never ends up typed into a form.
+   - Fields marked data-tap handle the UID themselves. */
+const UID_RE = /^[0-9A-F]{2}(-[0-9A-F]{2}){3,9}$/i;
+let scanBuf = "", scanAt = 0, burstVal = null;
 document.addEventListener("keydown", e => {
-  const t = e.target;
-  if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
   if ($("#dlg").open) return;
+  const t = e.target, inField = t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
   const now = Date.now();
-  if (now - scanAt > 100) scanBuf = "";
+  if (now - scanAt > 100) { scanBuf = ""; burstVal = inField ? t.value : null; }
   scanAt = now;
-  if (e.key === "Enter") { if (scanBuf.length >= 4 && S.scan) S.scan(scanBuf); scanBuf = ""; return; }
+  if (e.key === "Enter") {
+    const b = scanBuf.trim(); scanBuf = "";
+    if (!S.scan) return;
+    if (!inField) { if (b.length >= 4) { e.preventDefault(); S.scan(b); } return; }
+    if (UID_RE.test(b) && !t.hasAttribute("data-tap")) {
+      e.preventDefault();
+      if (burstVal !== null) t.value = burstVal;
+      t.dispatchEvent(new Event("input", { bubbles: true }));
+      S.scan(b);
+    }
+    return;
+  }
   if (e.key.length === 1) scanBuf += e.key;
-});
+}, true);
 
 async function findCard(key) {
   const k = cleanKey(key);
@@ -372,21 +424,99 @@ const setMain = h => { $("#main").innerHTML = h; };
 function viewHome() {
   const s = S.settings;
   setMain(`
-    <div class="head"><div><h1>Begin transaction</h1><p>Tap the member's rewards card, or type the card number.</p></div></div>
-    <div class="tap live">
-      <div class="waves">${TAP_SVG}</div>
-      <p class="big">Tap a rewards card on the reader</p>
-      <form id="ff"><input class="i" id="key" placeholder="Or type card number" autocomplete="off" aria-label="Card number">
-      <button class="btn">Find member</button></form>
-    </div>
-    <dl class="facts">
-      <div><dt>Points conversion</dt><dd class="num">${peso(convRate())} = 1 point</dd></div>
-      <div><dt>Card cost</dt><dd>${esc(s.CARD_COST?.value || "—")}</dd></div>
-      <div><dt>Card validity</dt><dd>${s.EXPIRY_YEAR?.value ? esc(s.EXPIRY_YEAR.value) + " year(s)" : "No expiry"}</dd></div>
-    </dl>`);
+    <div class="tapstage">
+      <div class="listen"><span class="dot"></span><span id="listenTxt">Waiting for a card tap</span></div>
+      ${rcardHTML()}
+      <p class="tapmsg" id="tapMsg" role="status">Tap the member's rewards card on the reader.</p>
+      <form id="ff" class="manual"><label class="sr" for="key">Card number</label>
+        <input class="i" id="key" data-tap placeholder="Or type the card number" autocomplete="off">
+        <button class="btn">Find member</button></form>
+      <dl class="facts">
+        <div><dt>Points conversion</dt><dd class="num">${peso(convRate())} = 1 point</dd></div>
+        <div><dt>Card cost</dt><dd>${esc(s.CARD_COST?.value || "—")}</dd></div>
+        <div><dt>Card validity</dt><dd>${s.EXPIRY_YEAR?.value ? esc(s.EXPIRY_YEAR.value) + " year(s)" : "No expiry"}</dd></div>
+      </dl>
+    </div>`);
   $("#key").focus();
-  $("#ff").onsubmit = e => { e.preventDefault(); openMember($("#key").value); };
-  S.scan = openMember;
+  $("#ff").onsubmit = e => { e.preventDefault(); homeTap($("#key").value); };
+  S.scan = homeTap;
+}
+
+let tapBusy = false;
+async function homeTap(key) {
+  if (tapBusy || !$("#rc")) return;
+  tapBusy = true;
+  const rc = $("#rc"), msg = $("#tapMsg");
+  const state = (cls, html) => { rc.className = "rcard " + cls; msg.className = "tapmsg " + cls; msg.innerHTML = html; };
+  setCard(rc, {});
+  state("reading", "Reading card…");
+  $("#listenTxt").textContent = "Reading card";
+  try {
+    const [card] = await Promise.all([findCard(key), new Promise(r => setTimeout(r, 450))]);
+    let err = null, m = null;
+    if (!card) err = "This is not a valid rewards card. Make sure it was pre-registered in the system.";
+    else if (!card.is_activated) err = `Card ${esc(card.card_number)} is deactivated.`;
+    else {
+      const r = await sb.from("members").select("member_id,first_name,last_name,created_at,available_points").eq("card_number", card.card_number).maybeSingle();
+      m = r.data;
+      if (!m) err = `Card ${esc(card.card_number)} is valid but has no member yet. <button class="btn link" id="goReg">Register member</button>`;
+    }
+    if (err) {
+      if (card) setCard(rc, { num: card.card_number });
+      state("bad", err); beep(false);
+      if ($("#goReg")) $("#goReg").onclick = () => { sessionStorage.setItem("prefillCard", card.card_number); location.hash = "#/members/register"; };
+      return;
+    }
+    setCard(rc, { num: card.card_number, name: `${m.first_name} ${m.last_name}`, since: m.created_at });
+    state("ok", `<b class="num">${pts(m.available_points)}</b> points available`);
+    beep(true);
+    setTimeout(() => { if (location.hash.startsWith("#/home") || location.hash === "") location.hash = "#/txn/" + encodeURIComponent(m.member_id); }, 900);
+  } catch (e) { state("bad", esc(errText(e))); beep(false); }
+  finally {
+    tapBusy = false;
+    if ($("#listenTxt")) $("#listenTxt").textContent = "Waiting for a card tap";
+    if ($("#key")) { $("#key").value = ""; $("#key").focus(); }
+  }
+}
+
+/* ---- rewards card replica ---- */
+const LOGO_SRC = "tdmh-logo.png"; // put the hospital logo (transparent PNG) beside this file
+function rcardHTML(id = "rc") {
+  return `<div class="rcard idle" id="${id}" aria-hidden="true">
+    <i class="rc-shine"></i>
+    <div class="rc-logo"><img src="${LOGO_SRC}" alt="" onerror="this.parentNode.classList.add('nologo');this.remove()">
+      <span class="rc-word"><b>TAYTAY DOCTORS</b><small>MULTISPECIALTY HOSPITAL</small></span></div>
+    <div class="rc-title">REWARDS CARD</div>
+    <div class="rc-num num" data-f="num">•••• ••••</div>
+    <div class="rc-name" data-f="name">TAP YOUR CARD</div>
+    <div class="rc-since" data-f="since"></div>
+  </div>`;
+}
+function sinceTxt(d) {
+  if (!d) return "";
+  const p = new Intl.DateTimeFormat("en-US", { ...TZ, month: "numeric", year: "2-digit" }).formatToParts(new Date(d));
+  return `MEMBER SINCE ${p.find(x => x.type === "month").value}/${p.find(x => x.type === "year").value}`;
+}
+function setCard(rc, { num, name, since } = {}) {
+  rc.querySelector("[data-f=num]").textContent = num || "•••• ••••";
+  rc.querySelector("[data-f=name]").textContent = (name || "Tap your card").toUpperCase();
+  rc.querySelector("[data-f=since]").textContent = sinceTxt(since);
+  rc.classList.toggle("idle", !num && !name);
+}
+
+let actx = null;
+function beep(ok) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.type = ok ? "sine" : "square";
+    o.frequency.setValueAtTime(ok ? 880 : 240, t);
+    if (ok) o.frequency.setValueAtTime(1320, t + 0.08);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(ok ? 0.12 : 0.06, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (ok ? 0.22 : 0.4));
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.45);
+  } catch {}
 }
 
 async function openMember(key) {
@@ -418,9 +548,8 @@ async function viewTxn(memberId) {
       <a class="btn ghost" href="#/home">Done</a></div>
     <div class="txn">
       <div>
+        ${rcardHTML("rcT")}
         <div class="mcard">
-          <div class="top"><span>TDMH Rewards</span><span class="num">Card ${esc(m.card_number || "—")}</span></div>
-          <div class="name">${esc(fullName(m))}</div>
           <div class="avail"><small>Available points</small><b class="num" id="avail">${pts(m.available_points)}</b></div>
           <div class="row">
             <div>Total earned<b class="num" id="tot">${pts(m.total_points)}</b></div>
@@ -460,6 +589,7 @@ async function viewTxn(memberId) {
       <div id="hist"><p class="hint">Loading…</p></div>
     </div>`);
 
+  setCard($("#rcT"), { num: m.card_number, name: `${m.first_name} ${m.last_name}`, since: m.created_at });
   const avail = () => Number(m.available_points || 0);
   function recalc() {
     const ta = Number($("#ta").value || 0), pr = Number($("#pr").value || 0);
@@ -623,24 +753,30 @@ function viewRegister() {
   let card = null;
   setMain(`
     <div class="head"><div><h1>Register member</h1><p>Tap the new rewards card, then fill in the member's details.</p></div></div>
-    <div class="panel">
+    <div class="panel regcard">
+      <div>
       <h2 style="margin-bottom:.8rem">Rewards card</h2>
       <form id="cf" style="display:flex;gap:.5rem;max-width:460px">
-        <input class="i" id="ck" placeholder="Tap card or type card number" autocomplete="off" aria-label="Card">
+        <input class="i" id="ck" data-tap placeholder="Tap card or type card number" autocomplete="off" aria-label="Card">
         <button class="btn ghost">Check card</button></form>
       <div id="cres" style="margin-top:.8rem"></div>
+      </div>
+      ${rcardHTML("rcR")}
     </div>
     <form class="panel" id="mf">
       <h2 style="margin-bottom:.8rem">Member details</h2>
       ${memberFields()}
       <div style="margin-top:1.2rem"><button class="btn" id="save">Register member</button></div>
     </form>`);
+  const preview = () => setCard($("#rcR"), { num: card?.card_number, name: [$("[name=first]").value, $("[name=last]").value].join(" ").trim(), since: card ? new Date() : null });
+  ["first", "last"].forEach(n => $(`[name=${n}]`).addEventListener("input", preview));
+  preview();
   async function check(k) {
     $("#ck").value = k;
-    card = null;
+    card = null; preview();
     const r = await checkNewCard(k).catch(e => ({ err: errText(e) }));
-    if (r.err) { $("#cres").innerHTML = `<div class="bad-line">${esc(r.err)}</div>`; return; }
-    card = r.card;
+    if (r.err) { $("#cres").innerHTML = `<div class="bad-line">${esc(r.err)}</div>`; beep(false); return; }
+    card = r.card; preview(); beep(true);
     $("#cres").innerHTML = `<div class="ok-line">Card ${esc(card.card_number)} is valid and ready to use.</div>`;
     $("[name=first]").focus();
   }
@@ -731,7 +867,7 @@ function viewUpdate() {
       await dialog({
         title: "Tap new card", ok: null, cancel: "Close",
         body: `<div class="tap live" style="padding:1.4rem"><div class="waves">${TAP_SVG}</div>
-          <form id="nf" style="display:flex;gap:.5rem;width:100%"><input class="i" id="nk" placeholder="Tap or type card number" autocomplete="off" aria-label="New card">
+          <form id="nf" style="display:flex;gap:.5rem;width:100%"><input class="i" id="nk" data-tap placeholder="Tap or type card number" autocomplete="off" aria-label="New card">
           <button class="btn">Check</button></form><div id="nres" style="width:100%"></div></div>`,
         onOpen: (d, done) => {
           $("#nk").focus();
@@ -962,7 +1098,7 @@ function viewAdmCards() {
     pre: `<div class="panel" style="margin-bottom:1.2rem">
       <h2 style="margin-bottom:.8rem">Register a new card</h2>
       <form id="rc" class="filters" style="margin:0">
-        <label class="f" style="max-width:260px"><span class="req">Card UID</span><input class="i" id="ru" placeholder="Tap the card" autocomplete="off"></label>
+        <label class="f" style="max-width:260px"><span class="req">Card UID</span><input class="i" id="ru" data-tap placeholder="Tap the card" autocomplete="off"></label>
         <label class="f" style="max-width:260px">Card number <small>(printed on card; blank = auto)</small><input class="i" id="rnum" autocomplete="off"></label>
         <button class="btn">Register card</button>
         <label style="display:flex;gap:.4rem;align-items:center;font-size:.9rem;padding-bottom:.6rem"><input type="checkbox" id="auto"> Auto-register after tap</label>
