@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.02-2'
+const APP_VERSION = '2026.10.02-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5836,10 +5836,33 @@ async function openIssueFromPO(poId) {
   html += '</tr></thead><tbody>'
   // Only items that have actually been received can be issued (partial deliveries show
   // just what arrived).
-  const receivedItems = (items||[]).filter(it => Number(it.quantity_received || 0) > 0)
-  const issuableItems = receivedItems.length ? receivedItems : (items||[])
+  // How much of each item was ALREADY issued (across this PO's issuances)? Show only the
+  // received-but-not-yet-issued balance, so an item can't be issued twice.
+  const issuedByName = {}
+  try {
+    const { data: priorIss } = await SB.from('issuances').select('id').eq('po_id', poId)
+    const issIds = (priorIss || []).map(i => i.id)
+    if (issIds.length) {
+      const { data: priorItems } = await SB.from('issuance_items').select('item_name_snapshot,quantity_issued').in('issuance_id', issIds)
+      ;(priorItems || []).forEach(ii => {
+        const k = (ii.item_name_snapshot || '').toLowerCase().trim()
+        issuedByName[k] = (issuedByName[k] || 0) + Number(ii.quantity_issued || 0)
+      })
+    }
+  } catch(_) {}
+  // Compute remaining-to-issue per item = received − already issued.
+  const receivedItems = (items||[]).map(it => {
+    const alreadyIssued = issuedByName[(it.item_name||'').toLowerCase().trim()] || 0
+    const remaining = Math.max(0, Number(it.quantity_received || 0) - alreadyIssued)
+    return { ...it, _remainingToIssue: remaining }
+  }).filter(it => it._remainingToIssue > 0)
+  const issuableItems = receivedItems
+  if (!issuableItems.length) {
+    showToast('info','Wala nang maii-issue','Lahat ng na-receive na items ay na-issue na. Maghintay ng susunod na delivery.')
+    return
+  }
   issuableItems.forEach(item => {
-    const available = Number(item.quantity_received || item.quantity)
+    const available = item._remainingToIssue != null ? item._remainingToIssue : Number(item.quantity_received || item.quantity)
     html += '<tr>'
     html += '<td style="text-align:center;"><input type="checkbox" id="isschk_' + item.id + '" checked onchange="togglePOIssueRow(\'' + item.id + '\')" style="width:16px;height:16px;accent-color:var(--green);cursor:pointer;"></td>'
     html += '<td><input type="text" id="issname_' + item.id + '" value="' + (item.item_name||'').replace(/"/g,'&quot;') + '" style="min-width:160px;padding:5px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);font-weight:600;"></td>'
@@ -6195,7 +6218,12 @@ async function confirmReceiveDelivery() {
       const rcvQty = isChecked ? Number(document.getElementById('rcv_' + item.id)?.value || 0) : 0
       const addToStock = document.getElementById('stock_' + item.id)?.checked
 
-      if (rcvQty <= 0) continue
+      // Skip items not received now — but if they're still short of the ordered qty,
+      // the PO stays partial_delivery (not fully delivered).
+      if (rcvQty <= 0) {
+        if (Number(item.quantity_received||0) < Number(item.quantity)) allDelivered = false
+        continue
+      }
       anyReceived = true
 
       const newReceived = Number(item.quantity_received||0) + rcvQty
