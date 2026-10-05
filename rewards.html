@@ -29,7 +29,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 
 /* ---------- buttons & inputs ---------- */
 .btn{display:inline-flex;align-items:center;gap:.4rem;border:0;border-radius:8px;padding:.6rem 1rem;
-  background:var(--ink);color:#fff;font-weight:600;cursor:pointer;white-space:nowrap}
+  background:var(--ink);color:#fff;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none}
 .btn:hover{background:var(--ink-2)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
@@ -141,6 +141,22 @@ main{padding:1.8rem 2.2rem 4rem;min-width:0}
 .tap .waves svg{width:34px;height:34px;color:var(--gold)}
 @media (prefers-reduced-motion:no-preference){.tap.live .waves{animation:pulse 1.8s ease-in-out infinite}}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 #c4912f55}50%{box-shadow:0 0 0 14px #c4912f00}}
+.txpanel{display:flex;flex-direction:column;gap:.95rem}
+.inrow{display:flex;gap:.5rem;align-items:center}
+.inrow .btn{flex:none}
+.warn{margin:0;background:var(--gold-soft);color:#7A5512;border-radius:8px;padding:.6rem .8rem;font-size:.88rem;font-weight:600}
+.ledger{border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:.95rem}
+.ledger>div{display:flex;justify-content:space-between;gap:1rem;padding:.55rem .9rem;border-bottom:1px solid #EEF1F0}
+.ledger>div:last-child{border-bottom:0}
+.ledger span{color:var(--muted)} .ledger small{font-size:.78rem}
+.ledger .minus b{color:var(--redeem)} .ledger .plus b{color:var(--earn)}
+.ledger .total{background:#F9FAFA}
+.ledger .total span{color:var(--ink);font-weight:700}
+.ledger .total b{font-family:var(--display);font-size:1.45rem;color:var(--ink)}
+.ledger.bad{border-color:var(--redeem)} .ledger.bad .minus span{color:var(--redeem);font-weight:600}
+.btn.big{padding:.85rem 1rem;font-size:1rem;justify-content:center}
+.mdetails{margin-top:1rem}
+.mdetails summary{cursor:pointer;font-weight:700;color:var(--ink)}
 dl.kv{display:grid;grid-template-columns:auto 1fr;gap:.35rem 1rem;margin:0;font-size:.92rem}
 dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
 
@@ -538,148 +554,179 @@ async function openMember(key) {
 async function viewTxn(memberId) {
   setMain(`<p class="hint">Loading member…</p>`);
   const { data: m, error } = await sb.from("members").select("*, rewards_cards(card_uid,is_activated,expiry_date)").eq("member_id", memberId).maybeSingle();
-  if (error || !m) { setMain(`<div class="panel empty">Member not found. <a href="#/home">Back to transactions</a></div>`); return; }
+  if (error || !m) { setMain(`<div class="panel empty">Member not found. <a href="#/home">Back to Begin transaction</a></div>`); return; }
   const card = m.rewards_cards || {};
   const rate = convRate();
-  let mode = "earn";
 
   setMain(`
-    <div class="head"><div><h1>Transaction</h1><p>Tap another card anytime to switch members.</p></div>
+    <div class="head"><div><h1>${esc(m.first_name)} ${esc(m.last_name)}</h1><p>Member ${esc(m.member_id)}. Tap another card anytime to switch members.</p></div>
       <a class="btn ghost" href="#/home">Done</a></div>
     <div class="txn">
       <div>
         ${rcardHTML("rcT")}
         <div class="mcard">
-          <div class="avail"><small>Available points</small><b class="num" id="avail">${pts(m.available_points)}</b></div>
+          <div class="avail"><small>Available points</small><b class="num" id="avail"></b></div>
           <div class="row">
-            <div>Total earned<b class="num" id="tot">${pts(m.total_points)}</b></div>
-            <div>Redeemed<b class="num" id="red">${pts(m.redeemed_points)}</b></div>
+            <div>Total earned<b class="num" id="tot"></b></div>
+            <div>Redeemed<b class="num" id="red"></b></div>
             <div>Expires<b>${card.expiry_date ? dOnly(card.expiry_date) : "Never"}</b></div>
           </div>
         </div>
-        <div class="panel" style="margin-top:1rem">
-          <dl class="kv">
+        <details class="panel mdetails">
+          <summary>Member details</summary>
+          <dl class="kv" style="margin-top:.8rem">
+            <dt>Full name</dt><dd>${esc([m.first_name, m.middle_name, m.last_name].filter(Boolean).join(" "))}</dd>
             <dt>Birthdate</dt><dd>${bday(m.birthdate)}</dd>
             <dt>Contact</dt><dd>${esc(m.contact_no || "—")}</dd>
             <dt>Email</dt><dd>${esc(m.email || "—")}</dd>
+            <dt>Address</dt><dd>${esc(m.address || "—")}</dd>
             <dt>Member since</dt><dd>${dOnly(m.created_at)}</dd>
           </dl>
-        </div>
+          <p class="hint">To change these, use <a href="#/members/update">Update member</a>.</p>
+        </details>
       </div>
-      <div class="panel">
-        <div class="seg" role="tablist">
-          <button data-mode="earn" class="on" type="button">Earn points</button>
-          <button data-mode="redeem" type="button">Redeem points</button>
+
+      <form class="panel txpanel" id="tx" novalidate>
+        <h2>New transaction</h2>
+        <label class="f">Points to redeem <small>Leave blank if the member won't use points.</small>
+          <span class="inrow"><input class="i num" id="pr" type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+          <button type="button" class="btn ghost sm" id="useAll"></button></span></label>
+        <label class="f"><span class="req">Receipt number</span>
+          <input class="i" id="rn" autocomplete="off" placeholder="Sales invoice or payment ID"></label>
+        <p class="warn" id="dup" hidden></p>
+        <label class="f"><span class="req">Total amount</span><small>Final amount from the payment system, after any points discount.</small>
+          <input class="i num" id="ta" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+        <label class="f">Remarks <small>Optional</small><input class="i" id="rm" autocomplete="off"></label>
+
+        <div class="ledger" aria-live="polite">
+          <div><span>Available now</span><b class="num" id="lgA"></b></div>
+          <div class="minus" id="lgRrow"><span>Redeem</span><b class="num" id="lgR"></b></div>
+          <div class="plus"><span>Earn <small>(${peso(rate)} = 1 point)</small></span><b class="num" id="lgE"></b></div>
+          <div class="total"><span>New balance</span><b class="num" id="lgN"></b></div>
         </div>
-        <form id="tx" novalidate>
-          <div class="grid2">
-            <label class="f" id="prRow" hidden><span class="req">Points to redeem</span><input class="i num" id="pr" type="number" min="1" step="1" inputmode="numeric"></label>
-            <label class="f"><span class="req">Receipt number</span><input class="i" id="rn" autocomplete="off"></label>
-            <label class="f"><span class="req">Total amount</span><input class="i num" id="ta" type="number" min="0.01" step="0.01" inputmode="decimal"></label>
-          </div>
-          <p class="hint" id="taHint">Amount of the product or service availed.</p>
-          <div class="calc" id="calc"><span id="calcL">Points to earn</span><b class="num" id="pe">0.00</b></div>
-          <button class="btn earn" id="go">Process transaction</button>
-        </form>
-      </div>
+        <button class="btn big" id="go">Process transaction</button>
+      </form>
     </div>
+
     <div class="panel" style="margin-top:1.2rem">
       <div class="head" style="margin-bottom:.8rem"><h2>Transaction history</h2>
         <button class="btn ghost sm" id="voidBtn">Void last transaction</button></div>
       <div id="hist"><p class="hint">Loading…</p></div>
     </div>`);
-
   setCard($("#rcT"), { num: m.card_number, name: `${m.first_name} ${m.last_name}`, since: m.created_at });
-  const avail = () => Number(m.available_points || 0);
-  function recalc() {
-    const ta = Number($("#ta").value || 0), pr = Number($("#pr").value || 0);
-    $("#pe").textContent = pts(round2(ta / rate));
-    const bad = mode === "redeem" && pr > avail();
-    $("#calc").classList.toggle("bad", bad);
-    $("#calcL").textContent = bad ? `Not enough points (available ${pts(avail())})` : "Points to earn";
-  }
-  function setMode(md) {
-    mode = md;
-    $$(".seg button").forEach(b => b.classList.toggle("on", b.dataset.mode === md));
-    $("#prRow").hidden = md !== "redeem";
-    $("#go").className = "btn " + md;
-    $("#taHint").textContent = md === "redeem" ? "Amount to pay after the points discount. Points are earned on this amount." : "Amount of the product or service availed.";
-    (md === "redeem" ? $("#pr") : $("#rn")).focus();
-    recalc();
-  }
-  $$(".seg button").forEach(b => b.onclick = () => setMode(b.dataset.mode));
-  ["ta", "pr"].forEach(id => $("#" + id).addEventListener("input", recalc));
-  $("#rn").focus();
 
-  $("#tx").onsubmit = async e => {
-    e.preventDefault();
-    const rn = $("#rn").value.trim(), ta = Number($("#ta").value), pr = mode === "redeem" ? Number($("#pr").value) : 0;
-    if (mode === "redeem" && (!pr || pr <= 0 || !Number.isInteger(pr))) return toast("Enter the points to redeem (whole number).", "error");
-    if (pr > avail()) return toast(`Not enough points. Available: ${pts(avail())}`, "error");
-    if (!rn) return toast("Receipt number is required.", "error");
-    if (!(ta > 0)) return toast("Total amount must be greater than 0.", "error");
-    const earn = round2(ta / rate);
-    const ok = await dialog({
-      title: "Confirm transaction", ok: "Confirm", tone: mode,
-      body: `<dl class="kv">
-        <dt>Member</dt><dd>${esc(fullName(m))}</dd>
-        <dt>Receipt no.</dt><dd>${esc(rn)}</dd>
-        <dt>Total amount</dt><dd class="num">${peso(ta)}</dd>
-        ${pr ? `<dt>Points redeemed</dt><dd class="num" style="color:var(--redeem)">− ${pts(pr)}</dd>` : ""}
-        <dt>Points earned</dt><dd class="num" style="color:var(--earn)">+ ${pts(earn)}</dd>
-      </dl><hr style="border:0;border-top:1px solid var(--line);margin:1rem 0">
-      <dl class="kv">
-        <dt>Total points earned</dt><dd class="num">${pts(Number(m.total_points) + earn)}</dd>
-        <dt>Total points redeemed</dt><dd class="num">${pts(Number(m.redeemed_points) + pr)}</dd>
-        <dt><b>Available points left</b></dt><dd class="num"><b>${pts(avail() + earn - pr)}</b></dd>
-      </dl>` });
-    if (!ok) return;
-    $("#go").disabled = true;
-    const { data, error } = await sb.rpc("process_transaction", { p_member_id: m.member_id, p_receipt_number: rn, p_total_amount: ta, p_redeem_points: pr });
-    $("#go").disabled = false;
-    if (error) return toast(errText(error), "error");
-    Object.assign(m, { total_points: data.total_points, redeemed_points: data.redeemed_points, available_points: data.available_points });
-    refreshCard(); $("#tx").reset(); setMode("earn");
-    toast("Transaction processed.", "ok");
-    if (localStorage.getItem("rw_autoprint") === "1") printReceipt(m, { txn: data.transaction_id, rn, ta, earn: data.earned, redeem: data.redeemed });
-    loadHist();
-  };
+  const avail = () => Number(m.available_points || 0);
+  const maxUse = () => Math.floor(avail());
+  const vals = () => ({ pr: Number($("#pr").value || 0), ta: Number($("#ta").value || 0), rn: $("#rn").value.trim(), rm: $("#rm").value.trim() });
 
   function refreshCard() {
     $("#avail").textContent = pts(m.available_points);
     $("#tot").textContent = pts(m.total_points);
     $("#red").textContent = pts(m.redeemed_points);
+    $("#useAll").textContent = `Use all (${maxUse().toLocaleString()})`;
+    $("#useAll").disabled = maxUse() < 1;
+    recalc();
   }
+  function recalc() {
+    const { pr, ta } = vals();
+    const earn = ta > 0 ? round2(ta / rate) : 0;
+    const over = pr > avail(), frac = pr && !Number.isInteger(pr);
+    $("#lgA").textContent = pts(avail());
+    $("#lgRrow").hidden = !pr;
+    $("#lgR").textContent = "− " + pts(pr);
+    $("#lgE").textContent = "+ " + pts(earn);
+    $("#lgN").textContent = pts(avail() - pr + earn);
+    $(".ledger").classList.toggle("bad", over || frac);
+    $("#lgRrow span").textContent = over ? `Redeem — only ${pts(avail())} available` : frac ? "Redeem — whole points only" : "Redeem";
+    $("#go").className = "btn big " + (pr ? "redeem" : "earn");
+    $("#go").textContent = !ta ? "Process transaction" : pr ? `Redeem ${pts(pr)} and earn ${pts(earn)} points` : `Earn ${pts(earn)} points`;
+  }
+  ["pr", "ta"].forEach(id => $("#" + id).addEventListener("input", recalc));
+  $("#useAll").onclick = () => { $("#pr").value = maxUse(); recalc(); $("#rn").focus(); };
+
+  // Duplicate receipt check: warns (does not block) when the receipt number was already used.
+  let dupInfo = null, dupTimer;
+  async function checkDup() {
+    const rn = $("#rn").value.trim();
+    dupInfo = null; $("#dup").hidden = true;
+    if (!rn) return;
+    const { data } = await sb.from("rewards_transactions")
+      .select("transaction_id,created_at,member_id,members(first_name,last_name),rewards_transaction_details(status)")
+      .eq("receipt_number", rn).order("transaction_id", { ascending: false }).limit(5);
+    const used = (data || []).find(t => t.rewards_transaction_details.some(d => d.status === 1));
+    if (!used || $("#rn").value.trim() !== rn) return;
+    const who = used.member_id === m.member_id ? "this member" : `${used.members?.first_name || ""} ${used.members?.last_name || ""}`.trim();
+    dupInfo = `Receipt ${rn} was already used on ${dt(used.created_at)} for ${who}.`;
+    $("#dup").textContent = dupInfo + " Check that this is not a double entry.";
+    $("#dup").hidden = false;
+  }
+  $("#rn").addEventListener("input", () => { clearTimeout(dupTimer); dupTimer = setTimeout(checkDup, 400); });
+
+  refreshCard();
+  $("#pr").focus();
+
+  $("#tx").onsubmit = async e => {
+    e.preventDefault();
+    const { pr, ta, rn, rm } = vals();
+    if (pr < 0 || !Number.isInteger(pr)) return toast("Points to redeem must be a whole number.", "error");
+    if (pr > avail()) return toast(`Not enough points. Available: ${pts(avail())}`, "error");
+    if (!rn) { $("#rn").focus(); return toast("Receipt number is required.", "error"); }
+    if (!(ta > 0)) { $("#ta").focus(); return toast("Total amount must be greater than 0.", "error"); }
+    await checkDup();
+    const earn = round2(ta / rate);
+    const ok = await dialog({
+      title: "Confirm transaction", ok: "Confirm", tone: pr ? "redeem" : "earn",
+      body: `${dupInfo ? `<p class="warn">${esc(dupInfo)}</p>` : ""}
+        <dl class="kv">
+          <dt>Member</dt><dd>${esc(fullName(m))}</dd>
+          <dt>Receipt no.</dt><dd>${esc(rn)}</dd>
+          <dt>Total amount</dt><dd class="num">${peso(ta)}</dd>
+          ${rm ? `<dt>Remarks</dt><dd>${esc(rm)}</dd>` : ""}
+        </dl>
+        <div class="ledger" style="margin:1rem 0 0">
+          <div><span>Available now</span><b class="num">${pts(avail())}</b></div>
+          ${pr ? `<div class="minus"><span>Redeem</span><b class="num">− ${pts(pr)}</b></div>` : ""}
+          <div class="plus"><span>Earn</span><b class="num">+ ${pts(earn)}</b></div>
+          <div class="total"><span>New balance</span><b class="num">${pts(avail() - pr + earn)}</b></div>
+        </div>` });
+    if (!ok) return;
+    $("#go").disabled = true;
+    const { data, error } = await sb.rpc("process_transaction", { p_member_id: m.member_id, p_receipt_number: rn, p_total_amount: ta, p_redeem_points: pr, p_remarks: rm || null });
+    $("#go").disabled = false;
+    if (error) return toast(errText(error), "error");
+    Object.assign(m, { total_points: data.total_points, redeemed_points: data.redeemed_points, available_points: data.available_points });
+    $("#tx").reset(); dupInfo = null; $("#dup").hidden = true;
+    refreshCard(); $("#pr").focus();
+    toast(pr ? `Redeemed ${pts(pr)} and earned ${pts(data.earned)} points.` : `Earned ${pts(data.earned)} points.`, "ok");
+    beep(true);
+    if (localStorage.getItem("rw_autoprint") === "1") printReceipt(m, { txn: data.transaction_id, rn, ta, earn: data.earned, redeem: data.redeemed });
+    loadHist();
+  };
 
   let hist = [];
+  const sumType = (d, t) => d.filter(x => x.transaction_type === t).reduce((a, x) => a + Number(x.points), 0);
   async function loadHist() {
     const { data, error } = await sb.from("rewards_transactions")
-      .select("transaction_id,receipt_number,total_amount,created_at,created_by,rewards_transaction_details(transaction_type,points,status)")
+      .select("transaction_id,receipt_number,total_amount,remarks,conversion_rate,created_at,created_by,rewards_transaction_details(transaction_type,points,status)")
       .eq("member_id", m.member_id).order("transaction_id", { ascending: false }).limit(30);
     if (error) { $("#hist").innerHTML = `<p class="bad-line">${esc(errText(error))}</p>`; return; }
     hist = data;
-    if (!data.length) { $("#hist").innerHTML = `<div class="empty">No transactions yet.</div>`; $("#voidBtn").disabled = true; return; }
     $("#voidBtn").disabled = !data.some(t => t.rewards_transaction_details.some(d => d.status === 1));
+    if (!data.length) { $("#hist").innerHTML = `<div class="empty">No transactions yet. The first one will show here.</div>`; return; }
     $("#hist").innerHTML = `<div class="tw"><table class="t"><thead><tr>
-      <th>Date</th><th>Receipt no.</th><th class="r">Amount</th><th class="r">Earned</th><th class="r">Redeemed</th><th>Status</th><th>By</th><th></th></tr></thead><tbody>
+      <th>Date</th><th>Receipt no.</th><th class="r">Amount</th><th class="r">Earned</th><th class="r">Redeemed</th><th>Remarks</th><th>Status</th><th>By</th><th></th></tr></thead><tbody>
       ${data.map(t => {
-        const d = t.rewards_transaction_details;
-        const e = d.filter(x => x.transaction_type === 1).reduce((a, x) => a + Number(x.points), 0);
-        const r = d.filter(x => x.transaction_type === 2).reduce((a, x) => a + Number(x.points), 0);
-        const v = !d.some(x => x.status === 1);
+        const d = t.rewards_transaction_details, e = sumType(d, 1), r = sumType(d, 2), v = !d.some(x => x.status === 1);
         return `<tr class="${v ? "void" : ""}"><td>${dt(t.created_at)}</td><td>${esc(t.receipt_number)}</td>
           <td class="r num">${peso(t.total_amount)}</td><td class="r num">${e ? "+" + pts(e) : "—"}</td>
-          <td class="r num">${r ? "−" + pts(r) : "—"}</td>
+          <td class="r num">${r ? "−" + pts(r) : "—"}</td><td>${esc(t.remarks || "")}</td>
           <td class="keep">${v ? '<span class="tag no">Voided</span>' : '<span class="tag ok">Approved</span>'}</td>
           <td>${esc(t.created_by || "")}</td>
           <td class="keep">${v ? "" : `<button class="btn link" data-print="${t.transaction_id}">Reprint</button>`}</td></tr>`;
       }).join("")}</tbody></table></div>`;
     $$("[data-print]").forEach(b => b.onclick = () => {
-      const t = hist.find(x => String(x.transaction_id) === b.dataset.print);
-      const d = t.rewards_transaction_details;
-      printReceipt(m, { txn: t.transaction_id, rn: t.receipt_number, ta: t.total_amount, date: t.created_at, reprint: true,
-        earn: d.filter(x => x.transaction_type === 1).reduce((a, x) => a + Number(x.points), 0),
-        redeem: d.filter(x => x.transaction_type === 2).reduce((a, x) => a + Number(x.points), 0) });
+      const t = hist.find(x => String(x.transaction_id) === b.dataset.print), d = t.rewards_transaction_details;
+      printReceipt(m, { txn: t.transaction_id, rn: t.receipt_number, ta: t.total_amount, date: t.created_at, reprint: true, earn: sumType(d, 1), redeem: sumType(d, 2) });
     });
   }
   loadHist();
@@ -687,15 +734,14 @@ async function viewTxn(memberId) {
   $("#voidBtn").onclick = async () => {
     const t = hist.find(x => x.rewards_transaction_details.some(d => d.status === 1));
     if (!t) return;
-    const d = t.rewards_transaction_details.filter(x => x.status === 1);
-    const e = d.filter(x => x.transaction_type === 1).reduce((a, x) => a + Number(x.points), 0);
-    const r = d.filter(x => x.transaction_type === 2).reduce((a, x) => a + Number(x.points), 0);
+    const d = t.rewards_transaction_details.filter(x => x.status === 1), e = sumType(d, 1), r = sumType(d, 2);
     const ok = await dialog({
       title: "Void last transaction?", ok: "Void transaction", tone: "redeem",
-      body: `<p>This will cancel receipt <b>${esc(t.receipt_number)}</b> from ${dt(t.created_at)}.</p>
-        <dl class="kv"><dt>Earned points removed</dt><dd class="num">− ${pts(e)}</dd>
-        ${r ? `<dt>Redeemed points returned</dt><dd class="num">+ ${pts(r)}</dd>` : ""}
-        <dt><b>Available after void</b></dt><dd class="num"><b>${pts(avail() - e + r)}</b></dd></dl>` });
+      body: `<p>This cancels receipt <b>${esc(t.receipt_number)}</b> from ${dt(t.created_at)}.</p>
+        <div class="ledger"><div><span>Available now</span><b class="num">${pts(avail())}</b></div>
+          <div class="minus"><span>Remove earned points</span><b class="num">− ${pts(e)}</b></div>
+          ${r ? `<div class="plus"><span>Return redeemed points</span><b class="num">+ ${pts(r)}</b></div>` : ""}
+          <div class="total"><span>Balance after void</span><b class="num">${pts(avail() - e + r)}</b></div></div>` });
     if (!ok) return;
     const { data, error } = await sb.rpc("void_last_transaction", { p_member_id: m.member_id });
     if (error) return toast(errText(error), "error");
