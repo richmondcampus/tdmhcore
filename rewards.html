@@ -51,7 +51,9 @@ input.i:focus,select.i:focus{border-color:var(--focus);outline:none;box-shadow:0
 #login .side h1{color:#fff;font-size:3rem;font-weight:800;max-width:10ch}
 #login .side p{color:#B8C4CF;max-width:36ch}
 #login .stripe{height:10px;width:120px;background:var(--gold);border-radius:3px}
-#login form{align-self:center;justify-self:center;width:min(360px,90%);display:flex;flex-direction:column;gap:1rem}
+#login form{align-self:center;justify-self:center;width:min(360px,90%);display:flex;flex-direction:column;gap:1rem;grid-column:2;grid-row:1}
+#login form[hidden]{display:none}
+@media (max-width:800px){#login form{grid-column:1;grid-row:auto;padding:2rem 0}}
 #login .err{color:var(--redeem);font-size:.9rem;min-height:1.2em}
 @media (max-width:800px){#login{grid-template-columns:1fr}#login .side{padding:2rem}#login .side h1{font-size:2.2rem}}
 
@@ -202,6 +204,12 @@ main{padding:1.8rem 2.2rem 4rem;min-width:0}
 @keyframes led{0%,39%{fill:#C9474F}40%,58%{fill:#2BD46B}59%,100%{fill:#C9474F}}
 @keyframes led-blink{0%{fill:#2BD46B}50%{fill:#1a7f40}}
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.hist-top{display:grid;grid-template-columns:minmax(280px,400px) 1fr;gap:1.2rem;align-items:start}
+@media (max-width:1000px){.hist-top{grid-template-columns:1fr}}
+.stats.mini{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.stats.mini dd{font-size:1.2rem}
+.spark{display:block;width:100%;height:auto}
+.spark-axis{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-top:.2rem}
 dl.kv{display:grid;grid-template-columns:auto 1fr;gap:.35rem 1rem;margin:0;font-size:.92rem}
 dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
 
@@ -265,10 +273,20 @@ dialog .dh{padding:1.2rem 1.4rem .4rem} dialog .db{padding:.4rem 1.4rem 1rem} di
   <form id="loginForm" autocomplete="on">
     <img id="loginLogo" alt="Taytay Doctors Multispecialty Hospital" style="width:100%;max-width:300px;margin-bottom:1rem">
     <h2>Sign in</h2>
-    <label class="f">Username<input class="i" id="lu" autocomplete="username" required></label>
+    <label class="f">Username or email<input class="i" id="lu" autocomplete="username" required></label>
     <label class="f">Password<input class="i" id="lp" type="password" autocomplete="current-password" required></label>
     <div class="err" id="lerr" role="alert"></div>
     <button class="btn" id="lbtn">Sign in</button>
+    <button type="button" class="btn link" id="forgot" style="align-self:flex-start">Forgot password?</button>
+  </form>
+  <form id="setForm" hidden>
+    <img class="setLogo" alt="Taytay Doctors Multispecialty Hospital" style="width:100%;max-width:300px;margin-bottom:1rem">
+    <h2 id="setTitle">Set your password</h2>
+    <p class="hint" id="setSub" style="margin:0"></p>
+    <label class="f">New password<input class="i" id="sp1" type="password" autocomplete="new-password" required minlength="6"></label>
+    <label class="f">Confirm new password<input class="i" id="sp2" type="password" autocomplete="new-password" required minlength="6"></label>
+    <div class="err" id="serr" role="alert"></div>
+    <button class="btn" id="sbtn">Save password and sign in</button>
   </form>
 </section>
 
@@ -286,10 +304,20 @@ dialog .dh{padding:1.2rem 1.4rem .4rem} dialog .db{padding:.4rem 1.4rem 1rem} di
 const SUPABASE_URL = "https://bmdasoubyfmyheoapghb.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJtZGFzb3VieWZteWhlb2FwZ2hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExNjU5OTIsImV4cCI6MjEwNjc0MTk5Mn0.qxlygck7QQPQcH62pac7p-ttpgC8KS7G3O5lwqTGOlU";
 const EMAIL_DOMAIN = "tdmh-rewards.local";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const APP_URL = location.origin + location.pathname;
+const LANDING = (() => {
+  const h = location.hash + "&" + location.search;
+  if (/error_code=|error=access_denied/.test(h)) return "expired";
+  if (/type=(recovery|invite|magiclink|signup)/.test(h)) return "set";
+  return null;
+})();
+let landing = LANDING;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { storageKey: "tdmh-rewards-auth", autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, flowType: "implicit" }
+});
 
 const S = { profile: null, settings: {}, scan: null };
-const ROLE_LABEL = { cashier: "Cashier", admin: "Administrator", sysadmin: "System Admin" };
+const ROLE_LABEL = { cashier: "Cashier", admitting: "Admitting", admin: "Administrator", sysadmin: "System Admin" };
 
 /* ================== HELPERS ================== */
 const $ = (s, el = document) => el.querySelector(s);
@@ -379,13 +407,60 @@ $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault();
   const u = $("#lu").value.trim().toLowerCase(), p = $("#lp").value;
   $("#lerr").textContent = ""; $("#lbtn").disabled = true;
-  const { error } = await sb.auth.signInWithPassword({ email: `${u}@${EMAIL_DOMAIN}`, password: p });
+  let email = u;
+  if (!u.includes("@")) {
+    const { data } = await sb.rpc("login_email", { p_login: u });
+    email = data || `${u}@${EMAIL_DOMAIN}`;
+  }
+  const { error } = await sb.auth.signInWithPassword({ email, password: p });
   $("#lbtn").disabled = false;
   if (error) {
-    $("#lerr").textContent = /banned/i.test(error.message) ? "This account is deactivated. Contact the System Administrator." : "Wrong username or password.";
+    $("#lerr").textContent = /banned/i.test(error.message) ? "This account is deactivated. Contact the System Administrator." : "Wrong username/email or password.";
     return;
   }
   if (await boot()) log("LOGIN", u);
+});
+
+$("#forgot").onclick = async () => {
+  let login = $("#lu").value.trim();
+  const go = await dialog({
+    title: "Forgot password?", ok: "Send reset link",
+    body: `<p style="margin-top:0">Enter your username or email. We'll email you a link to set a new password.</p>
+      <label class="f">Username or email<input class="i" id="fl" value="${esc(login)}" autocomplete="username"></label>`,
+    onOpen: () => setTimeout(() => $("#fl").focus(), 50),
+  });
+  if (!go) return;
+  login = ($("#fl")?.value || login).trim();
+  if (!login) return toast("Enter your username or email.", "error");
+  try { await sb.functions.invoke("request-reset", { body: { login, redirect: APP_URL } }); } catch {}
+  dialog({ title: "Check your email", ok: "OK", cancel: null,
+    body: `<p>If <b>${esc(login)}</b> has an account, a password reset link is on its way. Check the inbox (and the Spam folder) of the email registered to that account.</p>` });
+};
+
+function showSetPassword(session) {
+  $("#app").style.display = "none"; $("#login").style.display = "grid";
+  $("#loginForm").hidden = true; $("#setForm").hidden = false;
+  $(".setLogo").src = LOGO_SRC;
+  $("#setSub").textContent = `Signing in as ${session.user.email}. Choose a password with at least 6 characters.`;
+  $("#sp1").focus();
+}
+$("#setForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const a = $("#sp1").value, b = $("#sp2").value;
+  $("#serr").textContent = "";
+  if (a.length < 6) return $("#serr").textContent = "Password must be at least 6 characters.";
+  if (a !== b) return $("#serr").textContent = "Passwords do not match.";
+  $("#sbtn").disabled = true;
+  const { data: { user } } = await sb.auth.getUser();
+  const { error } = await sb.auth.updateUser({ password: a });
+  $("#sbtn").disabled = false;
+  if (error) return $("#serr").textContent = /same|different/i.test(error.message) ? "Use a password different from your old one." : errText(error);
+  await sb.from("profiles").update({ password_set: true }).eq("id", user.id);
+  landing = null;
+  history.replaceState(null, "", location.pathname + "#/");
+  $("#setForm").hidden = true; $("#loginForm").hidden = false;
+  toast("Password saved. Welcome!", "ok");
+  if (await boot()) log("SET_PASSWORD", S.profile.username);
 });
 
 async function signOut() {
@@ -396,7 +471,14 @@ async function signOut() {
 
 async function boot() {
   const { data: { session } } = await sb.auth.getSession();
+  if (landing === "expired" && !session) {
+    landing = null; history.replaceState(null, "", location.pathname);
+    showLogin();
+    $("#lerr").textContent = "That link has expired or was already used. Click “Forgot password?” to get a new one.";
+    return false;
+  }
   if (!session) { showLogin(); return false; }
+  if (landing === "set") { showSetPassword(session); return false; }
   const { data: prof } = await sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle();
   if (!prof || !prof.is_active) {
     await sb.auth.signOut(); showLogin();
@@ -426,8 +508,10 @@ const ROUTES = {
   "home":                 { roles: ["cashier"], label: "Begin transaction", fn: viewHome },
   "txn":                  { roles: ["cashier"], fn: viewTxn },
   "dashboard":            { roles: ["admin", "sysadmin"], label: "Dashboard", fn: viewDashboard },
-  "members/register":     { roles: ["cashier", "sysadmin"], label: "Register member", fn: viewRegister },
-  "members/update":       { roles: ["cashier", "sysadmin"], label: "Update member", fn: viewUpdate },
+  "members/register":     { roles: ["cashier", "admitting", "sysadmin"], label: "Register member", fn: viewRegister },
+  "members/update":       { roles: ["cashier", "admitting", "sysadmin"], label: "Update member", fn: viewUpdate },
+  "members/lookup":       { roles: ["cashier", "admitting", "admin", "sysadmin"], label: "Member history", fn: viewLookup },
+  "member":               { roles: ["cashier", "admitting", "admin", "sysadmin"], fn: viewMemberHistory },
   "reports/members":      { roles: ["admin", "sysadmin"], label: "Members", fn: viewRptMembers },
   "reports/transactions": { roles: ["admin", "sysadmin"], label: "Transactions", fn: viewRptTxn },
   "reports/cards":        { roles: ["admin", "sysadmin"], label: "Rewards cards", fn: viewRptCards },
@@ -436,16 +520,16 @@ const ROUTES = {
   "admin/users":          { roles: ["sysadmin"], label: "Manage users", fn: viewAdmUsers },
   "admin/settings":       { roles: ["sysadmin"], label: "Settings", fn: viewSettings },
   "admin/logs":           { roles: ["sysadmin"], label: "Application logs", fn: viewLogs },
-  "profile":              { roles: ["cashier", "admin", "sysadmin"], label: "My profile", fn: viewProfile },
+  "profile":              { roles: ["cashier", "admitting", "admin", "sysadmin"], label: "My profile", fn: viewProfile },
 };
 const NAV = [
   { grp: null, items: ["home", "dashboard"] },
-  { grp: "Members", items: ["members/register", "members/update"] },
+  { grp: "Members", items: ["members/register", "members/update", "members/lookup"] },
   { grp: "Reports", items: ["reports/members", "reports/transactions", "reports/cards", "reports/users"] },
   { grp: "Administration", items: ["admin/cards", "admin/users", "admin/settings", "admin/logs"] },
   { grp: "Account", items: ["profile"] },
 ];
-const homeOf = r => r === "cashier" ? "home" : "dashboard";
+const homeOf = r => r === "cashier" ? "home" : r === "admitting" ? "members/register" : "dashboard";
 
 function renderNav() {
   const role = S.profile.role;
@@ -471,10 +555,11 @@ function route() {
   let { path, params } = parseHash();
   let key = path, arg = null;
   if (path.startsWith("txn/")) { key = "txn"; arg = decodeURIComponent(path.slice(4)); }
+  else if (path.startsWith("member/")) { key = "member"; arg = decodeURIComponent(path.slice(7)); }
   const r = ROUTES[key];
   if (!r || !r.roles.includes(S.profile.role)) { location.hash = "#/" + homeOf(S.profile.role); return; }
   S.scan = null;
-  $$("#side a").forEach(a => a.classList.toggle("on", a.dataset.k === key));
+  $$("#side a").forEach(a => a.classList.toggle("on", a.dataset.k === (key === "member" ? "members/lookup" : key)));
   r.fn(arg, params);
   $("#main").focus({ preventScroll: true });
   window.scrollTo(0, 0);
@@ -682,8 +767,9 @@ async function viewTxn(memberId) {
     </div>
 
     <div class="panel" style="margin-top:1.2rem">
-      <div class="head" style="margin-bottom:.8rem"><h2>Transaction history</h2>
-        <button class="btn ghost sm" id="voidBtn">Void last transaction</button></div>
+      <div class="head" style="margin-bottom:.8rem"><h2>Recent transactions</h2>
+        <div style="display:flex;gap:.5rem"><a class="btn ghost sm" href="#/member/${encodeURIComponent(m.member_id)}">View full history</a>
+        <button class="btn ghost sm" id="voidBtn">Void last transaction</button></div></div>
       <div id="hist"><p class="hint">Loading…</p></div>
     </div>`);
   setCard($("#rcT"), { num: m.card_number, name: `${m.first_name} ${m.last_name}`, since: m.created_at });
@@ -932,6 +1018,11 @@ function viewUpdate() {
     <div id="res"></div><div id="edit"></div>`);
   $("#sq").focus();
   $("#sf").onsubmit = e => { e.preventDefault(); search($("#sq").value); };
+  const preEdit = sessionStorage.getItem("editMember");
+  if (preEdit) {
+    sessionStorage.removeItem("editMember");
+    sb.from("members").select("*").eq("member_id", preEdit).maybeSingle().then(({ data }) => data && editMember(data));
+  }
   S.scan = async k => {
     const c = await findCard(k).catch(() => null);
     if (!c) return toast("Card not found.", "error");
@@ -962,7 +1053,8 @@ function viewUpdate() {
     $("#edit").innerHTML = `
       <form class="panel" id="ef">
         <div class="head" style="margin-bottom:1rem"><h2>${esc(fullName(m))}</h2>
-          <span class="tag gold num">${pts(m.available_points)} points available</span></div>
+          <div style="display:flex;gap:.6rem;align-items:center"><span class="tag gold num">${pts(m.available_points)} points available</span>
+          <a class="btn ghost sm" href="#/member/${encodeURIComponent(m.member_id)}">View history</a></div></div>
         ${memberFields(m)}
         <div class="panel" style="margin-top:1.2rem;background:#F9FAFA">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
@@ -1020,6 +1112,246 @@ function viewUpdate() {
       $("#edit").innerHTML = ""; $("#sq").value = ""; $("#sq").focus();
     };
   }
+}
+
+/* ================== MEMBER HISTORY ================== */
+async function memberSearch(q) {
+  q = cleanQ(q);
+  if (!q) return [];
+  let query = sb.from("members").select("member_id,card_number,first_name,middle_name,last_name,birthdate,available_points").order("last_name").limit(50);
+  if (/^\d{4,}$/.test(q)) query = query.eq("card_number", q);
+  else if (/^M\d+$/i.test(q)) query = query.eq("member_id", q.toUpperCase());
+  else for (const w of q.split(/\s+/)) query = query.or(`first_name.ilike.%${w}%,middle_name.ilike.%${w}%,last_name.ilike.%${w}%`);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data;
+}
+
+function viewLookup() {
+  setMain(`
+    <div class="head"><div><h1>Member history</h1><p>Find a member by name, card number or member ID, or tap their card.</p></div></div>
+    <form class="filters" id="sf">
+      <label class="f" style="max-width:420px;flex:1 1 300px">Search<input class="i" id="sq" autocomplete="off" placeholder="e.g. Dela Cruz Juan, 71127056 or M13370931"></label>
+      <button class="btn">Search</button></form>
+    <div id="res"></div>`);
+  $("#sq").focus();
+  const go = id => location.hash = "#/member/" + encodeURIComponent(id);
+  $("#sf").onsubmit = async e => {
+    e.preventDefault();
+    try {
+      const data = await memberSearch($("#sq").value);
+      if (data.length === 1) return go(data[0].member_id);
+      $("#res").innerHTML = !data.length ? `<div class="panel empty">No members match “${esc($("#sq").value)}”.</div>` :
+        `<div class="tw"><table class="t"><thead><tr><th>Name</th><th>Member ID</th><th>Card no.</th><th>Birthdate</th><th class="r">Available points</th><th></th></tr></thead><tbody>
+        ${data.map(m => `<tr><td>${esc(fullName(m))}</td><td>${esc(m.member_id)}</td><td>${esc(m.card_number)}</td><td>${bday(m.birthdate)}</td>
+          <td class="r num">${pts(m.available_points)}</td><td class="r"><a class="btn sm ghost" href="#/member/${encodeURIComponent(m.member_id)}">View history</a></td></tr>`).join("")}
+        </tbody></table></div>${data.length === 50 ? `<p class="hint">Showing the first 50 matches. Add more words to narrow the search.</p>` : ""}`;
+    } catch (er) { toast(errText(er), "error"); }
+  };
+  S.scan = async k => {
+    const c = await findCard(k).catch(() => null);
+    if (!c) return toast("Card not found.", "error");
+    const { data } = await sb.from("members").select("member_id").eq("card_number", c.card_number).maybeSingle();
+    if (!data) return toast(`Card ${c.card_number} is not linked to any member.`, "error");
+    go(data.member_id);
+  };
+}
+
+async function viewMemberHistory(memberId) {
+  setMain(`<p class="hint">Loading member history…</p>`);
+  const { data: m } = await sb.from("members").select("*, rewards_cards(is_activated,expiry_date)").eq("member_id", memberId).maybeSingle();
+  if (!m) { setMain(`<div class="panel empty">Member not found. <a href="#/members/lookup">Search again</a></div>`); return; }
+
+  // load every transaction of this member (most members have few; paged just in case)
+  const all = [];
+  for (let p = 0; ; p++) {
+    const { data, error } = await sb.from("rewards_transactions")
+      .select("transaction_id,receipt_number,total_amount,remarks,conversion_rate,created_at,created_by,card_number,rewards_transaction_details(transaction_type,points,status,updated_by,updated_at)")
+      .eq("member_id", m.member_id).order("transaction_id", { ascending: true }).range(p * 1000, p * 1000 + 999);
+    if (error) { setMain(`<div class="bad-line">${esc(errText(error))}</div>`); return; }
+    all.push(...data); if (data.length < 1000) break;
+  }
+  // per-transaction totals and running balance (approved only, oldest first)
+  let bal = 0;
+  const rows = all.map(t => {
+    const d = t.rewards_transaction_details;
+    const earn = d.filter(x => x.transaction_type === 1).reduce((a, x) => a + Number(x.points), 0);
+    const redeem = d.filter(x => x.transaction_type === 2).reduce((a, x) => a + Number(x.points), 0);
+    const voided = !d.some(x => x.status === 1);
+    if (!voided) bal = round2(bal + earn - redeem);
+    const v = d.find(x => x.status === 0);
+    return { ...t, earn, redeem, voided, balance: voided ? null : bal, voided_by: v?.updated_by, voided_at: v?.updated_at };
+  });
+  const ok = rows.filter(r => !r.voided);
+  const totalAmt = ok.reduce((a, r) => a + Number(r.total_amount || 0), 0);
+  const canTxn = S.profile.role === "cashier";
+  const canEdit = ["cashier", "admitting", "sysadmin"].includes(S.profile.role);
+
+  setMain(`
+    <div class="head"><div><h1>${esc(m.first_name)} ${esc(m.last_name)}</h1><p>Member ${esc(m.member_id)} · Card ${esc(m.card_number || "—")}${m.rewards_cards && !m.rewards_cards.is_activated ? ' <span class="tag no">Card deactivated</span>' : ""}</p></div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        ${canTxn ? `<a class="btn earn" href="#/txn/${encodeURIComponent(m.member_id)}">Start transaction</a>` : ""}
+        ${canEdit ? `<button class="btn ghost" id="editBtn">Update details</button>` : ""}
+        <button class="btn ghost" id="printBtn">Print statement</button>
+        <button class="btn ghost" id="expBtn">Export to Excel</button>
+      </div></div>
+
+    <div class="hist-top">
+      <div>
+        ${rcardHTML("rcH")}
+        <div class="mcard">
+          <div class="avail"><small>Available points</small><b class="num">${pts(m.available_points)}</b></div>
+          <div class="row">
+            <div>Total earned<b class="num">${pts(m.total_points)}</b></div>
+            <div>Redeemed<b class="num">${pts(m.redeemed_points)}</b></div>
+            <div>Expires<b>${m.rewards_cards?.expiry_date ? dOnly(m.rewards_cards.expiry_date) : "Never"}</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <dl class="stats mini">
+          <div><dt>Transactions</dt><dd class="num">${ok.length.toLocaleString()}</dd></div>
+          <div><dt>Total amount</dt><dd class="num">${peso(totalAmt)}</dd></div>
+          <div><dt>Times redeemed</dt><dd class="num">${ok.filter(r => r.redeem).length}</dd></div>
+          <div><dt>Voided</dt><dd class="num">${rows.length - ok.length}</dd></div>
+          <div><dt>First visit</dt><dd>${ok.length ? dOnly(ok[0].created_at) : "—"}</dd></div>
+          <div><dt>Last visit</dt><dd>${ok.length ? dOnly(ok[ok.length - 1].created_at) : "—"}</dd></div>
+        </dl>
+        <h2 style="margin:1.1rem 0 .4rem;font-size:1rem">Points balance over time</h2>
+        <div id="spark"></div>
+        <details class="mdetails" style="margin-top:.8rem"><summary>Member details</summary>
+          <dl class="kv" style="margin-top:.8rem">
+            <dt>Full name</dt><dd>${esc([m.first_name, m.middle_name, m.last_name].filter(Boolean).join(" "))}</dd>
+            <dt>Birthdate</dt><dd>${bday(m.birthdate)}</dd>
+            <dt>Contact</dt><dd>${esc(m.contact_no || "—")}</dd>
+            <dt>Email</dt><dd>${esc(m.email || "—")}</dd>
+            <dt>Address</dt><dd>${esc(m.address || "—")}</dd>
+            <dt>Member since</dt><dd>${dOnly(m.created_at)}</dd>
+          </dl></details>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:1.2rem">
+      <div class="head" style="margin-bottom:.8rem"><h2>All transactions</h2></div>
+      <form class="filters" id="hf">
+        ${dateFilters()}
+        <label class="f">Show<select class="i" name="kind"><option value="">All transactions</option><option value="redeem">With redemption</option><option value="earn">Earn only</option><option value="void">Voided only</option></select></label>
+        <label class="f">Receipt no.<input class="i" name="receipt"></label>
+        <button class="btn">Apply</button><button type="button" class="btn ghost" id="hclr">Clear</button>
+      </form>
+      <div id="htable"></div>
+      <div class="pager"><span id="hpi"></span><div><button class="btn ghost sm" id="hprev">Previous</button><button class="btn ghost sm" id="hnext">Next</button></div></div>
+    </div>`);
+  setCard($("#rcH"), { num: m.card_number, name: `${m.first_name} ${m.last_name}`, since: m.created_at });
+  drawSpark($("#spark"), ok);
+
+  const SIZE = 25; let page = 0, view = [];
+  function filtered() {
+    const f = Object.fromEntries(new FormData($("#hf")));
+    const from = f.from ? new Date(dayStart(f.from)) : null, to = f.to ? new Date(dayEnd(f.to)) : null, rq = cleanQ(f.receipt).toLowerCase();
+    return rows.filter(r => {
+      const d = new Date(r.created_at);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      if (rq && !String(r.receipt_number || "").toLowerCase().includes(rq)) return false;
+      if (f.kind === "redeem" && (!r.redeem || r.voided)) return false;
+      if (f.kind === "earn" && (r.redeem || r.voided)) return false;
+      if (f.kind === "void" && !r.voided) return false;
+      return true;
+    }).reverse();
+  }
+  function render() {
+    const slice = view.slice(page * SIZE, page * SIZE + SIZE);
+    $("#htable").innerHTML = !view.length ? `<div class="empty">${rows.length ? "No transactions match these filters." : "This member has no transactions yet."}</div>` :
+      `<div class="tw"><table class="t"><thead><tr><th>Date</th><th>Receipt no.</th><th class="r">Amount</th><th class="r">Earned</th><th class="r">Redeemed</th>
+        <th class="r">Balance after</th><th>Remarks</th><th>Status</th><th>Cashier</th>${canTxn ? "<th></th>" : ""}</tr></thead><tbody>
+      ${slice.map(r => `<tr class="${r.voided ? "void" : ""}"><td>${dt(r.created_at)}</td><td>${esc(r.receipt_number || "")}</td>
+        <td class="r num">${peso(r.total_amount)}</td><td class="r num">${r.earn ? "+" + pts(r.earn) : "—"}</td>
+        <td class="r num">${r.redeem ? "−" + pts(r.redeem) : "—"}</td>
+        <td class="r num keep">${r.voided ? "—" : "<b>" + pts(r.balance) + "</b>"}</td>
+        <td>${esc(r.remarks || "")}</td>
+        <td class="keep">${r.voided ? `<span class="tag no" title="${r.voided_by ? "Voided by " + esc(r.voided_by) + (r.voided_at ? " on " + dt(r.voided_at) : "") : ""}">Voided</span>` : '<span class="tag ok">Approved</span>'}</td>
+        <td>${esc(r.created_by || "")}</td>
+        ${canTxn ? `<td class="keep">${r.voided ? "" : `<button class="btn link" data-rp="${r.transaction_id}">Reprint</button>`}</td>` : ""}</tr>`).join("")}
+      </tbody></table></div>`;
+    const a = view.length ? page * SIZE + 1 : 0, b = Math.min(view.length, page * SIZE + SIZE);
+    $("#hpi").textContent = `${a}–${b} of ${view.length}`;
+    $("#hprev").disabled = page === 0; $("#hnext").disabled = b >= view.length;
+    $$("[data-rp]").forEach(btn => btn.onclick = () => {
+      const r = rows.find(x => String(x.transaction_id) === btn.dataset.rp);
+      printReceipt(m, { txn: r.transaction_id, rn: r.receipt_number, ta: r.total_amount, date: r.created_at, reprint: true, earn: r.earn, redeem: r.redeem });
+    });
+  }
+  const apply = () => { page = 0; view = filtered(); render(); };
+  $("#hf").onsubmit = e => { e.preventDefault(); apply(); };
+  $("#hclr").onclick = () => { $("#hf").reset(); apply(); };
+  $("#hprev").onclick = () => { page--; render(); };
+  $("#hnext").onclick = () => { page++; render(); };
+  apply();
+
+  if ($("#editBtn")) $("#editBtn").onclick = () => { sessionStorage.setItem("editMember", m.member_id); location.hash = "#/members/update"; };
+  const exportRows = () => view.map(r => ({
+    "Date": dt(r.created_at), "Transaction #": r.transaction_id, "Receipt no.": r.receipt_number || "", "Amount": Number(r.total_amount || 0),
+    "Points earned": r.earn, "Points redeemed": r.redeem, "Balance after": r.voided ? "" : r.balance, "Remarks": r.remarks || "",
+    "Status": r.voided ? "Voided" : "Approved", "Cashier": r.created_by || "" }));
+  $("#expBtn").onclick = () => {
+    const ws = XLSX.utils.json_to_sheet(exportRows()), wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "History");
+    XLSX.writeFile(wb, `history_${m.member_id}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    log("EXPORT", "member_history", m.member_id);
+  };
+  $("#printBtn").onclick = () => printStatement(m, view, { totalAmt, count: ok.length });
+  S.scan = async k => {
+    const c = await findCard(k).catch(() => null);
+    if (!c) return toast("Card not found.", "error");
+    const { data } = await sb.from("members").select("member_id").eq("card_number", c.card_number).maybeSingle();
+    if (!data) return toast(`Card ${c.card_number} is not linked to any member.`, "error");
+    location.hash = "#/member/" + encodeURIComponent(data.member_id);
+  };
+}
+
+function drawSpark(el, ok) {
+  if (ok.length < 2) { el.innerHTML = `<p class="hint">Not enough transactions to draw a chart yet.</p>`; return; }
+  const W = 600, H = 120, P = 6;
+  const t0 = new Date(ok[0].created_at).getTime(), t1 = new Date(ok[ok.length - 1].created_at).getTime() || t0 + 1;
+  const max = Math.max(...ok.map(r => r.balance), 1);
+  const X = r => P + (W - 2 * P) * ((new Date(r.created_at).getTime() - t0) / Math.max(t1 - t0, 1));
+  const Y = v => H - P - (H - 2 * P) * (v / max);
+  let d = `M${X(ok[0]).toFixed(1)},${Y(0).toFixed(1)}`;
+  let prev = 0;
+  for (const r of ok) { d += ` L${X(r).toFixed(1)},${Y(prev).toFixed(1)} L${X(r).toFixed(1)},${Y(r.balance).toFixed(1)}`; prev = r.balance; }
+  const area = d + ` L${X(ok[ok.length - 1]).toFixed(1)},${Y(0).toFixed(1)} Z`;
+  const last = ok[ok.length - 1];
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="spark" role="img" aria-label="Points balance from ${dOnly(ok[0].created_at)} to ${dOnly(last.created_at)}, now ${pts(last.balance)}">
+    <path d="${area}" fill="var(--gold-soft)"/><path d="${d}" fill="none" stroke="var(--gold)" stroke-width="2.2" stroke-linejoin="round"/>
+    <circle cx="${X(last).toFixed(1)}" cy="${Y(last.balance).toFixed(1)}" r="4" fill="var(--ink)"/></svg>
+    <div class="spark-axis"><span>${dOnly(ok[0].created_at)}</span><span>Highest: ${pts(max)}</span><span>${dOnly(last.created_at)}</span></div>`;
+}
+
+function printStatement(m, list, sum) {
+  const rowsH = list.map(r => `<tr${r.voided ? ' style="color:#999;text-decoration:line-through"' : ""}><td>${dt(r.created_at)}</td><td>${esc(r.receipt_number || "")}</td>
+    <td class="r">${peso(r.total_amount)}</td><td class="r">${r.earn ? "+" + pts(r.earn) : ""}</td><td class="r">${r.redeem ? "-" + pts(r.redeem) : ""}</td>
+    <td class="r">${r.voided ? "Voided" : pts(r.balance)}</td></tr>`).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Rewards statement ${esc(m.member_id)}</title><style>
+    @page{size:A4;margin:14mm}body{font:12px/1.4 Arial,sans-serif;color:#111}
+    .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #17283A;padding-bottom:8px;margin-bottom:12px}
+    .top img{height:52px}h1{font-size:18px;margin:0}table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{padding:5px 6px;border-bottom:1px solid #ddd;text-align:left}th{background:#f2f4f3}.r{text-align:right}
+    .sum{display:flex;gap:28px;margin:8px 0}.sum b{display:block;font-size:15px}.foot{margin-top:16px;color:#666;font-size:10px}</style></head><body>
+    <div class="top"><img src="${LOGO_SRC}"><div style="text-align:right"><h1>Rewards Statement</h1>Printed ${dt(new Date())}</div></div>
+    <div><b style="font-size:15px">${esc([m.first_name, m.middle_name, m.last_name].filter(Boolean).join(" "))}</b><br>
+      Member ${esc(m.member_id)} · Card ${esc(m.card_number || "")} · Member since ${dOnly(m.created_at)}</div>
+    <div class="sum"><div>Available points<b>${pts(m.available_points)}</b></div><div>Total earned<b>${pts(m.total_points)}</b></div>
+      <div>Redeemed<b>${pts(m.redeemed_points)}</b></div><div>Transactions<b>${sum.count}</b></div><div>Total amount<b>${peso(sum.totalAmt)}</b></div></div>
+    <table><thead><tr><th>Date</th><th>Receipt no.</th><th class="r">Amount</th><th class="r">Earned</th><th class="r">Redeemed</th><th class="r">Balance</th></tr></thead>
+    <tbody>${rowsH || '<tr><td colspan="6">No transactions.</td></tr>'}</tbody></table>
+    <div class="foot">Taytay Doctors Multispecialty Hospital · TDMH Rewards System · Printed by ${esc(S.profile.username)}</div></body></html>`;
+  const f = document.createElement("iframe");
+  f.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+  document.body.appendChild(f);
+  f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+  setTimeout(() => { f.contentWindow.focus(); f.contentWindow.print(); setTimeout(() => f.remove(), 1500); }, 300);
+  log("PRINT_STATEMENT", m.member_id);
 }
 
 /* ================== DASHBOARD ================== */
@@ -1124,7 +1456,7 @@ function viewRptMembers() {
       { h: "Registered", v: r => dOnly(r.created_at) },
       { h: "Status", v: r => r.status === 1 ? '<span class="tag ok">Active</span>' : '<span class="tag">Inactive</span>', x: r => r.status === 1 ? "Active" : "Inactive" },
     ],
-    actions: r => `<a class="btn link" target="_blank" href="#/reports/transactions?member=${encodeURIComponent(r.member_id)}&name=${encodeURIComponent(fullName(r))}">View transactions</a>`,
+    actions: r => `<a class="btn link" href="#/member/${encodeURIComponent(r.member_id)}">View history</a>`,
   });
 }
 
@@ -1202,6 +1534,8 @@ function usersCfg(extra = {}) {
       { h: "Role", v: r => ROLE_LABEL[r.role] },
       { h: "Contact", v: r => esc(r.contact_no || ""), x: r => r.contact_no || "" },
       { h: "Email", v: r => esc(r.email || ""), x: r => r.email || "" },
+      { h: "Password", v: r => r.password_set ? "Set" : r.welcome_sent_at ? `<span class="tag gold">Invited ${dOnly(r.welcome_sent_at)}</span>` : '<span class="tag">Not invited</span>',
+        x: r => r.password_set ? "Set" : r.welcome_sent_at ? "Invited " + dOnly(r.welcome_sent_at) : "Not invited" },
       { h: "Status", v: r => r.is_active ? '<span class="tag ok">Active</span>' : '<span class="tag no">Inactive</span>', x: r => r.is_active ? "Active" : "Inactive" },
     ],
     ...extra,
@@ -1262,21 +1596,57 @@ async function adminUsers(body) {
 }
 function viewAdmUsers() {
   let editing = null, reload = null;
+  const canLink = /^https?:$/.test(location.protocol);
+  const linkGuard = () => {
+    if (canLink) return true;
+    dialog({ title: "Open the online version first", ok: "OK", cancel: null,
+      body: `<p>This page was opened as a file on this computer, so emailed links would have nowhere to go. Open the deployed (online) TDMH Rewards page and send the links from there.</p>` });
+    return false;
+  };
   const form = u => `
     <form class="panel" id="uf" style="margin-bottom:1.2rem">
-      <h2 style="margin-bottom:.8rem">${u ? "Edit user: " + esc(u.username) : "Add new user"}</h2>
+      <h2 style="margin-bottom:.3rem">${u ? "Edit user: " + esc(u.username) : "Add new user"}</h2>
+      <p class="hint" style="margin:0 0 .9rem">${u ? "Changing the email also changes what they sign in with." : "Leave the password blank and we'll email them a welcome link to set their own."}</p>
       <div class="grid2">
-        <label class="f"><span class="req">Username</span><input class="i" name="username" value="${esc(u?.username)}" ${u ? "disabled" : "required"} autocomplete="off"></label>
-        <label class="f"><span class="${u ? "" : "req"}">${u ? "New password" : "Password"}</span><input class="i" name="password" type="password" autocomplete="new-password" placeholder="${u ? "Leave blank to keep current" : "At least 6 characters"}"></label>
+        <label class="f"><span class="req">Email address</span><input class="i" name="email" type="email" value="${esc(u?.email)}" required autocomplete="off"></label>
+        <label class="f">Username <small>${u ? "" : "Blank = taken from the email"}</small><input class="i" name="username" value="${esc(u?.username)}" ${u ? "disabled" : ""} autocomplete="off"></label>
         <label class="f"><span class="req">First name</span><input class="i" name="first_name" value="${esc(u?.first_name)}" required></label>
         <label class="f"><span class="req">Last name</span><input class="i" name="last_name" value="${esc(u?.last_name)}" required></label>
         <label class="f"><span class="req">Role</span><select class="i" name="role">${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}" ${u?.role === k ? "selected" : ""}>${v}</option>`).join("")}</select></label>
         <label class="f">Contact number<input class="i" name="contact_no" value="${esc(u?.contact_no)}"></label>
-        <label class="f">Email address<input class="i" name="email" type="email" value="${esc(u?.email)}"></label>
+        <label class="f">${u ? "Set a new password" : "Password"} <small>Optional</small><input class="i" name="password" type="password" autocomplete="new-password" placeholder="${u ? "Leave blank to keep current" : "Blank = email a welcome link"}"></label>
       </div>
       <div style="margin-top:1rem;display:flex;gap:.5rem"><button class="btn">${u ? "Save changes" : "Add user"}</button>
         ${u ? `<button type="button" class="btn ghost" id="ucancel">Cancel</button>` : ""}</div>
     </form>`;
+
+  async function pendingBanner() {
+    const { data } = await sb.from("profiles").select("id,welcome_sent_at").eq("is_active", true).eq("password_set", false);
+    const n = (data || []).length, never = (data || []).filter(x => !x.welcome_sent_at).length;
+    $("#pend").innerHTML = !n ? "" : `<div class="warn" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+      <span>${n} user${n > 1 ? "s have" : " has"} not set a password yet${never ? ` (${never} never invited)` : ""}.</span>
+      <button class="btn sm" id="sendAll">Send welcome links to ${n}</button></div>`;
+    if ($("#sendAll")) $("#sendAll").onclick = () => sendLinks(data.map(x => x.id), `${n} user${n > 1 ? "s" : ""}`);
+  }
+
+  async function sendLinks(ids, label) {
+    if (!linkGuard()) return;
+    const ok = await dialog({ title: "Send email links?", ok: "Send",
+      body: `<p>Each of ${esc(label)} will get an email with a link to set their password. The link opens:</p><p><b>${esc(APP_URL)}</b></p>` });
+    if (!ok) return;
+    toast("Sending emails…");
+    let sent = 0; const failed = [];
+    for (let i = 0; i < ids.length; i += 50) {
+      try {
+        const r = await adminUsers({ action: "send_link", ids: ids.slice(i, i + 50), redirect: APP_URL });
+        for (const [id, v] of Object.entries(r.results || {})) v.ok ? sent++ : failed.push(v.error);
+      } catch (er) { failed.push(errText(er)); }
+    }
+    if (sent) toast(`Sent ${sent} email${sent > 1 ? "s" : ""}.`, "ok");
+    if (failed.length) toast(`${failed.length} not sent: ${[...new Set(failed)].join("; ")}`, "error");
+    pendingBanner(); reload && reload();
+  }
+
   function mountForm() {
     $("#ufWrap").innerHTML = form(editing);
     if ($("#ucancel")) $("#ucancel").onclick = () => { editing = null; mountForm(); };
@@ -1286,34 +1656,39 @@ function viewAdmUsers() {
       try {
         if (editing) {
           await adminUsers({ action: "update", id: editing.id, first_name: f.first_name, last_name: f.last_name, role: f.role,
-            contact_no: f.contact_no, email: f.email, ...(f.password ? { password: f.password } : {}) });
-          toast(f.password ? "User updated and password reset." : "User updated.", "ok");
+            contact_no: f.contact_no, ...(f.email && f.email !== editing.email ? { email: f.email } : {}), ...(f.password ? { password: f.password } : {}) });
+          toast(f.password ? "User updated and password set." : "User updated.", "ok");
         } else {
-          await adminUsers({ action: "create", ...f });
-          toast("User added.", "ok");
+          if (!f.password && !linkGuard()) return;
+          const r = await adminUsers({ action: "create", ...f, redirect: APP_URL });
+          if (f.password) toast(`User ${r.username} added.`, "ok");
+          else if (r.emailed) toast(`User ${r.username} added. Welcome email sent to ${f.email}.`, "ok");
+          else toast(`User ${r.username} added, but the welcome email failed: ${r.email_error || "unknown error"}. Use "Send welcome link" to retry.`, "error");
         }
-        editing = null; mountForm(); reload && reload();
+        editing = null; mountForm(); pendingBanner(); reload && reload();
       } catch (er) { toast(errText(er), "error"); }
     };
   }
   report(usersCfg({
-    title: "Manage users", sub: "Add staff accounts, reset passwords, and activate or deactivate access.",
-    pre: `<div id="ufWrap"></div>`,
+    title: "Manage users", sub: "Add staff accounts, email welcome or reset links, and activate or deactivate access.",
+    pre: `<div id="pend"></div><div id="ufWrap"></div>`,
     actions: (r, i) => `<button class="btn sm ghost" data-ed="${i}">Edit</button>
+      <button class="btn sm ghost" data-link="${i}" ${r.is_active ? "" : "disabled"}>${r.password_set ? "Send reset link" : "Send welcome link"}</button>
       <button class="btn sm ${r.is_active ? "ghost" : ""}" data-act="${i}" ${r.id === S.profile.id ? "disabled" : ""}>${r.is_active ? "Deactivate" : "Activate"}</button>`,
     bind: (rows, load) => {
       reload = load;
       $$("[data-ed]").forEach(b => b.onclick = () => { editing = rows[b.dataset.ed]; mountForm(); $("#uf").scrollIntoView({ behavior: "smooth" }); });
+      $$("[data-link]").forEach(b => b.onclick = () => { const r = rows[b.dataset.link]; sendLinks([r.id], r.username); });
       $$("[data-act]").forEach(b => b.onclick = async () => {
         const r = rows[b.dataset.act], act = !r.is_active;
         const ok = await dialog({ title: act ? "Activate user?" : "Deactivate user?", tone: act ? "" : "redeem", ok: act ? "Activate" : "Deactivate",
           body: `<p><b>${esc(r.username)}</b> ${act ? "will be able to sign in again." : "will no longer be able to sign in."}</p>` });
         if (!ok) return;
-        try { await adminUsers({ action: "update", id: r.id, is_active: act }); toast(act ? "User activated." : "User deactivated.", "ok"); load(); }
+        try { await adminUsers({ action: "update", id: r.id, is_active: act }); toast(act ? "User activated." : "User deactivated.", "ok"); load(); pendingBanner(); }
         catch (er) { toast(errText(er), "error"); }
       });
     },
-    mount: () => mountForm(),
+    mount: () => { mountForm(); pendingBanner(); },
   }));
 }
 
@@ -1383,7 +1758,7 @@ function viewProfile() {
       <h2 style="margin-bottom:.8rem">Contact details</h2>
       <div class="grid2">
         <label class="f">Contact number<input class="i" name="contact_no" value="${esc(p.contact_no)}"></label>
-        <label class="f">Email address<input class="i" name="email" type="email" value="${esc(p.email)}"></label>
+        <label class="f">Email address <small>Used for sign-in and password resets. Ask the System Admin to change it.</small><input class="i" value="${esc(p.email || "")}" disabled></label>
       </div>
       <div style="margin-top:1rem"><button class="btn">Save contact details</button></div>
     </form>
@@ -1407,9 +1782,9 @@ function viewProfile() {
   $("#pf").onsubmit = async e => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.target));
-    const { error } = await sb.from("profiles").update({ contact_no: f.contact_no || null, email: f.email || null, updated_by: p.username }).eq("id", p.id);
+    const { error } = await sb.from("profiles").update({ contact_no: f.contact_no || null, updated_by: p.username }).eq("id", p.id);
     if (error) return toast(errText(error), "error");
-    Object.assign(p, { contact_no: f.contact_no, email: f.email }); toast("Contact details saved.", "ok");
+    Object.assign(p, { contact_no: f.contact_no }); toast("Contact details saved.", "ok");
   };
   $("#pw").onsubmit = async e => {
     e.preventDefault();
@@ -1434,7 +1809,10 @@ function viewProfile() {
 
 /* ================== START ================== */
 $("#loginLogo").src = LOGO_SRC;
-sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_OUT") { S.profile = null; showLogin(); } });
+sb.auth.onAuthStateChange((ev, session) => {
+  if (ev === "SIGNED_OUT") { S.profile = null; showLogin(); }
+  if (ev === "PASSWORD_RECOVERY" && session) { landing = "set"; showSetPassword(session); }
+});
 boot();
 </script>
 </body>
