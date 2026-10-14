@@ -803,14 +803,14 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.13-1'
+const APP_VERSION = '2026.10.13-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
     const res = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })
     if (!res.ok) return
     const text = await res.text()
-    const m = text.match(/const APP_VERSION = '2026.10.13-1']+)'/)
+    const m = text.match(/const APP_VERSION = '([^']+)'/)
     if (m && m[1] && m[1] !== APP_VERSION) showUpdateBanner()
   } catch(_) { /* silent — never affect the app */ }
 }
