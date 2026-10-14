@@ -803,14 +803,14 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.06-2'
+const APP_VERSION = '2026.10.13-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
     const res = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' })
     if (!res.ok) return
     const text = await res.text()
-    const m = text.match(/const APP_VERSION = '([^']+)'/)
+    const m = text.match(/const APP_VERSION = '2026.10.13-1']+)'/)
     if (m && m[1] && m[1] !== APP_VERSION) showUpdateBanner()
   } catch(_) { /* silent — never affect the app */ }
 }
@@ -2860,7 +2860,7 @@ async function viewRequest(id) {
   // FOR_PO or PARTIALLY_ISSUED split request — some items forwarded to Purchasing, but
   // "issue"-type items may still have remaining qty. The Supply Officer can STILL issue
   // those from stock, independently of the PO side. Show whenever any non-PO item owes qty.
-  else if (req.request_type !== 'derp' && (req.status === 'for_po' || req.status === 'partially_issued') && ['supply_officer','admin'].includes(role) && requestItemsHavePendingIssue(items)) {
+  else if (req.request_type !== 'derp' && (req.status === 'for_po' || req.status === 'partially_issued' || req.status === 'delivered') && ['supply_officer','admin'].includes(role) && requestItemsHavePendingIssue(items)) {
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue Remaining (Stock)</button>'
   }
   // Pull Back to Issuance — for for_po items that DON'T have a PO yet (emergency bought
