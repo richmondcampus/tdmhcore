@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.15-2'
+const APP_VERSION = '2026.10.15-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -10250,7 +10250,7 @@ async function submitDerpEvaluation(id) {
   if (!guardClick('submitDerpEval')) return
 
   const notes = document.getElementById('eval_notes') ? document.getElementById('eval_notes').value.trim() : ''
-  const decisionEl = document.querySelector('input[name="eval_decision"]:checked')
+  const decisionEl = document.querySelector('input[name="f_recommendation"]:checked')
   const decision = decisionEl ? decisionEl.value : 'for_repair'
   if (!notes) { showToast('error', 'Required', 'Please enter evaluation notes.'); return }
 
