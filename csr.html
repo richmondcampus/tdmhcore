@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.13-2'
+const APP_VERSION = '2026.10.15-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5973,6 +5973,20 @@ async function confirmIssueFromPO() {
     // Only insert if this issuance doesn't already have items (avoids duplicates).
     if (!(existingItemCount && existingItemCount > 0)) {
       await SB.from('issuance_items').insert(plannedItems.map(it => ({ ...it, issuance_id: issId })))
+      // Keep request_items in sync: mark the matching request items as issued so the
+      // request detail, Issue views, and reports all agree (prevents "di ma-issue",
+      // double-issue, and blank-item confusion).
+      if (reqId) {
+        const { data: rItems } = await SB.from('request_items').select('id,item_name,quantity,quantity_issued').eq('request_id', reqId)
+        for (const pi of plannedItems) {
+          const nm = (pi.item_name_snapshot || '').toLowerCase().trim()
+          const match = (rItems || []).find(ri => (ri.item_name || '').toLowerCase().trim() === nm)
+          if (match) {
+            const newIssued = Math.min(Number(match.quantity || 0), Number(match.quantity_issued || 0) + Number(pi.quantity_issued || 0))
+            await SB.from('request_items').update({ quantity_issued: newIssued }).eq('id', match.id)
+          }
+        }
+      }
     }
 
     // PO status: 'issued' only if everything ordered has been received AND issued.
