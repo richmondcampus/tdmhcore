@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.15-4'
+const APP_VERSION = '2026.10.15-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -3220,7 +3220,10 @@ function renderNewRequestForm(reqType) {
 
   html += '<div class="field-row">'
   // Department
-  html += '<div class="field"><label>Department</label><select id="f_dept" ' + (state.user.csr_role !== 'admin' ? 'disabled' : '') + '>'
+  // Department: normally locked to the user's own dept. For DERP (filed on behalf of the
+  // department that owns the equipment), admin can choose any department.
+  const deptPickable = state.user.csr_role === 'admin' || (reqType === 'derp' && ['admin','gsd'].includes(state.user.csr_role))
+  html += '<div class="field"><label>Department' + (reqType === 'derp' ? ' <span style="font-size:11px;color:var(--txt3);font-weight:400;">(kung kaninong dept ang equipment)</span>' : '') + '</label><select id="f_dept" ' + (deptPickable ? '' : 'disabled') + '>'
   const myDept = state.user.dept_id
   state.departments.forEach(d => {
     const sel = d.id === myDept ? ' selected' : ''
