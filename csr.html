@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.15-3'
+const APP_VERSION = '2026.10.15-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -5942,8 +5942,11 @@ async function confirmIssueFromPO() {
   if (!plannedItems.length) { releaseClick('confirmIssueFromPO'); showToast('error','Pumili','Pumili ng kahit isang item na i-i-issue.'); return }
 
   try {
-    // Get or create issuance linked to this PO
-    const { data: existing } = await SB.from('issuances').select('id,issuance_no').eq('po_id', poId).maybeSingle()
+    // Reuse only a PENDING (not yet confirmed, not cancelled) issuance for this PO.
+    // A confirmed issuance is finished — a new batch (partial delivery) needs its own.
+    const { data: existing } = await SB.from('issuances').select('id,issuance_no')
+      .eq('po_id', poId).is('confirmed_at', null).is('cancelled_at', null)
+      .order('issued_at', { ascending: false }).limit(1).maybeSingle()
 
     let issId = existing?.id
     let issNo = existing?.issuance_no
