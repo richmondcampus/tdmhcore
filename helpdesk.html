@@ -2946,6 +2946,11 @@ async function convertToDerp(ticketId) {
   document.getElementById('confirmMsg').innerHTML =
     '<div style="display:flex;flex-direction:column;gap:10px;">' +
     '<p style="font-size:13px;color:var(--txt2);">Gagawa ito ng <strong>DERP request</strong> sa CSR para sa equipment na hindi na kayang ayusin. Isasara ang ticket na ito at ilalagay ang link sa DERP.</p>' +
+    '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">DEPARTMENT * <span style="font-weight:400;color:var(--txt3);">(kung kaninong dept ang equipment)</span></label>' +
+    '<select id="derp_dept" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">' +
+    (S.departments || []).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).map(d =>
+      '<option value="' + d.id + '"' + (d.id === t.dept_id ? ' selected' : '') + '>' + (d.dept_name||'') + '</option>').join('') +
+    '</select></div>' +
     '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">CONDITION *</label>' +
     '<select id="derp_condition" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">' +
     '<option value="beyond_repair">Beyond Repair — hindi na kayang ayusin</option>' +
@@ -3025,7 +3030,7 @@ async function convertToDerp(ticketId) {
         request_no: requestNo,
         request_type: 'derp',
         derp_category: 'it',
-        dept_id: t.dept_id || null,
+        dept_id: (document.getElementById('derp_dept')?.value || t.dept_id) || null,
         requested_by: t.requester_id || S.user.id,
         urgency: (t.priority === 'critical' || t.priority === 'high') ? 'urgent' : 'routine',
         purpose: purpose,
