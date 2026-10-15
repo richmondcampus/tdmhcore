@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.15-1'
+const APP_VERSION = '2026.10.15-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -4290,6 +4290,15 @@ async function renderIncomingDeliveries() {
     const { data } = await SB.from('suppliers').select('*').eq('is_active', true)
     poState.suppliers = data || []
   }
+  // Load PO item names (indexed per PO) so the search box can also match by item.
+  incomingState.itemsByPO = {}
+  const allPoIds = [...new Set([...incomingState.incoming, ...incomingState.pendingIssue].map(p => p.id))]
+  if (allPoIds.length) {
+    const { data: poItems } = await SB.from('po_items').select('po_id,item_name').in('po_id', allPoIds)
+    ;(poItems || []).forEach(pi => {
+      (incomingState.itemsByPO[pi.po_id] = incomingState.itemsByPO[pi.po_id] || []).push(pi.item_name || '')
+    })
+  }
 
   let html = '<div class="page-header">'
   html += '<div><h2>📦 Incoming Deliveries</h2>'
@@ -4299,7 +4308,7 @@ async function renderIncomingDeliveries() {
   // Search + department filter (same pattern as other tabs)
   if (!incomingState.filters) incomingState.filters = { search: '', dept: '' }
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">'
-  html += '<input type="text" id="inc_f_search" placeholder="🔍 PO no., supplier, o request no..." value="' + escStk(incomingState.filters.search) + '" oninput="incomingState.filters.search=this.value;applyIncomingFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+  html += '<input type="text" id="inc_f_search" placeholder="🔍 PO no., supplier, request no., o item..." value="' + escStk(incomingState.filters.search) + '" oninput="incomingState.filters.search=this.value;applyIncomingFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   html += deptAutocompleteHtml('inc_f_dept', 'acPickIncDept')
   if (incomingState.filters.search || incomingState.filters.dept) {
     html += '<button class="btn btn-ghost btn-sm" onclick="clearIncomingFilters()">✕ Clear</button>'
@@ -4319,7 +4328,8 @@ function buildIncomingBody() {
     if (f.dept && po.requests?.dept_id !== f.dept) return false
     if (f.search) {
       const s = f.search.toLowerCase()
-      const hay = [po.po_number, po.supplier_name, poSupplierName(po), po.requests?.request_no].filter(Boolean).join(' ').toLowerCase()
+      const items = (incomingState.itemsByPO && incomingState.itemsByPO[po.id]) || []
+      const hay = [po.po_number, po.supplier_name, poSupplierName(po), po.requests?.request_no, ...items].filter(Boolean).join(' ').toLowerCase()
       if (!hay.includes(s)) return false
     }
     return true
