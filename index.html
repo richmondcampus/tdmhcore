@@ -1830,7 +1830,7 @@ async function renderUserMgmt(){
   const content = document.getElementById('mainContent')
   content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading users...</p></div>'
   const { data, error } = await SB.from('users')
-    .select('id,employee_no,full_name,email,phone,dept_id,position,csr_role,maintenance_role,it_role,inventory_role,is_active')
+    .select('id,employee_no,full_name,email,phone,dept_id,position,csr_role,maintenance_role,it_role,inventory_role,is_active,sms_csr,sms_maintenance,sms_it')
     .order('full_name')
   if(error){ content.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Error</h3><p>'+esc(error.message)+'</p></div>'; return }
   UM.users = data || []
@@ -2054,8 +2054,8 @@ async function downloadUserTemplate() {
   const wb = new ExcelJS.Workbook()
   const ws = wb.addWorksheet('Users')
 
-  const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role','is_dept_head','also_heads']
-  const widths  = [30, 22, 14, 16, 20, 18, 24, 22, 22, 18, 12, 40]
+  const headers = ['email','full_name','employee_no','phone','department','position','csr_role','maintenance_role','it_role','inventory_role','is_dept_head','also_heads','sms_csr','sms_maintenance','sms_it']
+  const widths  = [30, 22, 14, 16, 20, 18, 24, 22, 22, 18, 12, 40, 12, 16, 12]
 
   // Header row
   ws.addRow(headers)
@@ -2079,14 +2079,15 @@ async function downloadUserTemplate() {
     ws.addRow([
       u.email, u.full_name || '', u.employee_no || '', u.phone || '',
       u.dept_id ? (deptById[u.dept_id] || '') : '', u.position || '',
-      u.csr_role || '', u.maintenance_role || '', u.it_role || '', u.inventory_role || '', isHead, alsoHeads
+      u.csr_role || '', u.maintenance_role || '', u.it_role || '', u.inventory_role || '', isHead, alsoHeads,
+      (u.sms_csr === false ? 'no' : 'yes'), (u.sms_maintenance === false ? 'no' : 'yes'), (u.sms_it === false ? 'no' : 'yes')
     ])
     prefillCount++
   })
 
   // If there are no existing users yet, show a sample row instead
   if (prefillCount === 0) {
-    const sampleRow = ws.addRow(['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer','no',''])
+    const sampleRow = ws.addRow(['juan.delacruz@tdmh.com','Juan Dela Cruz','10522','09171234567','Nursing','Staff Nurse','requester','requester','requester','viewer','no','','yes','yes','yes'])
     sampleRow.font = { italic: true, color: { argb: 'FF888888' } }
   }
 
@@ -2133,6 +2134,9 @@ async function downloadUserTemplate() {
   addInlineDropdown('I', itRoles)
   addInlineDropdown('J', invRoles)
   addInlineDropdown('K', ['yes','no'])
+  addInlineDropdown('M', ['yes','no']) // sms_csr
+  addInlineDropdown('N', ['yes','no']) // sms_maintenance
+  addInlineDropdown('O', ['yes','no']) // sms_it
 
   // A short instructions sheet
   const info = wb.addWorksheet('README')
@@ -2243,12 +2247,15 @@ async function previewBulkImport() {
         const id = deptByName[nm.toLowerCase()]
         if (id) extra_dept_ids.push(id); else badExtra.push(nm)
       })
+      // SMS toggles — default ON; only 'no' turns it off.
+      const smsVal = (v) => String(cleanStr(v)).toLowerCase() !== 'no'
       const rec = {
         email, full_name: cleanStr(r.full_name), employee_no: cleanStr(r.employee_no),
         phone: cleanStr(r.phone), dept_id, position: cleanStr(r.position),
         csr_role: cleanStr(r.csr_role) || null, maintenance_role: cleanStr(r.maintenance_role) || null,
         it_role: cleanStr(r.it_role) || null, inventory_role: cleanStr(r.inventory_role) || null,
-        is_dept_head: isHead, extra_dept_ids
+        is_dept_head: isHead, extra_dept_ids,
+        sms_csr: smsVal(r.sms_csr), sms_maintenance: smsVal(r.sms_maintenance), sms_it: smsVal(r.sms_it)
       }
       if (!rec.full_name) { bad.push({ email, reason: 'Walang full_name' }); continue }
       if (isHead && !dept_id) { bad.push({ email, reason: 'dept_head pero walang valid na department' }); continue }
