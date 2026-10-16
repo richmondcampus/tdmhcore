@@ -802,7 +802,7 @@ function showPage(page) {
 // DATA
 // ═══════════════════════════════════
 async function loadUsers() {
-  const { data } = await SB.from('users').select('id,full_name,employee_no,maintenance_role,phone,email,dept_id,spec,color').eq('is_active', true)
+  const { data } = await SB.from('users').select('id,full_name,employee_no,maintenance_role,phone,email,dept_id,spec,color,sms_maintenance').eq('is_active', true)
   S.users = data || []
 }
 async function loadDepartments() {
@@ -1700,7 +1700,7 @@ async function reopenTicket(ticketId) {
     closeModal('ticketDetailModal')
     showToast('warning','Reopened ↩', ticketId + ' has been reopened.')
     // Blast SMS to maintenance team
-    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone)
+    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
     sendSMS(maintStaff.map(u=>u.phone), '[TDMH MNT] ⚠️ REOPENED: ' + ticketId + ' — "' + (t?t.title:'') + '" needs attention again.', 'ticket_reopened', ticketId)
     if (['all_tickets','open_tickets','my_tickets','dashboard'].includes(S.page)) showPage(S.page)
   })
@@ -1931,7 +1931,7 @@ async function submitTicket() {
     logAudit('maint_ticket', ticketId, t.id)
 
     // SMS blast to all maintenance technicians
-    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone)
+    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
     const smsMsg = '[TDMH MNT] NEW TICKET ' + ticketId + ' — ' + (priority === 'emergency' ? '🚨 EMERGENCY ' : priority === 'urgent' ? '⚠️ URGENT ' : '') + '"' + title + '" at ' + location + ' (' + (deptName||'—') + ')'
     if (maintStaff.length > 0) sendSMS(maintStaff.map(u=>u.phone), smsMsg, 'ticket_new', ticketId)
 
@@ -1982,7 +1982,7 @@ async function openTeamModal(ticketId) {
     const newMembers = selected.filter(uid => !teamIds.includes(uid))
     newMembers.forEach(uid => {
       const u = S.users.find(u => u.id === uid)
-      if (u && u.phone) sendSMS([u.phone], '[TDMH MNT] You have been added to ticket ' + ticketId + '. Please check the Maintenance Hub.', 'team_added', ticketId)
+      if (u && u.phone && u.sms_maintenance !== false) sendSMS([u.phone], '[TDMH MNT] You have been added to ticket ' + ticketId + '. Please check the Maintenance Hub.', 'team_added', ticketId)
     })
     closeModal('confirmModal')
     showToast('success','Team Updated','Team assignment saved.')
