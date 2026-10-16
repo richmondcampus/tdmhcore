@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.15-5'
+const APP_VERSION = '2026.10.15-6'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1322,7 +1322,7 @@ async function loadMyHeadedDepts() {
 
 async function loadUsers() {
   try {
-    const { data } = await SB.from('users').select('id,full_name,dept_id,csr_role,maintenance_role,it_role,phone,email').eq('is_active', true)
+    const { data } = await SB.from('users').select('id,full_name,dept_id,csr_role,maintenance_role,it_role,phone,email,sms_csr,sms_maintenance,sms_it').eq('is_active', true)
     state.users = data || []
   } catch(e) { console.error('loadUsers', e) }
 }
@@ -4153,7 +4153,7 @@ async function saveRequest(action) {
 
         // SMS blast to maintenance technicians (same as filing directly in Maintenance)
         try {
-          const maintStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
+          const maintStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
           if (maintStaff.length > 0) {
             const title = (state.pendingDerpParams?.item || 'Asset') + ' — DERP Repair'
             const loc = state.pendingDerpParams?.location || ''
@@ -6109,7 +6109,7 @@ async function autoCreateITSetupTicket(assetNo, assetName, deptId) {
   )
   // SMS blast to IT technicians
   try {
-    const itPhones = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+    const itPhones = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone && u.sms_it !== false)
     if (itPhones.length > 0) {
       await sendSMS(itPhones.map(u=>u.phone), '[TDMH] NEW TICKET ' + ticketId + ' — New Equipment Setup: ' + assetNo + ' (' + assetName + ')')
     }
@@ -10016,12 +10016,12 @@ async function autoCreateDerpTicket(req, category) {
       try {
         const deptNm = dept?.dept_name || '—'
         if (category === 'it') {
-          const itStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+          const itStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone && u.sms_it !== false)
           if (itStaff.length > 0) {
             await sendSMS(itStaff.map(u=>u.phone), '[TDMH] NEW TICKET ' + ticketId + ' — "' + subject + '" (' + deptNm + ')')
           }
         } else {
-          const maintStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone)
+          const maintStaff = (state.users || []).filter(u => ['technician','supervisor','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
           if (maintStaff.length > 0) {
             await sendSMS(maintStaff.map(u=>u.phone), '[TDMH] NEW TICKET ' + ticketId + ' — "' + subject + '" (' + deptNm + ')')
           }
