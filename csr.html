@@ -5608,7 +5608,8 @@ async function savePO(action) {
       unit: item.unit || 'pcs',
       unit_price: Number(item.unit_price || 0),
       quantity_received: 0,
-      is_fee: !!item.is_fee
+      is_fee: !!item.is_fee,
+      request_item_id: item._reqItemId || null
     })))
 
     // Flag the source request items that were included in THIS PO, so a follow-up PO
@@ -5860,24 +5861,10 @@ async function openIssueFromPO(poId) {
   // just what arrived).
   // How much of each item was ALREADY issued (across this PO's issuances)? Show only the
   // received-but-not-yet-issued balance, so an item can't be issued twice.
-  const issuedByName = {}
-  try {
-    const { data: priorIss } = await SB.from('issuances').select('id').eq('po_id', poId)
-    const issIds = (priorIss || []).map(i => i.id)
-    if (issIds.length) {
-      const { data: priorItems } = await SB.from('issuance_items').select('item_name_snapshot,quantity_issued').in('issuance_id', issIds)
-      ;(priorItems || []).forEach(ii => {
-        const k = (ii.item_name_snapshot || '').toLowerCase().trim()
-        issuedByName[k] = (issuedByName[k] || 0) + Number(ii.quantity_issued || 0)
-      })
-    }
-  } catch(_) {}
+  const poIssued = await getPoIssuedTotals(poId)
   // Compute remaining-to-issue per item = received − already issued.
-  const receivedItems = (items||[]).map(it => {
-    const alreadyIssued = issuedByName[(it.item_name||'').toLowerCase().trim()] || 0
-    const remaining = Math.max(0, Number(it.quantity_received || 0) - alreadyIssued)
-    return { ...it, _remainingToIssue: remaining }
-  }).filter(it => it._remainingToIssue > 0)
+  const receivedItems = (items||[]).map(it => ({ ...it, _remainingToIssue: poRemainingToIssue(it, poIssued) }))
+    .filter(it => it._remainingToIssue > 0)
   const issuableItems = receivedItems
   if (!issuableItems.length) {
     showToast('info','Wala nang maii-issue','Lahat ng na-receive na items ay na-issue na. Maghintay ng susunod na delivery.')
@@ -5995,8 +5982,9 @@ async function confirmIssueFromPO() {
       if (reqId) {
         const { data: rItems } = await SB.from('request_items').select('id,item_name,quantity,quantity_issued').eq('request_id', reqId)
         for (const pi of plannedItems) {
-          const nm = (pi.item_name_snapshot || '').toLowerCase().trim()
-          const match = (rItems || []).find(ri => (ri.item_name || '').toLowerCase().trim() === nm)
+          const nm = poItemKey(pi.item_name_snapshot)
+          const match = (pi.request_item_id && (rItems || []).find(ri => ri.id === pi.request_item_id))
+            || (rItems || []).find(ri => poItemKey(ri.item_name) === nm)
           if (match) {
             const newIssued = Math.min(Number(match.quantity || 0), Number(match.quantity_issued || 0) + Number(pi.quantity_issued || 0))
             await SB.from('request_items').update({ quantity_issued: newIssued }).eq('id', match.id)
@@ -6210,6 +6198,38 @@ function toggleReceiveRow(itemId) {
   if (stk) stk.disabled = !on
 }
 
+// Item-name key that ignores case, punctuation and word order, so
+// "Oxidase Disc Test 30's" == "OXIDASE TEST DISC 30'S".
+function poItemKey(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean).sort().join(' ')
+}
+// Sum of quantities already issued against a PO (all non-cancelled issuances, optionally
+// excluding one). Returns { byReqItem: {id: qty}, byName: {key: qty} }.
+async function getPoIssuedTotals(poId, excludeIssId) {
+  const out = { byReqItem: {}, byName: {} }
+  try {
+    let q = SB.from('issuances').select('id').eq('po_id', poId).is('cancelled_at', null)
+    const { data: iss } = await q
+    const ids = (iss || []).map(i => i.id).filter(id => id !== excludeIssId)
+    if (!ids.length) return out
+    const { data: its } = await SB.from('issuance_items').select('request_item_id,item_name_snapshot,quantity_issued').in('issuance_id', ids)
+    ;(its || []).forEach(ii => {
+      const q = Number(ii.quantity_issued || 0)
+      if (ii.request_item_id) out.byReqItem[ii.request_item_id] = (out.byReqItem[ii.request_item_id] || 0) + q
+      const k = poItemKey(ii.item_name_snapshot)
+      if (k) out.byName[k] = (out.byName[k] || 0) + q
+    })
+  } catch(_) {}
+  return out
+}
+// How much of a PO line is still received-but-not-issued.
+function poRemainingToIssue(pi, totals) {
+  const issued = (pi.request_item_id && totals.byReqItem[pi.request_item_id] != null)
+    ? totals.byReqItem[pi.request_item_id]
+    : (totals.byName[poItemKey(pi.item_name)] || 0)
+  return Math.max(0, Number(pi.quantity_received || 0) - issued)
+}
+
 async function openReceiveDelivery(poId) {
   const { data: po } = await SB.from('purchase_orders').select('*').eq('id', poId).single()
   const { data: items } = await SB.from('po_items').select('*').eq('po_id', poId)
@@ -6319,7 +6339,13 @@ async function confirmReceiveDelivery() {
     // If fully received — auto-create issuance record for supply officer to complete
     if (allDelivered) {
       const { data: po } = await SB.from('purchase_orders').select('*').eq('id', poId).single()
-      if (po?.request_id) {
+      let hasRemaining = true
+      try {
+        const { data: freshItems } = await SB.from('po_items').select('*').eq('po_id', poId)
+        const totals = await getPoIssuedTotals(poId)
+        hasRemaining = (freshItems || []).some(pi => !pi.is_fee && poRemainingToIssue(pi, totals) > 0)
+      } catch(_) {}
+      if (po?.request_id && hasRemaining) {
         const { data: issNum } = await SB.rpc('generate_issuance_no')
         const issNo = issNum || ('ISS-' + Date.now())
         await SB.from('issuances').insert({
@@ -8306,16 +8332,20 @@ async function viewIssuance(id) {
       // PO issuance with no recorded issuance_items — AUTO-BACKFILL from the PO's received
       // items (safety net for older 0-item issuances), so they become real editable items.
       const { data: poItems } = await SB.from('po_items').select('*').eq('po_id', iss.po_id)
+      // Subtract what earlier issuances on this PO already gave out, so items issued in a
+      // previous batch don't reappear here.
+      const poIssued = await getPoIssuedTotals(iss.po_id, id)
       const toBackfill = (poItems || [])
-        .filter(pi => Number(pi.quantity_received || 0) > 0 && !pi.is_fee)
-        .map(pi => ({ issuance_id: id, quantity_issued: pi.quantity_received, item_name_snapshot: pi.item_name, unit_snapshot: pi.unit || null }))
+        .filter(pi => !pi.is_fee)
+        .map(pi => ({ pi, rem: poRemainingToIssue(pi, poIssued) }))
+        .filter(x => x.rem > 0)
+        .map(({ pi, rem }) => ({ issuance_id: id, quantity_issued: rem, item_name_snapshot: pi.item_name, unit_snapshot: pi.unit || null, request_item_id: pi.request_item_id || null }))
       if (toBackfill.length) {
         try {
           const { data: inserted } = await SB.from('issuance_items').insert(toBackfill).select()
           rows = (inserted || []).map(it => ({ ri: { item_name: it.item_name_snapshot, unit: it.unit_snapshot || 'pcs', category: '—' }, qty: it.quantity_issued, iiId: it.id }))
         } catch(_) {
-          rows = (poItems || []).filter(pi => Number(pi.quantity_received || 0) > 0 && !pi.is_fee)
-            .map(pi => ({ ri: { item_name: pi.item_name, unit: pi.unit || 'pcs', category: '—' }, qty: pi.quantity_received }))
+          rows = toBackfill.map(it => ({ ri: { item_name: it.item_name_snapshot, unit: it.unit_snapshot || 'pcs', category: '—' }, qty: it.quantity_issued }))
         }
       }
     } else if (reqItems.length > 0) {
