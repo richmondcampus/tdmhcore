@@ -2007,6 +2007,17 @@ function openUserForm(userId){
   })
   html += '</div></div>'
 
+  // SMS notifications per system — default ON. Untick to stop SMS for that system.
+  html += '<div style="margin-top:10px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:10px;padding:12px;">'
+  html += '<div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;">📱 SMS Notifications</div>'
+  html += '<div style="font-size:11px;color:var(--txt3);margin-bottom:10px;">Alisin ang check sa system na ayaw niyang makatanggap ng SMS. Default: nakabukas lahat.</div>'
+  html += '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+  ;[['uf_sms_csr','CSR', u?.sms_csr], ['uf_sms_maintenance','Maintenance', u?.sms_maintenance], ['uf_sms_it','IT Helpdesk', u?.sms_it]].forEach(([id,label,val]) => {
+    const chk = (val === false) ? '' : ' checked'
+    html += '<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;"><input type="checkbox" id="' + id + '"' + chk + ' style="cursor:pointer;width:16px;height:16px;"> ' + label + '</label>'
+  })
+  html += '</div></div>'
+
   if(!editing){
     html += '<div class="field"><label>Initial Password <span style="font-size:11px;font-weight:400;color:var(--txt3);">(kung walang email)</span></label><input type="text" id="uf_pass" placeholder="6+ characters — kailangan lang kung walang email"></div>'
     html += '<p style="font-size:11px;color:var(--txt3);">May email? Awtomatikong makakatanggap ng <strong>set-password link</strong> — hindi na kailangan ng initial password. Walang email? Employee number ang gamit sa login, kaya kailangan ng initial password.</p>'
@@ -2404,7 +2415,10 @@ async function saveUser(userId){
     csr_role: g('uf_csr') || null,
     maintenance_role: g('uf_maintenance') || null,
     it_role: g('uf_it') || null,
-    inventory_role: g('uf_inventory') || null
+    inventory_role: g('uf_inventory') || null,
+    sms_csr: document.getElementById('uf_sms_csr') ? document.getElementById('uf_sms_csr').checked : true,
+    sms_maintenance: document.getElementById('uf_sms_maintenance') ? document.getElementById('uf_sms_maintenance').checked : true,
+    sms_it: document.getElementById('uf_sms_it') ? document.getElementById('uf_sms_it').checked : true
   }
   if(editing){
     payload.user_id = userId
@@ -2423,6 +2437,10 @@ async function saveUser(userId){
     // Department Head assignments (multi-dept) — only when CSR role = dept_head
     const targetUserId = editing ? userId : (result && result.user_id)
     if(targetUserId){
+      // Save SMS toggles directly (the user edge-function may not carry these fields).
+      try {
+        await SB.from('users').update({ sms_csr: payload.sms_csr, sms_maintenance: payload.sms_maintenance, sms_it: payload.sms_it }).eq('id', targetUserId)
+      } catch(_) {}
       const selected = payload.csr_role === 'dept_head'
         ? Array.from(document.querySelectorAll('.uf_head_dept:checked')).map(c=>c.value)
         : []   // role changed away from dept_head → clear all assignments
