@@ -686,7 +686,7 @@ async function loadMyHeadedDepts() {
   } catch (_) { S.myHeadedDeptIds = [] }
 }
 async function loadUsers() {
-  const { data } = await SB.from('users').select('id,full_name,employee_no,it_role,phone,dept_id').eq('is_active', true)
+  const { data } = await SB.from('users').select('id,full_name,employee_no,it_role,phone,dept_id,sms_it').eq('is_active', true)
   S.users = data || []
 }
 async function loadTickets(filter = {}) {
@@ -1351,7 +1351,7 @@ async function submitAgimatRequest() {
     if (error) throw error
 
     // Notify IT staff
-    const itStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+    const itStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone && u.sms_it !== false)
     if (itStaff.length > 0) {
       sendSMS(itStaff.map(u => u.phone),
         '[TDMH IT] New Agimat Account Request ' + ticketId + ' — ' + fname + ' ' + lname + ' (' + position + ', ' + deptName + ')')
@@ -1455,7 +1455,7 @@ async function submitTicket() {
     if (error) throw error
 
     // Notify IT technicians
-    const itStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone)
+    const itStaff = S.users.filter(u => ['technician','supervisor','admin'].includes(u.it_role) && u.phone && u.sms_it !== false)
     if (itStaff.length > 0) {
       const smsMsg = '[TDMH IT] ' + (priority === 'critical' ? '🚨 CRITICAL ' : '') +
         'New ticket ' + ticketId + ': "' + subject + '" from ' + S.user.full_name.split(' ')[0]
@@ -2118,7 +2118,7 @@ async function assignTicket(ticketId) {
     updated_at: new Date().toISOString()
   }).eq('id', ticketId)
   // Notify technician via SMS
-  if (tech && tech.phone) {
+  if (tech && tech.phone && tech.sms_it !== false) {
     sendSMS([tech.phone], '[TDMH IT] Ticket ' + ticketId + ' has been assigned to you. Please check the IT Helpdesk.')
   }
   showToast('success','Assigned', ticketId + ' assigned to ' + tech?.full_name)
