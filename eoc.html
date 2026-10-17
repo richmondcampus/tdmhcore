@@ -162,11 +162,13 @@ textarea.inp{min-height:180px;font-family:inherit;resize:vertical}
     <p>Sign in with your department account.</p>
     <label class="f" for="em">Email</label>
     <input class="inp" id="em" type="email" autocomplete="username" required>
-    <label class="f" for="pw">Password</label>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px">
+      <label class="f" for="pw" style="margin:0">Password</label>
+      <button type="button" id="forgotBtn" style="border:0;background:none;padding:0;color:var(--teal);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline">Forgot password?</button>
+    </div>
     <input class="inp" id="pw" type="password" autocomplete="current-password" required>
     <div class="err" id="loginErr"></div>
     <button class="btn primary" style="width:100%;justify-content:center;margin-top:6px" id="loginBtn">Sign in</button>
-    <button type="button" class="btn sm" style="border:0;background:none;color:var(--teal);margin-top:12px;padding:0" id="forgotBtn">Forgot password?</button>
   </form>
   <form class="login-box hidden" id="pwForm">
     <h1>Set a new password</h1>
