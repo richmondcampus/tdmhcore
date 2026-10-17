@@ -159,20 +159,29 @@ textarea.inp{min-height:180px;font-family:inherit;resize:vertical}
 <section id="login">
   <form class="login-box" id="loginForm">
     <h1>EOC Clearance</h1>
-    <p>TDMH Core — sign in with your department account.</p>
+    <p>Sign in with your department account.</p>
     <label class="f" for="em">Email</label>
     <input class="inp" id="em" type="email" autocomplete="username" required>
     <label class="f" for="pw">Password</label>
     <input class="inp" id="pw" type="password" autocomplete="current-password" required>
     <div class="err" id="loginErr"></div>
     <button class="btn primary" style="width:100%;justify-content:center;margin-top:6px" id="loginBtn">Sign in</button>
+    <button type="button" class="btn sm" style="border:0;background:none;color:var(--teal);margin-top:12px;padding:0" id="forgotBtn">Forgot password?</button>
+  </form>
+  <form class="login-box hidden" id="pwForm">
+    <h1>Set a new password</h1>
+    <p>At least 8 characters.</p>
+    <label class="f" for="np1">New password</label><input class="inp" id="np1" type="password" autocomplete="new-password" minlength="8" required>
+    <label class="f" for="np2">Type it again</label><input class="inp" id="np2" type="password" autocomplete="new-password" minlength="8" required>
+    <div class="err" id="pwErr"></div>
+    <button class="btn primary" style="width:100%;justify-content:center;margin-top:6px">Save password</button>
   </form>
 </section>
 
 <!-- APP -->
 <div id="app" class="hidden">
   <header class="top"><div class="top-in">
-    <div class="brand">EOC Clearance<small>TDMH Core</small></div>
+    <div class="brand">EOC Clearance<small>TDMH</small></div>
     <nav class="tabs" id="tabs"></nav>
     <div class="who"><span><b id="whoName"></b> · <span id="whoRole"></span></span>
       <button class="btn sm" id="refreshBtn" title="Reload data">Refresh</button>
@@ -185,8 +194,9 @@ textarea.inp{min-height:180px;font-family:inherit;resize:vertical}
 <div id="toast" class="hidden"></div>
 
 <script>
-const SUPABASE_URL = 'https://zcyhwdulizorgngayxya.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_OLvJELZuF2pTxE-ihM25Hg_5Ywq7ylq';
+// Separate project from TDMH Core (same project as OPD Records, own eoc_* tables and accounts)
+const SUPABASE_URL = 'https://bnwbykbzpjxdvbjfucnv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_PTsRdsQAMoIwR8ssEyfjkg_8oHPjF9-';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth:{ storageKey:'tdmh-eoc-auth', autoRefreshToken:true, persistSession:true }
 });
@@ -239,24 +249,46 @@ $('loginForm').onsubmit = async e => {
   if(error){ $('loginErr').textContent='Wrong email or password.'; return; }
   boot();
 };
+$('forgotBtn').onclick = async ()=>{
+  const email=$('em').value.trim();
+  if(!email){ $('loginErr').textContent='Type your email first, then tap Forgot password.'; return; }
+  await sb.functions.invoke('eoc-admin',{body:{action:'request_reset', email}});
+  $('loginErr').style.color='var(--teal)';
+  $('loginErr').textContent='If that email has an EOC account, a reset link is on its way. Check your inbox.';
+};
+let recovering=false;
+sb.auth.onAuthStateChange(ev=>{ if(ev==='PASSWORD_RECOVERY'){ recovering=true; show(false); $('loginForm').classList.add('hidden'); $('pwForm').classList.remove('hidden'); } });
+$('pwForm').onsubmit = async e=>{
+  e.preventDefault(); const a=$('np1').value, b=$('np2').value;
+  if(a!==b){ $('pwErr').textContent='The two passwords do not match.'; return; }
+  const {error}=await sb.auth.updateUser({password:a});
+  if(error){ $('pwErr').textContent=error.message; return; }
+  recovering=false; history.replaceState(null,'',location.pathname);
+  $('pwForm').classList.add('hidden'); $('loginForm').classList.remove('hidden'); boot(); toast('Password saved');
+};
+async function adminCall(body){
+  const {data,error}=await sb.functions.invoke('eoc-admin',{body});
+  if(error){ let m=error.message; try{ m=(await error.context.json()).error||m; }catch(_){} throw new Error(m); }
+  if(data?.error) throw new Error(data.error);
+  return data;
+}
 $('logoutBtn').onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
 $('refreshBtn').onclick = ()=> load().then(render);
 
 async function boot(){
+  if(recovering) return;
   const {data:{session}} = await sb.auth.getSession();
   if(!session){ show(false); return; }
-  const {data:roles, error} = await sb.rpc('eoc_my_roles');
-  if(error || !roles || !roles.length){
+  const {data:prof, error} = await sb.rpc('eoc_my_profile');
+  if(recovering) return;
+  const me = Array.isArray(prof)?prof[0]:prof; const roles = me?.roles||[];
+  if(error || !roles.length){
     show(false);
-    $('loginErr').textContent='This account has no EOC access yet. Ask IT to set your EOC role.';
+    $('loginErr').textContent='This account has no EOC access. Ask the EOC admin to set it up.';
     await sb.auth.signOut(); return;
   }
   S.roles = roles; S.isAdmin = roles.includes('admin');
-  S.name = session.user.email;
-  try{
-    const {data:p} = await sb.rpc('get_profile_by_auth_id',{p_auth_id:session.user.id});
-    const prof = Array.isArray(p)?p[0]:p; if(prof?.full_name) S.name = prof.full_name;
-  }catch(_){}
+  S.name = me.full_name || session.user.email; S.myId = me.id;
   $('whoName').textContent = S.name;
   $('whoRole').textContent = S.isAdmin ? 'Admin' : roles.map(r=>DEPT[r]?.s||r).join(' + ');
   S.tab = S.isAdmin ? 'dash' : 'queue';
@@ -457,35 +489,70 @@ function renderQueue(){
 
 function renderAccess(){
   const q=S.uq.toLowerCase();
-  const list=S.users.filter(u=>(!S.uOnly||u.eoc_roles.length)&&(!q||(u.full_name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)));
+  const list=S.users.filter(u=>!q||(u.full_name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q));
   const opts=[...DEPTS.map(d=>[d.k,d.s]),['admin','Admin']];
   return `
-  <h2>Access</h2><p class="sub">Tick what each account can clear. One account can have more than one department — e.g. X-Ray and ECG on the same login.</p>
-  <div class="toolbar">
-    <input class="inp" id="uQ" placeholder="Search name or email" value="${esc(S.uq)}">
-    <label class="chip"><input type="checkbox" id="uOnly" ${S.uOnly?'checked':''}>With EOC access only</label>
-    <span class="hint" style="margin:0">Accounts still have to exist in User Management first. Core admins are already EOC admins.</span>
-  </div>
+  <h2>Access</h2><p class="sub">EOC accounts are separate from TDMH Core and OPD Records. One account can clear more than one department — e.g. X-Ray and ECG on the same login.</p>
+  <form class="panel" id="addUser" style="padding:16px 20px;margin-bottom:22px">
+    <h3 style="margin:0 0 4px;font-size:16px">Add an account</h3>
+    <div class="toolbar" style="margin:10px 0 0;align-items:flex-end">
+      <div><label class="f" style="margin-top:0" for="aName">Name</label><input class="inp" id="aName" placeholder="e.g. X-Ray Department" required></div>
+      <div><label class="f" style="margin-top:0" for="aEmail">Email (login)</label><input class="inp" id="aEmail" type="email" required style="min-width:240px"></div>
+      <div><span class="f" style="margin-top:0">Can clear</span><div class="chips" style="margin:0">${opts.map(([k,l])=>`<label class="chip"><input type="checkbox" class="aRole" value="${k}">${l}</label>`).join('')}</div></div>
+    </div>
+    <div class="toolbar" style="margin:14px 0 0">
+      <label class="chip"><input type="radio" name="aMode" value="link" checked>Email them a set-password link</label>
+      <label class="chip"><input type="radio" name="aMode" value="pw">I'll set the password</label>
+      <input class="inp hidden" id="aPw" type="text" placeholder="Password, 8+ characters" minlength="8">
+      <button class="btn primary" id="aBtn">Create account</button>
+    </div>
+  </form>
+  <div class="toolbar"><input class="inp" id="uQ" placeholder="Search name or email" value="${esc(S.uq)}"></div>
   <div class="panel tbl-wrap"><table>
     <thead><tr><th>Account</th>${opts.map(o=>`<th class="c">${o[1]}</th>`).join('')}<th></th></tr></thead>
-    <tbody>${!S.usersLoaded?`<tr><td colspan="9" class="empty">Loading accounts…</td></tr>`:
-      list.length? list.map(u=>`<tr><td><b>${esc(u.full_name||'—')}</b><div class="hint" style="margin:0">${esc(u.email||'')}</div></td>
-        ${opts.map(([k])=>`<td class="c"><input type="checkbox" class="uRole" data-u="${u.id}" value="${k}" ${u.eoc_roles.includes(k)?'checked':''} style="width:18px;height:18px;accent-color:var(--teal)" aria-label="${k}"></td>`).join('')}
-        <td><button class="btn sm" data-save="${u.id}">Save</button></td></tr>`).join('')
-      : `<tr><td colspan="9" class="empty">No accounts match.</td></tr>`}</tbody>
+    <tbody>${!S.usersLoaded?`<tr><td colspan="10" class="empty">Loading accounts…</td></tr>`:
+      list.length? list.map(u=>`<tr style="${u.is_active?'':'opacity:.5'}"><td><b>${esc(u.full_name)}</b>${u.is_active?'':' <span class="status open">Disabled</span>'}<div class="hint" style="margin:0">${esc(u.email)}</div></td>
+        ${opts.map(([k])=>`<td class="c"><input type="checkbox" class="uRole" data-u="${u.id}" value="${k}" ${u.roles.includes(k)?'checked':''} style="width:18px;height:18px;accent-color:var(--teal)" aria-label="${k}"></td>`).join('')}
+        <td style="display:flex;gap:6px"><button class="btn sm" data-save="${u.id}">Save</button>
+          <button class="btn sm" data-reset="${u.id}" title="Email a password reset link">Reset link</button>
+          ${u.id===S.myId?'':`<button class="btn sm ${u.is_active?'danger':''}" data-active="${u.id}" data-to="${!u.is_active}">${u.is_active?'Disable':'Enable'}</button>`}</td></tr>`).join('')
+      : `<tr><td colspan="10" class="empty">No accounts yet. Add the first one above.</td></tr>`}</tbody>
   </table></div>`;
 }
 async function loadUsers(){
   const {data,error}=await sb.rpc('eoc_list_users');
   if(error){toast('Could not load accounts: '+error.message);return;}
-  S.users=data.map(u=>({...u,eoc_roles:u.eoc_roles||[]})); S.usersLoaded=true; if(S.tab==='access') render();
+  S.users=data.map(u=>({...u,roles:u.roles||[]})); S.usersLoaded=true; if(S.tab==='access') render();
 }
 async function saveRoles(id){
   const roles=[...document.querySelectorAll(`.uRole[data-u="${id}"]:checked`)].map(x=>x.value);
   const {error}=await sb.rpc('eoc_set_user_roles',{p_user:id,p_roles:roles});
   if(error){toast('Not saved: '+error.message);return;}
-  const u=S.users.find(x=>x.id===id); if(u) u.eoc_roles=roles;
+  const u=S.users.find(x=>x.id===id); if(u) u.roles=roles;
   toast(`Saved access for ${u?.full_name||'account'}`);
+}
+function wireAccess(){
+  const mode=()=>document.querySelector('input[name="aMode"]:checked')?.value;
+  document.querySelectorAll('input[name="aMode"]').forEach(r=>r.onchange=()=>{ $('aPw').classList.toggle('hidden',mode()!=='pw'); $('aPw').required=mode()==='pw'; });
+  if($('addUser')) $('addUser').onsubmit=async e=>{
+    e.preventDefault(); $('aBtn').disabled=true;
+    try{
+      const roles=[...document.querySelectorAll('.aRole:checked')].map(x=>x.value);
+      const r=await adminCall({action:mode()==='pw'?'create':'create_with_reset', full_name:$('aName').value.trim(), email:$('aEmail').value.trim(), roles, password:$('aPw').value});
+      toast(r.reused?'Account added — this email already had a login here, so it keeps its current password.':
+            r.emailed?'Account created — set-password link sent.':'Account created.');
+      S.usersLoaded=false; await loadUsers();
+    }catch(err){ toast('Not created: '+err.message); }
+    if($('aBtn')) $('aBtn').disabled=false;
+  };
+  document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=async()=>{
+    try{ const r=await adminCall({action:'send_reset_link', user_id:b.dataset.reset}); toast(r.emailed?'Reset link sent':'Link made but the email failed to send'); }catch(err){ toast(err.message); }
+  });
+  document.querySelectorAll('[data-active]').forEach(b=>b.onclick=async()=>{
+    const to=b.dataset.to==='true';
+    if(!to && !confirm('Disable this account? They will not be able to sign in.')) return;
+    try{ await adminCall({action:'set_active', user_id:b.dataset.active, is_active:to}); await loadUsers(); toast(to?'Account enabled':'Account disabled'); }catch(err){ toast(err.message); }
+  });
 }
 
 /* ---------- interactions ---------- */
@@ -501,9 +568,8 @@ function wire(){
   document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{S.qMode=b.dataset.q; render();});
   document.querySelectorAll('[data-qd]').forEach(b=>b.onclick=()=>{S.qDept=b.dataset.qd; render();});
   on('uQ','oninput',e=>{S.uq=e.target.value; const pos=e.target.selectionStart; render(); const n=$('uQ'); n.focus(); n.setSelectionRange(pos,pos);});
-  on('uOnly','onchange',e=>{S.uOnly=e.target.checked; render();});
   document.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>saveRoles(b.dataset.save));
-  if(S.tab==='access' && !S.usersLoaded) loadUsers();
+  if(S.tab==='access'){ wireAccess(); if(!S.usersLoaded) loadUsers(); }
   document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
   on('oneForm','onsubmit',e=>{e.preventDefault(); submitRows([{eoc_no:$('oNo').value.trim(), patient_name:$('oName').value.trim()}]);});
   on('bTxt','oninput',()=>{ const n=parseBulk($('bTxt').value).length; $('bCount').textContent = n? `${n} EOC${n>1?'s':''} ready`:''; });
