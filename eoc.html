@@ -182,6 +182,23 @@ tr:last-child td{border-bottom:0}
 .empty{padding:44px 20px;text-align:center;color:var(--muted)}
 .empty .big{font-family:"Bricolage Grotesque",sans-serif;font-size:22px;font-weight:800;color:var(--done);margin-bottom:4px}
 
+/* ── Logs ── */
+.act{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+.act::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.act.g-tick::before{background:var(--done-solid)}
+.act.g-undo::before{background:var(--pend-edge)}
+.act.g-enc::before{background:var(--brand)}
+.act.g-del::before{background:var(--red)}
+.act.g-acct::before{background:#8a5cf6}
+td.det{white-space:normal;min-width:260px;color:var(--muted);font-size:12.5px}
+td.when{color:var(--muted);font-size:12.5px}
+.hist{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
+.hist h4{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
+.hist ol{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto}
+.hist li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px}
+.hist li:first-child{border-top:0}
+.hist li .t{color:var(--muted);grid-row:span 2;white-space:nowrap}
+
 /* ── Encode ── */
 .enc{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .enc .panel{padding:20px}
@@ -312,7 +329,7 @@ const COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const cpSpan = (v, label) => `<span class="cp" data-copy="${esc(v)}" title="I-click para i-copy">${esc(v)}<button type="button" class="ci" data-copy="${esc(v)}" aria-label="Copy ${label}">${COPY}</button></span>`;
 const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
 
-const S = { flash:new Set(), roles:[], isAdmin:false, users:[], uq:'', qDept:'all', name:'', tab:null, records:[], tasks:[], f:{month:'all', status:'open', q:'', dept:'all'}, qMode:'pending' };
+const S = { logs:{rows:[],loaded:false,more:false,busy:false,f:{group:'all',from:'',to:'',q:''}}, flash:new Set(), roles:[], isAdmin:false, users:[], uq:'', qDept:'all', name:'', tab:null, records:[], tasks:[], f:{month:'all', status:'open', q:'', dept:'all'}, qMode:'pending' };
 
 /* ---------- helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -374,6 +391,7 @@ $('stepLogin').onsubmit = async e=>{
     if(error||!data.user){ showErr('lg_err','Maling email o password.'); return; }
     clearRecovery(); RECOVERY=false;
     await boot();
+    if(S.roles.length) sb.rpc('eoc_log_signin').then(()=>{},()=>{});
   }catch(_){ showErr('lg_err','Connection error. Subukan muli.'); }
   finally{ btn.disabled=false; btn.textContent='Sign in'; }
 };
@@ -421,7 +439,7 @@ let doneTimer;
 async function enterAfterReset(){
   clearInterval(doneTimer);
   if($('done_btn').disabled) return; $('done_btn').disabled=true;
-  try{ await boot(); toast('Password updated'); }catch(_){ showLogin(); }
+  try{ await boot(); toast('Password updated'); if(S.roles.length) sb.rpc('eoc_log_signin').then(()=>{},()=>{}); }catch(_){ showLogin(); }
 }
 $('rs_cancel').onclick = async e=>{ e.preventDefault(); clearRecovery(); RECOVERY=false; await sb.auth.signOut(); history.replaceState(null,'',location.pathname); authStep('stepLogin'); };
 $('done_btn').onclick = enterAfterReset;
@@ -456,14 +474,14 @@ async function boot(){
   S.tab = S.isAdmin ? 'dash' : 'queue';
   buildTabs(); show(true);
   await load(); render();
-  setInterval(()=>{ if(document.visibilityState==='visible' && S.tab!=='access' && !document.querySelector('.modal-bg')) load().then(render); }, 60000);
+  setInterval(()=>{ if(document.visibilityState==='visible' && S.tab!=='access' && S.tab!=='logs' && !document.querySelector('.modal-bg')) load().then(render); }, 60000);
 }
 function buildTabs(){
   const t = S.isAdmin
-    ? [['dash','Dashboard'],['list','All EOCs'],['encode','Encode'],['access','Access']]
+    ? [['dash','Dashboard'],['list','All EOCs'],['encode','Encode'],['access','Access'],['logs','Logs']]
     : [['queue','My queue']];
   $('tabs').innerHTML = t.map(([k,l])=>`<button data-t="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
-  $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; buildTabs(); render(); });
+  $('tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{ S.tab=b.dataset.t; if(S.tab==='logs') S.logs.loaded=false; buildTabs(); render(); });
 }
 
 /* ---------- data ---------- */
@@ -497,6 +515,7 @@ function render(){
   else if(S.tab==='list') v.innerHTML=renderList();
   else if(S.tab==='encode') v.innerHTML=renderEncode();
   else if(S.tab==='access') v.innerHTML=renderAccess();
+  else if(S.tab==='logs') v.innerHTML=renderLogs();
   else v.innerHTML=renderQueue();
   wire();
 }
@@ -661,6 +680,110 @@ function renderQueue(){
       : `<li class="empty">Wala pang na-tick na tapos.</li>`}</ul></div>`;
 }
 
+const ACT = {
+  marked_done:['Marked done','g-tick'], marked_pending:['Ibinalik sa pending','g-undo'],
+  eoc_created:['Encoded EOC','g-enc'], batch_created:['Encoded batch','g-enc'], eoc_edited:['Edited EOC','g-enc'],
+  eoc_deleted:['Deleted EOC','g-del'], dept_added:['Added department','g-enc'], dept_removed:['Removed department','g-del'],
+  roles_changed:['Changed access','g-acct'], account_created:['Created account','g-acct'], account_updated:['Updated account','g-acct'],
+  account_disabled:['Disabled account','g-del'], account_enabled:['Enabled account','g-acct'],
+  reset_link_sent:['Sent reset link','g-acct'], reset_requested:['Requested password reset','g-acct'], signed_in:['Signed in','']
+};
+const LOG_GROUPS = [
+  ['all','All actions',null],
+  ['ticks','Ticks (done / pending)',['marked_done','marked_pending']],
+  ['encode','Encoding & edits',['eoc_created','batch_created','eoc_edited','eoc_deleted','dept_added','dept_removed']],
+  ['accounts','Accounts & access',['roles_changed','account_created','account_updated','account_disabled','account_enabled']],
+  ['signin','Sign-ins & password resets',['signed_in','reset_requested','reset_link_sent']],
+];
+const deptNames = a => (a||[]).map(k=>DEPT[k]?.s||(k==='admin'?'Admin':k)).join(', ')||'none';
+function logDetail(l){
+  const d=l.detail||{};
+  switch(l.action){
+    case 'batch_created': case 'eoc_created': {
+      if(!d.count && !d.eoc_nos) return d.patient_name?esc(d.patient_name):'';
+      const nos=d.eoc_nos||[]; const sk=d.skipped||[];
+      return `${d.count} EOC${d.count===1?'':'s'} · ${monthLabel(d.period)} · ${esc(deptNames(d.depts))}`+
+        (l.action==='batch_created'&&nos.length?`<br>${esc(nos.slice(0,12).join(', '))}${nos.length>12?` +${nos.length-12} more`:''}`:'')+
+        (sk.length?`<br>Skipped (already exists): ${esc(sk.join(', '))}`:'');
+    }
+    case 'eoc_edited': return Object.entries(d).map(([k,[a,b]])=>`${k==='patient_name'?'Name':k==='period'?'Month':'EOC no.'}: ${esc(k==='period'?monthLabel(a):a)} → ${esc(k==='period'?monthLabel(b):b)}`).join('<br>');
+    case 'eoc_deleted': return `${esc(d.patient_name||'')} · ${monthLabel(d.period)}<br>Done: ${esc(deptNames(d.done))} · Pending: ${esc(deptNames(d.pending))}`;
+    case 'dept_removed': return d.was_done?'Na-tick na ito bago tinanggal':'';
+    case 'roles_changed': return `${esc(d.user)} (${esc(d.email)}): ${esc(deptNames(d.from))} → ${esc(deptNames(d.to))}`;
+    case 'account_created': return `${esc(d.user)} (${esc(d.email)}) · ${esc(deptNames(d.roles))} · password: ${esc(d.password)}`;
+    case 'account_updated': return `${esc(d.user)} (${esc(d.email)})`+(d.to?.roles?` · ${esc(deptNames(d.from?.roles))} → ${esc(deptNames(d.to.roles))}`:'')+(d.to?.full_name&&d.to.full_name!==d.from?.full_name?` · name → ${esc(d.to.full_name)}`:'');
+    case 'account_disabled': case 'account_enabled': case 'reset_link_sent': return `${esc(d.user)} (${esc(d.email)})`+(d.emailed===false?' · email failed':'');
+    case 'reset_requested': return esc(d.email||'')+(d.emailed===false?' · email failed':'');
+    default: return '';
+  }
+}
+const fmtWhen = ts => new Date(ts).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+async function loadLogs(append){
+  const L=S.logs; if(L.busy) return; L.busy=true;
+  const from = append ? L.rows.length : 0, size=300;
+  let q=sb.from('eoc_audit_log').select('*').order('at',{ascending:false}).range(from, from+size-1);
+  const g=LOG_GROUPS.find(x=>x[0]===L.f.group); if(g&&g[2]) q=q.in('action',g[2]);
+  if(L.f.from) q=q.gte('at', L.f.from+'T00:00:00+08:00');
+  if(L.f.to) q=q.lte('at', L.f.to+'T23:59:59.999+08:00');
+  const {data,error}=await q; L.busy=false;
+  if(error){ toast('Hindi ma-load ang logs: '+error.message); return; }
+  L.rows = append ? L.rows.concat(data) : data; L.more = data.length===size; L.loaded=true;
+  if(S.tab==='logs') render();
+}
+function renderLogs(){
+  const L=S.logs, q=L.f.q.toLowerCase();
+  const rows=L.rows.filter(l=>!q || [l.actor_name,l.eoc_no,DEPT[l.dept]?.n,ACT[l.action]?.[0],JSON.stringify(l.detail||'')].join(' ').toLowerCase().includes(q));
+  return `
+  <h2>Logs</h2><p class="sub">Bawat galaw sa EOC Clearance: sino, ano, kailan. Hindi ito nabubura o nae-edit.</p>
+  <div class="toolbar">
+    <input class="inp" id="lgQ" placeholder="Search EOC, tao, o detalye" value="${esc(L.f.q)}">
+    <select class="inp" id="lgGroup">${LOG_GROUPS.map(([k,l])=>`<option value="${k}" ${L.f.group===k?'selected':''}>${l}</option>`).join('')}</select>
+    <label class="hint" style="margin:0">From <input class="inp" type="date" id="lgFrom" value="${L.f.from}" style="width:auto"></label>
+    <label class="hint" style="margin:0">To <input class="inp" type="date" id="lgTo" value="${L.f.to}" style="width:auto"></label>
+    <button class="btn sm" id="lgCsv">Export CSV</button>
+  </div>
+  <div class="panel tbl-wrap"><table>
+    <thead><tr><th>Kailan</th><th>Sino</th><th>Action</th><th>EOC</th><th>Dept</th><th>Detalye</th></tr></thead>
+    <tbody>${!L.loaded?`<tr><td colspan="6" class="empty">Loading logs…</td></tr>`:
+      rows.length? rows.map(l=>`<tr>
+        <td class="when num">${fmtWhen(l.at)}</td>
+        <td>${esc(l.actor_name||'—')}</td>
+        <td><span class="act ${ACT[l.action]?.[1]||''}">${esc(ACT[l.action]?.[0]||l.action)}</span></td>
+        <td class="num">${l.eoc_no?cpSpan(l.eoc_no,'EOC number'):''}</td>
+        <td>${l.dept?esc(DEPT[l.dept]?.s||l.dept):''}</td>
+        <td class="det">${logDetail(l)}</td></tr>`).join('')
+      : `<tr><td colspan="6" class="empty">Walang log na tugma sa filter.</td></tr>`}</tbody>
+  </table></div>
+  <div class="toolbar" style="margin-top:12px"><span class="hint num" style="margin:0">${rows.length} shown${q?' (filtered)':''}</span>
+    ${L.more?`<button class="btn sm" id="lgMore">Load more</button>`:''}</div>`;
+}
+function wireLogs(){
+  const L=S.logs, reload=()=>{ L.loaded=false; render(); loadLogs(); };
+  if($('lgQ')) $('lgQ').oninput=e=>{ L.f.q=e.target.value; const pos=e.target.selectionStart; render(); const n=$('lgQ'); n.focus(); n.setSelectionRange(pos,pos); };
+  if($('lgGroup')) $('lgGroup').onchange=e=>{ L.f.group=e.target.value; reload(); };
+  if($('lgFrom')) $('lgFrom').onchange=e=>{ L.f.from=e.target.value; reload(); };
+  if($('lgTo')) $('lgTo').onchange=e=>{ L.f.to=e.target.value; reload(); };
+  if($('lgMore')) $('lgMore').onclick=()=>loadLogs(true);
+  if($('lgCsv')) $('lgCsv').onclick=()=>{
+    const strip=h=>String(h).replace(/<br>/g,' | ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+    const rows=[['When','Who','Action','EOC','Dept','Details'], ...L.rows.map(l=>[new Date(l.at).toLocaleString('en-PH'), l.actor_name||'', ACT[l.action]?.[0]||l.action, l.eoc_no||'', DEPT[l.dept]?.n||l.dept||'', strip(logDetail(l))])];
+    const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download='eoc-logs.csv'; a.click();
+  };
+}
+async function loadHistory(no){
+  const [a,b]=await Promise.all([
+    sb.from('eoc_audit_log').select('*').eq('eoc_no',no).order('at',{ascending:false}).limit(60),
+    sb.from('eoc_audit_log').select('*').eq('action','batch_created').contains('detail',{eoc_nos:[no]}).order('at',{ascending:false}).limit(5)
+  ]);
+  const el=$('xHist'); if(!el) return;
+  const list=[...(a.data||[]),...(b.data||[])].sort((x,y)=>new Date(y.at)-new Date(x.at));
+  el.innerHTML = list.length ? list.map(l=>`<li><span class="t num">${fmtWhen(l.at)}</span>
+      <span><span class="act ${ACT[l.action]?.[1]||''}">${esc(ACT[l.action]?.[0]||l.action)}</span>${l.dept?` · ${esc(DEPT[l.dept]?.s||l.dept)}`:''} — ${esc(l.actor_name||'—')}</span>
+      <span class="hint" style="margin:0">${l.action==='batch_created'?'Kasama sa batch encode':logDetail(l)}</span></li>`).join('')
+    : '<li><span class="hint" style="margin:0">Wala pang history.</span></li>';
+}
+
 function renderAccess(){
   const q=S.uq.toLowerCase();
   const list=S.users.filter(u=>!q||(u.full_name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q));
@@ -750,6 +873,7 @@ function wire(){
   on('uQ','oninput',e=>{S.uq=e.target.value; const pos=e.target.selectionStart; render(); const n=$('uQ'); n.focus(); n.setSelectionRange(pos,pos);});
   document.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>saveRoles(b.dataset.save));
   if(S.tab==='access'){ wireAccess(); if(!S.usersLoaded) loadUsers(); }
+  if(S.tab==='logs'){ wireLogs(); if(!S.logs.loaded) loadLogs(); }
   document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openEdit(b.dataset.edit));
   on('oneForm','onsubmit',e=>{e.preventDefault(); submitRows([{eoc_no:$('oNo').value.trim(), patient_name:$('oName').value.trim()}]);});
   on('bTxt','oninput',()=>{ const n=parseBulk($('bTxt').value).length; $('bCount').textContent = n? `${n} EOC${n>1?'s':''} ready`:''; });
@@ -806,6 +930,7 @@ async function submitRows(rows, bulk){
 
 function openEdit(id){
   const r=S.records.find(x=>x.id===id); if(!r) return;
+  S.logs.loaded=false;
   $('modalRoot').innerHTML=`<div class="modal-bg"><form class="modal" id="editForm">
     <h3>EOC ${esc(r.eoc_no)}</h3>
     <label class="f" for="xName">Patient name</label><input class="inp" id="xName" value="${esc(r.patient_name)}" required>
@@ -814,7 +939,9 @@ function openEdit(id){
     <div class="chips">${DEPTS.map(d=>`<label class="chip"><input type="checkbox" class="xDept" value="${d.k}" ${r.t[d.k]?'checked':''}>${d.s}${r.t[d.k]?.is_done?' ✓':''}</label>`).join('')}</div>
     <div class="acts"><button type="button" class="btn danger" id="xDel">Delete EOC</button>
       <span style="flex:1"></span><button type="button" class="btn" id="xCancel">Cancel</button><button class="btn primary">Save changes</button></div>
+    <div class="hist"><h4>History</h4><ol id="xHist"><li><span class="hint" style="margin:0">Loading…</span></li></ol></div>
   </form></div>`;
+  loadHistory(r.eoc_no);
   const close=()=>$('modalRoot').innerHTML='';
   $('xCancel').onclick=close;
   $('modalRoot').querySelector('.modal-bg').onclick=e=>{ if(e.target.classList.contains('modal-bg')) close(); };
