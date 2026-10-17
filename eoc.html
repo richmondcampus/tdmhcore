@@ -568,9 +568,9 @@ function renderDash(){
   </div></div>`;
 }
 
-function renderList(){
+function listRows(){
   const q=S.f.q.toLowerCase();
-  const rows=scoped().filter(r=>{
+  return scoped().filter(r=>{
     const vals=Object.values(r.t), isOpen=vals.some(x=>!x.is_done);
     if(S.f.status==='open'&&!isOpen) return false;
     if(S.f.status==='cleared'&&isOpen) return false;
@@ -578,6 +578,9 @@ function renderList(){
     if(q && !(r.eoc_no.toLowerCase().includes(q)||r.patient_name.toLowerCase().includes(q))) return false;
     return true;
   });
+}
+function renderList(){
+  const rows=listRows();
   return `
   <h2>All EOCs</h2><p class="sub">Click a box to mark it done for that department. Use Edit to change which departments an EOC needs.</p>
   <div class="toolbar">
@@ -588,7 +591,7 @@ function renderList(){
     </select>
     <select class="inp" id="fDept"><option value="all">Any department</option>
       ${DEPTS.map(d=>`<option value="${d.k}" ${S.f.dept===d.k?'selected':''}>Pending at ${d.n}</option>`).join('')}</select>
-    <button class="btn sm" id="csvBtn">Export CSV</button>
+    <button class="btn sm" id="xlsxBtn" title="Excel file — kung ano ang naka-filter ngayon">Export Excel</button><button class="btn sm" id="csvBtn">CSV</button>
     <div class="legend"><span><i class="cell done"></i>Done</span><span><i class="cell pending"></i>Pending</span><span><i class="cell na"></i>Not needed</span></div>
   </div>
   <div class="panel tbl-wrap"><table>
@@ -634,6 +637,17 @@ function renderEncode(){
       <div class="hint num" id="bCount"></div>
       <button class="btn primary" style="margin-top:12px">Add batch</button>
     </form>
+    <div class="panel imp" style="grid-column:1/-1">
+      <h3>Import mula sa Excel o CSV</h3>
+      <p class="hint" style="margin:2px 0 12px">Columns na hahanapin: <b>EOC</b>, <b>Name</b>, at kung meron: <b>Month</b>, <b>Lab</b>, <b>Xray</b>, <b>ECG</b>, <b>Egamot</b>, <b>Nurse</b>, <b>Clinical Abstract</b>.
+        Naka-check/TRUE = tapos na; <b>N/A</b> = hindi kailangan ng department na iyon. Ang Month na walang taon (hal. “April”) ay gagamit ng taon ng Month sa itaas; kung walang Month column, ang Month sa itaas ang gagamitin.
+        Hindi ina-overwrite ang EOC na nasa system na. May preview muna bago ma-import.</p>
+      <div class="toolbar" style="margin:0">
+        <label class="btn primary" for="impFile">Pumili ng file…</label>
+        <input type="file" id="impFile" accept=".xlsx,.xls,.csv" class="hidden">
+        <button type="button" class="btn sm" id="impTpl">Download template</button>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -686,12 +700,14 @@ const ACT = {
   eoc_deleted:['Deleted EOC','g-del'], dept_added:['Added department','g-enc'], dept_removed:['Removed department','g-del'],
   roles_changed:['Changed access','g-acct'], account_created:['Created account','g-acct'], account_updated:['Updated account','g-acct'],
   account_disabled:['Disabled account','g-del'], account_enabled:['Enabled account','g-acct'],
-  reset_link_sent:['Sent reset link','g-acct'], reset_requested:['Requested password reset','g-acct'], signed_in:['Signed in','']
+  reset_link_sent:['Sent reset link','g-acct'], imported:['Imported file','g-enc'], exported:['Exported data','g-acct'], reset_requested:['Requested password reset','g-acct'], signed_in:['Signed in','']
 };
 const LOG_GROUPS = [
   ['all','All actions',null],
   ['ticks','Ticks (done / pending)',['marked_done','marked_pending']],
-  ['encode','Encoding & edits',['eoc_created','batch_created','eoc_edited','eoc_deleted','dept_added','dept_removed']],
+  ['encode','Encoding, import & edits',['eoc_created','batch_created','imported','eoc_edited','eoc_deleted','dept_added','dept_removed']],
+  ['deletes','Deletes lang',['eoc_deleted','dept_removed']],
+  ['exports','Exports',['exported']],
   ['accounts','Accounts & access',['roles_changed','account_created','account_updated','account_disabled','account_enabled']],
   ['signin','Sign-ins & password resets',['signed_in','reset_requested','reset_link_sent']],
 ];
@@ -706,6 +722,13 @@ function logDetail(l){
         (l.action==='batch_created'&&nos.length?`<br>${esc(nos.slice(0,12).join(', '))}${nos.length>12?` +${nos.length-12} more`:''}`:'')+
         (sk.length?`<br>Skipped (already exists): ${esc(sk.join(', '))}`:'');
     }
+    case 'imported': {
+      const nos=d.eoc_nos||[], sk=d.skipped||[];
+      return `${esc(d.file||'')} · ${d.count} EOC${d.count===1?'':'s'}${d.done_marked?` · ${d.done_marked} checks tapos na`:''}`+
+        (nos.length?`<br>${esc(nos.slice(0,12).join(', '))}${nos.length>12?` +${nos.length-12} more`:''}`:'')+
+        (sk.length?`<br>Skipped (already exists): ${esc(sk.slice(0,12).join(', '))}${sk.length>12?'…':''}`:'');
+    }
+    case 'exported': { const f=d.filters||{}; return `${esc(String(d.format||'').toUpperCase())} · ${d.count} EOC · month: ${f.month==='all'?'all':monthLabel(f.month)}${f.status&&f.status!=='all'?' · '+esc(f.status):''}${f.dept&&f.dept!=='all'?' · pending at '+esc(DEPT[f.dept]?.s||f.dept):''}${f.search?' · search “'+esc(f.search)+'”':''}`; }
     case 'eoc_edited': return Object.entries(d).map(([k,[a,b]])=>`${k==='patient_name'?'Name':k==='period'?'Month':'EOC no.'}: ${esc(k==='period'?monthLabel(a):a)} → ${esc(k==='period'?monthLabel(b):b)}`).join('<br>');
     case 'eoc_deleted': return `${esc(d.patient_name||'')} · ${monthLabel(d.period)}<br>Done: ${esc(deptNames(d.done))} · Pending: ${esc(deptNames(d.pending))}`;
     case 'dept_removed': return d.was_done?'Na-tick na ito bago tinanggal':'';
@@ -774,13 +797,13 @@ function wireLogs(){
 async function loadHistory(no){
   const [a,b]=await Promise.all([
     sb.from('eoc_audit_log').select('*').eq('eoc_no',no).order('at',{ascending:false}).limit(60),
-    sb.from('eoc_audit_log').select('*').eq('action','batch_created').contains('detail',{eoc_nos:[no]}).order('at',{ascending:false}).limit(5)
+    sb.from('eoc_audit_log').select('*').in('action',['batch_created','imported']).contains('detail',{eoc_nos:[no]}).order('at',{ascending:false}).limit(5)
   ]);
   const el=$('xHist'); if(!el) return;
   const list=[...(a.data||[]),...(b.data||[])].sort((x,y)=>new Date(y.at)-new Date(x.at));
   el.innerHTML = list.length ? list.map(l=>`<li><span class="t num">${fmtWhen(l.at)}</span>
       <span><span class="act ${ACT[l.action]?.[1]||''}">${esc(ACT[l.action]?.[0]||l.action)}</span>${l.dept?` · ${esc(DEPT[l.dept]?.s||l.dept)}`:''} — ${esc(l.actor_name||'—')}</span>
-      <span class="hint" style="margin:0">${l.action==='batch_created'?'Kasama sa batch encode':logDetail(l)}</span></li>`).join('')
+      <span class="hint" style="margin:0">${l.action==='batch_created'?'Kasama sa batch encode':l.action==='imported'?'Galing sa import: '+esc(l.detail?.file||''):logDetail(l)}</span></li>`).join('')
     : '<li><span class="hint" style="margin:0">Wala pang history.</span></li>';
 }
 
@@ -859,7 +882,10 @@ function wire(){
   on('fStatus','onchange',e=>{S.f.status=e.target.value; render();});
   on('fDept','onchange',e=>{S.f.dept=e.target.value; render();});
   on('fQ','oninput',e=>{S.f.q=e.target.value; const pos=e.target.selectionStart; render(); const n=$('fQ'); n.focus(); n.setSelectionRange(pos,pos);});
-  on('csvBtn','onclick',exportCsv);
+  on('csvBtn','onclick',()=>exportRows('csv'));
+  on('xlsxBtn','onclick',()=>exportRows('xlsx'));
+  on('impFile','onchange',e=>{ const f=e.target.files[0]; e.target.value=''; if(f) previewImport(f); });
+  on('impTpl','onclick',downloadTemplate);
   document.querySelectorAll('.brow').forEach(b=>b.onclick=()=>{ S.f.dept=b.dataset.dept; S.f.status='open'; S.tab='list'; buildTabs(); render(); });
   document.querySelectorAll('[data-task]').forEach(b=>b.onclick=()=>toggleTask(b.dataset.task, b.dataset.done!=='true'));
   document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{S.qMode=b.dataset.q; render();});
@@ -946,7 +972,7 @@ function openEdit(id){
   $('xCancel').onclick=close;
   $('modalRoot').querySelector('.modal-bg').onclick=e=>{ if(e.target.classList.contains('modal-bg')) close(); };
   $('xDel').onclick=async()=>{
-    if(!confirm(`Delete EOC ${r.eoc_no} and all its department checks?`)) return;
+    if(!confirm(`Burahin ang EOC ${r.eoc_no} (${r.patient_name}) at lahat ng department checks nito?\n\nMare-record pa rin ito sa Logs: sino ang nagbura, kailan, at kung alin ang tapos/pending noon.`)) return;
     const {error}=await sb.from('eoc_records').delete().eq('id',r.id);
     if(error){toast('Not deleted: '+error.message);return;}
     close(); toast(`Deleted EOC ${r.eoc_no}`); await load(); render();
@@ -965,14 +991,149 @@ function openEdit(id){
   };
 }
 
-function exportCsv(){
-  const rows=[['EOC','Name','Month',...DEPTS.map(d=>d.s),'Status']];
-  scoped().forEach(r=>rows.push([r.eoc_no,r.patient_name,monthLabel(r.period),
-    ...DEPTS.map(d=>!r.t[d.k]?'N/A':r.t[d.k].is_done?'Done':'Pending'),
-    Object.values(r.t).some(x=>!x.is_done)?'Open':'Cleared']));
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));
-  a.download=`eoc-clearance-${S.f.month}.csv`; a.click();
+// SheetJS loads only when someone imports/exports (keeps the page light)
+let xlsxReady;
+function loadXLSX(){
+  if(window.XLSX) return Promise.resolve(window.XLSX);
+  return xlsxReady ||= new Promise((ok,bad)=>{ const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload=()=>ok(window.XLSX); sc.onerror=()=>{ xlsxReady=null; bad(new Error('Hindi ma-load ang Excel library. I-check ang internet.')); };
+    document.head.appendChild(sc); });
+}
+const EXPORT_HEAD=['EOC','Name','Month','Lab','Xray','ECG','Egamot','Nurse','Clinical Abstract','Status'];
+const DEPT_COLS=['lab','xray','ecg','pharmacy','nurse','abstract'];
+async function exportRows(fmt){
+  const rows=listRows();
+  if(!rows.length){ toast('Walang ma-e-export sa filter na ito.'); return; }
+  const data=rows.map(r=>[r.eoc_no, r.patient_name, monthLabel(r.period),
+    ...DEPT_COLS.map(k=>!r.t[k]?'N/A':r.t[k].is_done), Object.values(r.t).some(x=>!x.is_done)?'Open':'Cleared']);
+  const name=`eoc-clearance-${S.f.month==='all'?'all':S.f.month.slice(0,7)}-${new Date().toISOString().slice(0,10)}`;
+  try{
+    if(fmt==='xlsx'){
+      const X=await loadXLSX();
+      const ws=X.utils.aoa_to_sheet([EXPORT_HEAD,...data]);
+      ws['!cols']=[{wch:10},{wch:32},{wch:15},{wch:7},{wch:7},{wch:7},{wch:8},{wch:7},{wch:16},{wch:9}];
+      const wb=X.utils.book_new(); X.utils.book_append_sheet(wb,ws,'EOC'); X.writeFile(wb,name+'.xlsx');
+    }else{
+      const csv=[EXPORT_HEAD,...data.map(r=>r.map(c=>c===true?'TRUE':c===false?'FALSE':c))]
+        .map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'})); a.download=name+'.csv'; a.click();
+    }
+  }catch(e){ toast(e.message); return; }
+  sb.rpc('eoc_log_export',{p_format:fmt, p_count:rows.length, p_filters:{month:S.f.month,status:S.f.status,dept:S.f.dept,search:S.f.q}}).then(()=>{},()=>{});
+  toast(`Na-export: ${rows.length} EOC`);
+}
+async function downloadTemplate(){
+  try{ const X=await loadXLSX();
+    const ws=X.utils.aoa_to_sheet([EXPORT_HEAD.slice(0,9)]);
+    ws['!cols']=[{wch:10},{wch:32},{wch:15},{wch:7},{wch:7},{wch:7},{wch:8},{wch:7},{wch:16}];
+    const wb=X.utils.book_new(); X.utils.book_append_sheet(wb,ws,'EOC'); X.writeFile(wb,'eoc-import-template.xlsx');
+  }catch(e){ toast(e.message); }
+}
+
+/* ---- import ---- */
+const HDR = { eoc:'eoc', eocno:'eoc', eocnumber:'eoc', name:'name', patient:'name', patientname:'name', pangalan:'name',
+  month:'month', period:'month', buwan:'month', lab:'lab', laboratory:'lab', labs:'lab', xray:'xray', mobilexray:'xray',
+  ecg:'ecg', cardio:'ecg', egamot:'pharmacy', gamot:'pharmacy', pharma:'pharmacy', pharmacy:'pharmacy',
+  nurse:'nurse', yakap:'nurse', nursing:'nurse', clinicalabstract:'abstract', abstract:'abstract' };
+const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+const MONTHS_FIL = {enero:1,pebrero:2,marso:3,abril:4,mayo:5,hunyo:6,hulyo:7,agosto:8,setyembre:9,oktubre:10,nobyembre:11,disyembre:12};
+const pad2=n=>String(n).padStart(2,'0');
+function parseMonth(v, defYear){
+  if(v===''||v==null) return null;
+  if(v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${pad2(v.getMonth()+1)}-01`;
+  if(typeof v==='number'){
+    if(v>=1&&v<=12) return `${defYear}-${pad2(v)}-01`;
+    if(v>20000){ const d=new Date(Math.round((v-25569)*864e5)); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-01`; }
+    return null;
+  }
+  const t=String(v).trim().toLowerCase();
+  let m=t.match(/^(\d{4})-(\d{1,2})/); if(m) return `${m[1]}-${pad2(+m[2])}-01`;
+  m=t.match(/^(\d{1,2})[\/\-](\d{4})$/); if(m) return `${m[2]}-${pad2(+m[1])}-01`;
+  const y=(t.match(/\b(20\d\d)\b/)||[])[1]||defYear;
+  for(const [k,n] of Object.entries(MONTHS_FIL)) if(t.startsWith(k)) return `${y}-${pad2(n)}-01`;
+  const i=MONTHS.indexOf(t.replace(/[^a-z]/g,'').slice(0,3)); if(i>=0) return `${y}-${pad2(i+1)}-01`;
+  return null;
+}
+function cellState(v){
+  if(v===true) return 'done'; if(v===false||v===''||v==null) return '';
+  const t=String(v).trim().toLowerCase();
+  if(['true','yes','y','1','x','✓','✔','done','tapos','ok'].includes(t)) return 'done';
+  if(['n/a','na','-','—','none','hindi kailangan'].includes(t)) return 'na';
+  return '';
+}
+const cleanNo = v => typeof v==='number' ? String(Math.round(v)) : String(v??'').trim();
+async function previewImport(file){
+  let X; try{ X=await loadXLSX(); }catch(e){ toast(e.message); return; }
+  const defMonth=($('eMonth')?.value||thisMonth()); const defYear=defMonth.slice(0,4);
+  const defDepts=[...document.querySelectorAll('.eDept:checked')].map(x=>x.value);
+  let grid;
+  try{
+    const wb=X.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+    grid=X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+  }catch(e){ toast('Hindi mabasa ang file: '+e.message); return; }
+  // find the header row (first 15 rows) that has both EOC and Name
+  let hi=-1, map={};
+  for(let i=0;i<Math.min(15,grid.length);i++){
+    const m={}; grid[i].forEach((h,c)=>{ const k=HDR[String(h).toLowerCase().replace(/[^a-z]/g,'')]; if(k && m[k]==null) m[k]=c; });
+    if(m.eoc!=null && m.name!=null){ hi=i; map=m; break; }
+  }
+  if(hi<0){ toast('Walang makitang “EOC” at “Name” na column sa unang sheet.'); return; }
+  const existing=new Set(S.records.map(r=>r.eoc_no)), seen=new Set();
+  const ok=[], dupSys=[], dupFile=[], noName=[]; const doneCount={}; const monthsSeen={};
+  for(const row of grid.slice(hi+1)){
+    const no=cleanNo(row[map.eoc]), name=String(row[map.name]??'').trim();
+    if(!no && !name) continue;
+    if(!no) continue;
+    if(!name){ noName.push(no); continue; }
+    if(existing.has(no)){ dupSys.push(no); continue; }
+    if(seen.has(no)){ dupFile.push(no); continue; }
+    seen.add(no);
+    const done=[], na=[];
+    for(const k of DEPT_COLS){ if(map[k]==null) continue; const st=cellState(row[map[k]]); if(st==='done'){done.push(k); doneCount[k]=(doneCount[k]||0)+1;} else if(st==='na') na.push(k); }
+    const period = map.month!=null ? parseMonth(row[map.month], defYear) : null;
+    const per = period || defMonth+'-01'; monthsSeen[per]=(monthsSeen[per]||0)+1;
+    ok.push({eoc_no:no, patient_name:name, period, done, na});
+  }
+  const rng=a=>a.length>8?`${a.slice(0,8).join(', ')} … (+${a.length-8})`:a.join(', ');
+  const cols=DEPT_COLS.filter(k=>map[k]!=null);
+  $('modalRoot').innerHTML=`<div class="modal-bg"><div class="modal" style="max-width:760px">
+    <h3>Import preview — ${esc(file.name)}</h3>
+    <div class="kpis num" style="grid-template-columns:repeat(4,1fr);margin:12px 0">
+      <div class="kpi"><div class="v" style="color:var(--brand)">${ok.length}</div><div class="l">Ready i-import</div></div>
+      <div class="kpi"><div class="v">${dupSys.length}</div><div class="l">Nasa system na (skip)</div></div>
+      <div class="kpi"><div class="v">${dupFile.length}</div><div class="l">Doble sa file (skip)</div></div>
+      <div class="kpi"><div class="v">${noName.length}</div><div class="l">Walang pangalan (skip)</div></div>
+    </div>
+    <p class="hint" style="margin:0 0 4px">Month: ${Object.entries(monthsSeen).map(([m,n])=>`${monthLabel(m)} (${n})`).join(', ')||'—'}
+      ${map.month==null?' · walang Month column, ginamit ang Month sa Encode':''}</p>
+    <p class="hint" style="margin:0 0 4px">Kailangan ng clearance mula sa: ${esc(deptNames(defDepts))}${cols.length?` · Dept columns na nakita: ${esc(deptNames(cols))}`:' · walang dept columns sa file'}</p>
+    ${Object.keys(doneCount).length?`<p class="hint" style="margin:0 0 4px">Mamarkahang tapos na (galing sa file): ${Object.entries(doneCount).map(([k,n])=>`${DEPT[k].s} ${n}`).join(', ')}</p>`:''}
+    ${dupSys.length?`<p class="hint" style="margin:0 0 4px">Nasa system na: ${esc(rng(dupSys))}</p>`:''}
+    ${dupFile.length?`<p class="hint" style="margin:0 0 4px">Doble sa file: ${esc(rng(dupFile))}</p>`:''}
+    ${noName.length?`<p class="hint" style="margin:0 0 4px">Walang pangalan: ${esc(rng(noName))}</p>`:''}
+    ${ok.length?`<div class="tbl-wrap panel" style="max-height:260px;margin-top:10px"><table>
+      <thead><tr><th>EOC</th><th>Name</th><th>Month</th>${cols.map(k=>`<th class="c">${DEPT[k].s}</th>`).join('')}</tr></thead>
+      <tbody>${ok.slice(0,50).map(r=>`<tr><td class="num"><b>${esc(r.eoc_no)}</b></td><td>${esc(r.patient_name)}</td><td>${monthLabel(r.period||defMonth+'-01')}</td>
+        ${cols.map(k=>`<td class="c">${r.done.includes(k)?'<span class="status ok">✓</span>':r.na.includes(k)?'<span class="hint">N/A</span>':''}</td>`).join('')}</tr>`).join('')}
+      ${ok.length>50?`<tr><td colspan="${3+cols.length}" class="hint">+${ok.length-50} pa…</td></tr>`:''}</tbody></table></div>`:''}
+    <div class="acts"><span class="hint" style="margin:0">Mare-record sa Logs ang import.</span><span style="flex:1"></span>
+      <button class="btn" id="impCancel">Cancel</button>
+      <button class="btn primary" id="impGo" ${ok.length?'':'disabled'}>Import ${ok.length} EOC</button></div>
+  </div></div>`;
+  const close=()=>$('modalRoot').innerHTML='';
+  $('impCancel').onclick=close;
+  $('impGo').onclick=async()=>{
+    const btn=$('impGo'); btn.disabled=true; let ins=0, skipped=[], doneN=0;
+    for(let i=0;i<ok.length;i+=500){
+      btn.textContent=`Importing… ${Math.min(i+500,ok.length)}/${ok.length}`;
+      const {data,error}=await sb.rpc('eoc_import',{p_rows:ok.slice(i,i+500), p_default_period:defMonth+'-01', p_depts:defDepts, p_file:file.name});
+      if(error){ toast('Huminto ang import: '+error.message+(ins?` (${ins} na ang naipasok)`:'')); break; }
+      ins+=data.inserted; doneN+=data.done_marked; skipped=skipped.concat(data.skipped||[]);
+    }
+    close(); toast(`Na-import: ${ins} EOC`+(doneN?` · ${doneN} checks tapos na`:'')+(skipped.length?` · skip ${skipped.length}`:''));
+    S.logs.loaded=false; await load(); render();
+  };
 }
 
 /* ---------- start ---------- */
