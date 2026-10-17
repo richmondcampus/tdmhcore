@@ -42,7 +42,14 @@ label.f{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
 .btn.danger{color:var(--red);border-color:var(--red)}
 .btn.sm{padding:6px 11px;font-size:13px}
 .btn:disabled{opacity:.55;cursor:default}
-.err{color:var(--red);font-size:13px;min-height:18px;margin-top:10px}
+.err{color:var(--red);background:var(--red-soft);font-size:13px;padding:9px 11px;border-radius:8px;margin-top:12px}
+.okbox{color:var(--teal);background:var(--teal-soft);font-size:13px;line-height:1.5;padding:10px 12px;border-radius:8px;margin-top:12px}
+.btn.wide{width:100%;justify-content:center;padding:11px;margin-top:14px}
+.auth-link{text-align:center;margin-top:14px}
+.auth-link a{font-size:13px;color:var(--muted)}
+.auth-link a:hover{color:var(--teal)}
+.strength-bar{height:5px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+.strength-fill{height:100%;width:0;transition:width .2s}
 
 /* Shell */
 header.top{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
@@ -156,28 +163,54 @@ textarea.inp{min-height:180px;font-family:inherit;resize:vertical}
 <body>
 
 <!-- LOGIN -->
-<section id="login">
-  <form class="login-box" id="loginForm">
+<section id="login" class="hidden">
+  <!-- sign in -->
+  <form class="login-box auth-step" id="stepLogin">
     <h1>EOC Clearance</h1>
-    <p>Sign in with your department account.</p>
+    <p>Para sa Lab, X-Ray, ECG, eGamot, YAKAP at Admin. Hiwalay ang account sa TDMH Core.</p>
     <label class="f" for="em">Email</label>
     <input class="inp" id="em" type="email" autocomplete="username" required>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 0 6px">
-      <label class="f" for="pw" style="margin:0">Password</label>
-      <button type="button" id="forgotBtn" style="border:0;background:none;padding:0;color:var(--teal);font-weight:600;font-size:13px;cursor:pointer;text-decoration:underline">Forgot password?</button>
-    </div>
+    <label class="f" for="pw">Password</label>
     <input class="inp" id="pw" type="password" autocomplete="current-password" required>
-    <div class="err" id="loginErr"></div>
-    <button class="btn primary" style="width:100%;justify-content:center;margin-top:6px" id="loginBtn">Sign in</button>
+    <div class="err hidden" id="lg_err"></div>
+    <button class="btn primary wide" id="lg_btn">Sign in</button>
+    <div class="auth-link"><a href="#" data-step="stepForgot">Forgot password?</a></div>
   </form>
-  <form class="login-box hidden" id="pwForm">
-    <h1>Set a new password</h1>
-    <p>At least 8 characters.</p>
-    <label class="f" for="np1">New password</label><input class="inp" id="np1" type="password" autocomplete="new-password" minlength="8" required>
-    <label class="f" for="np2">Type it again</label><input class="inp" id="np2" type="password" autocomplete="new-password" minlength="8" required>
-    <div class="err" id="pwErr"></div>
-    <button class="btn primary" style="width:100%;justify-content:center;margin-top:6px">Save password</button>
+
+  <!-- forgot password -->
+  <form class="login-box auth-step hidden" id="stepForgot">
+    <h1>Forgot password</h1>
+    <p>Ilagay ang email ng iyong EOC account. Magpapadala kami ng link para magtakda ng bagong password.</p>
+    <label class="f" for="fp_email">Email</label>
+    <input class="inp" id="fp_email" type="email" autocomplete="email" required>
+    <div class="err hidden" id="fp_err"></div>
+    <div class="okbox hidden" id="fp_ok"></div>
+    <button class="btn primary wide" id="fp_btn">Send reset link</button>
+    <div class="auth-link"><a href="#" data-step="stepLogin">Back to sign in</a></div>
   </form>
+
+  <!-- set new password (from the email link) -->
+  <form class="login-box auth-step hidden" id="stepReset">
+    <h1>Set new password</h1>
+    <p>Pumili ng bagong password para sa EOC Clearance. <b id="rs_who" style="display:block;margin-top:4px;color:var(--ink)"></b></p>
+    <div class="okbox" id="rs_ok" style="margin:0 0 4px">Na-verify ang reset link mo. Mag-set ng bagong password para makapasok.</div>
+    <label class="f" for="rs_new">New password</label>
+    <input class="inp" id="rs_new" type="password" placeholder="Minimum 8 characters" autocomplete="new-password">
+    <div class="strength-bar"><div class="strength-fill" id="rs_fill"></div></div><span class="hint" id="rs_lbl"></span>
+    <label class="f" for="rs_confirm">Confirm password</label>
+    <input class="inp" id="rs_confirm" type="password" autocomplete="new-password">
+    <div class="err hidden" id="rs_err"></div>
+    <button class="btn primary wide" id="rs_btn">Update password</button>
+    <div class="auth-link"><a href="#" id="rs_cancel">Cancel</a></div>
+  </form>
+
+  <!-- done -->
+  <div class="login-box auth-step hidden" id="stepDone" style="text-align:center">
+    <div style="font-size:40px;color:var(--teal)">✓</div>
+    <h1>Password updated</h1>
+    <p id="done_msg">Papasok ka na sa EOC Clearance…</p>
+    <button class="btn primary wide" id="done_btn">Continue</button>
+  </div>
 </section>
 
 <!-- APP -->
@@ -243,31 +276,91 @@ async function fetchAll(build){
   return out;
 }
 
-/* ---------- auth ---------- */
-$('loginForm').onsubmit = async e => {
-  e.preventDefault(); $('loginErr').textContent=''; $('loginBtn').disabled=true;
-  const {error} = await sb.auth.signInWithPassword({email:$('em').value.trim(), password:$('pw').value});
-  $('loginBtn').disabled=false;
-  if(error){ $('loginErr').textContent='Wrong email or password.'; return; }
-  boot();
+/* ---------- auth (same flow as OPD Records) ---------- */
+// Reset state survives refresh / reopening the tab, so a reset link never drops
+// someone into the app without choosing a new password first.
+const RECOVERY_KEY='tdmh_eoc_recovery';
+const markRecovery=()=>{ try{ localStorage.setItem(RECOVERY_KEY,String(Date.now())); }catch(_){} };
+const clearRecovery=()=>{ try{ localStorage.removeItem(RECOVERY_KEY); }catch(_){} };
+const recoveryPending=()=>{ try{ const t=+localStorage.getItem(RECOVERY_KEY); return !!t && Date.now()-t<3600e3; }catch(_){ return false; } };
+let RECOVERY=/type=recovery/.test(location.hash);
+if(RECOVERY) markRecovery();
+sb.auth.onAuthStateChange((ev,session)=>{ if(ev==='PASSWORD_RECOVERY'){ RECOVERY=true; markRecovery(); showReset(session); } });
+
+function show(app){ $('login').classList.toggle('hidden',app); $('app').classList.toggle('hidden',!app); }
+function showLogin(step){ show(false); authStep(step||'stepLogin'); }
+function authStep(id){
+  document.querySelectorAll('.auth-step').forEach(x=>x.classList.toggle('hidden',x.id!==id));
+  const f=document.querySelector('#'+id+' input:not([disabled])'); if(f) setTimeout(()=>f.focus(),30);
+}
+function showErr(id,msg){ $(id).textContent=msg; $(id).classList.remove('hidden'); }
+function showReset(session){ showLogin('stepReset'); $('rs_who').textContent = session?.user?.email ? 'Account: '+session.user.email : ''; }
+document.querySelectorAll('[data-step]').forEach(a=>a.onclick=e=>{
+  e.preventDefault();
+  if(a.dataset.step==='stepForgot' && $('em').value && !$('fp_email').disabled) $('fp_email').value=$('em').value.trim();
+  authStep(a.dataset.step);
+});
+
+$('stepLogin').onsubmit = async e=>{
+  e.preventDefault(); const btn=$('lg_btn'); $('lg_err').classList.add('hidden');
+  btn.disabled=true; btn.textContent='Signing in…';
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:$('em').value.trim().toLowerCase(), password:$('pw').value});
+    if(error||!data.user){ showErr('lg_err','Maling email o password.'); return; }
+    clearRecovery(); RECOVERY=false;
+    await boot();
+  }catch(_){ showErr('lg_err','Connection error. Subukan muli.'); }
+  finally{ btn.disabled=false; btn.textContent='Sign in'; }
 };
-$('forgotBtn').onclick = async ()=>{
-  const email=$('em').value.trim();
-  if(!email){ $('loginErr').textContent='Type your email first, then tap Forgot password.'; return; }
-  await sb.functions.invoke('eoc-admin',{body:{action:'request_reset', email}});
-  $('loginErr').style.color='var(--teal)';
-  $('loginErr').textContent='If that email has an EOC account, a reset link is on its way. Check your inbox.';
+
+$('stepForgot').onsubmit = async e=>{
+  e.preventDefault(); const btn=$('fp_btn'), email=$('fp_email').value.trim();
+  $('fp_err').classList.add('hidden'); $('fp_ok').classList.add('hidden');
+  btn.disabled=true; btn.textContent='Sending…';
+  try{
+    await fetch(SUPABASE_URL+'/functions/v1/eoc-admin',{method:'POST',
+      headers:{'Content-Type':'application/json', apikey:SUPABASE_KEY, Authorization:'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({action:'request_reset', email})});
+    $('fp_ok').textContent='Kung ang email ay naka-register, nagpadala ng reset link. I-check ang inbox at spam folder (pwede 1–2 minuto). Ang link ay valid 1 oras at gumagana isang beses. Huwag humiling muli: ang bagong request ay pinapawalang-bisa ang naunang link.';
+    $('fp_ok').classList.remove('hidden');
+    btn.textContent='Link sent'; $('fp_email').disabled=true;
+  }catch(_){
+    showErr('fp_err','Connection error. Subukan muli.');
+    btn.disabled=false; btn.textContent='Send reset link';
+  }
 };
-let recovering=false;
-sb.auth.onAuthStateChange(ev=>{ if(ev==='PASSWORD_RECOVERY'){ recovering=true; show(false); $('loginForm').classList.add('hidden'); $('pwForm').classList.remove('hidden'); } });
-$('pwForm').onsubmit = async e=>{
-  e.preventDefault(); const a=$('np1').value, b=$('np2').value;
-  if(a!==b){ $('pwErr').textContent='The two passwords do not match.'; return; }
+
+$('rs_new').oninput = e=>{
+  const p=e.target.value; let n=0;
+  if(p.length>=8)n++; if(p.length>=12)n++; if(/[A-Z]/.test(p))n++; if(/[0-9]/.test(p))n++; if(/[^A-Za-z0-9]/.test(p))n++;
+  const L=[['0%','transparent',''],['20%','var(--red)','Very weak'],['40%','var(--red)','Weak'],['60%','var(--amber)','Fair'],['80%','var(--teal)','Strong'],['100%','var(--teal)','Very strong']][n];
+  $('rs_fill').style.width=L[0]; $('rs_fill').style.background=L[1]; $('rs_lbl').textContent=L[2]; $('rs_lbl').style.color=L[1];
+};
+$('stepReset').onsubmit = async e=>{
+  e.preventDefault(); const a=$('rs_new').value, b=$('rs_confirm').value, btn=$('rs_btn');
+  $('rs_err').classList.add('hidden');
+  if(a.length<8) return showErr('rs_err','Password ay hindi bababa sa 8 characters.');
+  if(a!==b) return showErr('rs_err','Hindi magkatugma ang dalawang password.');
+  btn.disabled=true; btn.textContent='Updating…';
   const {error}=await sb.auth.updateUser({password:a});
-  if(error){ $('pwErr').textContent=error.message; return; }
-  recovering=false; history.replaceState(null,'',location.pathname);
-  $('pwForm').classList.add('hidden'); $('loginForm').classList.remove('hidden'); boot(); toast('Password saved');
+  if(error){ btn.disabled=false; btn.textContent='Update password';
+    return showErr('rs_err', /expired|invalid|session/i.test(error.message)?'Ang link ay expired. Humiling ng bagong reset link.':error.message); }
+  RECOVERY=false; clearRecovery();
+  history.replaceState(null,'',location.pathname);
+  authStep('stepDone');
+  // Same session is still valid, so go straight in — no need to sign in again.
+  let n=3; $('done_msg').textContent=`Papasok ka na sa EOC Clearance in ${n}…`;
+  doneTimer=setInterval(()=>{ n--; if(n<=0){ enterAfterReset(); } else $('done_msg').textContent=`Papasok ka na sa EOC Clearance in ${n}…`; },1000);
 };
+let doneTimer;
+async function enterAfterReset(){
+  clearInterval(doneTimer);
+  if($('done_btn').disabled) return; $('done_btn').disabled=true;
+  try{ await boot(); toast('Password updated'); }catch(_){ showLogin(); }
+}
+$('rs_cancel').onclick = async e=>{ e.preventDefault(); clearRecovery(); RECOVERY=false; await sb.auth.signOut(); history.replaceState(null,'',location.pathname); authStep('stepLogin'); };
+$('done_btn').onclick = enterAfterReset;
+
 async function adminCall(body){
   const {data,error}=await sb.functions.invoke('eoc-admin',{body});
   if(error){ let m=error.message; try{ m=(await error.context.json()).error||m; }catch(_){} throw new Error(m); }
@@ -278,16 +371,14 @@ $('logoutBtn').onclick = async ()=>{ await sb.auth.signOut(); location.reload();
 $('refreshBtn').onclick = ()=> load().then(render);
 
 async function boot(){
-  if(recovering) return;
+  if(RECOVERY || recoveryPending()) return;
   const {data:{session}} = await sb.auth.getSession();
-  if(!session){ show(false); return; }
+  if(!session){ showLogin(); return; }
   const {data:prof, error} = await sb.rpc('eoc_my_profile');
-  if(recovering) return;
   const me = Array.isArray(prof)?prof[0]:prof; const roles = me?.roles||[];
   if(error || !roles.length){
-    show(false);
-    $('loginErr').textContent='This account has no EOC access. Ask the EOC admin to set it up.';
-    await sb.auth.signOut(); return;
+    await sb.auth.signOut(); showLogin();
+    showErr('lg_err','Walang EOC access o inactive ang account. Kausapin ang IT.'); return;
   }
   S.roles = roles; S.isAdmin = roles.includes('admin');
   S.name = me.full_name || session.user.email; S.myId = me.id;
@@ -298,8 +389,6 @@ async function boot(){
   await load(); render();
   setInterval(()=>{ if(document.visibilityState==='visible' && S.tab!=='access' && !document.querySelector('.modal-bg')) load().then(render); }, 60000);
 }
-function show(app){ $('login').classList.toggle('hidden',app); $('app').classList.toggle('hidden',!app); }
-
 function buildTabs(){
   const t = S.isAdmin
     ? [['dash','Dashboard'],['list','All EOCs'],['encode','Encode'],['access','Access']]
@@ -654,7 +743,19 @@ function exportCsv(){
   a.download=`eoc-clearance-${S.f.month}.csv`; a.click();
 }
 
-boot();
+/* ---------- start ---------- */
+(async function init(){
+  const linkError=/error_code=otp_expired|error=access_denied/.test(location.hash);
+  if(linkError) history.replaceState(null,'',location.pathname);
+  const {data:{session}}=await sb.auth.getSession();
+  // 1) valid recovery session (fresh link, or page refreshed before saving) → must set a password first
+  if(session && (RECOVERY||recoveryPending())) return showReset(session);
+  // 2) old or already-used link
+  if(linkError){ showLogin('stepForgot'); return showErr('fp_err','Ang link ay expired o nagamit na. Kung humiling ng higit sa isa, buksan lang ang PINAKABAGONG email, o humiling ng bagong link.'); }
+  if(RECOVERY){ showLogin('stepLogin'); setTimeout(async()=>{ const {data:{session:s2}}=await sb.auth.getSession(); if(s2) showReset(s2); },1000); return; }
+  if(session?.user){ try{ await boot(); }catch(_){ showLogin(); } }
+  else showLogin();
+})();
 </script>
 </body>
 </html>
