@@ -155,20 +155,29 @@ tr:last-child td{border-bottom:0}
 .howto .btn{margin-left:auto}
 .qlist{list-style:none;margin:0;padding:0}
 .qlist li+li{border-top:1px solid var(--line)}
-.qrow{display:grid;grid-template-columns:auto 96px 1fr auto;gap:16px;align-items:center;width:100%;padding:14px 18px;border:0;background:none;text-align:left;cursor:pointer}
+.qrow{display:grid;grid-template-columns:auto 110px 1fr auto;gap:16px;align-items:center;padding:14px 18px}
 .qrow:hover{background:var(--surface2)}
-.qbox{width:40px;height:40px;border-radius:10px;border:2.5px solid var(--pend-edge);background:var(--pend-soft);display:grid;place-items:center;color:#fff;transition:background .15s,border-color .15s,transform .15s}
+.qbox{width:40px;height:40px;border-radius:10px;border:2.5px solid var(--pend-edge);background:var(--pend-soft);display:grid;place-items:center;color:#fff;cursor:pointer;padding:0;transition:background .15s,border-color .15s,transform .15s}
 .qbox svg{width:22px;height:22px}
-.qrow:hover .qbox{border-color:var(--done-solid)}
-.qrow:hover .qbox:empty::after{content:"";width:12px;height:7px;border-left:3px solid var(--done-solid);border-bottom:3px solid var(--done-solid);transform:rotate(-45deg) translate(1px,-2px);opacity:.45}
-.qrow[aria-checked="true"] .qbox{background:var(--done-solid);border-color:var(--done-solid)}
+.qbox:hover{border-color:var(--done-solid)}
+.qbox:hover:empty::after{content:"";width:12px;height:7px;border-left:3px solid var(--done-solid);border-bottom:3px solid var(--done-solid);transform:rotate(-45deg) translate(1px,-2px);opacity:.45}
+.qrow.on .qbox{background:var(--done-solid);border-color:var(--done-solid)}
 .qrow.flash{background:var(--done-soft)}
 .qrow.flash .qbox{transform:scale(1.08)}
 .qeoc{font-family:"Bricolage Grotesque",sans-serif;font-size:18px;font-weight:800}
-.qname{font-weight:600}
+.qname{font-weight:600;min-width:0}
 .qname small{display:block;font-weight:500;color:var(--muted);font-size:12px}
-.qact{font-size:12.5px;font-weight:700;color:var(--pend);background:var(--pend-soft);padding:6px 12px;border-radius:99px;white-space:nowrap}
-.qrow[aria-checked="true"] .qact{color:var(--done);background:var(--done-soft)}
+.qact{font-size:12.5px;font-weight:700;color:var(--pend);background:var(--pend-soft);padding:6px 12px;border-radius:99px;white-space:nowrap;border:0;cursor:pointer}
+.qact:hover{filter:brightness(.97);outline:1px solid var(--pend-edge)}
+.qrow.on .qact{color:var(--done);background:var(--done-soft)}
+/* copy-to-clipboard text */
+.cp{display:inline-flex;align-items:center;gap:6px;user-select:text;-webkit-user-select:text;cursor:copy;border-radius:6px;padding:1px 4px;margin:-1px -4px}
+.cp:hover{background:var(--brand-soft)}
+.cp .ci{flex:none;width:22px;height:22px;display:inline-grid;place-items:center;border:1px solid var(--line2);border-radius:6px;background:var(--surface);color:var(--muted);cursor:pointer;padding:0;opacity:.55}
+.cp:hover .ci,.cp .ci:focus-visible{opacity:1;color:var(--brand);border-color:var(--brand)}
+.cp .ci svg{width:13px;height:13px}
+.cp.copied{background:var(--done-soft)}
+.cp.copied .ci{opacity:1;color:var(--done);border-color:var(--done)}
 .tag{font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;background:var(--surface3);color:var(--muted);margin-left:6px;vertical-align:1px}
 .empty{padding:44px 20px;text-align:center;color:var(--muted)}
 .empty .big{font-family:"Bricolage Grotesque",sans-serif;font-size:22px;font-weight:800;color:var(--done);margin-bottom:4px}
@@ -299,6 +308,8 @@ const DEPTS = [
   {k:'abstract', n:'Clinical Abstract', s:'Abstract'},
 ];
 const DEPT = Object.fromEntries(DEPTS.map(d=>[d.k,d]));
+const COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+const cpSpan = (v, label) => `<span class="cp" data-copy="${esc(v)}" title="I-click para i-copy">${esc(v)}<button type="button" class="ci" data-copy="${esc(v)}" aria-label="Copy ${label}">${COPY}</button></span>`;
 const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
 
 const S = { flash:new Set(), roles:[], isAdmin:false, users:[], uq:'', qDept:'all', name:'', tab:null, records:[], tasks:[], f:{month:'all', status:'open', q:'', dept:'all'}, qMode:'pending' };
@@ -565,7 +576,7 @@ function renderList(){
     <thead><tr><th>EOC</th><th>Name</th><th>Month</th>${DEPTS.map(d=>`<th class="c">${d.s}</th>`).join('')}<th>Status</th><th></th></tr></thead>
     <tbody>${rows.length? rows.map(r=>{
       const isOpen=Object.values(r.t).some(x=>!x.is_done);
-      return `<tr><td class="num"><b>${esc(r.eoc_no)}</b></td><td>${esc(r.patient_name)}</td><td>${monthLabel(r.period)}</td>
+      return `<tr><td class="num"><b>${cpSpan(r.eoc_no,'EOC number')}</b></td><td>${cpSpan(r.patient_name,'name')}</td><td>${monthLabel(r.period)}</td>
       ${DEPTS.map(d=>{const t=r.t[d.k];
         if(!t) return `<td class="c"><span class="cell na" title="Not needed">–</span></td>`;
         return `<td class="c"><button class="cell ${t.is_done?'done':'pending'}" data-task="${t.id}" data-done="${t.is_done}" title="${t.is_done?'Done '+fmtDate(t.done_at):'Pending — click to mark done'}" aria-label="${d.n} ${t.is_done?'done':'pending'}">${t.is_done?CHECK:''}</button></td>`;}).join('')}
@@ -633,18 +644,18 @@ function renderQueue(){
   ${total?`<div class="progress" title="${total-pend} of ${total} tapos na"><i style="width:${pct}%"></i></div>`:''}
   ${showHelp?`<div class="howto" role="note">
       <span class="demo" aria-hidden="true">${CHECK}</span>
-      <p><b>Paano gamitin:</b> pindutin ang kahon sa tabi ng EOC kapag <b>tapos na</b> ang ${esc(deptLabel)} para dito. Magiging berde ito at lilipat sa “Tapos na”. Nagkamali? Pindutin ang <b>Undo</b> sa ibaba.</p>
+      <p><b>Paano gamitin:</b> pindutin ang kahon sa tabi ng EOC kapag <b>tapos na</b> ang ${esc(deptLabel)} para dito. Magiging berde ito at lilipat sa “Tapos na”. Nagkamali? Pindutin ang <b>Undo</b> sa ibaba. Para sa ibang system: i-click ang <b>EOC</b> o <b>pangalan</b> para ma-copy, tapos i-paste.</p>
       <button class="btn sm" id="howtoOk">Gets ko</button></div>`:''}
   <div class="panel"><ul class="qlist">${list.length? list.map(t=>{
     const on=t.is_done;
-    return `<li><button class="qrow ${S.flash.has(t.id)?'flash':''}" role="checkbox" aria-checked="${on}" data-task="${t.id}" data-done="${on}"
-        aria-label="EOC ${esc(t.eoc_records.eoc_no)}, ${esc(t.eoc_records.patient_name)}: ${on?'tapos na':'pending'}">
-      <span class="qbox">${on?CHECK:''}</span>
-      <span class="qeoc num">${esc(t.eoc_records.eoc_no)}</span>
-      <span class="qname">${esc(t.eoc_records.patient_name)}${multi?`<span class="tag">${DEPT[t.dept].s}</span>`:''}
+    return `<li class="qrow ${on?'on':''} ${S.flash.has(t.id)?'flash':''}">
+      <button class="qbox" role="checkbox" aria-checked="${on}" data-task="${t.id}" data-done="${on}"
+        aria-label="EOC ${esc(t.eoc_records.eoc_no)}: ${on?'tapos na, pindutin para ibalik sa pending':'i-tick kapag tapos na'}">${on?CHECK:''}</button>
+      <span class="qeoc num">${cpSpan(t.eoc_records.eoc_no,'EOC number')}</span>
+      <span class="qname">${cpSpan(t.eoc_records.patient_name,'name')}${multi?`<span class="tag">${DEPT[t.dept].s}</span>`:''}
         <small>${on?'Tapos na · '+fmtDate(t.done_at):monthLabel(t.eoc_records.period)}</small></span>
-      <span class="qact">${on?'✓ Tapos na':'I-tick kapag tapos na'}</span>
-    </button></li>`;}).join('')
+      <button class="qact" data-task="${t.id}" data-done="${on}">${on?'✓ Tapos na':'I-tick kapag tapos na'}</button>
+    </li>`;}).join('')
     : S.qMode==='pending'
       ? `<li class="empty"><div class="big">All clear ✓</div>Walang pending na EOC dito.</li>`
       : `<li class="empty">Wala pang na-tick na tapos.</li>`}</ul></div>`;
@@ -730,6 +741,11 @@ function wire(){
   document.querySelectorAll('[data-task]').forEach(b=>b.onclick=()=>toggleTask(b.dataset.task, b.dataset.done!=='true'));
   document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{S.qMode=b.dataset.q; render();});
   document.querySelectorAll('[data-qd]').forEach(b=>b.onclick=()=>{S.qDept=b.dataset.qd; render();});
+  document.querySelectorAll('.cp').forEach(el=>el.onclick=e=>{
+    // Dragging to highlight still works normally; a plain click copies.
+    const sel=String(window.getSelection()||''); if(sel && !e.target.closest('.ci')) return;
+    copyText(el.dataset.copy, el);
+  });
   on('howtoOk','onclick',()=>{ try{localStorage.setItem('tdmh_eoc_howto_ok','1');}catch(_){} render(); });
   on('uQ','oninput',e=>{S.uq=e.target.value; const pos=e.target.selectionStart; render(); const n=$('uQ'); n.focus(); n.setSelectionRange(pos,pos);});
   document.querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>saveRoles(b.dataset.save));
@@ -740,6 +756,15 @@ function wire(){
   on('bulkForm','onsubmit',e=>{e.preventDefault(); const rows=parseBulk($('bTxt').value); if(!rows.length){toast('Nothing to add — check the format.');return;} submitRows(rows,true);});
 }
 
+async function copyText(v, el){
+  let ok=false;
+  try{ await navigator.clipboard.writeText(v); ok=true; }
+  catch(_){ const ta=document.createElement('textarea'); ta.value=v; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); try{ ok=document.execCommand('copy'); }catch(__){} ta.remove(); }
+  if(!ok){ toast('Hindi ma-copy — i-highlight at Ctrl+C na lang'); return; }
+  if(el){ el.classList.add('copied'); setTimeout(()=>el.classList.remove('copied'),900); }
+  toast(`Na-copy: ${v}`);
+}
 function findTask(id){
   if(S.isAdmin){ for(const r of S.records) for(const t of Object.values(r.t)) if(t.id===id) return t; }
   return S.tasks.find(t=>t.id===id);
