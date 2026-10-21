@@ -2437,9 +2437,13 @@ async function saveUser(userId){
     // Department Head assignments (multi-dept) — only when CSR role = dept_head
     const targetUserId = editing ? userId : (result && result.user_id)
     if(targetUserId){
-      // Save SMS toggles directly (the user edge-function may not carry these fields).
+      // Save SMS toggles + dept_id directly (belt-and-suspenders so a primary-department
+      // change always sticks even if the edge function misses it).
       try {
-        await SB.from('users').update({ sms_csr: payload.sms_csr, sms_maintenance: payload.sms_maintenance, sms_it: payload.sms_it }).eq('id', targetUserId)
+        await SB.from('users').update({
+          sms_csr: payload.sms_csr, sms_maintenance: payload.sms_maintenance, sms_it: payload.sms_it,
+          dept_id: payload.dept_id || null
+        }).eq('id', targetUserId)
       } catch(_) {}
       const selected = payload.csr_role === 'dept_head'
         ? Array.from(document.querySelectorAll('.uf_head_dept:checked')).map(c=>c.value)
