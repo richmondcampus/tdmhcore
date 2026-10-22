@@ -81,6 +81,7 @@ tr.is-current{background:#F2F5FF}
 .bar{height:9px;border-radius:2px;background:var(--navy);opacity:.85;min-width:1px;display:inline-block;vertical-align:middle}
 .bar.rth{background:var(--bad)}
 .tiny{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--slate)}
+.of{color:var(--slate);font-weight:400}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:26px}
 
 details.panel{margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
@@ -178,7 +179,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--navy);border-col
     <div class="sec-head"><h3>Monthly ledger</h3><span class="note" id="ledgerNote"></span></div>
     <table id="ledger"><thead><tr>
       <th>Month</th><th class="num">Filed</th><th class="num">Returned</th>
-      <th class="num">Return rate</th><th class="num" id="thAmount">Value returned</th><th style="width:150px">&nbsp;</th><th>Grade</th>
+      <th class="num">Return rate<br><span style="text-transform:none;letter-spacing:0;font-size:9.5px">of the prior month's filings</span></th><th class="num" id="thAmount">Value returned</th><th style="width:150px">&nbsp;</th><th>Grade</th>
     </tr></thead><tbody></tbody></table>
   </section>
 
@@ -341,7 +342,7 @@ function render(){
     <div class="stat-strip">
       <div class="stat"><div class="k">Filed this month</div><div class="v">${a.filed.toLocaleString()}</div></div>
       <div class="stat"><div class="k">Returned</div><div class="v" style="color:${a.ret?'var(--bad)':'inherit'}">${a.ret===null?'—':a.ret.toLocaleString()}</div></div>
-      <div class="stat"><div class="k">Return rate</div><div class="v">${a.rate===null?'—':a.rate.toFixed(1)+'%'}</div></div>
+      <div class="stat"><div class="k">Return rate</div><div class="v">${a.rate===null?'—':`${a.rate.toFixed(1)}% <span class="of" style="font-size:13px">of ${a.base.toLocaleString()}</span>`}</div></div>
       <div class="stat"><div class="k">Filed last month</div><div class="v">${a.base?a.base.toLocaleString():'—'}</div></div>
       ${a.amount!==null ? `<div class="stat"><div class="k">Value returned</div><div class="v">${peso(a.amount)}</div></div>` : ''}
     </div>`;
@@ -366,7 +367,7 @@ function renderLedger(){
       <td><b>${short(k)}</b>${a.last && !a.full ? ' <span class="tiny">partial</span>' : ''}</td>
       <td class="num mono">${a.filed.toLocaleString()}</td>
       <td class="num mono">${a.ret===null?'—':a.ret.toLocaleString()}</td>
-      <td class="num mono">${a.rate===null?'—':a.rate.toFixed(1)+'%'}</td>
+      <td class="num mono">${a.rate===null?'—':`${a.rate.toFixed(1)}% <span class="of">of ${a.base.toLocaleString()}</span>`}</td>
       <td class="num mono">${a.amount===null?'—':peso(a.amount)}</td>
       <td><span class="bar" style="width:${filed(k)/max*100}%"></span><br><span class="bar rth" style="width:${(RTH.get(k)?.n||0)/max*100}%"></span></td>
       <td style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${gradeColor(a.grade)}">${a.grade||'—'}</td>
