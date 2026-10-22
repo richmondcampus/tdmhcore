@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.21-1'
+const APP_VERSION = '2026.10.21-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2855,12 +2855,12 @@ async function viewRequest(id) {
   else if (req.request_type !== 'derp' && (req.status === 'approved' || req.status === 'partially_issued') && req.current_approval_level !== 99 && req.current_approval_level !== 3 && ['supply_officer','admin'].includes(role)) {
     const btnLabel = req.status === 'partially_issued' ? '📦 Issue Remaining' : '📦 Issue from Stock'
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">' + btnLabel + '</button>'
-    footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
+    footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">✅ Approve → Deliveries</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
   }
   // Level 3 (Purchasing) approved — issue from stock OR create PO
   else if (req.request_type !== 'derp' && req.status === 'approved' && req.current_approval_level === 3 && ['supply_officer','admin'].includes(role)) {
     footer += '<button class="btn btn-secondary" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue from Stock</button>'
-    footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">💰 Create PO →</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
+    footer += ['purchasing_officer','admin'].includes(role) ? '<button class="btn btn-primary" onclick="markForPO(\'' + req.id + '\')">✅ Approve → Deliveries</button>' : '<button class="btn btn-ghost" onclick="markForPO(\'' + req.id + '\')">💰 Forward for PO</button>'
   }
   // FOR_PO or PARTIALLY_ISSUED split request — some items forwarded to Purchasing, but
   // "issue"-type items may still have remaining qty. The Supply Officer can STILL issue
@@ -4449,7 +4449,6 @@ async function renderPurchaseOrders() {
   let html = '<div class="page-header"><h2>🛒 Purchase Orders</h2>'
   html += '<div style="display:flex;align-items:center;gap:8px;">'
   if (canCreatePO && approvedReqs.length > 0) {
-    html += '<button class="btn btn-primary" onclick="openNewPOModal(null)">＋ New PO</button>'
   } else if (!canCreatePO) {
     html += '<div style="font-size:12px;color:var(--txt2);padding:6px 12px;background:var(--surf2);border-radius:8px;">👁 View only — PO creation handled by Purchasing Officer</div>'
   }
@@ -4480,7 +4479,6 @@ async function renderPurchaseOrders() {
     html += '<div><div style="font-size:14px;font-weight:700;color:var(--txt);">Waiting for Purchase Order</div>'
     html += '<div style="font-size:12px;color:var(--txt2);">' + approvedReqs.length + ' request' + (approvedReqs.length>1?'s':'') + ' na kailangang gawan ng PO</div></div>'
     html += '</div>'
-    html += '<button class="btn btn-primary btn-sm" onclick="openNewPOModal(null)">＋ New PO</button>'
     html += '</div>'
     // Cards
     html += '<div style="display:flex;flex-direction:column;gap:8px;max-height:460px;overflow-y:auto;padding-right:4px;">'
@@ -4506,7 +4504,6 @@ async function renderPurchaseOrders() {
       html += '<div style="font-size:11px;color:var(--txt3);margin-top:2px;">📦 ' + itemCount + ' item' + (itemCount>1?'s':'') + ' · 🏢 ' + escStk(dept?.dept_name || '—') + '</div>'
       html += '</div>'
       // Right: action
-      html += '<button class="btn btn-primary btn-sm" style="flex-shrink:0;" onclick="openNewPOModal(\'' + r.id + '\')">Create PO →</button>'
       html += '</div>'
     })
     html += '</div></div>'
@@ -4516,7 +4513,6 @@ async function renderPurchaseOrders() {
     html += '<div class="empty-state"><div class="empty-icon">🛒</div><h3>No purchase orders yet</h3>'
     html += '<p>Approved requests will appear here for PO creation.</p>'
     if (canCreatePO && approvedReqs.length > 0) {
-      html += '<button class="btn btn-primary" style="margin-top:12px;" onclick="openNewPOModal(null)">＋ Create First PO</button>'
     }
     html += '</div>'
   } else {
@@ -4599,11 +4595,56 @@ async function markForPO(id) {
     }
     const { error } = await SB.from('requests').update({ status: 'for_po', current_approval_level: 3, has_po_split: true }).eq('id', id)
     if (error) { showToast('error', 'Error', error.message); return }
+
+    // Auto-create the PO (actual purchase order is done in the external system now, so we
+    // only generate an internal PO record here) and send it straight to Incoming
+    // Deliveries — no manual "Create PO" step. Receive/Issue work the same as before.
+    try {
+      const { data: reqRow } = await SB.from('requests').select('dept_id').eq('id', id).maybeSingle()
+      const { data: forPoItems } = await SB.from('request_items')
+        .select('item_name,quantity,quantity_for_po,unit,estimated_cost')
+        .eq('request_id', id).eq('fulfillment_type', 'for_po')
+        .or('is_removed.is.null,is_removed.eq.false')
+      // Don't duplicate if this request already has a PO.
+      const { data: existingPO } = await SB.from('purchase_orders').select('id').eq('request_id', id).limit(1).maybeSingle()
+      if (!existingPO && forPoItems && forPoItems.length) {
+        const { data: numData } = await SB.rpc('generate_po_number')
+        const poNumber = numData || ('PO-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
+        const { data: po } = await SB.from('purchase_orders').insert({
+          po_number: poNumber,
+          request_id: id,
+          dept_id: reqRow?.dept_id || null,
+          total_amount: 0,
+          po_date: new Date().toISOString().split('T')[0],
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          sent_by: state.user.id,
+          created_by: state.user.id,
+          notes: 'Auto-generated on approval (PO handled in external system)'
+        }).select().single()
+        if (po) {
+          await SB.from('po_items').insert(forPoItems.map(it => ({
+            po_id: po.id,
+            item_name: it.item_name,
+            quantity: Number(it.quantity_for_po && Number(it.quantity_for_po) > 0 ? it.quantity_for_po : it.quantity),
+            unit: it.unit || 'pcs',
+            unit_price: 0,
+            quantity_received: 0,
+            is_fee: false
+          })))
+          // Mark the request items as po_created so they don't reappear in any PO list.
+          await SB.from('request_items').update({ po_created: true, po_id: po.id })
+            .eq('request_id', id).eq('fulfillment_type', 'for_po')
+        }
+      }
+    } catch(e) { console.warn('auto-PO', e.message) }
+
     closeModal('requestDetailModal')
-    showToast('success', 'Updated', 'Request moved to PO queue.')
+    showToast('success', 'Approved', 'Na-approve at dumiretso na sa Incoming Deliveries.')
     if (state.page === 'all_requests') renderAllRequests()
     else if (state.page === 'dashboard') renderDashboard()
     else if (state.page === 'issuance') renderIssuance()
+    else if (state.page === 'approval_queue') renderApprovalQueue()
   })
 }
 
