@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.21-5'
+const APP_VERSION = '2026.10.23-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -8209,6 +8209,33 @@ async function saveAssetDetails(assetId) {
   showToast('success', 'Saved', 'Na-update ang detalye ng asset.')
 }
 
+// Register the ticked issuance items as assets (manual — CSR decides which).
+async function registerSelectedAssets(issuanceId, count) {
+  const toReg = []
+  for (let i = 0; i < count; i++) {
+    if (!document.getElementById('rega_chk_' + i)?.checked) continue
+    const catId = document.getElementById('rega_cat_' + i)?.value
+    const name = document.getElementById('rega_name_' + i)?.value
+    const qty = Number(document.getElementById('rega_qty_' + i)?.value || 1)
+    if (!catId) { showToast('error','Category','Pumili ng category para sa ' + name + '.'); return }
+    toReg.push({ name, catId, qty })
+  }
+  if (!toReg.length) { showToast('error','Wala pang na-tick','I-tick muna ang item na gusto mong irehistro.'); return }
+  try {
+    let total = 0
+    for (const r of toReg) {
+      const { error } = await SB.rpc('register_assets_manual', {
+        p_issuance_id: issuanceId, p_item_name: r.name, p_category_id: r.catId,
+        p_qty: r.qty, p_created_by: state.user.id
+      })
+      if (error) throw error
+      total += r.qty
+    }
+    showToast('success','Na-register ✅', total + ' asset(s) nairehistro sa Inventory. I-print ang QR sticker.')
+    viewIssuance(issuanceId) // refresh to show new assets + print buttons
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
 async function printAssetLabel(assetId) {
   const { data: a } = await SB.from('assets').select('*').eq('id', assetId).single()
   if (!a) { showToast('error','Error','Asset not found'); return }
@@ -8469,10 +8496,44 @@ async function viewIssuance(id) {
         assets.forEach(a => { a.assigned_name = a.assigned_to ? (nameById[a.assigned_to] || '') : '' })
       }
     }
+    // ── Register as Asset (manual — CSR ticks which issued items are trackable assets) ──
+    const canRegAsset = ['supply_officer','admin'].includes(role) && isConfirmed
+    if (canRegAsset && !state.assetCategories) {
+      const { data: cats } = await SB.from('asset_categories').select('id,name').order('name')
+      state.assetCategories = cats || []
+    }
+    if (canRegAsset) {
+      // Items already registered (by name) — so we don't offer them again.
+      const regNames = new Set((assets || []).map(a => (a.asset_name || '').toLowerCase().trim()))
+      const regCandidates = (rows || []).map(row => {
+        const ri = row.ri || {}
+        const nm = (ri.item_name || row.item_name_snapshot || '').trim()
+        return { name: nm, qty: Number(row.qty || row.quantity_issued || 1) }
+      }).filter(it => it.name && !regNames.has(it.name.toLowerCase()))
+      if (regCandidates.length) {
+        body += '<div style="margin-bottom:16px;border:1px dashed var(--accent);border-radius:12px;padding:14px;background:var(--accent-a);">'
+        body += '<div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">🏷️ Register as Asset</div>'
+        body += '<div style="font-size:12px;color:var(--txt2);margin-bottom:12px;">I-tick ang mga item na gusto mong irehistro bilang asset (equipment na may tracking + sticker). Ang supplies/consumables ay huwag nang i-tick.</div>'
+        regCandidates.forEach((it, idx) => {
+          const safeName = it.name.replace(/"/g,'&quot;')
+          body += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:' + (idx>0?'1px solid var(--bdr2)':'none') + ';">'
+          body += '<label style="display:flex;align-items:center;gap:7px;flex:1;min-width:160px;font-size:13px;font-weight:600;cursor:pointer;"><input type="checkbox" id="rega_chk_' + idx + '" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent);"> ' + escStk(it.name) + '</label>'
+          body += '<select id="rega_cat_' + idx + '" style="padding:6px 10px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:12px;"><option value="">— Category —</option>'
+          ;(state.assetCategories || []).forEach(c => { body += '<option value="' + c.id + '">' + escStk(c.name) + '</option>' })
+          body += '</select>'
+          body += '<input type="number" id="rega_qty_' + idx + '" value="' + it.qty + '" min="1" title="Ilang units" style="width:60px;padding:6px 8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-size:12px;">'
+          body += '<input type="hidden" id="rega_name_' + idx + '" value="' + safeName + '">'
+          body += '</div>'
+        })
+        body += '<button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="registerSelectedAssets(\'' + id + '\',' + regCandidates.length + ')">🏷️ I-register ang na-tick</button>'
+        body += '</div>'
+      }
+    }
+
     if (assets && assets.length > 0) {
       body += '<div style="margin-bottom:16px;">'
       body += '<div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🏷️ Registered Assets — Inventory Control Numbers</div>'
-      body += '<div style="font-size:12px;color:var(--txt2);margin-bottom:10px;">Awtomatikong nairehistro sa Inventory. I-print ang QR para idikit sa item.</div>'
+      body += '<div style="font-size:12px;color:var(--txt2);margin-bottom:10px;">Nakarehistro na sa Inventory. I-print ang QR para idikit sa item.</div>'
       assets.forEach(a => {
         const qrVal = encodeURIComponent(assetQRUrl(a))
         body += '<div style="display:flex;align-items:center;gap:14px;border:1px solid var(--bdr2);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:var(--surf2);">'
