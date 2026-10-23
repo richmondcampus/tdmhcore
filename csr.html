@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.21-2'
+const APP_VERSION = '2026.10.21-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1744,8 +1744,22 @@ function buildCSRKanban(requests) {
   html += '</style>'
   html += '<div class="csr-kanban">'
 
+  const urgencyRank = { emergency: 0, urgent: 1, routine: 2 }
   cols.forEach(col => {
     const colReqs = requests.filter(col.filter || (r => r.status === col.id))
+    // Needs Fulfillment: put requests with remaining-to-issue items on top so the supply
+    // officer doesn't scroll. Order: partially issued (may natira) → not-yet-touched →
+    // then by urgency → then oldest first.
+    if (col.id === 'approved') {
+      colReqs.sort((a, b) => {
+        const aPartial = a.status === 'partially_issued' ? 0 : 1
+        const bPartial = b.status === 'partially_issued' ? 0 : 1
+        if (aPartial !== bPartial) return aPartial - bPartial
+        const au = urgencyRank[a.urgency] ?? 3, bu = urgencyRank[b.urgency] ?? 3
+        if (au !== bu) return au - bu
+        return new Date(a.created_at) - new Date(b.created_at) // oldest first
+      })
+    }
     html += '<div class="csr-kcol">'
     html += '<div class="csr-khead" style="background:' + col.bg + ';color:' + col.color + ';">'
     html += col.label + '<span style="background:' + col.color + ';color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;">' + colReqs.length + '</span>'
@@ -2755,7 +2769,17 @@ async function viewRequest(id) {
   } else {
     body += '<div class="detail-table-wrap"><table><thead><tr><th>#</th><th>Item</th><th>Req</th><th>Issued</th><th>Natira</th><th>Unit</th><th>Status</th><th></th></tr></thead><tbody>'
     const canRemove = ['supply_officer','admin'].includes(role) && !['issued','cancelled','rejected'].includes(req.status)
-    items.forEach((item, i) => {
+    // Display order: still-pending items on top (easy for the supply officer to spot what's
+    // left), fully-issued items below. Removed items go last. Original order kept within group.
+    const itemRank = (it) => {
+      if (it.is_removed) return 2
+      const remaining = Number(it.quantity || 0) - Number(it.quantity_issued || 0)
+      return remaining > 0 ? 0 : 1   // 0 = pending (has remaining), 1 = fully issued
+    }
+    const itemsForDisplay = items.map((it, idx) => ({ it, idx }))
+      .sort((a, b) => (itemRank(a.it) - itemRank(b.it)) || (a.idx - b.idx))
+      .map(x => x.it)
+    itemsForDisplay.forEach((item, i) => {
       const removed = item.is_removed
       const reqQty = Number(item.quantity) || 0
       const issuedQty = Number(item.quantity_issued) || 0
@@ -4436,6 +4460,18 @@ async function renderPurchaseOrders() {
     SB.from('suppliers').select('*')
   ])
   poState.pos = posRes.data || []
+  // Load PO item names (indexed per PO) so the search can also match by item.
+  poState.itemsByPO = {}
+  const poIds = poState.pos.map(p => p.id)
+  if (poIds.length) {
+    for (let i = 0; i < poIds.length; i += 300) {
+      const batch = poIds.slice(i, i + 300)
+      const { data: pItems } = await SB.from('po_items').select('po_id,item_name').in('po_id', batch)
+      ;(pItems || []).forEach(pi => {
+        (poState.itemsByPO[pi.po_id] = poState.itemsByPO[pi.po_id] || []).push(pi.item_name || '')
+      })
+    }
+  }
   poState.suppliers = suppRes.data || []
   let approvedReqs = reqsRes.data || []
   // Use the server-side function to accurately find requests still needing a PO (avoids
@@ -4516,6 +4552,10 @@ async function renderPurchaseOrders() {
     }
     html += '</div>'
   } else {
+    // Search box (PO no., supplier, or item)
+    html += '<div style="margin-bottom:12px;">'
+    html += '<input type="text" id="poSearch" placeholder="🔍 PO no., supplier, o item..." value="' + escStk(poState.search || '') + '" oninput="poState.search=this.value;filterPOTable()" style="width:100%;max-width:480px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    html += '</div>'
     // Filter bar
     html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">'
     ;['all','draft','sent','partial_delivery','delivered','issued','cancelled'].forEach(s => {
@@ -4527,9 +4567,16 @@ async function renderPurchaseOrders() {
     })
     html += '</div>'
 
-    const filtered = (poState.filterStatus && poState.filterStatus !== 'all')
+    let filtered = (poState.filterStatus && poState.filterStatus !== 'all')
       ? poState.pos.filter(p => p.status === poState.filterStatus)
       : poState.pos
+    // Search by PO no., supplier, or item (sensitive — matches any item in the PO)
+    const poq = (poState.search || '').trim().toLowerCase()
+    if (poq) filtered = filtered.filter(p => {
+      const items = (poState.itemsByPO && poState.itemsByPO[p.id]) || []
+      const hay = [p.po_number, poSupplierName(p), p.supplier_name, ...items].filter(Boolean).join(' ').toLowerCase()
+      return hay.includes(poq)
+    })
 
     // Table
     html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
@@ -5338,17 +5385,15 @@ function buildPORows(pos) {
   return rows
 }
 
+let _poSearchTimer = null
 function filterPOTable() {
-  const status = document.getElementById('poStatusFilter').value
-  const search = document.getElementById('poSearch').value.toLowerCase()
-  let filtered = poState.pos
-  if (status) filtered = filtered.filter(p => p.status === status)
-  if (search) filtered = filtered.filter(p =>
-    (p.po_number || '').toLowerCase().includes(search) ||
-    (p.supplier_name || '').toLowerCase().includes(search)
-  )
-  const tbody = document.getElementById('poTableBody')
-  if (tbody) tbody.innerHTML = buildPORows(filtered)
+  // Debounce + re-render; restore focus/caret to the search box after re-render.
+  clearTimeout(_poSearchTimer)
+  _poSearchTimer = setTimeout(async () => {
+    await renderPurchaseOrders()
+    const box = document.getElementById('poSearch')
+    if (box) { box.focus(); const v = box.value; box.value = ''; box.value = v }
+  }, 250)
 }
 
 function showPOView(view) {
