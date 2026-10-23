@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.23-4'
+const APP_VERSION = '2026.10.23-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1986,13 +1986,29 @@ function renderRequestsTable(content, requests, title, subtitle) {
   content.innerHTML = html
 }
 
-function showReqHover(ev, reqId) {
+async function showReqHover(ev, reqId) {
   hideReqHover()
   const r = state.requests?.find(x => x.id === reqId)
   if (!r) return
   const dept = state.departments.find(d => d.id === r.dept_id)
   const requester = state.users?.find(u => u.id === r.requested_by)
-  const items = (state.itemsByRequest && state.itemsByRequest[reqId]) || []
+  // If this request's items aren't cached yet (or came back empty from the index), fetch
+  // them on-demand so the hover card matches what the detail view shows.
+  let items = (state.itemsByRequest && state.itemsByRequest[reqId]) || []
+  if (!items.length) {
+    try {
+      const { data } = await SB.from('request_items')
+        .select('item_name,quantity,unit').eq('request_id', reqId)
+        .or('is_removed.is.null,is_removed.eq.false')
+      if (data && data.length) {
+        items = data.map(ri => ({ name: ri.item_name || '', qty: ri.quantity, unit: ri.unit || '' }))
+        state.itemsByRequest = state.itemsByRequest || {}
+        state.itemsByRequest[reqId] = items
+      }
+    } catch(_) {}
+    // If the mouse already left while fetching, don't pop a stale card.
+    if (!document.querySelector('[onmouseenter*="' + reqId + '"]:hover')) { /* best-effort */ }
+  }
 
   let html = '<div style="font-weight:700;font-size:13px;margin-bottom:2px;">' + escStk(r.request_no) + '</div>'
   html += '<div style="font-size:11px;color:var(--txt2);margin-bottom:8px;">' + escStk((r.request_type || '').toUpperCase()) + (dept ? ' · ' + escStk(dept.dept_name) : '') + '</div>'
