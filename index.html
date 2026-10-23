@@ -1915,8 +1915,14 @@ function drawUserMgmt(){
 function roleSelect(sys, current){
   const onChange = sys==='csr' ? ' onchange="toggleDeptHeadField(this.value)"' : ''
   let h = '<div class="field"><label>'+ROLE_LABELS[sys]+' Role</label><select id="uf_'+sys+'"'+onChange+'><option value="">— None (no access) —</option>'
-  ROLE_OPTS[sys].forEach(r=>{ h += '<option value="'+r+'"'+(current===r?' selected':'')+'>'+r+'</option>' })
-  h += '</select></div>'
+  ROLE_OPTS[sys].forEach(r=>{
+    // Clarify that GSD under Maintenance = Medical Equipment system access
+    const label = (sys==='maintenance' && r==='gsd') ? 'gsd (Medical Equipment)' : r
+    h += '<option value="'+r+'"'+(current===r?' selected':'')+'>'+label+'</option>'
+  })
+  h += '</select>'
+  if (sys==='maintenance') h += '<div style="font-size:10px;color:var(--txt3);margin-top:3px;">Piliin <strong>gsd</strong> para sa Medical Equipment access (GSD/Biomedical). Ang technician/supervisor ay para sa facility maintenance.</div>'
+  h += '</div>'
   return h
 }
 function setAccountType(type){
