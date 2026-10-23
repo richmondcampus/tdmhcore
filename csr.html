@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.23-1'
+const APP_VERSION = '2026.10.23-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1334,10 +1334,24 @@ async function loadRequests(filters = {}) {
     if (filters.status) q = q.eq('status', filters.status)
     if (filters.request_type) q = q.eq('request_type', filters.request_type)
     if (filters.dept_id) q = q.eq('dept_id', filters.dept_id)
+    // Server-side text search on request_no/purpose (so filtering finds ALL matches, not
+    // just the loaded page).
+    if (filters.search) q = q.or('request_no.ilike.%' + filters.search + '%,purpose.ilike.%' + filters.search + '%')
+    // Limit for speed; omitted when we need everything (e.g. an active search/filter).
+    if (filters.limit) q = q.limit(filters.limit)
     const { data, error } = await q
     if (error) throw error
     return data || []
   } catch(e) { console.error('loadRequests', e); return [] }
+}
+
+// Find request_ids whose line items match a search term (for item-based search across ALL
+// requests, not just the loaded page).
+async function findRequestIdsByItem(term) {
+  try {
+    const { data } = await SB.from('request_items').select('request_id').ilike('item_name', '%' + term + '%').limit(500)
+    return [...new Set((data || []).map(r => r.request_id))]
+  } catch(_) { return [] }
 }
 
 async function loadRequestsByDepts(deptIds) {
@@ -1867,15 +1881,46 @@ async function renderMyRequests() {
 
 async function renderAllRequests() {
   const content = document.getElementById('mainContent')
-  const all = await loadRequests({})
-  // Hide DERP evaluation records that are already done (csr_triggered = has a replacement
-  // request, or closed). They live in the DERP page; showing them here just duplicates
-  // the real request (e.g. the replacement CSR). Active DERPs still show for tracking.
+  const term = (state.allReqSearch || '').trim()
+  const fStatus = state.allReqStatus || '', fType = state.allReqType || ''
+  const hasFilter = term || fStatus || fType
+  let all
+  if (term) {
+    // Active search → query the DB so ALL matches surface (by request no., purpose, OR item).
+    const base = { search: term }
+    if (fStatus) base.status = fStatus
+    if (fType) base.request_type = fType
+    const [byText, itemReqIds] = await Promise.all([ loadRequests(base), findRequestIdsByItem(term) ])
+    const seen = new Set(byText.map(r => r.id))
+    let byItem = []
+    const missing = itemReqIds.filter(id => !seen.has(id))
+    if (missing.length) {
+      for (let i = 0; i < missing.length; i += 300) {
+        const { data } = await SB.from('requests').select('*').in('id', missing.slice(i, i + 300))
+        byItem = byItem.concat(data || [])
+      }
+      // Respect status/type filter on item-matched results too.
+      if (fStatus) byItem = byItem.filter(r => r.status === fStatus)
+      if (fType) byItem = byItem.filter(r => r.request_type === fType)
+    }
+    all = byText.concat(byItem)
+  } else if (fStatus || fType) {
+    // Filter without search → load ALL matching (no limit) so nothing is missed.
+    const base = {}
+    if (fStatus) base.status = fStatus
+    if (fType) base.request_type = fType
+    all = await loadRequests(base)
+  } else {
+    // Nothing active → load only the most recent for speed.
+    all = await loadRequests({ limit: 50 })
+  }
   const requests = all.filter(r => !(r.request_type === 'derp' && ['csr_triggered','closed','repair_completed'].includes(r.status)))
   state.requests = requests
-  // Preload line items so requests can be searched by item name.
   await loadRequestItemsIndex(requests.map(r => r.id))
-  renderRequestsTable(content, requests, 'All Requests', 'Complete request registry')
+  const sub = term ? ('Search results for "' + term + '"')
+    : (fStatus || fType) ? ('Filtered — ' + [fStatus && formatStatus(fStatus), fType && fType.toUpperCase()].filter(Boolean).join(' · '))
+    : 'Showing 50 most recent — use search/filter to find others'
+  renderRequestsTable(content, requests, 'All Requests', sub)
 }
 
 // Build an index of request_id → [{name, qty, unit}] for item search + hover cards.
@@ -1911,13 +1956,13 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '</div></div>'
 
   html += '<div class="filter-bar">'
-  html += '<input type="text" id="filterReqSearch" placeholder="\u{1F50D} Request no., purpose, o item..." oninput="filterRequests(this.value,\'search\')" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
-  html += '<select onchange="filterRequests(this.value,\'status\')" id="filterStatus"><option value="">All Status</option>'
+  html += '<input type="text" id="filterReqSearch" value="' + escStk(state.allReqSearch || '') + '" placeholder="\u{1F50D} Request no., purpose, o item..." oninput="onAllReqSearch(this.value)" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+  html += '<select onchange="onAllReqFilter()" id="filterStatus"><option value="">All Status</option>'
   const statuses = ['draft','pending_approval','approved','for_po','ordered','delivered','partially_issued','issued','cancelled']
-  statuses.forEach(s => { html += '<option value="' + s + '">' + formatStatus(s) + '</option>' })
+  statuses.forEach(s => { html += '<option value="' + s + '"' + (state.allReqStatus===s?' selected':'') + '>' + formatStatus(s) + '</option>' })
   html += '</select>'
-  html += '<select onchange="filterRequests(this.value,\'type\')" id="filterType"><option value="">All Types</option>'
-  ;['supply','purchase','issuance','derp'].forEach(t => { html += '<option value="' + t + '">' + t.toUpperCase() + '</option>' })
+  html += '<select onchange="onAllReqFilter()" id="filterType"><option value="">All Types</option>'
+  ;['supply','purchase','issuance','derp'].forEach(t => { html += '<option value="' + t + '"' + (state.allReqType===t?' selected':'') + '>' + t.toUpperCase() + '</option>' })
   html += '</select>'
   html += '<select onchange="filterRequests(this.value,\'urgency\')" id="filterUrgency"><option value="">All Urgency</option>'
   ;['routine','urgent','emergency'].forEach(u => { html += '<option value="' + u + '">' + u.charAt(0).toUpperCase()+u.slice(1) + '</option>' })
@@ -2202,6 +2247,21 @@ function onDeptFilterInput(val) {
   filterRequests(deptId, 'dept')
 }
 
+function onAllReqFilter() {
+  state.allReqStatus = document.getElementById('filterStatus')?.value || ''
+  state.allReqType = document.getElementById('filterType')?.value || ''
+  renderAllRequests()
+}
+let _allReqSearchTimer = null
+function onAllReqSearch(val) {
+  state.allReqSearch = val
+  clearTimeout(_allReqSearchTimer)
+  _allReqSearchTimer = setTimeout(async () => {
+    await renderAllRequests()
+    const box = document.getElementById('filterReqSearch')
+    if (box) { box.focus(); const v = box.value; box.value = ''; box.value = v }
+  }, 350)
+}
 function filterRequests(val, field) {
   let filtered = state.requests
   const status = document.getElementById('filterStatus') ? document.getElementById('filterStatus').value : ''
@@ -8335,6 +8395,7 @@ async function viewIssuance(id) {
   const dept = state.departments.find(d => d.id === (iss.dept_id || reqData?.dept_id))
   const role = state.user.csr_role
   const isConfirmed = !!(iss.confirmed_at || iss.online_confirmed_at)
+  const isCancelled = !!iss.cancelled_at
   const isBlank = !iss.request_id
 
   document.getElementById('detailModalTitle').textContent = iss.issuance_no
@@ -8360,6 +8421,12 @@ async function viewIssuance(id) {
       body += '<img src="' + iss.receipt_photo_url + '" style="max-width:100%;border-radius:10px;border:1px solid var(--bdr2);cursor:pointer;" onclick="window.open(\'' + iss.receipt_photo_url + '\',\'_blank\')" title="Click to view full size">'
       body += '</div>'
     }
+  } else if (isCancelled) {
+    // Cancelled — no confirm/issue actions allowed.
+    body += '<div style="background:var(--red-a,rgba(220,50,50,.1));border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:16px;">'
+    body += '<div style="font-weight:700;color:var(--red);">❌ Cancelled Issuance</div>'
+    body += '<div style="font-size:12px;color:var(--txt2);margin-top:4px;">Na-cancel na ang issuance na ito' + (iss.cancel_reason ? (' — Dahilan: ' + escStk(iss.cancel_reason)) : '') + '. Hindi na pwedeng i-issue o i-confirm.</div>'
+    body += '</div>'
   } else {
     body += '<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;">'
     body += '<div style="font-weight:600;color:var(--amber);">⏳ Awaiting Receipt Confirmation</div>'
