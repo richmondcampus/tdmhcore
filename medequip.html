@@ -699,7 +699,7 @@ async function doLogin() {
       }
     }
     if (!profile) { showLoginErr('Account not found. Contact IT.'); await SB.auth.signOut(); return }
-    if (!profile.maintenance_role) { showLoginErr('No access to Medical Equipment system. Contact IT.'); await SB.auth.signOut(); return }
+    if (!['gsd','admin','requester'].includes(profile.maintenance_role)) { showLoginErr('No access to Medical Equipment system — GSD/Biomedical only. Contact IT.'); await SB.auth.signOut(); return }
 
     const session = storeAuthSession(authData, profile)
     await bootApp(session)
