@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.23-3'
+const APP_VERSION = '2026.10.23-4'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -7086,7 +7086,9 @@ function buildIssuanceRows(issuances) {
       ? '<span style="color:var(--green);font-size:12px;">✉️ Sent</span>'
       : '<span style="color:var(--txt3);font-size:12px;">—</span>') + '</td>'
     rows += '<td>'
-    if (isAuto) {
+    if (iss.cancelled_at) {
+      rows += '<span style="color:var(--red);font-size:12px;">❌ Cancelled</span>'
+    } else if (isAuto) {
       rows += '<span style="color:var(--green);font-size:12px;">✅ Auto</span>'
     } else if (isConfirmed) {
       rows += '<span style="color:var(--green);font-size:12px;">✅ ' + formatDate(iss.confirmed_at) + '</span>'
