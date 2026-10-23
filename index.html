@@ -633,7 +633,7 @@ async function bootApp(session){
   document.getElementById('userRoleLabel').textContent=roleLabel||'Staff'
   // Show Systems nav links based on this user's role access
   // (Asset Scan hidden for now — scan page not yet deployed)
-  const sysAccess={maintenance:!!session.maintenance_role,medequip:!!session.maintenance_role,it:!!session.it_role,csr:!!session.csr_role,inventory:!!session.inventory_role,scan:false}
+  const sysAccess={maintenance:!!session.maintenance_role && session.maintenance_role!=='gsd',medequip:['gsd','admin'].includes(session.maintenance_role),it:!!session.it_role,csr:!!session.csr_role,inventory:!!session.inventory_role,scan:false}
   let anySys=false
   Object.keys(sysAccess).forEach(k=>{
     const el=document.getElementById('navsys_'+k)
