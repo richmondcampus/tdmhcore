@@ -1693,7 +1693,7 @@ async function reopenTicket(ticketId) {
     closeModal('ticketDetailModal')
     showToast('warning','Reopened ↩', ticketId + ' has been reopened.')
     // Blast SMS to maintenance team
-    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
+    const maintStaff = S.users.filter(u => ['gsd','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
     sendSMS(maintStaff.map(u=>u.phone), '[TDMH MEQ] ⚠️ REOPENED: ' + ticketId + ' — "' + (t?t.title:'') + '" needs attention again.', 'ticket_reopened', ticketId)
     if (['all_tickets','open_tickets','my_tickets','dashboard'].includes(S.page)) showPage(S.page)
   })
@@ -1900,7 +1900,7 @@ async function submitTicket() {
     logAudit('maint_ticket', ticketId, t.id)
 
     // SMS blast to all maintenance technicians
-    const maintStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
+    const maintStaff = S.users.filter(u => ['gsd','admin'].includes(u.maintenance_role) && u.phone && u.sms_maintenance !== false)
     const smsMsg = '[TDMH MEQ] NEW TICKET ' + ticketId + ' — ' + (priority === 'emergency' ? '🚨 EMERGENCY ' : priority === 'urgent' ? '⚠️ URGENT ' : '') + '"' + title + '" at ' + location + ' (' + (deptName||'—') + ')'
     if (maintStaff.length > 0) sendSMS(maintStaff.map(u=>u.phone), smsMsg, 'ticket_new', ticketId)
 
@@ -1915,7 +1915,7 @@ async function submitTicket() {
 async function openTeamModal(ticketId) {
   const team = await loadTicketTeam(ticketId)
   const teamIds = team.map(t => t.user_id)
-  const techStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role))
+  const techStaff = S.users.filter(u => ['gsd','admin'].includes(u.maintenance_role))
 
   let html = '<div style="margin-bottom:14px;font-size:13px;color:var(--txt2);">Select team members to work on this ticket:</div>'
   html += '<div style="display:flex;flex-direction:column;gap:6px;">'
@@ -2470,7 +2470,7 @@ function filterAuditLog() {
 async function renderTeam() {
   const content = document.getElementById('mainContent')
   const tickets = await loadTickets()
-  const techStaff = S.users.filter(u => ['technician','supervisor','gsd','admin'].includes(u.maintenance_role))
+  const techStaff = S.users.filter(u => ['gsd','admin'].includes(u.maintenance_role))
 
   let html = '<div class="page-header"><h2>👥 Team</h2>'
   html += '<button class="btn btn-primary" onclick="openAddTeamMemberModal()">＋ Add Member</button>'
