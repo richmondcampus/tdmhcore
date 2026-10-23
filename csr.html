@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.23-5'
+const APP_VERSION = '2026.10.23-6'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1850,9 +1850,38 @@ async function renderMyRequests() {
 
   let requests, title, subtitle
   if (['admin','supply_officer'].includes(role)) {
-    requests = await loadRequests({})
+    // All Requests — fast default (50 recent); search/filter query the DB for all matches.
+    const term = (state.allReqSearch || '').trim()
+    const fStatus = state.allReqStatus || '', fType = state.allReqType || ''
+    if (term) {
+      const base = { search: term }
+      if (fStatus) base.status = fStatus
+      if (fType) base.request_type = fType
+      const [byText, itemReqIds] = await Promise.all([ loadRequests(base), findRequestIdsByItem(term) ])
+      const seen = new Set(byText.map(r => r.id))
+      let byItem = []
+      const missing = itemReqIds.filter(id => !seen.has(id))
+      if (missing.length) {
+        for (let i = 0; i < missing.length; i += 300) {
+          const { data } = await SB.from('requests').select('*').in('id', missing.slice(i, i + 300))
+          byItem = byItem.concat(data || [])
+        }
+        if (fStatus) byItem = byItem.filter(r => r.status === fStatus)
+        if (fType) byItem = byItem.filter(r => r.request_type === fType)
+      }
+      requests = byText.concat(byItem)
+      subtitle = 'Search results for "' + term + '"'
+    } else if (fStatus || fType) {
+      const base = {}
+      if (fStatus) base.status = fStatus
+      if (fType) base.request_type = fType
+      requests = await loadRequests(base)
+      subtitle = 'Filtered — ' + [fStatus && formatStatus(fStatus), fType && fType.toUpperCase()].filter(Boolean).join(' · ')
+    } else {
+      requests = await loadRequests({ limit: 50 })
+      subtitle = 'Showing 50 most recent — use search/filter to find others'
+    }
     title = '🗂 All Requests'
-    subtitle = 'Complete view of all requests across all departments'
   } else if (role === 'dept_head') {
     const myDepts = (state.myHeadedDeptIds && state.myHeadedDeptIds.length)
       ? state.myHeadedDeptIds
@@ -2263,17 +2292,22 @@ function onDeptFilterInput(val) {
   filterRequests(deptId, 'dept')
 }
 
+// Re-render whichever requests page is active (admin/supply_officer use renderMyRequests
+// as "All Requests"; others use renderAllRequests).
+function reRenderRequestsPage() {
+  return state.page === 'my_requests' ? renderMyRequests() : renderAllRequests()
+}
 function onAllReqFilter() {
   state.allReqStatus = document.getElementById('filterStatus')?.value || ''
   state.allReqType = document.getElementById('filterType')?.value || ''
-  renderAllRequests()
+  reRenderRequestsPage()
 }
 let _allReqSearchTimer = null
 function onAllReqSearch(val) {
   state.allReqSearch = val
   clearTimeout(_allReqSearchTimer)
   _allReqSearchTimer = setTimeout(async () => {
-    await renderAllRequests()
+    await reRenderRequestsPage()
     const box = document.getElementById('filterReqSearch')
     if (box) { box.focus(); const v = box.value; box.value = ''; box.value = v }
   }, 350)
