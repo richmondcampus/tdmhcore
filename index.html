@@ -411,6 +411,7 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
         <div class="nav-item" onclick="showPage('user_mgmt')" id="nav_user_mgmt" style="display:none;"><span class="nav-icon">👥</span>User Management</div>
         <div class="nav-section" id="navSystemsHeader" style="display:none;">Systems</div>
         <div class="nav-item nav-system" onclick="goSystem('maintenance')" id="navsys_maintenance" style="display:none;"><span class="nav-icon">🔧</span>Maintenance<span class="nav-ext">↗</span></div>
+        <div class="nav-item nav-system" onclick="goSystem('medequip')" id="navsys_medequip" style="display:none;"><span class="nav-icon">🏥</span>Medical Equipment<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('it')" id="navsys_it" style="display:none;"><span class="nav-icon">🖥️</span>IT Helpdesk<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('csr')" id="navsys_csr" style="display:none;"><span class="nav-icon">📋</span>CSR / Supply<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('inventory')" id="navsys_inventory" style="display:none;"><span class="nav-icon">🏷️</span>Inventory<span class="nav-ext">↗</span></div>
@@ -483,7 +484,8 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const SB = supabase.createClient(SUPA_URL, SUPA_KEY)
 const SYSTEMS = {
   csr:'https://tdmhcore.io/csr', maintenance:'https://tdmhcore.io/maintenance',
-  it:'https://tdmhcore.io/helpdesk', inventory:'https://tdmhcore.io/inventory', scan:'https://tdmhcore.io/scan'
+  it:'https://tdmhcore.io/helpdesk', inventory:'https://tdmhcore.io/inventory', scan:'https://tdmhcore.io/scan',
+  medequip:'https://tdmhcore.io/medequip'
 }
 
 let S = { user:null, page:'my_work', departments:[], users:[], charts:{} }
@@ -631,7 +633,7 @@ async function bootApp(session){
   document.getElementById('userRoleLabel').textContent=roleLabel||'Staff'
   // Show Systems nav links based on this user's role access
   // (Asset Scan hidden for now — scan page not yet deployed)
-  const sysAccess={maintenance:!!session.maintenance_role,it:!!session.it_role,csr:!!session.csr_role,inventory:!!session.inventory_role,scan:false}
+  const sysAccess={maintenance:!!session.maintenance_role,medequip:!!session.maintenance_role,it:!!session.it_role,csr:!!session.csr_role,inventory:!!session.inventory_role,scan:false}
   let anySys=false
   Object.keys(sysAccess).forEach(k=>{
     const el=document.getElementById('navsys_'+k)
