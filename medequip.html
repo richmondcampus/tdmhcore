@@ -410,8 +410,8 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
     <div class="login-logo">
       <div class="login-logo-mark">🔧</div>
       <div class="login-logo-text">
-        <h1>TDMH — Maintenance</h1>
-        <p>Maintenance Ticketing Hub v2</p>
+        <h1>TDMH — Medical Equipment</h1>
+        <p>Medical Equipment Hub</p>
       </div>
     </div>
     <h2>Welcome back</h2>
@@ -429,7 +429,7 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
     <div style="text-align:center;margin-top:12px;">
       <a href="https://tdmhcore.io/reset?from=maintenance" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
     </div>
-    <p style="font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;">Taytay Doctors Multispecialty Hospital · Maintenance Dept</p>
+    <p style="font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;">Taytay Doctors Multispecialty Hospital · GSD / Biomedical</p>
   </div>
 </div>
 
@@ -1904,7 +1904,7 @@ async function submitTicket() {
     }
 
     closeModal('newTicketModal')
-    showToast('success','Ticket Submitted 🔧', ticketId + ' — Maintenance team notified.')
+    showToast('success','Ticket Submitted 🔧', ticketId + ' — Medical Equipment team notified.')
 
     // Accountability audit — device + IP of whoever filed this ticket.
     logAudit('maint_ticket', ticketId, t.id)
@@ -2357,7 +2357,7 @@ function renderHowTo() {
   html += '<button class="btn btn-sm ' + (howToLang==='en'?'btn-primary':'btn-ghost') + '" onclick="setHowToLang(\'en\')">🇬🇧 English</button>'
   html += '</div></div>'
 
-  html += howToCard('🔄 ' + t('Ang Buong Daloy ng Maintenance','The Full Maintenance Flow'), howToFlowSVG(role))
+  html += howToCard('🔄 ' + t('Ang Buong Daloy ng Medical Equipment','The Full Medical Equipment Flow'), howToFlowSVG(role))
   if (role === 'requester' || role === 'admin') html += howToMaintRequester()
   if (['technician','supervisor','gsd','admin'].includes(role)) html += howToMaintTechnician()
   if (['supervisor','admin'].includes(role)) html += howToMaintSupervisor()
@@ -2404,7 +2404,7 @@ function howToFlowSVG(role) {
 function howToMaintRequester() {
   let b = ''
   b += stepRow(1, t('Pumunta sa <strong>🎫 My Tickets</strong>, tapos i-click ang <strong>＋ New Ticket</strong>.','Go to <strong>🎫 My Tickets</strong>, then click <strong>＋ New Ticket</strong>.'))
-  b += uiFrame('Maintenance — New Ticket', '<div style="text-align:right;">' + fakeBtn('＋ New Ticket') + '</div>')
+  b += uiFrame('Medical Equipment — New Ticket', '<div style="text-align:right;">' + fakeBtn('＋ New Ticket') + '</div>')
   b += stepRow(2, t('Ilagay ang <strong>Title</strong>, <strong>Location</strong>, <strong>Category</strong> (electrical, plumbing, hvac, atbp.) at <strong>Priority</strong>. Ilarawan ang problema.','Enter the <strong>Title</strong>, <strong>Location</strong>, <strong>Category</strong> (electrical, plumbing, hvac, etc.) and <strong>Priority</strong>. Describe the problem.'))
   b += uiFrame('New Ticket Form', '<div style="font-size:12px;color:var(--txt2);">Title: <span style="color:var(--txt);">Aircon leaking</span><br>Location: Billing Office<br>Category: HVAC ▾ &nbsp; Priority: High ▾</div>')
   b += stepRow(3, t('I-submit. Makakatanggap ka ng <strong>ticket number</strong> at makikita mo ang status sa <strong>🎫 My Tickets</strong>.','Submit. You get a <strong>ticket number</strong> and can see the status under <strong>🎫 My Tickets</strong>.'))
@@ -2414,7 +2414,7 @@ function howToMaintRequester() {
 function howToMaintTechnician() {
   let b = ''
   b += stepRow(1, t('Pumunta sa <strong>🔓 Open Tickets</strong> para makita ang mga hindi pa naka-assign.','Go to <strong>🔓 Open Tickets</strong> to see unassigned tickets.'))
-  b += uiFrame('Maintenance — Open Tickets', '<div style="font-size:12px;color:var(--txt2);">MT-2026-014 &nbsp; Aircon leaking &nbsp; ' + fakeBtn('🙋 Claim','var(--accent,#12A62F)') + '</div>')
+  b += uiFrame('Medical Equipment — Open Tickets', '<div style="font-size:12px;color:var(--txt2);">MT-2026-014 &nbsp; Aircon leaking &nbsp; ' + fakeBtn('🙋 Claim','var(--accent,#12A62F)') + '</div>')
   b += stepRow(2, t('I-click ang <strong>🙋 Claim</strong> para kunin ang ticket. Lilipat ito sa <strong>🎫 My Tickets</strong> mo.','Click <strong>🙋 Claim</strong> to take the ticket. It moves to your <strong>🎫 My Tickets</strong>.'))
   b += stepRow(3, t('Habang inaayos, i-update ang status sa <strong>In Progress</strong>. Pwede kang mag-add ng <strong>notes</strong> o mag-request ng parts.','While working, update the status to <strong>In Progress</strong>. You can add <strong>notes</strong> or request parts.'))
   b += stepRow(4, t('Kapag tapos na, i-mark na <strong>Resolved</strong>. Kung may kailangang parts mula sa CSR, i-request muna bago i-close.','When done, mark it <strong>Resolved</strong>. If parts are needed from CSR, request them before closing.'))
@@ -2648,7 +2648,7 @@ async function submitPartsRequest(ticketId, ticketTitle) {
       dept_id: targetDeptId,
       requested_by: S.user.id,
       urgency,
-      purpose: 'Parts request for Maintenance Ticket ' + ticketId + ' — "' + ticketTitle + '"',
+      purpose: 'Parts request for Medical Equipment Ticket ' + ticketId + ' — "' + ticketTitle + '"',
       status: 'pending_approval',
       current_approval_level: 2,
       source_system: 'maintenance',
@@ -2665,7 +2665,7 @@ async function submitPartsRequest(ticketId, ticketTitle) {
       approver_role: 'dept_head',
       level: 1,
       decision: 'approved',
-      remarks: 'Auto-skipped — internal Maintenance parts request (Ticket ' + ticketId + '). Routed directly to Supply Officer.',
+      remarks: 'Auto-skipped — internal Medical Equipment parts request (Ticket ' + ticketId + '). Routed directly to Supply Officer.',
       decided_at: new Date().toISOString()
     })
 
@@ -2708,12 +2708,12 @@ async function submitPartsRequest(ticketId, ticketTitle) {
         title: '🔩 Parts Request — ' + requestNo,
         source_system: 'maintenance',
         source_ref_id: req.id,
-        body: '🔩 Parts request ' + requestNo + ' from Maintenance Ticket ' + ticketId + ' needs your approval.',
+        body: '🔩 Parts request ' + requestNo + ' from Medical Equipment Ticket ' + ticketId + ' needs your approval.',
         type: 'action_required'
       })
       // SMS to supply officer
       if (officer.phone) {
-        sendSMS([officer.phone], '[TDMH] Parts request ' + requestNo + ' from Maintenance Ticket ' + ticketId + ' submitted for approval.', 'parts_request', ticketId)
+        sendSMS([officer.phone], '[TDMH] Parts request ' + requestNo + ' from Medical Equipment Ticket ' + ticketId + ' submitted for approval.', 'parts_request', ticketId)
       }
     }
 
@@ -2860,7 +2860,7 @@ async function confirmLinkAsset() {
       performed_by: S.user.id,
       reference_type: 'maintenance_ticket',
       reference_id: ticketId,
-      notes: 'Asset linked to Maintenance ticket ' + ticketId
+      notes: 'Asset linked to Medical Equipment ticket ' + ticketId
     })
 
     // Note on ticket
@@ -2902,7 +2902,7 @@ async function checkMaintSLAEscalation() {
     if (supervisors && supervisors.length > 0) {
       await sendNotification(
         supervisors.map(u => u.id),
-        '🚨 Maintenance SLA Breached: ' + t.id,
+        '🚨 Medical Equipment SLA Breached: ' + t.id,
         t.title + ' — ' + Math.round(ageHours) + 'h elapsed.',
         'error', 'maintenance', 'ticket', t.id,
         'https://tdmhcore.io/maintenance'
