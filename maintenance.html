@@ -700,6 +700,8 @@ async function doLogin() {
     }
     if (!profile) { showLoginErr('Account not found. Contact IT.'); await SB.auth.signOut(); return }
     if (!profile.maintenance_role) { showLoginErr('No access to Maintenance system. Contact IT.'); await SB.auth.signOut(); return }
+    // GSD handles Medical Equipment only — not facility maintenance.
+    if (profile.maintenance_role === 'gsd') { showLoginErr('GSD staff use the Medical Equipment system, not Maintenance. Contact IT.'); await SB.auth.signOut(); return }
 
     const session = storeAuthSession(authData, profile)
     await bootApp(session)
