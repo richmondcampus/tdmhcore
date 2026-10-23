@@ -1771,23 +1771,13 @@ function openNewTicketModal() {
 }
 
 function autoFillMaintTitle() {
-  const catEl = document.getElementById('tk_cat')
   const descEl = document.getElementById('tk_desc')
   const titleEl = document.getElementById('tk_title')
   if (!titleEl) return
   if (titleEl.dataset.manualEdit === 'true') return
-  const catOpt = catEl?.selectedOptions[0]
-  const icon = catOpt?.dataset?.icon || '🔧'
-  const catName = catOpt?.text?.replace(/^.\s/,'') || ''
   const desc = descEl?.value?.trim() || ''
-  let title = ''
-  if (catName && desc) {
-    const firstLine = desc.split('\n')[0].substring(0, 55)
-    title = icon + ' ' + catName + ' — ' + firstLine
-  } else if (desc) {
-    title = desc.split('\n')[0].substring(0, 80)
-  }
-  titleEl.value = title
+  // Medical equipment: title is just the first line of the description (no category).
+  titleEl.value = desc ? ('🏥 ' + desc.split('\n')[0].substring(0, 80)) : ''
 }
 
 document.addEventListener('input', e => {
