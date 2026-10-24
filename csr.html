@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.23-8'
+const APP_VERSION = '2026.10.23-9'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1815,11 +1815,13 @@ async function renderMyRequests() {
   if (['admin','supply_officer'].includes(role)) {
     // All Requests — fast default (50 recent); search/filter query the DB for all matches.
     const term = (state.allReqSearch || '').trim()
-    const fStatus = state.allReqStatus || '', fType = state.allReqType || ''
+    const fStatus = state.allReqStatus || '', fType = state.allReqType || '', fDept = state.allReqDept || ''
+    const deptName = fDept ? (state.departments.find(d => d.id === fDept)?.dept_name || '') : ''
     if (term) {
       const base = { search: term }
       if (fStatus) base.status = fStatus
       if (fType) base.request_type = fType
+      if (fDept) base.dept_id = fDept
       const [byText, itemReqIds] = await Promise.all([ loadRequests(base), findRequestIdsByItem(term) ])
       const seen = new Set(byText.map(r => r.id))
       let byItem = []
@@ -1831,15 +1833,17 @@ async function renderMyRequests() {
         }
         if (fStatus) byItem = byItem.filter(r => r.status === fStatus)
         if (fType) byItem = byItem.filter(r => r.request_type === fType)
+        if (fDept) byItem = byItem.filter(r => r.dept_id === fDept)
       }
       requests = byText.concat(byItem)
-      subtitle = 'Search results for "' + term + '"'
-    } else if (fStatus || fType) {
+      subtitle = 'Search results for "' + term + '"' + (deptName ? ' in ' + deptName : '')
+    } else if (fStatus || fType || fDept) {
       const base = {}
       if (fStatus) base.status = fStatus
       if (fType) base.request_type = fType
+      if (fDept) base.dept_id = fDept
       requests = await loadRequests(base)
-      subtitle = 'Filtered — ' + [fStatus && formatStatus(fStatus), fType && fType.toUpperCase()].filter(Boolean).join(' · ')
+      subtitle = 'Filtered — ' + [deptName, fStatus && formatStatus(fStatus), fType && fType.toUpperCase()].filter(Boolean).join(' · ')
     } else {
       requests = await loadRequests({ limit: 50 })
       subtitle = 'Showing 50 most recent — use search/filter to find others'
@@ -2238,7 +2242,7 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.ac-wrap')) document.querySelectorAll('.ac-menu.open').forEach(m => m.classList.remove('open'))
 })
 // Pick handlers for the three filters:
-function acPickRequestsDept(deptId) { filterRequests(deptId, 'dept') }
+function acPickRequestsDept(deptId) { state.allReqDept = deptId; reRenderRequestsPage() }
 function acPickIssDept(deptId) { issState.filters.dept = deptId; applyIssuanceFilters() }
 function acPickIrDept(deptId) { issRptState.filters.dept = deptId; applyIssRptFilters() }
 
