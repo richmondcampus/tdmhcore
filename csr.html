@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.23-9'
+const APP_VERSION = '2026.10.23-10'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1965,7 +1965,8 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '</select>'
   // Department filter — type-to-search with suggestions (autocomplete). Faster than a
   // long dropdown when there are many departments.
-  html += deptAutocompleteHtml('filterDeptInput', 'acPickRequestsDept')
+  const curDeptName = state.allReqDept ? (state.departments.find(d => d.id === state.allReqDept)?.dept_name || '') : ''
+  html += deptAutocompleteHtml('filterDeptInput', 'acPickRequestsDept', curDeptName, state.allReqDept || '')
   html += '</div>'
 
   if (requests.length === 0) {
@@ -2187,9 +2188,10 @@ function pickUnit(rowId, unit) {
   if (menu) menu.classList.remove('open')
 }
 
-function deptAutocompleteHtml(inputId, onPickFnName) {
+function deptAutocompleteHtml(inputId, onPickFnName, presetName, presetId) {
   return '<span class="ac-wrap">'
-    + '<input type="text" id="' + inputId + '" class="ac-input" placeholder="🏢 Lahat ng dept" autocomplete="off" '
+    + '<input type="text" id="' + inputId + '" class="ac-input" placeholder="🏢 Lahat ng dept" autocomplete="off"'
+    + (presetName ? ' value="' + escStk(presetName).replace(/"/g,'&quot;') + '" data-ac-applied="' + (presetId||'') + '"' : '') + ' '
     + 'oninput="deptAcFilter(\'' + inputId + '\',\'' + onPickFnName + '\')" '
     + 'onfocus="deptAcFilter(\'' + inputId + '\',\'' + onPickFnName + '\')" '
     + 'onkeydown="deptAcKey(event,\'' + inputId + '\',\'' + onPickFnName + '\')">'
@@ -2242,7 +2244,15 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.ac-wrap')) document.querySelectorAll('.ac-menu.open').forEach(m => m.classList.remove('open'))
 })
 // Pick handlers for the three filters:
-function acPickRequestsDept(deptId) { state.allReqDept = deptId; reRenderRequestsPage() }
+let _allReqDeptTimer = null
+function acPickRequestsDept(deptId) {
+  // Only re-render when the chosen department actually changes (picking from the menu, or
+  // clearing the field) — never on every keystroke, so typing keeps focus.
+  if ((state.allReqDept || '') === (deptId || '')) return
+  state.allReqDept = deptId
+  clearTimeout(_allReqDeptTimer)
+  _allReqDeptTimer = setTimeout(() => { reRenderRequestsPage() }, 150)
+}
 function acPickIssDept(deptId) { issState.filters.dept = deptId; applyIssuanceFilters() }
 function acPickIrDept(deptId) { issRptState.filters.dept = deptId; applyIssRptFilters() }
 
