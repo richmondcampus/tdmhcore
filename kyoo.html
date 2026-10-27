@@ -572,7 +572,7 @@ function SignIn({onSignIn}) {
           </button>
         </form>
         <p style={{textAlign:'center',color:'var(--faint)',fontSize:12,marginTop:16}}>
-          Para sa TV: <code style={{color:'var(--muted)'}}>?tv=lab</code> &nbsp;·&nbsp;
+          For a TV: <code style={{color:'var(--muted)'}}>?tv=lab</code> &nbsp;·&nbsp;
           Kiosk: <code style={{color:'var(--muted)'}}>?kiosk=1</code>
         </p>
       </div>
@@ -668,7 +668,7 @@ function TV({slug}) {
 
   return (
     <div className="tv" onClick={arm}>
-      {!armed && <button className="unlock" onClick={arm}>Pindutin para buksan ang tunog</button>}
+      {!armed && <button className="unlock" onClick={arm}>Tap anywhere to turn on sound</button>}
 
       <div className="tv-h">
         <div style={{display:'flex',alignItems:'center',gap:'1vw',minWidth:0}}>
@@ -693,7 +693,7 @@ function TV({slug}) {
           {last ? (
             <>
               <div className="hero-lbl">
-                {ring ? (last.kind==='recall' ? 'TINATAWAG ULIT' : 'TINATAWAG NGAYON') : 'HULING TINAWAG'}
+                {ring ? (last.kind==='recall' ? 'CALLING AGAIN' : 'NOW CALLING') : 'LAST CALLED'}
               </div>
               <div className="hero-num" key={last.id}
                    style={{color: ring ? '#fff' : (last.service_color || 'var(--indigo)')}}>
@@ -702,14 +702,14 @@ function TV({slug}) {
                 ))}
               </div>
               <div className="hero-rule"/>
-              <div className="hero-go">Pumunta po sa</div>
+              <div className="hero-go">Please proceed to</div>
               <div className="hero-win">{last.window_name}</div>
               {last.service_name && <div className="hero-svc">{last.service_name}</div>}
             </>
           ) : (
             <div style={{textAlign:'center'}}>
-              <div className="hero-idle">Wala pang tinatawag</div>
-              <div className="hero-idle-s">Maghintay po lamang ng inyong numero.</div>
+              <div className="hero-idle">No one called yet</div>
+              <div className="hero-idle-s">Please wait for your number.</div>
             </div>
           )}
         </div>
@@ -720,7 +720,7 @@ function TV({slug}) {
           <div className={'rail-rows '+(twoUp?'two':'')}>
             {rows.length === 0 && (
               <div style={{color:'var(--faint2)',fontSize:'clamp(12px,1.2vw,18px)',padding:'2vh .6vw'}}>
-                Walang bukas na counter ngayon.
+                No counter is open right now.
               </div>
             )}
             {rows.map(r=>(
@@ -744,16 +744,16 @@ function TV({slug}) {
       </div>
 
       <div className="tv-foot">
-        <span className="foot-k">KATATAPOS</span>
+        <span className="foot-k">RECENTLY CALLED</span>
         <div className="recent">
           {(data.recent||[]).length === 0
-            ? <span style={{color:'var(--faint2)'}}>wala pa</span>
+            ? <span style={{color:'var(--faint2)'}}>none yet</span>
             : data.recent.map((a,i)=>(
                 <span key={i}><i>{a.number}</i> <span style={{opacity:.55}}>{a.window_name}</span></span>
               ))}
         </div>
         {data.waiting > 0 && (
-          <span className="waitpill">{data.waiting} naghihintay</span>
+          <span className="waitpill">{data.waiting} waiting</span>
         )}
       </div>
     </div>
@@ -785,7 +785,7 @@ function Kiosk() {
     setBusy(true)
     const {data,error} = await sb.rpc('issue_ticket',{ p_service_id: svc.id })
     setBusy(false)
-    if (error) { alert('Hindi nakuha ang numero. Pakitawag po ang staff.'); return }
+    if (error) { alert('Could not get a number. Please ask a staff member.'); return }
     setTk({...data, service:svc})
     setTimeout(()=>setTk(null), 14000)
   }
@@ -799,7 +799,7 @@ function Kiosk() {
       </div>
 
       <div className="kio-b">
-        <div className="kio-ask">Ano po ang kailangan ninyo?</div>
+        <div className="kio-ask">What do you need today?</div>
         <div className="svcs">
           {svcs.map(s=>(
             <button key={s.id} className="svc" onClick={()=>take(s)} disabled={busy}>
@@ -810,7 +810,7 @@ function Kiosk() {
           ))}
           {svcs.length===0 && (
             <div style={{gridColumn:'1/-1',textAlign:'center',color:'var(--faint)',padding:40}}>
-              Walang available na serbisyo ngayon.
+              No services are available right now.
             </div>
           )}
         </div>
@@ -829,7 +829,7 @@ function Kiosk() {
                 {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:true})}
             </div>
             <button className="btn b-pri b-lg b-full" style={{marginTop:17}} onClick={()=>setTk(null)}>
-              Salamat po
+              Thank you
             </button>
           </div>
         </div>
@@ -848,7 +848,8 @@ function Counter({me}) {
   const [waiting,setWaiting] = useState([])
   const [serving,setServing] = useState(null)
   const [done,setDone]   = useState([])
-  const [tab,setTab]     = useState('waiting')
+  const [tab,setTab]     = useState('ongoing')
+  const [history,setHistory] = useState(false)
   const [q,setQ]         = useState('')
   const [busy,setBusy]   = useState(false)
   const [move,setMove]   = useState(null)
@@ -922,8 +923,8 @@ function Counter({me}) {
     const {data,error} = await sb.rpc('call_next',{p_window_id:win.id})
     setBusy(false)
     if (error) return toast(error.message,'err')
-    if (!data) return toast('Wala nang naghihintay.','info')
-    toast('Tinawag: '+data.number,'ok')
+    if (!data) return toast('No one is waiting.','info')
+    toast('Called '+data.number,'ok')
   }
 
   const callThis = async t => {
@@ -931,7 +932,7 @@ function Counter({me}) {
     const {error} = await sb.rpc('call_ticket',{p_ticket_id:t.id,p_window_id:win.id})
     setBusy(false)
     if (error) return toast(error.message,'err')
-    toast('Tinawag: '+t.number,'ok')
+    toast('Called '+t.number,'ok')
   }
 
   const act = async what => {
@@ -942,7 +943,7 @@ function Counter({me}) {
       : await sb.rpc('set_ticket_status',{p_ticket_id:serving.id, p_status:what})
     setBusy(false)
     if (error) return toast(error.message,'err')
-    toast({recall:'Tinawag ulit', done:'Tapos na', held:'Naka-hold', skipped:'Nilaktawan'}[what],'ok')
+    toast({recall:'Called again', done:'Completed', held:'On hold', skipped:'Skipped'}[what],'ok')
     if (what!=='recall' && autoRef.current) setTimeout(next, 700)
   }
 
@@ -968,12 +969,12 @@ function Counter({me}) {
       <div className="mid" style={{padding:22}}>
         <div style={{width:'100%',maxWidth:430}}>
           <div style={{textAlign:'center',marginBottom:22}}>
-            <h1 className="h1">{hour<12?'Magandang umaga':hour<18?'Magandang hapon':'Magandang gabi'}, {(me.full_name||'').split(' ')[0]}</h1>
-            <p className="sub">Saang counter ka magse-serve ngayon?</p>
+            <h1 className="h1">{hour<12?'Good morning':hour<18?'Good afternoon':'Good evening'}, {(me.full_name||'').split(' ')[0]}</h1>
+            <p className="sub">Which counter are you serving at today?</p>
           </div>
           <div className="card" style={{padding:6,maxHeight:380,overflowY:'auto'}}>
-            {wins.length===0 && <div className="empty"><div className="empty-t">Wala kang nakatalagang counter</div>
-              <div>Pakiusap sa admin na i-assign ka.</div></div>}
+            {wins.length===0 && <div className="empty"><div className="empty-t">No counter assigned to you</div>
+              <div>Ask an admin to assign you to one.</div></div>}
             {wins.map(w=>(
               <button key={w.id} className="b-out" onClick={()=>setWin(w)}
                 style={{display:'flex',width:'100%',alignItems:'center',justifyContent:'space-between',
@@ -987,7 +988,7 @@ function Counter({me}) {
     )
   }
 
-  const shown = (tab==='waiting' ? waiting : done).filter(t=>{
+  const shown = (tab==='ongoing' ? waiting : (serving ? [serving] : [])).filter(t=>{
     const s = q.trim().toLowerCase()
     return !s || t.number.toLowerCase().includes(s)
       || (t.patient_name||'').toLowerCase().includes(s)
@@ -1004,21 +1005,21 @@ function Counter({me}) {
               <div style={{fontSize:11.5,fontWeight:700,color:'var(--faint)'}}>COUNTER</div>
               <div style={{fontWeight:700,fontSize:14.5}}>{win.name}</div>
             </div>
-            <button className="btn b-ghost b-sm" onClick={()=>{setWin(null);sb.rpc('go_offline')}}>Palit</button>
+            <button className="btn b-ghost b-sm" onClick={()=>{setWin(null);sb.rpc('go_offline')}}>Change</button>
           </div>
           <div className="segs">
-            <button className={'seg '+(tab==='waiting'?'on':'')} onClick={()=>setTab('waiting')}>
-              Naghihintay {waiting.length>0 && <span className="cnt">{waiting.length}</span>}
+            <button className={'seg '+(tab==='serving'?'on':'')} onClick={()=>setTab('serving')}>
+              Current Serving <span className="cnt">{serving?1:0}</span>
             </button>
-            <button className={'seg '+(tab==='done'?'on':'')} onClick={()=>setTab('done')}>
-              Tapos {done.length>0 && <span className="cnt">{done.length}</span>}
+            <button className={'seg '+(tab==='ongoing'?'on':'')} onClick={()=>setTab('ongoing')}>
+              On-going Queue {waiting.length>0 && <span className="cnt">{waiting.length}</span>}
             </button>
           </div>
           <div style={{position:'relative',marginTop:9}}>
             <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--faint)'}}>
               <Ico n="search" s={13}/></span>
             <input className="inp" style={{paddingLeft:30,paddingTop:7,paddingBottom:7,fontSize:13}}
-                   value={q} onChange={e=>setQ(e.target.value)} placeholder="Numero, pangalan o tag…"/>
+                   value={q} onChange={e=>setQ(e.target.value)} placeholder="Number, name or tag…"/>
           </div>
         </div>
 
@@ -1026,9 +1027,10 @@ function Counter({me}) {
           {shown.length===0 && (
             <div className="empty">
               <div className="empty-i"><Ico n="clock" s={20}/></div>
-              <div className="empty-t">{tab==='waiting'?'Walang naghihintay':'Wala pang natapos'}</div>
-              <div style={{fontSize:13}}>{tab==='waiting'
-                ? 'Lalabas dito ang bagong ticket.' : 'Makikita dito ang mga natapos mo.'}</div>
+              <div className="empty-t">{tab==='ongoing'?'No one waiting':'Not serving anyone'}</div>
+              <div style={{fontSize:13}}>{tab==='ongoing'
+                ? 'New tickets appear here as they are taken.'
+                : 'Press Next to call the first person in the queue.'}</div>
             </div>
           )}
           {shown.map(t=>(
@@ -1036,17 +1038,18 @@ function Counter({me}) {
               <div className="tk-top">
                 <span className="num tk-n">{t.number}</span>
                 <span className="tk-s" style={{color:t.services?.color}}>{t.services?.name}</span>
-                {t.journey_step>1 && <span className="tag t-step">Hakbang {t.journey_step}</span>}
+                {t.journey_step>1 && <span className="tag t-step">Step {t.journey_step}</span>}
                 {t.status==='held' && <Tag s="held"/>}
               </div>
               {t.patient_name && <div className="tk-m">{t.patient_name}</div>}
-              <div className="tk-m">{tab==='waiting' ? ago(t.sort_at) : hhmm(t.completed_at)}</div>
+              <div className="tk-m">{tab==='ongoing' ? 'Waiting time · '+ago(t.sort_at)
+                                                       : 'Called · '+hhmm(t.called_at)}</div>
               {(t.tags||[]).length>0 && (
                 <div className="chips">{t.tags.map(g=><span key={g} className="chip">{g}</span>)}</div>
               )}
-              {tab==='waiting' && (
+              {tab==='ongoing' && (
                 <button className="btn b-out b-sm" style={{marginTop:8,width:'100%'}}
-                        onClick={()=>callThis(t)} disabled={busy}>Tawagin ito</button>
+                        onClick={()=>callThis(t)} disabled={busy}>Call this</button>
               )}
             </div>
           ))}
@@ -1054,9 +1057,9 @@ function Counter({me}) {
 
         <div className="ws-f">
           <button className="btn b-out b-full" onClick={()=>setAdding(true)}>
-            <Ico n="plus" s={15}/>Magdagdag ng queue</button>
+            <Ico n="plus" s={15}/>Add queue</button>
           <button className="btn b-pri b-lg b-full" onClick={next} disabled={busy}>
-            {busy ? <div className="spin"/> : <><Ico n="next" s={17}/>Susunod
+            {busy ? <div className="spin"/> : <><Ico n="next" s={17}/>Next
               <span className="kbd kbd-on">space</span></>}
           </button>
         </div>
@@ -1067,10 +1070,12 @@ function Counter({me}) {
         <div className="ws-bar">
           <div style={{fontWeight:700,fontSize:15}}>{win.name}</div>
           <div style={{display:'flex',alignItems:'center',gap:14}}>
-            <label className="autosw" title="Pagkatapos mag-Tapos, kusang tatawag ng susunod">
+            <label className="autosw" title="After you finish a queue, the next one is called automatically">
               <span>Auto-serve</span>
               <button className={'sw '+(auto?'on':'')} onClick={()=>setAuto(a=>!a)}><i/></button>
             </label>
+            <button className="btn b-out b-sm" onClick={()=>setHistory(true)}>
+              <Ico n="clock" s={14}/>Queue history</button>
             <span className="live"><span className="dot"/>Live</span>
           </div>
         </div>
@@ -1086,17 +1091,17 @@ function Counter({me}) {
                     {serving.number}</div>
                   <div className="tkcard-rule"/>
                   <dl className="kv">
-                    <dt>Serbisyo</dt>
+                    <dt>Service</dt>
                     <dd style={{color:serving.services?.color,fontWeight:700}}>{serving.services?.name}</dd>
-                    {serving.patient_name && <><dt>Pasyente</dt><dd>{serving.patient_name}</dd></>}
-                    <dt>Kinuha</dt><dd>{hhmm(serving.created_at)}</dd>
-                    <dt>Tinawag</dt><dd>{hhmm(serving.called_at)}</dd>
-                    {serving.recall_count>0 && <><dt>Tawag ulit</dt><dd>{serving.recall_count}×</dd></>}
-                    {serving.journey_step>1 && <><dt>Hakbang</dt><dd>Pang-{serving.journey_step}</dd></>}
+                    {serving.patient_name && <><dt>Patient</dt><dd>{serving.patient_name}</dd></>}
+                    <dt>Queued at</dt><dd>{hhmm(serving.created_at)}</dd>
+                    <dt>Called at</dt><dd>{hhmm(serving.called_at)}</dd>
+                    {serving.recall_count>0 && <><dt>Called again</dt><dd>{serving.recall_count}×</dd></>}
+                    {serving.journey_step>1 && <><dt>Journey step</dt><dd>Step {serving.journey_step}</dd></>}
                   </dl>
                   {serving.note && <div className="tknote">{serving.note}</div>}
                   <TagEditor ticket={serving}
-                    onSaved={()=>toast('Na-update ang tags','ok')}
+                    onSaved={()=>toast('Tags updated','ok')}
                     onError={m=>toast(m,'err')}/>
                 </div>
               </div>
@@ -1105,13 +1110,13 @@ function Counter({me}) {
               <div className="detail-side">
                 <div className="card sidecard" style={{display:'flex',alignItems:'center',
                      justifyContent:'space-between',gap:10}}>
-                  <span className="side-k" style={{color:'var(--green)'}}>TAGAL NG SERBISYO</span>
+                  <span className="side-k" style={{color:'var(--green)'}}>SERVING TIME</span>
                   <span className="num" style={{fontSize:19,color:'var(--green)'}}>{mmss(serving.called_at)}</span>
                 </div>
 
                 {detail && (detail.path||[]).length>1 && (
                   <div className="card sidecard">
-                    <div className="side-k">DINAANAN NG PASYENTE</div>
+                    <div className="side-k">PATIENT JOURNEY</div>
                     <div className="path">
                       {detail.path.map((p,i)=>{
                         const last = i===detail.path.length-1
@@ -1119,10 +1124,10 @@ function Counter({me}) {
                           <div key={i} className="path-row">
                             <span className="path-dot" style={{background:last?'var(--indigo)':'var(--green)'}}/>
                             <div style={{flex:1,minWidth:0}}>
-                              <div className="path-n">Hakbang {i+1}</div>
+                              <div className="path-n">Step {i+1}</div>
                               <div className="path-s" style={{color:p.service_color}}>{p.service_name}</div>
                             </div>
-                            <span className="path-t">{last?'Narito ngayon':'Tapos'}</span>
+                            <span className="path-t">{last?'Here now':'Done'}</span>
                           </div>
                         )
                       })}
@@ -1134,7 +1139,7 @@ function Counter({me}) {
                   <div className="side-k">TIMELINE</div>
                   <div className="tl">
                     {(detail?.events||[]).length===0 && (
-                      <div style={{fontSize:12.5,color:'var(--faint)'}}>Wala pang nakatala.</div>
+                      <div style={{fontSize:12.5,color:'var(--faint)'}}>Nothing logged yet.</div>
                     )}
                     {(detail?.events||[]).map((e,i)=>(
                       <div key={i} className="tl-row">
@@ -1146,7 +1151,7 @@ function Counter({me}) {
                             {e.window_name  && ' · ' + e.window_name}
                             {e.service_name && ' · ' + e.service_name}
                           </div>
-                          {e.actor_name && <div className="tl-m">ni {e.actor_name}</div>}
+                          {e.actor_name && <div className="tl-m">by {e.actor_name}</div>}
                           {e.detail && <div className="tl-d">{e.detail}</div>}
                         </div>
                       </div>
@@ -1158,25 +1163,25 @@ function Counter({me}) {
 
             <div className="now-acts">
               <button className="btn b-out" onClick={()=>act('recall')} disabled={busy}>
-                <Ico n="bell" s={15}/>Tawag ulit<span className="kbd">R</span></button>
+                <Ico n="bell" s={15}/>Call again<span className="kbd">R</span></button>
               <button className="btn b-out" onClick={()=>act('held')} disabled={busy}>
                 <Ico n="pause" s={15}/>Hold<span className="kbd">H</span></button>
               <button className="btn b-out" onClick={()=>act('skipped')} disabled={busy}>
-                <Ico n="skip" s={15}/>Laktawan<span className="kbd">S</span></button>
+                <Ico n="skip" s={15}/>Skip<span className="kbd">S</span></button>
               <button className="btn b-out" onClick={()=>setMove({kind:'service'})} disabled={busy}>
-                <Ico n="route" s={15}/>Ipasa sa ibang dept</button>
+                <Ico n="route" s={15}/>Send to another dept</button>
               <div style={{flex:1}}/>
               <button className="btn b-go b-lg" onClick={()=>act('done')} disabled={busy}>
-                <Ico n="check" s={17}/>Tapos na<span className="kbd kbd-on">D</span></button>
+                <Ico n="check" s={17}/>Complete<span className="kbd kbd-on">D</span></button>
             </div>
           </>
         ) : (
           <div className="empty" style={{flex:1}}>
             <div className="empty-i" style={{width:58,height:58}}><Ico n="desk" s={25}/></div>
-            <div className="empty-t" style={{fontSize:16}}>Walang sine-serve</div>
-            <div>Pindutin ang <b>Susunod</b> para tawagin ang kasunod sa pila.</div>
+            <div className="empty-t" style={{fontSize:16}}>Not serving anyone</div>
+            <div>Press <b>Next</b> to call the first person in the queue.</div>
             <button className="btn b-pri b-lg" style={{marginTop:14}} onClick={next} disabled={busy}>
-              <Ico n="next" s={17}/>Susunod sa pila</button>
+              <Ico n="next" s={17}/>Call next in queue</button>
           </div>
         )}
       </div>
@@ -1187,17 +1192,72 @@ function Counter({me}) {
       )}
       {adding && (
         <AddQueue windowId={win.id} onClose={()=>setAdding(false)}
-          onDone={n=>{ setAdding(false); toast('Naidagdag: '+n,'ok') }}/>
+          onDone={n=>{ setAdding(false); toast('Queue added: '+n,'ok') }}/>
       )}
+      {history && <History rows={done} onClose={()=>setHistory(false)}/>}
     </div>
   )
 }
 
 const EVENT = {
-  issue:'Kumuha ng numero', call:'Tinawag', recall:'Tinawag ulit',
-  done:'Natapos', held:'Inihold', skipped:'Nilaktawan', cancelled:'Kinansela',
-  waiting:'Ibinalik sa pila', move_service:'Ipinasa sa ibang departamento',
-  move_window:'Inilipat ng counter', tags:'Binago ang tags',
+  issue:'Queue added', call:'Called', recall:'Called again',
+  done:'Completed', held:'Put on hold', skipped:'Skipped', cancelled:'Cancelled',
+  waiting:'Returned to queue', move_service:'Sent to another department',
+  move_window:'Moved to another counter', tags:'Tags changed',
+}
+
+/* ─── what this counter has finished today ─── */
+function History({rows, onClose}) {
+  const [q,setQ] = useState('')
+  const shown = rows.filter(t=>{
+    const v = q.trim().toLowerCase()
+    return !v || t.number.toLowerCase().includes(v)
+      || (t.patient_name||'').toLowerCase().includes(v)
+  })
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="md" style={{maxWidth:560}} onClick={e=>e.stopPropagation()}>
+        <div className="md-h">
+          <div>
+            <div className="md-t">Queue history</div>
+            <div className="md-s">What this counter has finished today.</div>
+          </div>
+          <button className="btn b-ghost b-ico" onClick={onClose}><Ico n="x" s={17}/></button>
+        </div>
+        <div className="md-b">
+          <div style={{position:'relative',marginBottom:12}}>
+            <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',
+                          color:'var(--faint)'}}><Ico n="search" s={13}/></span>
+            <input className="inp" style={{paddingLeft:30}} value={q}
+                   onChange={e=>setQ(e.target.value)} placeholder="Number or patient name…"/>
+          </div>
+          {shown.length===0 ? (
+            <div className="empty" style={{padding:30}}>
+              <div className="empty-t">{rows.length ? 'Nothing matches' : 'Nothing finished yet'}</div>
+              <div style={{fontSize:13}}>{rows.length
+                ? 'Try a different number or name.'
+                : 'Queues you finish at this counter show up here.'}</div>
+            </div>
+          ) : (
+            <div style={{maxHeight:420,overflowY:'auto',border:'1px solid var(--line)',
+                         borderRadius:11,overflow:'hidden'}}>
+              <table className="tb">
+                <thead><tr><th>Number</th><th>Service</th><th>Status</th><th style={{textAlign:'right'}}>Finished</th></tr></thead>
+                <tbody>{shown.map(t=>(
+                  <tr key={t.id}>
+                    <td className="num" style={{fontWeight:700}}>{t.number}</td>
+                    <td style={{color:t.services?.color,fontWeight:600}}>{t.services?.name}</td>
+                    <td><Tag s={t.status}/></td>
+                    <td style={{textAlign:'right',color:'var(--muted)'}}>{hhmm(t.completed_at)}</td>
+                  </tr>))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 /* ─── tags on the serving ticket ─── */
@@ -1224,7 +1284,7 @@ function TagEditor({ticket, onSaved, onError}) {
       <div className="chips">
         {tags.map(g=>(
           <span key={g} className="chip chip-x">{g}
-            <button onClick={()=>save(tags.filter(x=>x!==g))} aria-label={'Alisin ang '+g}>
+            <button onClick={()=>save(tags.filter(x=>x!==g))} aria-label={'Remove '+g}>
               <Ico n="x" s={11}/></button>
           </span>
         ))}
@@ -1232,11 +1292,11 @@ function TagEditor({ticket, onSaved, onError}) {
           <form onSubmit={add} style={{display:'inline-flex',gap:5}}>
             <input className="inp" autoFocus value={draft} onChange={e=>setDraft(e.target.value)}
                    onBlur={()=>!draft && setOpen(false)}
-                   style={{width:180,padding:'4px 9px',fontSize:12}} placeholder="hal. DR. DELA PAZ"/>
+                   style={{width:180,padding:'4px 9px',fontSize:12}} placeholder="e.g. DR. DELA PAZ"/>
           </form>
         ) : (
           <button className="chip chip-add" onClick={()=>setOpen(true)}>
-            <Ico n="plus" s={11}/>Magdagdag</button>
+            <Ico n="plus" s={11}/>Add tag</button>
         )}
       </div>
     </div>
@@ -1272,7 +1332,7 @@ function AddQueue({windowId, onClose, onDone}) {
   }
   const go = async e => {
     e.preventDefault()
-    if (!svc) { setErr('Pumili muna ng serbisyo.'); return }
+    if (!svc) { setErr('Choose a service first.'); return }
     setBusy(true); setErr('')
     const {data,error} = await sb.rpc('issue_ticket',{
       p_service_id:svc, p_patient_name:name||null, p_tags:tags, p_note:note||null
@@ -1287,27 +1347,27 @@ function AddQueue({windowId, onClose, onDone}) {
       <div className="md" onClick={e=>e.stopPropagation()}>
         <div className="md-h">
           <div>
-            <div className="md-t">Magdagdag ng queue</div>
-            <div className="md-s">Para sa walk-in na hindi dumaan sa kiosk.</div>
+            <div className="md-t">Add queue</div>
+            <div className="md-s">For a walk-in who did not use the kiosk.</div>
           </div>
           <button className="btn b-ghost b-ico" onClick={onClose}><Ico n="x" s={17}/></button>
         </div>
         <form onSubmit={go} className="md-b">
           <div style={{display:'flex',flexDirection:'column',gap:13}}>
             <div>
-              <label className="lbl">Serbisyo</label>
+              <label className="lbl">Service</label>
               <select className="inp" value={svc} onChange={e=>setSvc(e.target.value)} required>
-                <option value="">Pumili ng serbisyo</option>
+                <option value="">Choose a service</option>
                 {svcs.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="lbl">Pangalan ng pasyente <span style={{fontWeight:500,color:'var(--faint)'}}>(opsyonal)</span></label>
-              <input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Hal. Maria Santos"/>
+              <label className="lbl">Patient name <span style={{fontWeight:500,color:'var(--faint)'}}>(optional)</span></label>
+              <input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Maria Santos"/>
             </div>
             <div>
-              <label className="lbl">Paalala <span style={{fontWeight:500,color:'var(--faint)'}}>(opsyonal)</span></label>
-              <input className="inp" value={note} onChange={e=>setNote(e.target.value)} placeholder="Hal. para sa CBC at urinalysis"/>
+              <label className="lbl">Note <span style={{fontWeight:500,color:'var(--faint)'}}>(optional)</span></label>
+              <input className="inp" value={note} onChange={e=>setNote(e.target.value)} placeholder="e.g. for CBC and urinalysis"/>
             </div>
             <div>
               <label className="lbl">Tags</label>
@@ -1321,17 +1381,17 @@ function AddQueue({windowId, onClose, onDone}) {
               <div style={{display:'flex',gap:7}}>
                 <input className="inp" value={draft} onChange={e=>setDraft(e.target.value)}
                        onKeyDown={e=>{ if(e.key==='Enter'){ addTag(e) } }}
-                       placeholder="Hal. DR. DELA PAZ — ORTHO"/>
-                <button type="button" className="btn b-out" onClick={addTag}>Idagdag</button>
+                       placeholder="e.g. DR. DELA PAZ — ORTHO"/>
+                <button type="button" className="btn b-out" onClick={addTag}>Add</button>
               </div>
             </div>
             {err && <div style={{background:'var(--red-wash)',border:'1px solid #f0c9c7',color:'#8f2e2a',
               padding:'9px 12px',borderRadius:9,fontSize:13}}>{err}</div>}
           </div>
           <div className="md-f">
-            <button type="button" className="btn b-out" style={{flex:1}} onClick={onClose}>Kanselahin</button>
+            <button type="button" className="btn b-out" style={{flex:1}} onClick={onClose}>Cancel</button>
             <button className="btn b-pri" style={{flex:1}} disabled={busy}>
-              {busy ? <div className="spin"/> : 'Kumuha ng numero'}
+              {busy ? <div className="spin"/> : 'Get a number'}
             </button>
           </div>
         </form>
@@ -1373,8 +1433,8 @@ function MoveModal({ticket, kind, windowId, onClose, onDone}) {
       <div className="md" onClick={e=>e.stopPropagation()}>
         <div className="md-h">
           <div>
-            <div className="md-t">Ipasa sa ibang departamento</div>
-            <div className="md-s">Dala pa rin ni <b className="num">{ticket.number}</b> ang parehong numero.</div>
+            <div className="md-t">Send to another department</div>
+            <div className="md-s"><b className="num">{ticket.number}</b> keeps the same number.</div>
           </div>
           <button className="btn b-ghost b-ico" onClick={onClose}><Ico n="x" s={17}/></button>
         </div>
@@ -1395,16 +1455,16 @@ function MoveModal({ticket, kind, windowId, onClose, onDone}) {
             ))}
           </div>
           <div style={{marginTop:14}}>
-            <label className="lbl">Paalala sa susunod na counter</label>
+            <label className="lbl">Note for the next counter</label>
             <input className="inp" value={note} onChange={e=>setNote(e.target.value)}
-                   placeholder="Hal. para sa CBC at urinalysis"/>
+                   placeholder="e.g. for CBC and urinalysis"/>
           </div>
           {err && <div style={{background:'var(--red-wash)',border:'1px solid #f0c9c7',color:'#8f2e2a',
             padding:'9px 12px',borderRadius:9,fontSize:13,marginTop:12}}>{err}</div>}
           <div className="md-f">
-            <button className="btn b-out" style={{flex:1}} onClick={onClose}>Bumalik</button>
+            <button className="btn b-out" style={{flex:1}} onClick={onClose}>Back</button>
             <button className="btn b-pri" style={{flex:1}} disabled={!pick||busy} onClick={go}>
-              {busy ? <div className="spin"/> : 'Ipasa'}
+              {busy ? <div className="spin"/> : 'Send'}
             </button>
           </div>
         </div>
@@ -1440,20 +1500,20 @@ function Board({me}) {
 
   const T = d.totals || {}
   const hour = now.getHours()
-  const mins = n => n == null ? '—' : n < 1 ? 'wala pang isang minuto' : n + ' minuto'
+  const mins = n => n == null ? '—' : n < 1 ? 'under a minute' : n + ' min'
 
   const kpi = [
-    {k:'Naghihintay', v:T.waiting ?? 0, sub:'Katamtamang hintay', val:mins(T.avg_wait_min),
+    {k:'Waiting', v:T.waiting ?? 0, sub:'Avg. waiting time', val:mins(T.avg_wait_min),
      ic:'clock', c:'var(--gold)',   bg:'var(--gold-wash)'},
-    {k:'Sine-serve',  v:T.serving ?? 0, sub:'Katamtamang serbisyo', val:mins(T.avg_serve_min),
+    {k:'Currently serving', v:T.serving ?? 0, sub:'Avg. serving time', val:mins(T.avg_serve_min),
      ic:'desk',  c:'var(--indigo)', bg:'var(--indigo-wash)'},
-    {k:'Natapos',     v:T.done ?? 0,    sub:'Kabuuang ticket ngayon', val:(T.issued ?? 0) + ' ticket',
+    {k:'Completed', v:T.done ?? 0, sub:'Tickets issued today', val:(T.issued ?? 0) + '',
      ic:'users', c:'var(--green)',  bg:'var(--green-wash)'},
   ]
   const tally = [
-    ['Natapos',    T.done ?? 0,      'var(--green)'],
-    ['Nilaktawan', T.skipped ?? 0,   'var(--gold)'],
-    ['Kinansela',  T.cancelled ?? 0, 'var(--red)'],
+    ['Completed', T.done ?? 0,      'var(--green)'],
+    ['Skipped',   T.skipped ?? 0,   'var(--gold)'],
+    ['Cancelled', T.cancelled ?? 0, 'var(--red)'],
   ]
 
   return (
@@ -1465,8 +1525,8 @@ function Board({me}) {
               {dateLong(now)} — {clock(now)}
             </h1>
             <p className="sub">
-              {hour<12?'Magandang umaga':hour<18?'Magandang hapon':'Magandang gabi'}, {(me.full_name||'').split(' ')[0]}.
-              {' '}Ito ang takbo ng pila ngayong araw.
+              {hour<12?'Good morning':hour<18?'Good afternoon':'Good evening'}, {(me.full_name||'').split(' ')[0]}.
+              {' '}Here is how the queue is running today.
             </p>
           </div>
           <span className="live"><span className="dot"/>Live</span>
@@ -1493,10 +1553,10 @@ function Board({me}) {
           <div style={{display:'flex',flexDirection:'column',gap:13}}>
             <div className="card kpi">
               <div>
-                <div className="kpi-k">Nasa counter</div>
+                <div className="kpi-k">On the floor</div>
                 <div className="num kpi-v">{d.staff_on} <span style={{fontSize:17,color:'var(--muted)',
-                  fontFamily:'Figtree',fontWeight:600}}>sa {d.staff_total}</span></div>
-                <div className="kpi-sub">na staff ang naka-online</div>
+                  fontFamily:'Figtree',fontWeight:600}}>of {d.staff_total}</span></div>
+                <div className="kpi-sub">staff signed in at a counter</div>
               </div>
               <div className="kpi-ic" style={{background:'var(--indigo-wash)',color:'var(--indigo)'}}>
                 <Ico n="users" s={19}/></div>
@@ -1504,15 +1564,15 @@ function Board({me}) {
 
             <div className="card">
               <div className="card-h">
-                <span className="card-t">Mga bukas na counter</span>
-                <span style={{fontSize:12,color:'var(--muted)'}}>{(d.occupied||[]).length} bukas</span>
+                <span className="card-t">Occupied counters</span>
+                <span style={{fontSize:12,color:'var(--muted)'}}>{(d.occupied||[]).length} open</span>
               </div>
               <div style={{padding:8,maxHeight:430,overflowY:'auto'}}>
                 {(d.occupied||[]).length===0 && (
                   <div className="empty" style={{padding:30}}>
                     <div className="empty-i"><Ico n="desk" s={20}/></div>
-                    <div className="empty-t">Walang nakabukas na counter</div>
-                    <div style={{fontSize:13}}>Lalabas dito ang staff pagpasok nila sa counter.</div>
+                    <div className="empty-t">No counter is open</div>
+                    <div style={{fontSize:13}}>Staff appear here once they sit at a counter.</div>
                   </div>
                 )}
                 {(d.occupied||[]).map(o=>(
@@ -1525,13 +1585,13 @@ function Board({me}) {
                           <span><b>{o.staff_name}</b> — <span className="num">{o.number}</span>
                             <span style={{color:o.service_color}}> · {o.service_name}</span></span>
                         ) : (
-                          <span><b>{o.staff_name}</b> <span style={{color:'var(--faint)'}}>— walang tinatawag</span></span>
+                          <span><b>{o.staff_name}</b> <span style={{color:'var(--faint)'}}>— not serving anyone</span></span>
                         )}
                       </div>
-                      {o.called_at && <div className="occ-ago">simula {ago(o.called_at)}</div>}
+                      {o.called_at && <div className="occ-ago">since {ago(o.called_at)}</div>}
                     </div>
                     <div style={{textAlign:'right',flexShrink:0}}>
-                      <div className="occ-lbl">Tagal</div>
+                      <div className="occ-lbl">Serving time</div>
                       <div className="num occ-t" style={{color:o.called_at?'var(--green)':'var(--faint)'}}>
                         {o.called_at ? mmss(o.called_at) : '—'}
                       </div>
@@ -1554,22 +1614,22 @@ function Board({me}) {
             </div>
 
             <div className="card" style={{overflow:'hidden'}}>
-              <div className="card-h"><span className="card-t">Bawat serbisyo ngayong araw</span></div>
+              <div className="card-h"><span className="card-t">Services today</span></div>
               <div style={{overflowX:'auto',maxHeight:430,overflowY:'auto'}}>
                 {(d.services||[]).length===0 ? (
                   <div className="empty" style={{padding:30}}>
-                    <div className="empty-t">Wala pang ticket ngayon</div>
-                    <div style={{fontSize:13}}>Lalabas dito ang bawat serbisyo pagkakuha ng unang numero.</div>
+                    <div className="empty-t">No tickets yet today</div>
+                    <div style={{fontSize:13}}>Each service appears here once its first number is taken.</div>
                   </div>
                 ) : (
                   <table className="tb">
                     <thead><tr>
-                      <th>Serbisyo</th>
-                      <th style={{textAlign:'center'}}>Hintay</th>
-                      <th style={{textAlign:'center'}}>Serve</th>
-                      <th style={{textAlign:'center'}}>Tapos</th>
-                      <th style={{textAlign:'right'}}>Hintay</th>
-                      <th style={{textAlign:'right'}}>Serbisyo</th>
+                      <th>Service</th>
+                      <th style={{textAlign:'center'}}>Waiting</th>
+                      <th style={{textAlign:'center'}}>Serving</th>
+                      <th style={{textAlign:'center'}}>Done</th>
+                      <th style={{textAlign:'right'}}>Avg. wait</th>
+                      <th style={{textAlign:'right'}}>Avg. serve</th>
                     </tr></thead>
                     <tbody>{d.services.map(s=>(
                       <tr key={s.name}>
@@ -1633,7 +1693,7 @@ function Services() {
       sort_order:Number(v('sort_order'))||0,
     }).eq('id',sel.id)
     if (error) return toast(error.message,'err')
-    setDraft({}); await load(sel.id); toast('Na-save','ok')
+    setDraft({}); await load(sel.id); toast('Saved','ok')
   }
   const add = async e => {
     e.preventDefault()
@@ -1642,13 +1702,13 @@ function Services() {
     const {data,error} = await sb.from('services')
       .insert({code, name:nw.name.trim(), sort_order:(list.length+1)*10}).select().single()
     if (error) return toast(error.message,'err')
-    setNw({code:'',name:''}); setAdding(false); await load(data.id); toast('Naidagdag','ok')
+    setNw({code:'',name:''}); setAdding(false); await load(data.id); toast('Added','ok')
   }
   const remove = async () => {
-    if (!confirm(`Burahin ang "${sel.name}"? Hindi ito pwede kung may ticket na ito ngayon.`)) return
+    if (!confirm(`Delete "${sel.name}"? This fails if it already has tickets today.`)) return
     const {error} = await sb.from('services').delete().eq('id',sel.id)
-    if (error) return toast('Hindi mabura — may naka-ugnay na ticket o window.','err')
-    setSel(null); await load(); toast('Nabura','ok')
+    if (error) return toast('Cannot delete — a ticket or counter still uses it.','err')
+    setSel(null); await load(); toast('Deleted','ok')
   }
 
   return (
@@ -1656,8 +1716,8 @@ function Services() {
       <div style={{width:252,flexShrink:0,background:'#fff',borderRight:'1px solid var(--line)',
                    display:'flex',flexDirection:'column'}}>
         <div style={{padding:'15px 16px',borderBottom:'1px solid var(--line-2)'}}>
-          <div style={{fontWeight:800,fontSize:14.5}}>Mga serbisyo</div>
-          <div style={{fontSize:12,color:'var(--muted)'}}>{list.length} lahat</div>
+          <div style={{fontWeight:800,fontSize:14.5}}>Services</div>
+          <div style={{fontSize:12,color:'var(--muted)'}}>{list.length} total</div>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:5}}>
           {list.map(s=>(
@@ -1675,31 +1735,31 @@ function Services() {
         <div style={{padding:10,borderTop:'1px solid var(--line-2)'}}>
           {adding ? (
             <form onSubmit={add} style={{display:'flex',flexDirection:'column',gap:6}}>
-              <input className="inp" style={{fontSize:13}} autoFocus placeholder="Code (hal. LAB)" maxLength={4}
+              <input className="inp" style={{fontSize:13}} autoFocus placeholder="Code (e.g. LAB)" maxLength={4}
                 value={nw.code} onChange={e=>setNw(n=>({...n,code:e.target.value.toUpperCase()}))}/>
-              <input className="inp" style={{fontSize:13}} placeholder="Pangalan"
+              <input className="inp" style={{fontSize:13}} placeholder="Name"
                 value={nw.name} onChange={e=>setNw(n=>({...n,name:e.target.value}))}/>
               <div style={{display:'flex',gap:5}}>
-                <button className="btn b-pri b-sm" style={{flex:1}}>Idagdag</button>
+                <button className="btn b-pri b-sm" style={{flex:1}}>Add</button>
                 <button type="button" className="btn b-out b-sm b-ico" onClick={()=>setAdding(false)}><Ico n="x" s={14}/></button>
               </div>
             </form>
           ) : (
-            <button className="btn b-pri b-full b-sm" onClick={()=>setAdding(true)}><Ico n="plus" s={14}/>Bagong serbisyo</button>
+            <button className="btn b-pri b-full b-sm" onClick={()=>setAdding(true)}><Ico n="plus" s={14}/>New service</button>
           )}
         </div>
       </div>
 
       <div style={{flex:1,overflowY:'auto',padding:24}}>
-        {!sel ? <div className="empty" style={{paddingTop:80}}><div className="empty-t">Pumili ng serbisyo</div></div> : (
+        {!sel ? <div className="empty" style={{paddingTop:80}}><div className="empty-t">Choose a service</div></div> : (
           <div style={{maxWidth:620,display:'flex',flexDirection:'column',gap:13}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
               <div>
                 <h2 className="h1" style={{fontSize:18}}>{sel.name}</h2>
-                <p className="sub">Numero ngayon: <b className="num">{v('code')}001</b> pataas</p>
+                <p className="sub">Numbers run from <b className="num">{v('code')}001</b> upward</p>
               </div>
               <button className="btn b-out b-sm" style={{color:'var(--red)'}} onClick={remove}>
-                <Ico n="trash" s={14}/>Burahin</button>
+                <Ico n="trash" s={14}/>Delete</button>
             </div>
 
             <div className="card" style={{padding:17}}>
@@ -1709,24 +1769,24 @@ function Services() {
                   <span className="num" style={{fontSize:17}}>{v('code')}</span>
                 </div>
                 <div style={{flex:1}}>
-                  <label className="lbl">Pangalan</label>
+                  <label className="lbl">Name</label>
                   <input className="inp" value={v('name')||''} onChange={e=>set('name',e.target.value)}/>
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                 <div>
-                  <label className="lbl">Code (prefix ng numero)</label>
+                  <label className="lbl">Code (number prefix)</label>
                   <input className="inp" maxLength={4} value={v('code')||''}
                     onChange={e=>set('code',e.target.value.toUpperCase())}/>
                 </div>
                 <div>
-                  <label className="lbl">Pangalang Filipino</label>
+                  <label className="lbl">Filipino name</label>
                   <input className="inp" value={v('name_fil')||''} onChange={e=>set('name_fil',e.target.value)}
-                    placeholder="Lalabas sa kiosk"/>
+                    placeholder="Shown on the kiosk"/>
                 </div>
               </div>
               <div style={{marginTop:13}}>
-                <label className="lbl">Kulay</label>
+                <label className="lbl">Colour</label>
                 <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
                   {SWATCH.map(c=>(
                     <button key={c} onClick={()=>set('color',c)} aria-label={c}
@@ -1738,8 +1798,8 @@ function Services() {
             </div>
 
             <div className="card">
-              {[['is_active','Aktibo','Kapag patay, hindi na makakakuha ng bagong numero.'],
-                ['show_on_kiosk','Ipakita sa kiosk','Makikita ng pasyente sa touchscreen.']].map(([k,t,d],i)=>(
+              {[['is_active','Active','When off, no new numbers can be taken for it.'],
+                ['show_on_kiosk','Show on kiosk','Patients can pick it on the touchscreen.']].map(([k,t,d],i)=>(
                 <div key={k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,
                   padding:'13px 17px',borderTop:i?'1px solid var(--line-2)':'none'}}>
                   <div><div style={{fontWeight:600,fontSize:13.5}}>{t}</div>
@@ -1752,8 +1812,8 @@ function Services() {
             {dirty && (
               <div style={{display:'flex',gap:8,position:'sticky',bottom:0,padding:'12px 0',
                 background:'linear-gradient(transparent,var(--paper) 28%)'}}>
-                <button className="btn b-out" style={{flex:1}} onClick={()=>setDraft({})}>Kanselahin</button>
-                <button className="btn b-pri" style={{flex:1}} onClick={save}><Ico n="check" s={15}/>I-save</button>
+                <button className="btn b-out" style={{flex:1}} onClick={()=>setDraft({})}>Cancel</button>
+                <button className="btn b-pri" style={{flex:1}} onClick={save}><Ico n="check" s={15}/>Save</button>
               </div>
             )}
           </div>
@@ -1823,13 +1883,13 @@ function Windows() {
     const {data,error} = await sb.from('windows')
       .insert({name:nw.trim(), sort_order:(wins.length+1)*10}).select().single()
     if (error) return toast(error.message,'err')
-    setNw(''); setAdding(false); await load(data.id); toast('Naidagdag','ok')
+    setNw(''); setAdding(false); await load(data.id); toast('Added','ok')
   }
   const saveName = async () => {
     const {error} = await sb.from('windows')
       .update({name:name.name, short_name:name.short_name}).eq('id',sel.id)
     if (error) return toast(error.message,'err')
-    await load(sel.id); toast('Na-save','ok')
+    await load(sel.id); toast('Saved','ok')
   }
 
   return (
@@ -1837,8 +1897,8 @@ function Windows() {
       <div style={{width:252,flexShrink:0,background:'#fff',borderRight:'1px solid var(--line)',
                    display:'flex',flexDirection:'column'}}>
         <div style={{padding:'15px 16px',borderBottom:'1px solid var(--line-2)'}}>
-          <div style={{fontWeight:800,fontSize:14.5}}>Mga counter</div>
-          <div style={{fontSize:12,color:'var(--muted)'}}>{wins.length} lahat</div>
+          <div style={{fontWeight:800,fontSize:14.5}}>Counters</div>
+          <div style={{fontSize:12,color:'var(--muted)'}}>{wins.length} total</div>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:5}}>
           {wins.map(w=>(
@@ -1854,36 +1914,36 @@ function Windows() {
         <div style={{padding:10,borderTop:'1px solid var(--line-2)'}}>
           {adding ? (
             <form onSubmit={add} style={{display:'flex',flexDirection:'column',gap:6}}>
-              <input className="inp" style={{fontSize:13}} autoFocus placeholder="Pangalan ng counter"
+              <input className="inp" style={{fontSize:13}} autoFocus placeholder="Counter name"
                 value={nw} onChange={e=>setNw(e.target.value)}/>
               <div style={{display:'flex',gap:5}}>
-                <button className="btn b-pri b-sm" style={{flex:1}}>Idagdag</button>
+                <button className="btn b-pri b-sm" style={{flex:1}}>Add</button>
                 <button type="button" className="btn b-out b-sm b-ico" onClick={()=>setAdding(false)}><Ico n="x" s={14}/></button>
               </div>
             </form>
           ) : (
-            <button className="btn b-pri b-full b-sm" onClick={()=>setAdding(true)}><Ico n="plus" s={14}/>Bagong counter</button>
+            <button className="btn b-pri b-full b-sm" onClick={()=>setAdding(true)}><Ico n="plus" s={14}/>New counter</button>
           )}
         </div>
       </div>
 
       <div style={{flex:1,overflowY:'auto',padding:24}}>
-        {!sel ? <div className="empty" style={{paddingTop:80}}><div className="empty-t">Pumili ng counter</div></div> : (
+        {!sel ? <div className="empty" style={{paddingTop:80}}><div className="empty-t">Choose a counter</div></div> : (
           <div style={{maxWidth:620,display:'flex',flexDirection:'column',gap:13}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
               <div>
                 <h2 className="h1" style={{fontSize:18}}>{sel.name}</h2>
-                <p className="sub">Lalabas sa TV bilang <b>{sel.short_name || sel.name}</b></p>
+                <p className="sub">Shown on the TV as <b>{sel.short_name || sel.name}</b></p>
               </div>
               <div style={{display:'flex',gap:7}}>
                 <button className="btn b-out b-sm" onClick={async()=>{
                   await sb.from('windows').update({is_active:!sel.is_active}).eq('id',sel.id); load(sel.id)
-                }}>{sel.is_active?'I-off':'I-on'}</button>
+                }}>{sel.is_active?'Turn off':'Turn on'}</button>
                 <button className="btn b-out b-sm" style={{color:'var(--red)'}} onClick={async()=>{
-                  if(!confirm(`Burahin ang "${sel.name}"?`))return
+                  if(!confirm(`Delete "${sel.name}"?`))return
                   const {error} = await sb.from('windows').delete().eq('id',sel.id)
-                  if (error) return toast('Hindi mabura — may ticket na naka-ugnay.','err')
-                  setSel(null); load(); toast('Nabura','ok')
+                  if (error) return toast('Cannot delete — a ticket still references it.','err')
+                  setSel(null); load(); toast('Deleted','ok')
                 }}><Ico n="trash" s={14}/></button>
               </div>
             </div>
@@ -1891,24 +1951,24 @@ function Windows() {
             <div className="card" style={{padding:17}}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
                 <div>
-                  <label className="lbl">Buong pangalan</label>
+                  <label className="lbl">Full name</label>
                   <input className="inp" value={name?.name ?? sel.name}
                     onChange={e=>setName(n=>({name:e.target.value, short_name:n?.short_name ?? sel.short_name ?? ''}))}/>
                 </div>
                 <div>
-                  <label className="lbl">Maikling pangalan (TV)</label>
+                  <label className="lbl">Short name (TV)</label>
                   <input className="inp" value={name?.short_name ?? sel.short_name ?? ''}
                     onChange={e=>setName(n=>({name:n?.name ?? sel.name, short_name:e.target.value}))}
-                    placeholder="Hal. Lab 1"/>
+                    placeholder="e.g. Lab 1"/>
                 </div>
               </div>
               {name && <button className="btn b-pri b-sm" style={{marginTop:12}} onClick={saveName}>
-                <Ico n="check" s={14}/>I-save ang pangalan</button>}
+                <Ico n="check" s={14}/>Save name</button>}
             </div>
 
             <div className="card">
-              <div className="card-h"><span className="card-t">Mga serbisyong hawak</span>
-                <span style={{fontSize:12,color:'var(--muted)'}}>{mySvc.length} napili</span></div>
+              <div className="card-h"><span className="card-t">Services handled here</span>
+                <span style={{fontSize:12,color:'var(--muted)'}}>{mySvc.length} selected</span></div>
               <div style={{padding:7,maxHeight:250,overflowY:'auto'}}>
                 {svcs.map(s=>(
                   <label key={s.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
@@ -1925,8 +1985,8 @@ function Windows() {
             </div>
 
             <div className="card">
-              <div className="card-h"><span className="card-t">Mga staff na pwede rito</span>
-                <span style={{fontSize:12,color:'var(--muted)'}}>{myStaff.length} napili</span></div>
+              <div className="card-h"><span className="card-t">Staff allowed here</span>
+                <span style={{fontSize:12,color:'var(--muted)'}}>{myStaff.length} selected</span></div>
               <div style={{padding:7,maxHeight:250,overflowY:'auto'}}>
                 {staff.map(p=>(
                   <label key={p.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
@@ -1993,7 +2053,7 @@ function Displays() {
     const {data,error} = await sb.from('displays')
       .insert({slug, name:nw.name.trim(), sort_order:(list.length+1)*10}).select().single()
     if (error) return toast(error.message,'err')
-    setNw({slug:'',name:''}); setAdding(false); await load(data.id); toast('Naidagdag','ok')
+    setNw({slug:'',name:''}); setAdding(false); await load(data.id); toast('Added','ok')
   }
   const url = s => `${location.origin}${location.pathname}?tv=${s}`
 
@@ -2002,8 +2062,8 @@ function Displays() {
       <div style={{width:252,flexShrink:0,background:'#fff',borderRight:'1px solid var(--line)',
                    display:'flex',flexDirection:'column'}}>
         <div style={{padding:'15px 16px',borderBottom:'1px solid var(--line-2)'}}>
-          <div style={{fontWeight:800,fontSize:14.5}}>Mga TV</div>
-          <div style={{fontSize:12,color:'var(--muted)'}}>Isang link bawat departamento</div>
+          <div style={{fontWeight:800,fontSize:14.5}}>TV displays</div>
+          <div style={{fontSize:12,color:'var(--muted)'}}>One link per department</div>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:5}}>
           {list.map(d=>(
@@ -2019,55 +2079,55 @@ function Displays() {
         <div style={{padding:10,borderTop:'1px solid var(--line-2)'}}>
           {adding ? (
             <form onSubmit={add} style={{display:'flex',flexDirection:'column',gap:6}}>
-              <input className="inp" style={{fontSize:13}} autoFocus placeholder="Pangalan"
+              <input className="inp" style={{fontSize:13}} autoFocus placeholder="Name"
                 value={nw.name} onChange={e=>setNw(n=>({...n,name:e.target.value}))}/>
-              <input className="inp" style={{fontSize:13}} placeholder="slug (hal. lab)"
+              <input className="inp" style={{fontSize:13}} placeholder="slug (e.g. lab)"
                 value={nw.slug} onChange={e=>setNw(n=>({...n,slug:e.target.value}))}/>
               <div style={{display:'flex',gap:5}}>
-                <button className="btn b-pri b-sm" style={{flex:1}}>Idagdag</button>
+                <button className="btn b-pri b-sm" style={{flex:1}}>Add</button>
                 <button type="button" className="btn b-out b-sm b-ico" onClick={()=>setAdding(false)}><Ico n="x" s={14}/></button>
               </div>
             </form>
           ) : (
-            <button className="btn b-pri b-full b-sm" onClick={()=>setAdding(true)}><Ico n="plus" s={14}/>Bagong TV</button>
+            <button className="btn b-pri b-full b-sm" onClick={()=>setAdding(true)}><Ico n="plus" s={14}/>New TV</button>
           )}
         </div>
       </div>
 
       <div style={{flex:1,overflowY:'auto',padding:24}}>
-        {!sel ? <div className="empty" style={{paddingTop:80}}><div className="empty-t">Pumili ng TV</div></div> : (
+        {!sel ? <div className="empty" style={{paddingTop:80}}><div className="empty-t">Choose a TV</div></div> : (
           <div style={{maxWidth:620,display:'flex',flexDirection:'column',gap:13}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
               <div>
                 <h2 className="h1" style={{fontSize:18}}>{sel.name}</h2>
-                <p className="sub">Buksan ang link na ito sa TV ng departamentong ito.</p>
+                <p className="sub">Open this link on that department’s TV.</p>
               </div>
               <button className="btn b-out b-sm" style={{color:'var(--red)'}} onClick={async()=>{
-                if(!confirm(`Burahin ang "${sel.name}"?`))return
-                await sb.from('displays').delete().eq('id',sel.id); setSel(null); load(); toast('Nabura','ok')
+                if(!confirm(`Delete "${sel.name}"?`))return
+                await sb.from('displays').delete().eq('id',sel.id); setSel(null); load(); toast('Deleted','ok')
               }}><Ico n="trash" s={14}/></button>
             </div>
 
             <div className="card" style={{padding:17}}>
-              <label className="lbl">Link ng TV</label>
+              <label className="lbl">TV link</label>
               <div style={{display:'flex',gap:8}}>
                 <code style={{flex:1,background:'var(--paper)',border:'1px solid var(--line)',borderRadius:9,
                   padding:'9px 12px',fontSize:12.5,color:'var(--indigo)',fontWeight:600,overflow:'hidden',
                   textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{url(sel.slug)}</code>
                 <button className="btn b-out b-sm" onClick={()=>{
-                  navigator.clipboard?.writeText(url(sel.slug)); toast('Nakopya ang link','ok')
-                }}>Kopyahin</button>
+                  navigator.clipboard?.writeText(url(sel.slug)); toast('Link copied','ok')
+                }}>Copy</button>
                 <button className="btn b-pri b-sm" onClick={()=>window.open('?tv='+sel.slug,'_blank')}>
-                  <Ico n="tv" s={14}/>Buksan</button>
+                  <Ico n="tv" s={14}/>Open</button>
               </div>
             </div>
 
             <div className="card" style={{padding:'14px 17px',display:'flex',alignItems:'center',
               justifyContent:'space-between',gap:14}}>
               <div>
-                <div style={{fontWeight:600,fontSize:13.5}}>Ipakita lahat ng counter</div>
+                <div style={{fontWeight:600,fontSize:13.5}}>Show every counter</div>
                 <div style={{fontSize:12.5,color:'var(--muted)',marginTop:1}}>
-                  Para sa lobby. Kapag patay, piliin sa ibaba kung alin lang ang lalabas.</div>
+                  For the main lobby. When off, pick below which counters appear.</div>
               </div>
               <button className={'sw '+(sel.show_all_windows?'on':'')} onClick={async()=>{
                 await sb.from('displays').update({show_all_windows:!sel.show_all_windows}).eq('id',sel.id)
@@ -2077,8 +2137,8 @@ function Displays() {
 
             {!sel.show_all_windows && (
               <div className="card">
-                <div className="card-h"><span className="card-t">Mga counter sa TV na ito</span>
-                  <span style={{fontSize:12,color:'var(--muted)'}}>{mine.length} napili</span></div>
+                <div className="card-h"><span className="card-t">Counters on this TV</span>
+                  <span style={{fontSize:12,color:'var(--muted)'}}>{mine.length} selected</span></div>
                 <div style={{padding:7,maxHeight:340,overflowY:'auto'}}>
                   {wins.map(w=>(
                     <label key={w.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
@@ -2122,7 +2182,7 @@ function Team({me}) {
   const setRole = async (id,role) => {
     const {error} = await sb.from('profiles').update({role}).eq('id',id)
     if (error) return toast(error.message,'err')
-    load(); toast('Na-update ang role','ok')
+    load(); toast('Role updated','ok')
   }
   const toggleActive = async p => {
     const {error} = await sb.from('profiles').update({is_active:!p.is_active}).eq('id',p.id)
@@ -2135,17 +2195,17 @@ function Team({me}) {
   return (
     <>
       <div className="head"><h1 className="h1">Team</h1>
-        <p className="sub">{list.length} account · bagong account ay ginagawa sa Supabase Auth, tapos i-set ang role dito</p></div>
+        <p className="sub">{list.length} accounts · create accounts in Supabase Auth, then set the role here</p></div>
       <div className="wrap">
         <div style={{position:'relative',maxWidth:300,marginBottom:13}}>
           <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--faint)'}}>
             <Ico n="search" s={14}/></span>
           <input className="inp" style={{paddingLeft:31}} value={q} onChange={e=>setQ(e.target.value)}
-                 placeholder="Hanapin ang staff…"/>
+                 placeholder="Search staff…"/>
         </div>
         <div className="card" style={{overflow:'hidden'}}>
           <table className="tb">
-            <thead><tr><th>Pangalan</th><th>Role</th><th>Kalagayan</th><th>Counter ngayon</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Role</th><th>Status</th><th>At a counter</th><th></th></tr></thead>
             <tbody>
               {shown.map(p=>{
                 const s = online[p.id]
@@ -2153,7 +2213,7 @@ function Team({me}) {
                   <tr key={p.id}>
                     <td><span style={{display:'inline-flex',alignItems:'center',gap:9}}>
                       <span className="pip" style={{width:29,height:29,fontSize:10.5}}>{initials(p.full_name)}</span>
-                      <b>{p.full_name||'—'}</b>{p.id===me.id && <span style={{color:'var(--faint)',fontSize:12}}>(ikaw)</span>}
+                      <b>{p.full_name||'—'}</b>{p.id===me.id && <span style={{color:'var(--faint)',fontSize:12}}>(you)</span>}
                     </span></td>
                     <td>
                       <select className="inp" style={{padding:'4px 9px',fontSize:12.5,width:'auto'}}
@@ -2164,17 +2224,17 @@ function Team({me}) {
                         <option value="admin">Admin</option>
                       </select>
                     </td>
-                    <td>{p.is_active ? <span className="tag t-serv">Aktibo</span> : <span className="tag t-skip">Hindi aktibo</span>}</td>
+                    <td>{p.is_active ? <span className="tag t-serv">Active</span> : <span className="tag t-skip">Inactive</span>}</td>
                     <td style={{color:'var(--muted)',fontSize:13}}>
                       {s?.is_online
                         ? <span style={{display:'inline-flex',alignItems:'center',gap:6}}>
-                            <span className="dot" style={{width:6,height:6}}/>{s.windows?.name||'naka-online'}</span>
+                            <span className="dot" style={{width:6,height:6}}/>{s.windows?.name||'signed in'}</span>
                         : <span style={{color:'var(--faint)'}}>offline</span>}
                     </td>
                     <td style={{textAlign:'right'}}>
                       {p.id!==me.id && (
                         <button className="btn b-out b-sm" onClick={()=>toggleActive(p)}>
-                          {p.is_active?'I-off':'I-on'}</button>
+                          {p.is_active?'Turn off':'Turn on'}</button>
                       )}
                     </td>
                   </tr>
@@ -2209,52 +2269,52 @@ function Settings() {
     }).eq('id',1)
     if (error) return toast(error.message,'err')
     const {data} = await sb.from('settings').select('*').eq('id',1).maybeSingle()
-    setS(data); setD({}); toast('Na-save','ok')
+    setS(data); setD({}); toast('Saved','ok')
   }
   if (!s) return <div className="mid"><div className="spin d"/></div>
 
   return (
     <>
-      <div className="head"><h1 className="h1">Mga setting</h1>
-        <p className="sub">Nag-aaply sa lahat ng kiosk, TV at counter.</p></div>
+      <div className="head"><h1 className="h1">Settings</h1>
+        <p className="sub">These apply to every kiosk, TV and counter.</p></div>
       <div className="wrap" style={{maxWidth:640}}>
         <div className="card" style={{padding:17,marginBottom:13}}>
           <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12}}>
-            <div><label className="lbl">Pangalan ng ospital</label>
+            <div><label className="lbl">Hospital name</label>
               <input className="inp" value={v('hospital_name')||''} onChange={e=>set('hospital_name',e.target.value)}/></div>
-            <div><label className="lbl">Maikli</label>
+            <div><label className="lbl">Short name</label>
               <input className="inp" value={v('short_name')||''} onChange={e=>set('short_name',e.target.value)}/></div>
           </div>
           <div style={{marginTop:13}}>
-            <label className="lbl">Paalala sa ticket ng kiosk</label>
+            <label className="lbl">Note printed on kiosk tickets</label>
             <input className="inp" value={v('kiosk_note')||''} onChange={e=>set('kiosk_note',e.target.value)}/>
           </div>
         </div>
 
         <div className="card" style={{marginBottom:13}}>
-          <div className="card-h"><span className="card-t">Tawag sa TV</span></div>
+          <div className="card-h"><span className="card-t">TV announcements</span></div>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,padding:'13px 17px'}}>
-            <div><div style={{fontWeight:600,fontSize:13.5}}>Boses sa TV</div>
-              <div style={{fontSize:12.5,color:'var(--muted)'}}>Binabasa ang numero at counter.</div></div>
+            <div><div style={{fontWeight:600,fontSize:13.5}}>Voice on the TV</div>
+              <div style={{fontSize:12.5,color:'var(--muted)'}}>Reads out the number and the counter.</div></div>
             <button className={'sw '+(v('voice_enabled')?'on':'')}
               onClick={()=>set('voice_enabled',!v('voice_enabled'))}><i/></button>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,padding:'0 17px 15px'}}>
-            <div><label className="lbl">Ilang ulit babasahin</label>
+            <div><label className="lbl">How many times to read it</label>
               <input className="inp" type="number" min="1" max="4" value={v('announce_repeat')}
                 onChange={e=>set('announce_repeat',e.target.value)}/></div>
-            <div><label className="lbl">Gaano katagal mananatili (segundo)</label>
+            <div><label className="lbl">How long it stays up (seconds)</label>
               <input className="inp" type="number" min="5" max="300" value={v('keep_on_tv_secs')}
                 onChange={e=>set('keep_on_tv_secs',e.target.value)}/>
               <div style={{fontSize:11.5,color:'var(--faint)',marginTop:4}}>
-                Pagkatapos i-tapos, ganito katagal pa makikita sa TV.</div></div>
+                After a queue is completed, it stays on the TV this long.</div></div>
           </div>
         </div>
 
         {dirty && (
           <div style={{display:'flex',gap:8,marginTop:13}}>
-            <button className="btn b-out" style={{flex:1}} onClick={()=>setD({})}>Kanselahin</button>
-            <button className="btn b-pri" style={{flex:1}} onClick={save}><Ico n="check" s={15}/>I-save</button>
+            <button className="btn b-out" style={{flex:1}} onClick={()=>setD({})}>Cancel</button>
+            <button className="btn b-pri" style={{flex:1}} onClick={save}><Ico n="check" s={15}/>Save</button>
           </div>
         )}
       </div>
@@ -2281,25 +2341,25 @@ function Reports() {
     const t = data||[]
     if (kind==='log') {
       setRows(t.map(x=>({
-        Numero:x.number, Serbisyo:x.services?.name||'—', Counter:x.windows?.name||'—',
-        Kalagayan:STATUS[x.status]?.[0]||x.status,
-        Hakbang:x.journey_step, Dumating:hhmm(x.sort_at), Tinawag:hhmm(x.called_at), Tapos:hhmm(x.completed_at),
+        Number:x.number, Service:x.services?.name||'—', Counter:x.windows?.name||'—',
+        Status:STATUS[x.status]?.[0]||x.status,
+        Step:x.journey_step, Queued:hhmm(x.sort_at), Called:hhmm(x.called_at), Completed:hhmm(x.completed_at),
       })))
     } else {
       const m = {}
       t.forEach(x=>{
         const n = x.services?.name||'—'
-        m[n] = m[n] || {Serbisyo:n, Lahat:0, Natapos:0, Nilaktawan:0, _w:[], _s:[]}
-        m[n].Lahat++
-        if (x.status==='done') m[n].Natapos++
-        if (x.status==='skipped') m[n].Nilaktawan++
+        m[n] = m[n] || {Service:n, Total:0, Completed:0, Skipped:0, _w:[], _s:[]}
+        m[n].Total++
+        if (x.status==='done') m[n].Completed++
+        if (x.status==='skipped') m[n].Skipped++
         if (x.called_at) m[n]._w.push(new Date(x.called_at)-new Date(x.sort_at))
         if (x.completed_at&&x.called_at) m[n]._s.push(new Date(x.completed_at)-new Date(x.called_at))
       })
       const avg = a => a.length ? Math.round(a.reduce((s,v)=>s+v,0)/a.length/60000)+' min' : '—'
       setRows(Object.values(m).map(r=>({
-        Serbisyo:r.Serbisyo, Lahat:r.Lahat, Natapos:r.Natapos, Nilaktawan:r.Nilaktawan,
-        'Katamtamang hintay':avg(r._w), 'Katamtamang serbisyo':avg(r._s),
+        Service:r.Service, Total:r.Total, Completed:r.Completed, Skipped:r.Skipped,
+        'Avg. wait':avg(r._w), 'Avg. serve':avg(r._s),
       })).sort((a,b)=>b.Lahat-a.Lahat))
     }
     setBusy(false)
@@ -2316,36 +2376,36 @@ function Reports() {
 
   return (
     <>
-      <div className="head"><h1 className="h1">Mga ulat</h1>
-        <p className="sub">Pumili ng petsa, tapos i-export kung kailangan.</p></div>
+      <div className="head"><h1 className="h1">Reports</h1>
+        <p className="sub">Pick a date range, then export if you need to.</p></div>
       <div className="wrap">
         <div className="card" style={{padding:15,display:'flex',gap:11,flexWrap:'wrap',alignItems:'flex-end'}}>
-          <div><label className="lbl">Uri</label>
+          <div><label className="lbl">Report</label>
             <select className="inp" style={{width:190}} value={kind} onChange={e=>setKind(e.target.value)}>
-              <option value="summary">Buod bawat serbisyo</option>
-              <option value="log">Listahan ng ticket</option>
+              <option value="summary">Summary by service</option>
+              <option value="log">Ticket list</option>
             </select></div>
-          <div><label className="lbl">Mula</label>
+          <div><label className="lbl">From</label>
             <input className="inp" type="date" style={{width:160}} value={from} onChange={e=>setFrom(e.target.value)}/></div>
-          <div><label className="lbl">Hanggang</label>
+          <div><label className="lbl">To</label>
             <input className="inp" type="date" style={{width:160}} value={to} onChange={e=>setTo(e.target.value)}/></div>
           <button className="btn b-pri" onClick={run} disabled={busy}>
-            {busy?<div className="spin"/>:<><Ico n="chart" s={15}/>Buuin</>}</button>
+            {busy?<div className="spin"/>:<><Ico n="chart" s={15}/>Generate</>}</button>
           {rows?.length>0 && <button className="btn b-out" onClick={csv}><Ico n="dl" s={15}/>CSV</button>}
         </div>
 
         {rows && (
           <div className="card" style={{marginTop:13,overflow:'hidden'}}>
-            <div className="card-h"><span className="card-t">{rows.length} tala</span></div>
+            <div className="card-h"><span className="card-t">{rows.length} rows</span></div>
             <div style={{overflowX:'auto',maxHeight:470,overflowY:'auto'}}>
               {rows.length===0
-                ? <div className="empty" style={{padding:36}}><div className="empty-t">Walang nakita</div>
-                    <div>Subukan ang ibang petsa.</div></div>
+                ? <div className="empty" style={{padding:36}}><div className="empty-t">Nothing found</div>
+                    <div>Try a different date range.</div></div>
                 : <table className="tb">
                     <thead><tr>{Object.keys(rows[0]).map(h=><th key={h}>{h}</th>)}</tr></thead>
                     <tbody>{rows.map((r,i)=>(
                       <tr key={i}>{Object.entries(r).map(([k,val])=>
-                        <td key={k} className={k==='Numero'?'num':''}>{String(val??'—')}</td>)}</tr>
+                        <td key={k} className={k==='Number'?'num':''}>{String(val??'—')}</td>)}</tr>
                     ))}</tbody>
                   </table>}
             </div>
@@ -2398,7 +2458,7 @@ function Shell() {
         <nav className="rail-nav">
           {nav('counter','Counter','desk')}
           {auth.isManager && nav('board','Live board','board')}
-          {auth.isManager && nav('reports','Mga ulat','chart')}
+          {auth.isManager && nav('reports','Reports','chart')}
 
           {auth.isManager && <>
             <button className="nav" onClick={()=>setOpen(o=>!o)}
@@ -2407,15 +2467,15 @@ function Shell() {
               <span>SETUP</span><Ico n={open?'down':'right'} s={12}/>
             </button>
             {open && <>
-              {nav('services','Mga serbisyo','board')}
-              {nav('windows','Mga counter','desk')}
-              {nav('displays','Mga TV','tv')}
+              {nav('services','Services','board')}
+              {nav('windows','Counters','desk')}
+              {nav('displays','TV displays','tv')}
               {nav('team','Team','users')}
-              {nav('settings','Mga setting','cog')}
+              {nav('settings','Settings','cog')}
             </>}
           </>}
 
-          <div className="nav-head">BUKSAN</div>
+          <div className="nav-head">OPEN</div>
           <button className="nav" onClick={()=>window.open('?tv=main','_blank')}>
             <Ico n="tv"/><span>TV display</span></button>
           <button className="nav" onClick={()=>window.open('?kiosk=1','_blank')}>
@@ -2428,7 +2488,7 @@ function Shell() {
               <div className="who-n">{me.full_name}</div>
               <div className="who-r">{me.role}</div>
             </div>
-            <button className="btn b-ghost b-ico" onClick={auth.signOut} title="Mag-sign out">
+            <button className="btn b-ghost b-ico" onClick={auth.signOut} title="Sign out">
               <Ico n="out" s={15}/></button>
           </div>
         </div>
