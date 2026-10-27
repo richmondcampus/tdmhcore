@@ -193,54 +193,90 @@ select.inp{cursor:pointer}
 .toast.ok{border-left-color:var(--green-2)} .toast.err{border-left-color:var(--red)}
 
 /* ═══════════ TV DISPLAY ═══════════ */
-.tv{min-height:100vh;background:var(--ink);color:#fff;display:flex;flex-direction:column;
+.tv{height:100vh;background:var(--ink);color:#fff;display:flex;flex-direction:column;overflow:hidden;
     padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tv-h{display:flex;align-items:center;justify-content:space-between;gap:20px;
-      padding:14px 2.2vw;border-bottom:1px solid rgba(255,255,255,.09)}
-.tv-mark{width:46px;height:46px;border-radius:11px;display:grid;place-items:center;
+.tv-h{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0;
+      padding:1.4vh 2vw;background:rgba(0,0,0,.22);border-bottom:1px solid rgba(255,255,255,.08)}
+.tv-mark{width:3.1vw;min-width:40px;aspect-ratio:1;border-radius:11px;display:grid;place-items:center;
          background:linear-gradient(135deg,var(--indigo-2),var(--green));
-         font-family:Archivo;font-weight:900;font-size:21px}
-.tv-name{font-size:clamp(15px,1.5vw,21px);font-weight:800;letter-spacing:-.01em}
-.tv-where{color:#8e91b8;font-size:clamp(11px,1vw,13.5px);margin-top:1px}
-.tv-clock{font-family:Archivo;font-weight:800;font-size:clamp(21px,2.4vw,33px);
-          color:#fff;font-variant-numeric:tabular-nums}
-.tv-date{color:#8e91b8;font-size:clamp(10.5px,.95vw,13px);text-align:right;margin-top:1px}
+         font-family:Archivo;font-weight:900;font-size:1.5vw}
+.tv-name{font-size:clamp(14px,1.45vw,23px);font-weight:800;letter-spacing:-.015em;line-height:1.15}
+.tv-where{color:var(--green-2);font-size:clamp(11px,1.05vw,16px);font-weight:700;margin-top:2px}
+.tv-clock{font-family:Archivo;font-weight:800;font-size:clamp(20px,2.3vw,38px);font-variant-numeric:tabular-nums;line-height:1}
+.tv-date{color:#8e91b8;font-size:clamp(10px,.9vw,14px);text-align:right;margin-top:2px}
 
-/* the call band — the one bold moment on this screen */
-.band{background:linear-gradient(97deg,var(--green) 0%,var(--green-2) 62%,#3dbd72 100%);
-      display:flex;align-items:center;gap:3vw;padding:2vh 2.2vw;overflow:hidden;position:relative}
-.band::after{content:'';position:absolute;inset:0;
-      background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.16) 50%,transparent 70%);
-      animation:sweep 2.1s ease-in-out infinite}
-@keyframes sweep{0%{transform:translateX(-60%)}100%{transform:translateX(60%)}}
-.band-lbl{font-size:clamp(11px,1.05vw,14px);font-weight:700;color:rgba(255,255,255,.82);
-          margin-bottom:.4vh}
-.band-n{font-family:Archivo;font-weight:900;font-size:clamp(46px,8.2vw,124px);line-height:.88;
-        letter-spacing:-.035em}
-.band-to{font-size:clamp(14px,1.9vw,30px);font-weight:700;line-height:1.2}
-.band-to b{display:block;font-size:clamp(19px,2.9vw,46px);font-weight:800;letter-spacing:-.015em}
+.tv-body{flex:1;display:grid;grid-template-columns:44% 1fr;gap:1.4vw;padding:1.4vh 2vw;min-height:0}
 
-/* departures board — rows, not cards */
-.board{flex:1;display:flex;flex-direction:column;padding:1.4vh 2.2vw;gap:.75vh;overflow:hidden}
-.row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2vw;
-     padding:1.25vh 1.8vw;border-radius:12px;background:rgba(255,255,255,.045);
-     border-left:4px solid transparent;transition:background .35s,border-color .35s}
-.row.live{background:rgba(47,168,94,.15);border-left-color:var(--green-2)}
-.row.lit{background:rgba(47,168,94,.3);border-left-color:#fff}
-.row-w{font-size:clamp(14px,1.75vw,27px);font-weight:700;letter-spacing:-.01em}
-.row-s{font-size:clamp(10.5px,.95vw,14px);color:#8e91b8;margin-top:1px}
-.row-n{font-family:Archivo;font-weight:900;font-size:clamp(26px,4.3vw,62px);line-height:1;
-        letter-spacing:-.025em;text-align:right}
-.row-n.idle{color:#3e4168;font-weight:700;font-size:clamp(17px,2vw,30px)}
-.tv-foot{display:flex;align-items:center;gap:1.6vw;padding:1.1vh 2.2vw;
-         background:rgba(0,0,0,.26);border-top:1px solid rgba(255,255,255,.07);
-         font-size:clamp(11px,1.05vw,15px);color:#9ea1c4;overflow:hidden;white-space:nowrap}
-.foot-k{font-weight:700;color:#6e7199;flex-shrink:0}
-.recent{display:flex;gap:1.3vw;overflow:hidden}
-.recent i{font-style:normal;font-family:Archivo;font-weight:700;color:#c7c9e4}
+/* hero — the one bold thing on this screen */
+.hero{border-radius:20px;background:
+      radial-gradient(130% 100% at 0% 0%,rgba(47,168,94,.22) 0%,transparent 60%),rgba(255,255,255,.045);
+      border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;
+      justify-content:center;padding:2vh 2.2vw;position:relative;overflow:hidden;min-height:0}
+.hero.ring{background:
+      radial-gradient(130% 100% at 0% 0%,rgba(47,168,94,.45) 0%,rgba(31,138,76,.16) 60%,transparent 100%),
+      rgba(47,168,94,.12);
+      border-color:var(--green-2);box-shadow:0 0 0 2px var(--green-2),0 0 70px rgba(47,168,94,.42) inset}
+.hero::after{content:'';position:absolute;inset:0;opacity:0;
+      background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.14) 50%,transparent 68%)}
+.hero.ring::after{opacity:1;animation:sweep 2.2s ease-in-out infinite}
+@keyframes sweep{0%{transform:translateX(-62%)}100%{transform:translateX(62%)}}
+.hero-lbl{font-size:clamp(11px,1vw,16px);font-weight:800;letter-spacing:.14em;
+          color:var(--green-2);margin-bottom:.6vh}
+.hero.ring .hero-lbl{color:#eafff2}
+.hero-num{font-family:Archivo;font-weight:900;font-size:clamp(54px,10.5vw,190px);line-height:.84;
+          letter-spacing:-.045em;display:flex;position:relative;z-index:1}
+.hero-num span{display:inline-block;animation:drop .42s cubic-bezier(.2,.9,.25,1) backwards}
+@keyframes drop{from{opacity:0;transform:translateY(-.3em)}to{opacity:1;transform:none}}
+.hero-rule{height:4px;width:clamp(50px,7vw,120px);border-radius:3px;margin:1.6vh 0 1.2vh;
+           background:var(--green-2);position:relative;z-index:1}
+.hero-go{font-size:clamp(12px,1.15vw,19px);color:#a9acd0;font-weight:600;position:relative;z-index:1}
+.hero.ring .hero-go{color:rgba(255,255,255,.8)}
+.hero-win{font-size:clamp(20px,2.7vw,52px);font-weight:800;letter-spacing:-.02em;line-height:1.08;
+          margin-top:.3vh;position:relative;z-index:1}
+.hero-svc{font-size:clamp(11px,1.05vw,17px);color:#8e91b8;margin-top:.8vh;position:relative;z-index:1}
+.hero.ring .hero-svc{color:rgba(255,255,255,.72)}
+.hero-idle{font-size:clamp(17px,2vw,34px);font-weight:800;color:#5a5d85}
+.hero-idle-s{font-size:clamp(11px,1.05vw,17px);color:#43466e;margin-top:.7vh}
+
+/* counter rail */
+.rail-wrap{display:flex;flex-direction:column;min-height:0}
+.rail-head{display:flex;align-items:center;justify-content:space-between;
+           font-size:clamp(10px,.88vw,13px);font-weight:800;letter-spacing:.12em;
+           color:#5a5d85;padding:0 .6vw .9vh}
+.rail-rows{flex:1;display:grid;gap:.7vh;align-content:start;min-height:0;overflow:hidden}
+.rail-rows.two{grid-template-columns:1fr 1fr;gap:.7vh .9vw}
+.crow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:1vw;
+      padding:1.05vh 1.1vw;border-radius:11px;background:rgba(255,255,255,.045);
+      border-left:4px solid transparent;transition:background .4s,border-color .4s;min-width:0}
+.crow.live{background:rgba(47,168,94,.14);border-left-color:var(--green-2)}
+.crow.lit{background:rgba(47,168,94,.3);border-left-color:#fff}
+.crow-w{font-size:clamp(12px,1.25vw,22px);font-weight:700;letter-spacing:-.01em;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow-s{font-size:clamp(9px,.78vw,12.5px);color:#7b7ea8;margin-top:1px;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow-n{font-family:Archivo;font-weight:900;font-size:clamp(17px,2.1vw,40px);line-height:1;
+        letter-spacing:-.025em;text-align:right;white-space:nowrap}
+.crow-n.idle{color:#3a3d63;font-weight:700;font-size:clamp(13px,1.3vw,22px)}
+.pulse{display:inline-block;width:.5em;height:.5em;border-radius:50%;background:var(--green-2);
+       margin-right:.4em;vertical-align:middle;animation:pz 1.6s ease infinite}
+@keyframes pz{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+
+.tv-foot{display:flex;align-items:center;gap:1.4vw;flex-shrink:0;padding:1.1vh 2vw;
+         background:rgba(0,0,0,.3);border-top:1px solid rgba(255,255,255,.07);
+         font-size:clamp(10px,1vw,15px);color:#8e91b8;overflow:hidden;white-space:nowrap}
+.foot-k{font-weight:800;letter-spacing:.1em;color:#5a5d85;flex-shrink:0;font-size:.86em}
+.recent{display:flex;gap:1.1vw;overflow:hidden;flex:1}
+.recent i{font-style:normal;font-family:Archivo;font-weight:800;color:#c7c9e4}
+.waitpill{flex-shrink:0;display:inline-flex;align-items:center;gap:.5em;padding:.35em .9em;
+          border-radius:20px;background:rgba(201,154,46,.16);border:1px solid rgba(201,154,46,.35);
+          color:var(--gold);font-weight:700}
 .unlock{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:50;
         background:var(--indigo-2);color:#fff;padding:11px 22px;border-radius:11px;
         font-size:13.5px;font-weight:600;box-shadow:var(--sh-lg)}
+@media(max-aspect-ratio:1/1){
+  .tv-body{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .rail-rows.two{grid-template-columns:1fr}
+}
 
 /* ═══════════ KIOSK ═══════════ */
 .kio{min-height:100vh;background:var(--ink);color:#fff;display:flex;flex-direction:column;
@@ -481,12 +517,36 @@ function SignIn({onSignIn}) {
 function TV({slug}) {
   const [data,setData]   = useState(null)
   const [now,setNow]     = useState(new Date())
-  const [call,setCall]   = useState(null)   // active announcement
+  const [ring,setRing]   = useState(false)   // hero is flashing a fresh call
+  const [litWin,setLit]  = useState(null)    // which counter row to highlight
   const [live,setLive]   = useState(false)
   const [armed,setArmed] = useState(false)
   const speech = useSpeech()
-  const seen = useRef(new Set())
+  const seen   = useRef(new Set())
+  const audio  = useRef(null)
   const slugRef = useRef(slug)
+
+  /* two-tone chime, the way a real queue board sounds before the voice */
+  const chime = useCallback(()=>{
+    try {
+      if (!audio.current) audio.current = new (window.AudioContext||window.webkitAudioContext)()
+      const ac = audio.current
+      if (ac.state === 'suspended') ac.resume()
+      const gain = ac.createGain()
+      gain.connect(ac.destination)
+      gain.gain.setValueAtTime(0.0001, ac.currentTime)
+      ;[[880,0],[1174.7,0.17]].forEach(([hz,at])=>{
+        const o = ac.createOscillator()
+        o.type = 'sine'; o.frequency.value = hz
+        const g = ac.createGain(); g.connect(gain)
+        g.gain.setValueAtTime(0.0001, ac.currentTime+at)
+        g.gain.exponentialRampToValueAtTime(0.22, ac.currentTime+at+0.02)
+        g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+at+0.42)
+        o.connect(g); o.start(ac.currentTime+at); o.stop(ac.currentTime+at+0.45)
+      })
+      gain.gain.setValueAtTime(1, ac.currentTime)
+    } catch {}
+  },[])
 
   const refresh = useCallback(async ()=>{
     const {data:b, error} = await sb.rpc('board',{p_slug:slugRef.current})
@@ -496,8 +556,7 @@ function TV({slug}) {
   useEffect(()=>{
     refresh()
     const tick = setInterval(()=>setNow(new Date()),1000)
-    // A slow safety net only. Realtime does the real work.
-    const poll = setInterval(refresh, 20000)
+    const poll = setInterval(refresh, 20000)   // safety net only
 
     const ch = sb.channel('tv-'+slug)
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'announcements'}, p=>{
@@ -505,14 +564,15 @@ function TV({slug}) {
         if (!a || seen.current.has(a.id)) return
         seen.current.add(a.id)
         refresh().then(()=>{
-          // Only react if this window is actually on our board
           setData(d=>{
-            const mine = !d || (d.rows||[]).some(r=>r.window_id===a.window_id)
-            if (mine) {
-              setCall(a)
+            const onThisTv = !d || (d.rows||[]).some(r=>r.window_id === a.window_id)
+            if (onThisTv) {
+              setLit(a.window_id); setRing(true)
+              chime()
               const rep = d?.settings?.announce_repeat ?? 2
-              if (d?.settings?.voice_enabled !== false) speech.say(a.number, a.window_name, rep)
-              setTimeout(()=>setCall(c=>c && c.id===a.id ? null : c), 9000)
+              if (d?.settings?.voice_enabled !== false)
+                setTimeout(()=>speech.say(a.number, a.window_name, rep), 620)
+              setTimeout(()=>{ setRing(false); setLit(null) }, 10000)
             }
             return d
           })
@@ -521,36 +581,36 @@ function TV({slug}) {
       .on('postgres_changes',{event:'*',schema:'public',table:'tickets'}, ()=>refresh())
       .subscribe(s=>setLive(s==='SUBSCRIBED'))
 
-    // Fresh board at midnight
     const mid = setInterval(()=>{
       const d = new Date()
       if (d.getHours()===0 && d.getMinutes()===1) location.reload()
     },60000)
 
     return ()=>{ clearInterval(tick); clearInterval(poll); clearInterval(mid); ch.unsubscribe() }
-  },[slug, refresh])
+  },[slug, refresh, chime])
 
-  const arm = () => { speech.unlock(); setArmed(true) }
+  const arm = () => { speech.unlock(); chime(); setArmed(true) }
 
   if (!data) return <div className="tv" style={{display:'grid',placeItems:'center'}}><div className="spin"/></div>
 
-  const rows = data.rows || []
-  const title = data.display?.name || 'Queue Display'
+  const rows  = data.rows || []
+  const last  = data.last_call && data.last_call !== null ? data.last_call : null
+  const twoUp = rows.length > 6
 
   return (
     <div className="tv" onClick={arm}>
       {!armed && <button className="unlock" onClick={arm}>Pindutin para buksan ang tunog</button>}
 
       <div className="tv-h">
-        <div style={{display:'flex',alignItems:'center',gap:13,minWidth:0}}>
+        <div style={{display:'flex',alignItems:'center',gap:'1vw',minWidth:0}}>
           <div className="tv-mark">T</div>
           <div style={{minWidth:0}}>
             <div className="tv-name">{data.settings?.hospital_name || 'Taytay Doctors Multispecialty Hospital'}</div>
-            <div className="tv-where">{title}</div>
+            <div className="tv-where">{data.display?.name || 'Queue Display'}</div>
           </div>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:16,flexShrink:0}}>
-          <div className="dot" style={{opacity:live?1:.3}}/>
+        <div style={{display:'flex',alignItems:'center',gap:'1.2vw',flexShrink:0}}>
+          <span className="dot" style={{opacity:live?1:.25}}/>
           <div>
             <div className="tv-clock">{clock(now)}</div>
             <div className="tv-date">{dateLong(now)}</div>
@@ -558,53 +618,73 @@ function TV({slug}) {
         </div>
       </div>
 
-      {call && (
-        <div className="band">
-          <div style={{position:'relative',zIndex:1}}>
-            <div className="band-lbl">{call.kind==='recall' ? 'TINATAWAG ULIT' : 'TINATAWAG NGAYON'}</div>
-            <div className="band-n">{call.number}</div>
-          </div>
-          <div className="band-to" style={{position:'relative',zIndex:1}}>
-            <span style={{opacity:.82}}>Pumunta po sa</span>
-            <b>{call.window_name}</b>
+      <div className="tv-body">
+        {/* ── hero: the number being called ── */}
+        <div className={'hero '+(ring?'ring':'')}>
+          {last ? (
+            <>
+              <div className="hero-lbl">
+                {ring ? (last.kind==='recall' ? 'TINATAWAG ULIT' : 'TINATAWAG NGAYON') : 'HULING TINAWAG'}
+              </div>
+              <div className="hero-num" key={last.id}
+                   style={{color: ring ? '#fff' : (last.service_color || '#fff')}}>
+                {String(last.number).split('').map((c,i)=>(
+                  <span key={i} style={{animationDelay:(i*55)+'ms'}}>{c}</span>
+                ))}
+              </div>
+              <div className="hero-rule"/>
+              <div className="hero-go">Pumunta po sa</div>
+              <div className="hero-win">{last.window_name}</div>
+              {last.service_name && <div className="hero-svc">{last.service_name}</div>}
+            </>
+          ) : (
+            <div style={{textAlign:'center'}}>
+              <div className="hero-idle">Wala pang tinatawag</div>
+              <div className="hero-idle-s">Maghintay po lamang ng inyong numero.</div>
+            </div>
+          )}
+        </div>
+
+        {/* ── counter rail ── */}
+        <div className="rail-wrap">
+          <div className="rail-head"><span>COUNTER</span><span>NUMERO</span></div>
+          <div className={'rail-rows '+(twoUp?'two':'')}>
+            {rows.length === 0 && (
+              <div style={{color:'#43466e',fontSize:'clamp(12px,1.2vw,18px)',padding:'2vh .6vw'}}>
+                Walang bukas na counter ngayon.
+              </div>
+            )}
+            {rows.map(r=>(
+              <div key={r.window_id}
+                   className={'crow '+(litWin===r.window_id ? 'lit' : r.status==='serving' ? 'live' : '')}>
+                <div style={{minWidth:0}}>
+                  <div className="crow-w">{r.window_name}</div>
+                  <div className="crow-s">{r.service_name || '—'}</div>
+                </div>
+                {r.number
+                  ? <div className="crow-n" style={{color: r.status==='done' ? '#55587f'
+                                                         : (r.service_color || '#fff')}}>
+                      {r.status==='serving' && <span className="pulse"/>}{r.number}
+                    </div>
+                  : <div className="crow-n idle">—</div>}
+              </div>
+            ))}
           </div>
         </div>
-      )}
-
-      <div className="board">
-        {rows.length === 0 && (
-          <div style={{flex:1,display:'grid',placeItems:'center',color:'#4a4d75',textAlign:'center'}}>
-            <div>
-              <div style={{fontSize:'clamp(20px,2.6vw,34px)',fontWeight:800,color:'#6e7199'}}>Walang bukas na counter</div>
-              <div style={{fontSize:'clamp(12px,1.2vw,17px)',marginTop:6}}>Maghintay po lamang.</div>
-            </div>
-          </div>
-        )}
-        {rows.map(r=>(
-          <div key={r.window_id}
-               className={'row ' + (call && call.window_id===r.window_id ? 'lit'
-                                   : r.status==='serving' ? 'live' : '')}>
-            <div style={{minWidth:0}}>
-              <div className="row-w">{r.window_name}</div>
-              <div className="row-s">{r.service_name || '—'}</div>
-            </div>
-            {r.number
-              ? <div className="row-n" style={{color: r.status==='done' ? '#5a5d85'
-                                                    : (r.service_color || '#fff')}}>{r.number}</div>
-              : <div className="row-n idle">—</div>}
-          </div>
-        ))}
       </div>
 
       <div className="tv-foot">
-        <span className="foot-k">Katatapos</span>
+        <span className="foot-k">KATATAPOS</span>
         <div className="recent">
           {(data.recent||[]).length === 0
-            ? <span style={{color:'#4a4d75'}}>wala pa</span>
+            ? <span style={{color:'#3a3d63'}}>wala pa</span>
             : data.recent.map((a,i)=>(
-                <span key={i}><i>{a.number}</i> <span style={{opacity:.6}}>{a.window_name}</span></span>
+                <span key={i}><i>{a.number}</i> <span style={{opacity:.55}}>{a.window_name}</span></span>
               ))}
         </div>
+        {data.waiting > 0 && (
+          <span className="waitpill">{data.waiting} naghihintay</span>
+        )}
       </div>
     </div>
   )
