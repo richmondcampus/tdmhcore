@@ -101,6 +101,30 @@ select.inp{cursor:pointer}
       box-shadow:0 1px 3px rgba(0,0,0,.2);transition:.18s}
 .sw.on i{left:20px}
 
+/* ═══ live board ═══ */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:13px}
+.kpi{padding:17px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.kpi-k{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.kpi-v{font-size:32px;line-height:1.12;margin-top:2px;color:var(--text)}
+.kpi-sub{font-size:12px;color:var(--faint);margin-top:3px}
+.kpi-sub b{color:var(--muted);font-weight:600}
+.kpi-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex-shrink:0}
+.two-col{display:grid;grid-template-columns:1.08fr 1fr;gap:13px;margin-top:13px;align-items:start}
+.tally{display:grid;grid-template-columns:repeat(3,1fr)}
+.tally-cell{padding:15px 17px;border-right:1px solid var(--line-2)}
+.tally-cell:last-child{border-right:none}
+.occ{display:flex;align-items:center;justify-content:space-between;gap:12px;
+     padding:11px 12px;border-radius:11px;background:var(--paper);margin-bottom:5px}
+.occ:last-child{margin-bottom:0}
+.occ-w{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.occ-line{font-size:13.5px;margin-top:4px;display:flex;align-items:center;gap:8px;min-width:0}
+.occ-line>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.occ-pip{width:25px;height:25px;font-size:9.5px;background:var(--indigo-wash);color:var(--indigo)}
+.occ-ago{font-size:11.5px;color:var(--faint);margin-top:3px}
+.occ-lbl{font-size:10.5px;font-weight:700;color:var(--faint);letter-spacing:.04em}
+.occ-t{font-size:16px;margin-top:2px}
+@media(max-width:1040px){.two-col{grid-template-columns:1fr}}
+
 /* ═══ tags ═══ */
 .tag{display:inline-flex;align-items:center;gap:4px;padding:2.5px 8px;border-radius:20px;
      font-size:11.5px;font-weight:600;white-space:nowrap}
@@ -143,6 +167,54 @@ select.inp{cursor:pointer}
 .now-acts{padding:13px;background:#fff;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap}
 .kbd{display:inline-block;padding:1px 5px;border:1px solid var(--line);border-bottom-width:2px;
      border-radius:5px;font-size:10.5px;font-weight:700;color:var(--faint);background:#fff;margin-left:5px}
+
+/* ═══ counter detail pane ═══ */
+.ws-bar{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;
+        display:flex;align-items:center;justify-content:space-between;gap:14px;flex-shrink:0}
+.autosw{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;
+        font-weight:600;color:var(--muted);cursor:pointer}
+.detail{flex:1;display:grid;grid-template-columns:1fr 340px;gap:14px;
+        padding:16px 18px;overflow:hidden;min-height:0}
+.detail-mid{overflow-y:auto;display:flex;align-items:flex-start;justify-content:center}
+.detail-side{display:flex;flex-direction:column;gap:11px;overflow:hidden;min-height:0}
+.tkcard{width:100%;max-width:430px;padding:26px 24px;text-align:center}
+.tkcard-k{font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--faint)}
+.tkcard-n{font-size:clamp(48px,7vw,76px);line-height:1;letter-spacing:-.035em;margin:8px 0 0}
+.tkcard-rule{height:1px;background:var(--line-2);margin:20px 0 16px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;text-align:left}
+.kv dt{font-size:12.5px;color:var(--muted)}
+.kv dd{font-size:13.5px;font-weight:600;text-align:right}
+.tknote{margin-top:16px;padding:10px 13px;background:var(--paper);border-radius:10px;
+        font-size:13px;color:var(--muted);text-align:left}
+.tagbox{margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2);text-align:left}
+.sidecard{padding:14px 15px}
+.side-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;color:var(--faint);display:block}
+
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:7px;
+      background:var(--gold-wash);border:1px solid #ecdfbd;color:#7d5e11;
+      font-size:11px;font-weight:700;letter-spacing:.02em}
+.chip-x button{display:inline-flex;color:#a98b3c;padding:0;margin-left:1px}
+.chip-x button:hover{color:#6d4f0c}
+.chip-add{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:600}
+.chip-add:hover{border-color:var(--indigo);color:var(--indigo)}
+
+.path{display:flex;flex-direction:column;gap:2px;margin-top:9px}
+.path-row{display:flex;align-items:center;gap:10px;padding:7px 0}
+.path-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.path-n{font-size:11px;font-weight:700;color:var(--faint)}
+.path-s{font-size:13px;font-weight:700;margin-top:1px}
+.path-t{font-size:11.5px;color:var(--muted);flex-shrink:0}
+
+.tl{margin-top:10px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:3px}
+.tl-row{display:flex;gap:10px}
+.tl-dot{width:7px;height:7px;border-radius:50%;background:var(--indigo);flex-shrink:0;margin-top:5px}
+.tl-a{font-size:12.5px;font-weight:700}
+.tl-m{font-size:11.5px;color:var(--muted);margin-top:1px}
+.tl-d{font-size:11.5px;color:var(--indigo);margin-top:3px;background:var(--indigo-wash);
+      padding:4px 8px;border-radius:7px;display:inline-block}
+.kbd-on{color:rgba(255,255,255,.78);border-color:rgba(255,255,255,.35)}
+@media(max-width:1180px){.detail{grid-template-columns:1fr}.detail-side{display:none}}
 
 /* ═══ empty + misc ═══ */
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 22px;
@@ -775,15 +847,20 @@ function Counter({me}) {
   const [win,setWin]     = useState(null)
   const [waiting,setWaiting] = useState([])
   const [serving,setServing] = useState(null)
-  const [tab,setTab]     = useState('waiting')
   const [done,setDone]   = useState([])
+  const [tab,setTab]     = useState('waiting')
   const [q,setQ]         = useState('')
   const [busy,setBusy]   = useState(false)
-  const [move,setMove]   = useState(null)   // {kind:'service'|'window'}
+  const [move,setMove]   = useState(null)
+  const [adding,setAdding] = useState(false)
+  const [detail,setDetail] = useState(null)   // ticket_detail payload
+  const [auto,setAuto]   = useState(()=>localStorage.getItem('tdmhq-auto')==='1')
   const [, bump]         = useState(0)
   const chRef = useRef(null)
+  const autoRef = useRef(auto)
+  useEffect(()=>{ autoRef.current = auto; localStorage.setItem('tdmhq-auto', auto?'1':'0') },[auto])
 
-  /* windows this person may use */
+  /* counters this person may sit at */
   useEffect(()=>{
     (async ()=>{
       let ids = null
@@ -795,8 +872,7 @@ function Counter({me}) {
       if (ids) qy = ids.length ? qy.in('id',ids) : qy.eq('id','00000000-0000-0000-0000-000000000000')
       const {data:w} = await qy
       setWins(w||[])
-      const saved = localStorage.getItem('tdmhq-window')
-      const pick = (w||[]).find(x=>x.id===saved)
+      const pick = (w||[]).find(x=>x.id===localStorage.getItem('tdmhq-window'))
       if (pick) setWin(pick)
     })()
   },[me.id])
@@ -807,29 +883,31 @@ function Counter({me}) {
     const ids = (svc||[]).map(r=>r.service_id)
     if (!ids.length) { setWaiting([]); setServing(null); setDone([]); return }
     const today = new Date().toISOString().slice(0,10)
-
-    const [w,s,d] = await Promise.all([
-      sb.from('tickets').select('*,services(code,name,color)')
-        .eq('ticket_date',today).in('service_id',ids).in('status',['waiting','held'])
-        .order('sort_at'),
-      sb.from('tickets').select('*,services(code,name,color)')
-        .eq('ticket_date',today).eq('window_id',wid).eq('status','serving').maybeSingle(),
-      sb.from('tickets').select('*,services(code,name,color)')
-        .eq('ticket_date',today).eq('window_id',wid).in('status',['done','skipped'])
-        .order('completed_at',{ascending:false}).limit(40),
+    const cols = '*,services!tickets_service_id_fkey(code,name,color)'
+    const [w,s,dn] = await Promise.all([
+      sb.from('tickets').select(cols).eq('ticket_date',today).in('service_id',ids)
+        .in('status',['waiting','held']).order('sort_at'),
+      sb.from('tickets').select(cols).eq('ticket_date',today).eq('window_id',wid)
+        .eq('status','serving').maybeSingle(),
+      sb.from('tickets').select(cols).eq('ticket_date',today).eq('window_id',wid)
+        .in('status',['done','skipped']).order('completed_at',{ascending:false}).limit(40),
     ])
-    setWaiting(w.data||[]); setServing(s.data||null); setDone(d.data||[])
+    setWaiting(w.data||[]); setServing(s.data||null); setDone(dn.data||[])
   },[])
 
-  /* realtime: any ticket change just re-reads this window's lists */
+  /* detail pane follows whatever is being served */
+  useEffect(()=>{
+    if (!serving) { setDetail(null); return }
+    sb.rpc('ticket_detail',{p_ticket_id:serving.id}).then(({data})=>setDetail(data||null))
+  },[serving?.id, serving?.status, serving?.journey_step, serving?.recall_count])
+
   useEffect(()=>{
     if (!win) return
     localStorage.setItem('tdmhq-window', win.id)
     load(win.id)
     sb.rpc('beat',{p_window_id:win.id})
-    const beat = setInterval(()=>sb.rpc('beat',{p_window_id:win.id}), 60000)
-    const timer = setInterval(()=>bump(n=>n+1), 1000)   // live serving clock
-
+    const beat  = setInterval(()=>sb.rpc('beat',{p_window_id:win.id}), 60000)
+    const timer = setInterval(()=>bump(n=>n+1), 1000)
     chRef.current?.unsubscribe()
     const ch = sb.channel('counter-'+win.id)
       .on('postgres_changes',{event:'*',schema:'public',table:'tickets'},()=>load(win.id))
@@ -837,21 +915,6 @@ function Counter({me}) {
     chRef.current = ch
     return ()=>{ clearInterval(beat); clearInterval(timer); ch.unsubscribe() }
   },[win?.id, load])
-
-  /* keyboard: space = next, r = recall, d = done, h = hold, s = skip */
-  useEffect(()=>{
-    const onKey = e => {
-      if (e.target.matches('input,textarea,select')) return
-      const k = e.key.toLowerCase()
-      if (k===' ')      { e.preventDefault(); next() }
-      else if (k==='r') { if (serving) act('recall') }
-      else if (k==='d') { if (serving) act('done') }
-      else if (k==='h') { if (serving) act('held') }
-      else if (k==='s') { if (serving) act('skipped') }
-    }
-    window.addEventListener('keydown',onKey)
-    return ()=>window.removeEventListener('keydown',onKey)
-  })
 
   const next = async () => {
     if (!win || busy) return
@@ -871,19 +934,34 @@ function Counter({me}) {
     toast('Tinawag: '+t.number,'ok')
   }
 
-  const act = async (what) => {
+  const act = async what => {
     if (!serving || busy) return
     setBusy(true)
-    const fn = what==='recall'
-      ? sb.rpc('recall_ticket',{p_ticket_id:serving.id})
-      : sb.rpc('set_ticket_status',{p_ticket_id:serving.id, p_status:what})
-    const {error} = await fn
+    const {error} = what==='recall'
+      ? await sb.rpc('recall_ticket',{p_ticket_id:serving.id})
+      : await sb.rpc('set_ticket_status',{p_ticket_id:serving.id, p_status:what})
     setBusy(false)
     if (error) return toast(error.message,'err')
-    toast({recall:'Tinawag ulit', done:'Tapos na', held:'Naka-hold', skipped:'Nilaktawan'}[what]||'OK','ok')
+    toast({recall:'Tinawag ulit', done:'Tapos na', held:'Naka-hold', skipped:'Nilaktawan'}[what],'ok')
+    if (what!=='recall' && autoRef.current) setTimeout(next, 700)
   }
 
-  /* ── window picker ── */
+  /* keyboard: space next · R recall · D done · H hold · S skip */
+  useEffect(()=>{
+    const onKey = e => {
+      if (e.target.matches('input,textarea,select') || move || adding) return
+      const k = e.key.toLowerCase()
+      if (k===' ')      { e.preventDefault(); next() }
+      else if (serving && k==='r') act('recall')
+      else if (serving && k==='d') act('done')
+      else if (serving && k==='h') act('held')
+      else if (serving && k==='s') act('skipped')
+    }
+    window.addEventListener('keydown',onKey)
+    return ()=>window.removeEventListener('keydown',onKey)
+  })
+
+  /* ── pick a counter ── */
   if (!win) {
     const hour = new Date().getHours()
     return (
@@ -900,8 +978,7 @@ function Counter({me}) {
               <button key={w.id} className="b-out" onClick={()=>setWin(w)}
                 style={{display:'flex',width:'100%',alignItems:'center',justifyContent:'space-between',
                         padding:'13px 15px',borderRadius:11,margin:4,border:'1.5px solid var(--line)'}}>
-                <span style={{fontWeight:600}}>{w.name}</span>
-                <Ico n="right" s={16}/>
+                <span style={{fontWeight:600}}>{w.name}</span><Ico n="right" s={16}/>
               </button>
             ))}
           </div>
@@ -910,13 +987,16 @@ function Counter({me}) {
     )
   }
 
-  const shown = (tab==='waiting' ? waiting : done)
-    .filter(t=>{ const s=q.trim().toLowerCase(); return !s ||
-      t.number.toLowerCase().includes(s) || (t.patient_name||'').toLowerCase().includes(s) })
+  const shown = (tab==='waiting' ? waiting : done).filter(t=>{
+    const s = q.trim().toLowerCase()
+    return !s || t.number.toLowerCase().includes(s)
+      || (t.patient_name||'').toLowerCase().includes(s)
+      || (t.tags||[]).some(g=>g.toLowerCase().includes(s))
+  })
 
   return (
     <div className="ws">
-      {/* ── queue list ── */}
+      {/* ─── queue list ─── */}
       <div className="ws-l">
         <div className="ws-h">
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
@@ -938,7 +1018,7 @@ function Counter({me}) {
             <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'var(--faint)'}}>
               <Ico n="search" s={13}/></span>
             <input className="inp" style={{paddingLeft:30,paddingTop:7,paddingBottom:7,fontSize:13}}
-                   value={q} onChange={e=>setQ(e.target.value)} placeholder="Hanapin ang numero…"/>
+                   value={q} onChange={e=>setQ(e.target.value)} placeholder="Numero, pangalan o tag…"/>
           </div>
         </div>
 
@@ -947,7 +1027,8 @@ function Counter({me}) {
             <div className="empty">
               <div className="empty-i"><Ico n="clock" s={20}/></div>
               <div className="empty-t">{tab==='waiting'?'Walang naghihintay':'Wala pang natapos'}</div>
-              <div style={{fontSize:13}}>{tab==='waiting'?'Lalabas dito ang mga bagong ticket.':'Makikita dito ang mga natapos mo.'}</div>
+              <div style={{fontSize:13}}>{tab==='waiting'
+                ? 'Lalabas dito ang bagong ticket.' : 'Makikita dito ang mga natapos mo.'}</div>
             </div>
           )}
           {shown.map(t=>(
@@ -959,10 +1040,10 @@ function Counter({me}) {
                 {t.status==='held' && <Tag s="held"/>}
               </div>
               {t.patient_name && <div className="tk-m">{t.patient_name}</div>}
-              <div className="tk-m">
-                {tab==='waiting' ? ago(t.sort_at) : hhmm(t.completed_at)}
-                {t.note && ' · ' + t.note}
-              </div>
+              <div className="tk-m">{tab==='waiting' ? ago(t.sort_at) : hhmm(t.completed_at)}</div>
+              {(t.tags||[]).length>0 && (
+                <div className="chips">{t.tags.map(g=><span key={g} className="chip">{g}</span>)}</div>
+              )}
               {tab==='waiting' && (
                 <button className="btn b-out b-sm" style={{marginTop:8,width:'100%'}}
                         onClick={()=>callThis(t)} disabled={busy}>Tawagin ito</button>
@@ -972,38 +1053,106 @@ function Counter({me}) {
         </div>
 
         <div className="ws-f">
+          <button className="btn b-out b-full" onClick={()=>setAdding(true)}>
+            <Ico n="plus" s={15}/>Magdagdag ng queue</button>
           <button className="btn b-pri b-lg b-full" onClick={next} disabled={busy}>
-            {busy ? <div className="spin"/> : <><Ico n="next" s={17}/>Susunod<span className="kbd" style={{color:'rgba(255,255,255,.7)',borderColor:'rgba(255,255,255,.3)'}}>space</span></>}
+            {busy ? <div className="spin"/> : <><Ico n="next" s={17}/>Susunod
+              <span className="kbd kbd-on">space</span></>}
           </button>
         </div>
       </div>
 
-      {/* ── now serving ── */}
+      {/* ─── serving + detail ─── */}
       <div className="ws-r">
-        <div style={{background:'#fff',borderBottom:'1px solid var(--line)',padding:'11px 20px',
-                     display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div className="ws-bar">
           <div style={{fontWeight:700,fontSize:15}}>{win.name}</div>
-          <span className="live"><span className="dot"/>Live</span>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <label className="autosw" title="Pagkatapos mag-Tapos, kusang tatawag ng susunod">
+              <span>Auto-serve</span>
+              <button className={'sw '+(auto?'on':'')} onClick={()=>setAuto(a=>!a)}><i/></button>
+            </label>
+            <span className="live"><span className="dot"/>Live</span>
+          </div>
         </div>
 
         {serving ? (
           <>
-            <div className="now">
-              <div style={{fontSize:12.5,fontWeight:700,color:'var(--faint)',marginBottom:8}}>SINE-SERVE NGAYON</div>
-              <div className="now-n" style={{color:serving.services?.color||'var(--indigo)'}}>{serving.number}</div>
-              <div style={{display:'flex',alignItems:'center',gap:9,marginTop:13,flexWrap:'wrap',justifyContent:'center'}}>
-                <span style={{fontWeight:700,fontSize:15,color:serving.services?.color}}>{serving.services?.name}</span>
-                {serving.journey_step>1 && <span className="tag t-step">Hakbang {serving.journey_step}</span>}
+            <div className="detail">
+              {/* centre: the ticket */}
+              <div className="detail-mid">
+                <div className="card tkcard">
+                  <div className="tkcard-k">QUEUE NUMBER</div>
+                  <div className="num tkcard-n" style={{color:serving.services?.color||'var(--indigo)'}}>
+                    {serving.number}</div>
+                  <div className="tkcard-rule"/>
+                  <dl className="kv">
+                    <dt>Serbisyo</dt>
+                    <dd style={{color:serving.services?.color,fontWeight:700}}>{serving.services?.name}</dd>
+                    {serving.patient_name && <><dt>Pasyente</dt><dd>{serving.patient_name}</dd></>}
+                    <dt>Kinuha</dt><dd>{hhmm(serving.created_at)}</dd>
+                    <dt>Tinawag</dt><dd>{hhmm(serving.called_at)}</dd>
+                    {serving.recall_count>0 && <><dt>Tawag ulit</dt><dd>{serving.recall_count}×</dd></>}
+                    {serving.journey_step>1 && <><dt>Hakbang</dt><dd>Pang-{serving.journey_step}</dd></>}
+                  </dl>
+                  {serving.note && <div className="tknote">{serving.note}</div>}
+                  <TagEditor ticket={serving}
+                    onSaved={()=>toast('Na-update ang tags','ok')}
+                    onError={m=>toast(m,'err')}/>
+                </div>
               </div>
-              {serving.patient_name && <div style={{marginTop:9,fontSize:15}}>{serving.patient_name}</div>}
-              {serving.note && <div style={{marginTop:6,color:'var(--muted)',fontSize:13.5,maxWidth:480}}>{serving.note}</div>}
-              <div style={{display:'flex',gap:22,marginTop:22,color:'var(--muted)',fontSize:13}}>
-                <div><div style={{fontSize:11.5,color:'var(--faint)',fontWeight:700}}>TAGAL</div>
-                  <div className="num" style={{fontSize:19,color:'var(--green)'}}>{mmss(serving.called_at)}</div></div>
-                <div><div style={{fontSize:11.5,color:'var(--faint)',fontWeight:700}}>TINAWAG</div>
-                  <div style={{fontSize:14,marginTop:3}}>{hhmm(serving.called_at)}</div></div>
-                {serving.recall_count>0 && <div><div style={{fontSize:11.5,color:'var(--faint)',fontWeight:700}}>ULIT</div>
-                  <div style={{fontSize:14,marginTop:3}}>{serving.recall_count}×</div></div>}
+
+              {/* right: time, journey, log */}
+              <div className="detail-side">
+                <div className="card sidecard" style={{display:'flex',alignItems:'center',
+                     justifyContent:'space-between',gap:10}}>
+                  <span className="side-k" style={{color:'var(--green)'}}>TAGAL NG SERBISYO</span>
+                  <span className="num" style={{fontSize:19,color:'var(--green)'}}>{mmss(serving.called_at)}</span>
+                </div>
+
+                {detail && (detail.path||[]).length>1 && (
+                  <div className="card sidecard">
+                    <div className="side-k">DINAANAN NG PASYENTE</div>
+                    <div className="path">
+                      {detail.path.map((p,i)=>{
+                        const last = i===detail.path.length-1
+                        return (
+                          <div key={i} className="path-row">
+                            <span className="path-dot" style={{background:last?'var(--indigo)':'var(--green)'}}/>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div className="path-n">Hakbang {i+1}</div>
+                              <div className="path-s" style={{color:p.service_color}}>{p.service_name}</div>
+                            </div>
+                            <span className="path-t">{last?'Narito ngayon':'Tapos'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="card sidecard" style={{flex:1,minHeight:0,display:'flex',flexDirection:'column'}}>
+                  <div className="side-k">TIMELINE</div>
+                  <div className="tl">
+                    {(detail?.events||[]).length===0 && (
+                      <div style={{fontSize:12.5,color:'var(--faint)'}}>Wala pang nakatala.</div>
+                    )}
+                    {(detail?.events||[]).map((e,i)=>(
+                      <div key={i} className="tl-row">
+                        <span className="tl-dot"/>
+                        <div style={{minWidth:0}}>
+                          <div className="tl-a">{EVENT[e.action] || e.action}</div>
+                          <div className="tl-m">
+                            {hhmm(e.created_at)}
+                            {e.window_name  && ' · ' + e.window_name}
+                            {e.service_name && ' · ' + e.service_name}
+                          </div>
+                          {e.actor_name && <div className="tl-m">ni {e.actor_name}</div>}
+                          {e.detail && <div className="tl-d">{e.detail}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1018,7 +1167,7 @@ function Counter({me}) {
                 <Ico n="route" s={15}/>Ipasa sa ibang dept</button>
               <div style={{flex:1}}/>
               <button className="btn b-go b-lg" onClick={()=>act('done')} disabled={busy}>
-                <Ico n="check" s={17}/>Tapos na<span className="kbd" style={{color:'rgba(255,255,255,.75)',borderColor:'rgba(255,255,255,.35)'}}>D</span></button>
+                <Ico n="check" s={17}/>Tapos na<span className="kbd kbd-on">D</span></button>
             </div>
           </>
         ) : (
@@ -1034,9 +1183,159 @@ function Counter({me}) {
 
       {move && serving && (
         <MoveModal ticket={serving} kind={move.kind} windowId={win.id}
-          onClose={()=>setMove(null)}
-          onDone={msg=>{ setMove(null); toast(msg,'ok') }}/>
+          onClose={()=>setMove(null)} onDone={m=>{ setMove(null); toast(m,'ok') }}/>
       )}
+      {adding && (
+        <AddQueue windowId={win.id} onClose={()=>setAdding(false)}
+          onDone={n=>{ setAdding(false); toast('Naidagdag: '+n,'ok') }}/>
+      )}
+    </div>
+  )
+}
+
+const EVENT = {
+  issue:'Kumuha ng numero', call:'Tinawag', recall:'Tinawag ulit',
+  done:'Natapos', held:'Inihold', skipped:'Nilaktawan', cancelled:'Kinansela',
+  waiting:'Ibinalik sa pila', move_service:'Ipinasa sa ibang departamento',
+  move_window:'Inilipat ng counter', tags:'Binago ang tags',
+}
+
+/* ─── tags on the serving ticket ─── */
+function TagEditor({ticket, onSaved, onError}) {
+  const [tags,setTags] = useState(ticket.tags||[])
+  const [open,setOpen] = useState(false)
+  const [draft,setDraft] = useState('')
+  useEffect(()=>{ setTags(ticket.tags||[]); setOpen(false) },[ticket.id])
+
+  const save = async next => {
+    setTags(next)
+    const {error} = await sb.rpc('set_ticket_tags',{p_ticket_id:ticket.id, p_tags:next})
+    if (error) { onError(error.message); setTags(ticket.tags||[]) } else onSaved()
+  }
+  const add = e => {
+    e.preventDefault()
+    const v = draft.trim().toUpperCase()
+    if (!v || tags.includes(v)) { setDraft(''); return }
+    save([...tags, v]); setDraft(''); setOpen(false)
+  }
+  return (
+    <div className="tagbox">
+      <div className="side-k" style={{marginBottom:7}}>TAGS</div>
+      <div className="chips">
+        {tags.map(g=>(
+          <span key={g} className="chip chip-x">{g}
+            <button onClick={()=>save(tags.filter(x=>x!==g))} aria-label={'Alisin ang '+g}>
+              <Ico n="x" s={11}/></button>
+          </span>
+        ))}
+        {open ? (
+          <form onSubmit={add} style={{display:'inline-flex',gap:5}}>
+            <input className="inp" autoFocus value={draft} onChange={e=>setDraft(e.target.value)}
+                   onBlur={()=>!draft && setOpen(false)}
+                   style={{width:180,padding:'4px 9px',fontSize:12}} placeholder="hal. DR. DELA PAZ"/>
+          </form>
+        ) : (
+          <button className="chip chip-add" onClick={()=>setOpen(true)}>
+            <Ico n="plus" s={11}/>Magdagdag</button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── add a walk-in queue from the counter ─── */
+function AddQueue({windowId, onClose, onDone}) {
+  const [svcs,setSvcs] = useState([])
+  const [svc,setSvc]   = useState('')
+  const [name,setName] = useState('')
+  const [note,setNote] = useState('')
+  const [tags,setTags] = useState([])
+  const [draft,setDraft] = useState('')
+  const [busy,setBusy] = useState(false)
+  const [err,setErr]   = useState('')
+
+  useEffect(()=>{
+    sb.from('window_services').select('services!inner(id,code,name,name_fil,color)')
+      .eq('window_id',windowId)
+      .then(({data})=>{
+        const list = (data||[]).map(r=>r.services).filter(Boolean)
+        setSvcs(list)
+        if (list.length===1) setSvc(list[0].id)
+      })
+  },[windowId])
+
+  const addTag = e => {
+    e.preventDefault()
+    const v = draft.trim().toUpperCase()
+    if (v && !tags.includes(v)) setTags(t=>[...t,v])
+    setDraft('')
+  }
+  const go = async e => {
+    e.preventDefault()
+    if (!svc) { setErr('Pumili muna ng serbisyo.'); return }
+    setBusy(true); setErr('')
+    const {data,error} = await sb.rpc('issue_ticket',{
+      p_service_id:svc, p_patient_name:name||null, p_tags:tags, p_note:note||null
+    })
+    setBusy(false)
+    if (error) return setErr(error.message)
+    onDone(data.number)
+  }
+
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="md" onClick={e=>e.stopPropagation()}>
+        <div className="md-h">
+          <div>
+            <div className="md-t">Magdagdag ng queue</div>
+            <div className="md-s">Para sa walk-in na hindi dumaan sa kiosk.</div>
+          </div>
+          <button className="btn b-ghost b-ico" onClick={onClose}><Ico n="x" s={17}/></button>
+        </div>
+        <form onSubmit={go} className="md-b">
+          <div style={{display:'flex',flexDirection:'column',gap:13}}>
+            <div>
+              <label className="lbl">Serbisyo</label>
+              <select className="inp" value={svc} onChange={e=>setSvc(e.target.value)} required>
+                <option value="">Pumili ng serbisyo</option>
+                {svcs.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="lbl">Pangalan ng pasyente <span style={{fontWeight:500,color:'var(--faint)'}}>(opsyonal)</span></label>
+              <input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Hal. Maria Santos"/>
+            </div>
+            <div>
+              <label className="lbl">Paalala <span style={{fontWeight:500,color:'var(--faint)'}}>(opsyonal)</span></label>
+              <input className="inp" value={note} onChange={e=>setNote(e.target.value)} placeholder="Hal. para sa CBC at urinalysis"/>
+            </div>
+            <div>
+              <label className="lbl">Tags</label>
+              <div className="chips" style={{marginBottom:7}}>
+                {tags.map(g=>(
+                  <span key={g} className="chip chip-x">{g}
+                    <button type="button" onClick={()=>setTags(t=>t.filter(x=>x!==g))}><Ico n="x" s={11}/></button>
+                  </span>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:7}}>
+                <input className="inp" value={draft} onChange={e=>setDraft(e.target.value)}
+                       onKeyDown={e=>{ if(e.key==='Enter'){ addTag(e) } }}
+                       placeholder="Hal. DR. DELA PAZ — ORTHO"/>
+                <button type="button" className="btn b-out" onClick={addTag}>Idagdag</button>
+              </div>
+            </div>
+            {err && <div style={{background:'var(--red-wash)',border:'1px solid #f0c9c7',color:'#8f2e2a',
+              padding:'9px 12px',borderRadius:9,fontSize:13}}>{err}</div>}
+          </div>
+          <div className="md-f">
+            <button type="button" className="btn b-out" style={{flex:1}} onClick={onClose}>Kanselahin</button>
+            <button className="btn b-pri" style={{flex:1}} disabled={busy}>
+              {busy ? <div className="spin"/> : 'Kumuha ng numero'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
@@ -1118,52 +1417,43 @@ function MoveModal({ticket, kind, windowId, onClose, onDone}) {
    LIVE BOARD (admin home)
    ════════════════════════════════════════════════════════════ */
 function Board({me}) {
-  const [stat,setStat] = useState({waiting:0,serving:0,done:0,avgWait:null,avgServe:null})
-  const [rows,setRows] = useState([])
-  const [svcs,setSvcs] = useState([])
-  const [now,setNow]   = useState(new Date())
+  const [d,setD]     = useState(null)
+  const [now,setNow] = useState(new Date())
 
   const load = useCallback(async ()=>{
-    const today = new Date().toISOString().slice(0,10)
-    const [{data:tk},{data:b}] = await Promise.all([
-      sb.from('tickets').select('status,sort_at,called_at,completed_at,service_id,services(name,color)')
-        .eq('ticket_date',today),
-      sb.rpc('board',{p_slug:'main'}),
-    ])
-    const t = tk||[]
-    const waits = t.filter(x=>x.called_at).map(x=>new Date(x.called_at)-new Date(x.sort_at))
-    const servs = t.filter(x=>x.completed_at&&x.called_at).map(x=>new Date(x.completed_at)-new Date(x.called_at))
-    const avg = a => a.length ? Math.round(a.reduce((s,v)=>s+v,0)/a.length/60000) : null
-    setStat({
-      waiting: t.filter(x=>x.status==='waiting').length,
-      serving: t.filter(x=>x.status==='serving').length,
-      done:    t.filter(x=>x.status==='done').length,
-      avgWait: avg(waits), avgServe: avg(servs),
-    })
-    const m = {}
-    t.forEach(x=>{
-      const n = x.services?.name||'—'
-      m[n] = m[n] || {name:n, color:x.services?.color, waiting:0, serving:0, done:0}
-      if (m[n][x.status]!==undefined) m[n][x.status]++
-    })
-    setSvcs(Object.values(m).filter(s=>s.waiting+s.serving+s.done>0)
-      .sort((a,b)=>(b.waiting+b.serving+b.done)-(a.waiting+a.serving+a.done)))
-    setRows((b?.rows||[]).filter(r=>r.number))
+    const {data,error} = await sb.rpc('dashboard')
+    if (!error && data) setD(data)
   },[])
 
   useEffect(()=>{
     load()
-    const t = setInterval(()=>setNow(new Date()),1000)
+    const t  = setInterval(()=>setNow(new Date()),1000)
     const ch = sb.channel('admin-board')
-      .on('postgres_changes',{event:'*',schema:'public',table:'tickets'},()=>load()).subscribe()
-    return ()=>{ clearInterval(t); ch.unsubscribe() }
+      .on('postgres_changes',{event:'*',schema:'public',table:'tickets'},()=>load())
+      .on('postgres_changes',{event:'*',schema:'public',table:'sessions'},()=>load())
+      .subscribe()
+    const slow = setInterval(load, 30000)
+    return ()=>{ clearInterval(t); clearInterval(slow); ch.unsubscribe() }
   },[load])
 
+  if (!d) return <div className="mid"><div className="spin d" style={{width:28,height:28,borderWidth:3}}/></div>
+
+  const T = d.totals || {}
   const hour = now.getHours()
+  const mins = n => n == null ? '—' : n < 1 ? 'wala pang isang minuto' : n + ' minuto'
+
   const kpi = [
-    ['Naghihintay', stat.waiting, stat.avgWait!=null ? `Katamtamang hintay: ${stat.avgWait} min` : 'Katamtamang hintay: —', 'var(--gold)', 'var(--gold-wash)'],
-    ['Sine-serve', stat.serving, 'Kasalukuyang tinatawag', 'var(--indigo)', 'var(--indigo-wash)'],
-    ['Natapos', stat.done, stat.avgServe!=null ? `Katamtamang serbisyo: ${stat.avgServe} min` : 'Katamtamang serbisyo: —', 'var(--green)', 'var(--green-wash)'],
+    {k:'Naghihintay', v:T.waiting ?? 0, sub:'Katamtamang hintay', val:mins(T.avg_wait_min),
+     ic:'clock', c:'var(--gold)',   bg:'var(--gold-wash)'},
+    {k:'Sine-serve',  v:T.serving ?? 0, sub:'Katamtamang serbisyo', val:mins(T.avg_serve_min),
+     ic:'desk',  c:'var(--indigo)', bg:'var(--indigo-wash)'},
+    {k:'Natapos',     v:T.done ?? 0,    sub:'Kabuuang ticket ngayon', val:(T.issued ?? 0) + ' ticket',
+     ic:'users', c:'var(--green)',  bg:'var(--green-wash)'},
+  ]
+  const tally = [
+    ['Natapos',    T.done ?? 0,      'var(--green)'],
+    ['Nilaktawan', T.skipped ?? 0,   'var(--gold)'],
+    ['Kinansela',  T.cancelled ?? 0, 'var(--red)'],
   ]
 
   return (
@@ -1171,76 +1461,137 @@ function Board({me}) {
       <div className="head">
         <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:16}}>
           <div>
-            <h1 className="h1">{hour<12?'Magandang umaga':hour<18?'Magandang hapon':'Magandang gabi'}, {(me.full_name||'').split(' ')[0]}</h1>
-            <p className="sub">{dateLong(now)} · {clock(now)}</p>
+            <h1 className="h1">
+              {dateLong(now)} — {clock(now)}
+            </h1>
+            <p className="sub">
+              {hour<12?'Magandang umaga':hour<18?'Magandang hapon':'Magandang gabi'}, {(me.full_name||'').split(' ')[0]}.
+              {' '}Ito ang takbo ng pila ngayong araw.
+            </p>
           </div>
           <span className="live"><span className="dot"/>Live</span>
         </div>
       </div>
 
       <div className="wrap">
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:12}}>
-          {kpi.map(([label,val,sub,c,bg])=>(
-            <div key={label} className="card" style={{padding:17}}>
-              <div style={{fontSize:12,fontWeight:700,color:'var(--muted)'}}>{label}</div>
-              <div className="num" style={{fontSize:34,lineHeight:1.1,marginTop:3,color:c}}>{val}</div>
-              <div style={{fontSize:12,color:'var(--faint)',marginTop:3}}>{sub}</div>
-              <div style={{height:3,borderRadius:2,background:bg,marginTop:11}}>
-                <div style={{height:'100%',borderRadius:2,background:c,width:'38%'}}/>
+        {/* ── headline numbers ── */}
+        <div className="kpis">
+          {kpi.map(x=>(
+            <div key={x.k} className="card kpi">
+              <div style={{flex:1,minWidth:0}}>
+                <div className="kpi-k">{x.k}</div>
+                <div className="num kpi-v">{x.v}</div>
+                <div className="kpi-sub">{x.sub} <b>{x.val}</b></div>
               </div>
+              <div className="kpi-ic" style={{background:x.bg,color:x.c}}><Ico n={x.ic} s={19}/></div>
             </div>
           ))}
         </div>
 
-        <div style={{display:'grid',gridTemplateColumns:'1.15fr 1fr',gap:13,marginTop:13}}
-             className="two-col">
-          <div className="card">
-            <div className="card-h"><span className="card-t">Tinatawag ngayon</span>
-              <span style={{fontSize:12,color:'var(--muted)'}}>{rows.length} counter</span></div>
-            <div style={{maxHeight:330,overflowY:'auto',padding:7}}>
-              {rows.length===0 && <div className="empty" style={{padding:30}}>
-                <div className="empty-t">Walang aktibong counter</div></div>}
-              {rows.map(r=>(
-                <div key={r.window_id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',
-                  gap:12,padding:'10px 11px',borderRadius:10,background:'var(--paper)',marginBottom:4}}>
-                  <div style={{minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:13.5}}>{r.window_name}</div>
-                    <div style={{fontSize:12,color:'var(--muted)'}}>{r.service_name}</div>
+        <div className="two-col">
+          {/* ── left: who is on the floor ── */}
+          <div style={{display:'flex',flexDirection:'column',gap:13}}>
+            <div className="card kpi">
+              <div>
+                <div className="kpi-k">Nasa counter</div>
+                <div className="num kpi-v">{d.staff_on} <span style={{fontSize:17,color:'var(--muted)',
+                  fontFamily:'Figtree',fontWeight:600}}>sa {d.staff_total}</span></div>
+                <div className="kpi-sub">na staff ang naka-online</div>
+              </div>
+              <div className="kpi-ic" style={{background:'var(--indigo-wash)',color:'var(--indigo)'}}>
+                <Ico n="users" s={19}/></div>
+            </div>
+
+            <div className="card">
+              <div className="card-h">
+                <span className="card-t">Mga bukas na counter</span>
+                <span style={{fontSize:12,color:'var(--muted)'}}>{(d.occupied||[]).length} bukas</span>
+              </div>
+              <div style={{padding:8,maxHeight:430,overflowY:'auto'}}>
+                {(d.occupied||[]).length===0 && (
+                  <div className="empty" style={{padding:30}}>
+                    <div className="empty-i"><Ico n="desk" s={20}/></div>
+                    <div className="empty-t">Walang nakabukas na counter</div>
+                    <div style={{fontSize:13}}>Lalabas dito ang staff pagpasok nila sa counter.</div>
                   </div>
-                  <div style={{display:'flex',alignItems:'center',gap:9}}>
-                    <Tag s={r.status}/>
-                    <span className="num" style={{fontSize:19,color:r.service_color}}>{r.number}</span>
+                )}
+                {(d.occupied||[]).map(o=>(
+                  <div key={o.window_id} className="occ">
+                    <div style={{minWidth:0,flex:1}}>
+                      <div className="occ-w">{o.window_name}</div>
+                      <div className="occ-line">
+                        <span className="pip occ-pip">{initials(o.staff_name)}</span>
+                        {o.number ? (
+                          <span><b>{o.staff_name}</b> — <span className="num">{o.number}</span>
+                            <span style={{color:o.service_color}}> · {o.service_name}</span></span>
+                        ) : (
+                          <span><b>{o.staff_name}</b> <span style={{color:'var(--faint)'}}>— walang tinatawag</span></span>
+                        )}
+                      </div>
+                      {o.called_at && <div className="occ-ago">simula {ago(o.called_at)}</div>}
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0}}>
+                      <div className="occ-lbl">Tagal</div>
+                      <div className="num occ-t" style={{color:o.called_at?'var(--green)':'var(--faint)'}}>
+                        {o.called_at ? mmss(o.called_at) : '—'}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-h"><span className="card-t">Bawat serbisyo ngayong araw</span></div>
-            <div style={{maxHeight:330,overflowY:'auto'}}>
-              {svcs.length===0 && <div className="empty" style={{padding:30}}>
-                <div className="empty-t">Wala pang ticket ngayon</div></div>}
-              {svcs.length>0 && (
-                <table className="tb">
-                  <thead><tr><th>Serbisyo</th><th style={{textAlign:'center'}}>Hintay</th>
-                    <th style={{textAlign:'center'}}>Serve</th><th style={{textAlign:'center'}}>Tapos</th></tr></thead>
-                  <tbody>{svcs.map(s=>(
-                    <tr key={s.name}>
-                      <td><span style={{display:'inline-flex',alignItems:'center',gap:7}}>
-                        <span style={{width:8,height:8,borderRadius:'50%',background:s.color}}/>{s.name}</span></td>
-                      <td style={{textAlign:'center',fontWeight:700,color:'var(--gold)'}}>{s.waiting||'—'}</td>
-                      <td style={{textAlign:'center',fontWeight:700,color:'var(--indigo)'}}>{s.serving||'—'}</td>
-                      <td style={{textAlign:'center',color:'var(--muted)'}}>{s.done||'—'}</td>
-                    </tr>))}
-                  </tbody>
-                </table>
-              )}
+          {/* ── right: outcome tally + service table ── */}
+          <div style={{display:'flex',flexDirection:'column',gap:13}}>
+            <div className="card tally">
+              {tally.map(([k,v,c])=>(
+                <div key={k} className="tally-cell">
+                  <div className="kpi-k">{k}</div>
+                  <div className="num" style={{fontSize:25,color:c,marginTop:2}}>{v}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{overflow:'hidden'}}>
+              <div className="card-h"><span className="card-t">Bawat serbisyo ngayong araw</span></div>
+              <div style={{overflowX:'auto',maxHeight:430,overflowY:'auto'}}>
+                {(d.services||[]).length===0 ? (
+                  <div className="empty" style={{padding:30}}>
+                    <div className="empty-t">Wala pang ticket ngayon</div>
+                    <div style={{fontSize:13}}>Lalabas dito ang bawat serbisyo pagkakuha ng unang numero.</div>
+                  </div>
+                ) : (
+                  <table className="tb">
+                    <thead><tr>
+                      <th>Serbisyo</th>
+                      <th style={{textAlign:'center'}}>Hintay</th>
+                      <th style={{textAlign:'center'}}>Serve</th>
+                      <th style={{textAlign:'center'}}>Tapos</th>
+                      <th style={{textAlign:'right'}}>Hintay</th>
+                      <th style={{textAlign:'right'}}>Serbisyo</th>
+                    </tr></thead>
+                    <tbody>{d.services.map(s=>(
+                      <tr key={s.name}>
+                        <td><span style={{display:'inline-flex',alignItems:'center',gap:8}}>
+                          <span style={{width:8,height:8,borderRadius:'50%',background:s.color,flexShrink:0}}/>
+                          <span style={{fontWeight:600}}>{s.name}</span></span></td>
+                        <td style={{textAlign:'center',fontWeight:700,color:s.waiting?'var(--gold)':'var(--faint)'}}>{s.waiting||'—'}</td>
+                        <td style={{textAlign:'center',fontWeight:700,color:s.serving?'var(--indigo)':'var(--faint)'}}>{s.serving||'—'}</td>
+                        <td style={{textAlign:'center',color:'var(--muted)'}}>{s.done||'—'}</td>
+                        <td style={{textAlign:'right',color:'var(--muted)',fontSize:12.5}}>
+                          {s.avg_wait_min==null?'—':s.avg_wait_min+'m'}</td>
+                        <td style={{textAlign:'right',color:'var(--muted)',fontSize:12.5}}>
+                          {s.avg_serve_min==null?'—':s.avg_serve_min+'m'}</td>
+                      </tr>))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <style>{`@media(max-width:1000px){.two-col{grid-template-columns:1fr!important}}`}</style>
     </>
   )
 }
