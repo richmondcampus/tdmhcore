@@ -17,11 +17,14 @@
 :root{
   --ink:#15183a; --ink-2:#262a52;
   --indigo:#3b3fa3; --indigo-2:#5b60d6; --indigo-wash:#ecedf9;
-  --green:#1f8a4c; --green-2:#2fa85e; --green-wash:#e7f5ec;
+  --green:#15793f; --green-2:#1f8a4c; --green-wash:#e4f3ea;
   --gold:#c99a2e; --gold-wash:#faf2de;
   --red:#c0453f; --red-wash:#fbecea;
-  --paper:#f7f7fb; --card:#fff; --line:#e4e4ee; --line-2:#f0f0f6;
-  --text:#1c1c33; --muted:#6a6a85; --faint:#9a9ab0;
+  --paper:#f4f5fa; --card:#fff; --line:#e1e2ee; --line-2:#eff0f6;
+  --text:#1c1c33; --muted:#63647f; --faint:#727390;
+  /* surfaces used by the sign-in, sidebar, kiosk and TV */
+  --surf:#eef0f7; --surf-2:#fff; --surf-3:#e6e8f2;
+  --on-surf:#1c1c33; --dim:#63647f; --faint2:#696a83;
   --r:10px; --r-lg:16px;
   --sh:0 1px 2px rgba(21,24,58,.06),0 1px 3px rgba(21,24,58,.04);
   --sh-lg:0 12px 32px rgba(21,24,58,.14);
@@ -38,28 +41,28 @@ input,select,textarea{font:inherit}
 
 /* ═══ shell ═══ */
 .app{display:flex;height:100vh;overflow:hidden}
-.rail{width:214px;flex-shrink:0;background:var(--ink);display:flex;flex-direction:column;
-      padding-top:env(safe-area-inset-top,0px)}
+.rail{width:214px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);
+      display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
 .rail-top{padding:17px 16px 14px;display:flex;align-items:center;gap:10px;
-          border-bottom:1px solid rgba(255,255,255,.07)}
+          border-bottom:1px solid var(--line-2)}
 .mark{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;
       background:linear-gradient(135deg,var(--indigo-2),var(--green));color:#fff;
       font-family:Archivo;font-weight:900;font-size:15px}
-.rail-name{color:#fff;font-weight:700;font-size:13.5px;line-height:1.25}
-.rail-sub{color:#7b7ea8;font-size:11px}
+.rail-name{color:var(--text);font-weight:700;font-size:13.5px;line-height:1.25}
+.rail-sub{color:var(--faint);font-size:11px}
 .rail-nav{flex:1;padding:10px 9px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
 .nav{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;width:100%;
-     text-align:left;color:#9ea1c4;font-size:13.5px;font-weight:500;transition:.14s}
-.nav:hover{color:#fff;background:rgba(255,255,255,.07)}
-.nav.on{color:#fff;background:var(--indigo)}
+     text-align:left;color:var(--muted);font-size:13.5px;font-weight:500;transition:.14s}
+.nav:hover{color:var(--text);background:var(--line-2)}
+.nav.on{color:var(--indigo);background:var(--indigo-wash);font-weight:600}
 .nav svg{width:16px;height:16px;flex-shrink:0;opacity:.9}
-.nav-head{padding:13px 11px 5px;font-size:11px;font-weight:700;color:#50537a;letter-spacing:.02em}
-.rail-foot{padding:9px;border-top:1px solid rgba(255,255,255,.07)}
-.who{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;background:rgba(255,255,255,.055)}
+.nav-head{padding:13px 11px 5px;font-size:11px;font-weight:700;color:var(--faint);letter-spacing:.02em}
+.rail-foot{padding:9px;border-top:1px solid var(--line-2)}
+.who{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;background:var(--paper)}
 .pip{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
      background:var(--indigo);color:#fff;font-size:11px;font-weight:700}
-.who-n{color:#fff;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.who-r{color:#7b7ea8;font-size:11px;text-transform:capitalize}
+.who-n{color:var(--text);font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who-r{color:var(--faint);font-size:11px;text-transform:capitalize}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
 
 /* ═══ page furniture ═══ */
@@ -106,7 +109,6 @@ select.inp{cursor:pointer}
 .t-done{background:var(--line-2);color:var(--muted)}
 .t-held{background:var(--indigo-wash);color:#2f3285}
 .t-skip{background:var(--red-wash);color:#8f2e2a}
-.t-pri{background:var(--gold);color:#fff}
 .t-step{background:var(--indigo-wash);color:var(--indigo)}
 
 /* ═══ counter workspace ═══ */
@@ -128,7 +130,6 @@ select.inp{cursor:pointer}
     text-align:left;width:100%;display:block}
 .tk:hover{border-color:#c3c3d8}
 .tk.on{border-color:var(--indigo);background:var(--indigo-wash)}
-.tk.pri{border-left:3px solid var(--gold)}
 .tk-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .tk-n{font-size:16px}
 .tk-s{font-size:12px;font-weight:600}
@@ -193,83 +194,86 @@ select.inp{cursor:pointer}
 .toast.ok{border-left-color:var(--green-2)} .toast.err{border-left-color:var(--red)}
 
 /* ═══════════ TV DISPLAY ═══════════ */
-.tv{height:100vh;background:var(--ink);color:#fff;display:flex;flex-direction:column;overflow:hidden;
+.tv{height:100vh;background:var(--surf);color:var(--on-surf);display:flex;flex-direction:column;overflow:hidden;
     padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tv-h{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0;
-      padding:1.4vh 2vw;background:rgba(0,0,0,.22);border-bottom:1px solid rgba(255,255,255,.08)}
+      padding:1.4vh 2vw;background:var(--surf-2);border-bottom:1px solid var(--line)}
 .tv-mark{width:3.1vw;min-width:40px;aspect-ratio:1;border-radius:11px;display:grid;place-items:center;
          background:linear-gradient(135deg,var(--indigo-2),var(--green));
          font-family:Archivo;font-weight:900;font-size:1.5vw}
 .tv-name{font-size:clamp(14px,1.45vw,23px);font-weight:800;letter-spacing:-.015em;line-height:1.15}
-.tv-where{color:var(--green-2);font-size:clamp(11px,1.05vw,16px);font-weight:700;margin-top:2px}
+.tv-where{color:var(--green);font-size:clamp(11px,1.05vw,16px);font-weight:700;margin-top:2px}
 .tv-clock{font-family:Archivo;font-weight:800;font-size:clamp(20px,2.3vw,38px);font-variant-numeric:tabular-nums;line-height:1}
-.tv-date{color:#8e91b8;font-size:clamp(10px,.9vw,14px);text-align:right;margin-top:2px}
+.tv-date{color:var(--dim);font-size:clamp(10px,.9vw,14px);text-align:right;margin-top:2px}
 
 .tv-body{flex:1;display:grid;grid-template-columns:44% 1fr;gap:1.4vw;padding:1.4vh 2vw;min-height:0}
 
 /* hero — the one bold thing on this screen */
-.hero{border-radius:20px;background:
-      radial-gradient(130% 100% at 0% 0%,rgba(47,168,94,.22) 0%,transparent 60%),rgba(255,255,255,.045);
-      border:1px solid rgba(255,255,255,.09);display:flex;flex-direction:column;
-      justify-content:center;padding:2vh 2.2vw;position:relative;overflow:hidden;min-height:0}
-.hero.ring{background:
-      radial-gradient(130% 100% at 0% 0%,rgba(47,168,94,.45) 0%,rgba(31,138,76,.16) 60%,transparent 100%),
-      rgba(47,168,94,.12);
-      border-color:var(--green-2);box-shadow:0 0 0 2px var(--green-2),0 0 70px rgba(47,168,94,.42) inset}
+.hero{border-radius:20px;background:var(--surf-2);box-shadow:var(--sh);
+      border:1px solid var(--line);display:flex;flex-direction:column;
+      justify-content:center;padding:2vh 2.2vw;position:relative;overflow:hidden;min-height:0;
+      transition:background .35s,border-color .35s}
+.hero.ring{background:linear-gradient(130deg,var(--green) 0%,var(--green-2) 78%);
+      border-color:var(--green);color:#fff;
+      box-shadow:0 0 0 3px rgba(47,168,94,.3),0 14px 40px rgba(31,138,76,.3)}
 .hero::after{content:'';position:absolute;inset:0;opacity:0;
       background:linear-gradient(100deg,transparent 32%,rgba(255,255,255,.14) 50%,transparent 68%)}
 .hero.ring::after{opacity:1;animation:sweep 2.2s ease-in-out infinite}
 @keyframes sweep{0%{transform:translateX(-62%)}100%{transform:translateX(62%)}}
 .hero-lbl{font-size:clamp(11px,1vw,16px);font-weight:800;letter-spacing:.14em;
-          color:var(--green-2);margin-bottom:.6vh}
-.hero.ring .hero-lbl{color:#eafff2}
+          color:var(--green);margin-bottom:.6vh}
+.hero.ring .hero-lbl{color:rgba(255,255,255,.9)}
+.hero.ring .hero-rule{background:#fff}
 .hero-num{font-family:Archivo;font-weight:900;font-size:clamp(54px,10.5vw,190px);line-height:.84;
           letter-spacing:-.045em;display:flex;position:relative;z-index:1}
 .hero-num span{display:inline-block;animation:drop .42s cubic-bezier(.2,.9,.25,1) backwards}
 @keyframes drop{from{opacity:0;transform:translateY(-.3em)}to{opacity:1;transform:none}}
 .hero-rule{height:4px;width:clamp(50px,7vw,120px);border-radius:3px;margin:1.6vh 0 1.2vh;
            background:var(--green-2);position:relative;z-index:1}
-.hero-go{font-size:clamp(12px,1.15vw,19px);color:#a9acd0;font-weight:600;position:relative;z-index:1}
+.hero-go{font-size:clamp(12px,1.15vw,19px);color:var(--dim);font-weight:600;position:relative;z-index:1}
 .hero.ring .hero-go{color:rgba(255,255,255,.8)}
 .hero-win{font-size:clamp(20px,2.7vw,52px);font-weight:800;letter-spacing:-.02em;line-height:1.08;
           margin-top:.3vh;position:relative;z-index:1}
-.hero-svc{font-size:clamp(11px,1.05vw,17px);color:#8e91b8;margin-top:.8vh;position:relative;z-index:1}
+.hero-svc{font-size:clamp(11px,1.05vw,17px);color:var(--dim);margin-top:.8vh;position:relative;z-index:1}
 .hero.ring .hero-svc{color:rgba(255,255,255,.72)}
-.hero-idle{font-size:clamp(17px,2vw,34px);font-weight:800;color:#5a5d85}
-.hero-idle-s{font-size:clamp(11px,1.05vw,17px);color:#43466e;margin-top:.7vh}
+.hero-idle{font-size:clamp(17px,2vw,34px);font-weight:800;color:var(--faint2)}
+.hero-idle-s{font-size:clamp(11px,1.05vw,17px);color:var(--faint2);opacity:.8;margin-top:.7vh}
 
 /* counter rail */
 .rail-wrap{display:flex;flex-direction:column;min-height:0}
 .rail-head{display:flex;align-items:center;justify-content:space-between;
            font-size:clamp(10px,.88vw,13px);font-weight:800;letter-spacing:.12em;
-           color:#5a5d85;padding:0 .6vw .9vh}
+           color:var(--faint2);padding:0 .6vw .9vh}
 .rail-rows{flex:1;display:grid;gap:.7vh;align-content:start;min-height:0;overflow:hidden}
 .rail-rows.two{grid-template-columns:1fr 1fr;gap:.7vh .9vw}
 .crow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:1vw;
-      padding:1.05vh 1.1vw;border-radius:11px;background:rgba(255,255,255,.045);
-      border-left:4px solid transparent;transition:background .4s,border-color .4s;min-width:0}
-.crow.live{background:rgba(47,168,94,.14);border-left-color:var(--green-2)}
-.crow.lit{background:rgba(47,168,94,.3);border-left-color:#fff}
+      padding:1.05vh 1.1vw;border-radius:11px;background:var(--surf-2);box-shadow:var(--sh);
+      border:1px solid var(--line);border-left:4px solid var(--line);
+      transition:background .4s,border-color .4s;min-width:0}
+.crow.live{background:var(--green-wash);border-left-color:var(--green)}
+.crow.lit{background:var(--green);border-color:var(--green);border-left-color:#fff;color:#fff}
+.crow.lit .crow-s{color:rgba(255,255,255,.78)}
+.crow.lit .pulse{background:#fff}
 .crow-w{font-size:clamp(12px,1.25vw,22px);font-weight:700;letter-spacing:-.01em;
         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.crow-s{font-size:clamp(9px,.78vw,12.5px);color:#7b7ea8;margin-top:1px;
+.crow-s{font-size:clamp(9px,.78vw,12.5px);color:var(--dim);margin-top:1px;
         white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .crow-n{font-family:Archivo;font-weight:900;font-size:clamp(17px,2.1vw,40px);line-height:1;
         letter-spacing:-.025em;text-align:right;white-space:nowrap}
-.crow-n.idle{color:#3a3d63;font-weight:700;font-size:clamp(13px,1.3vw,22px)}
-.pulse{display:inline-block;width:.5em;height:.5em;border-radius:50%;background:var(--green-2);
+.crow-n.idle{color:var(--faint2);font-weight:700;font-size:clamp(13px,1.3vw,22px)}
+.pulse{display:inline-block;width:.5em;height:.5em;border-radius:50%;background:var(--green);
        margin-right:.4em;vertical-align:middle;animation:pz 1.6s ease infinite}
 @keyframes pz{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
 
 .tv-foot{display:flex;align-items:center;gap:1.4vw;flex-shrink:0;padding:1.1vh 2vw;
-         background:rgba(0,0,0,.3);border-top:1px solid rgba(255,255,255,.07);
-         font-size:clamp(10px,1vw,15px);color:#8e91b8;overflow:hidden;white-space:nowrap}
-.foot-k{font-weight:800;letter-spacing:.1em;color:#5a5d85;flex-shrink:0;font-size:.86em}
+         background:var(--surf-2);border-top:1px solid var(--line);
+         font-size:clamp(10px,1vw,15px);color:var(--dim);overflow:hidden;white-space:nowrap}
+.foot-k{font-weight:800;letter-spacing:.1em;color:var(--faint2);flex-shrink:0;font-size:.86em}
 .recent{display:flex;gap:1.1vw;overflow:hidden;flex:1}
-.recent i{font-style:normal;font-family:Archivo;font-weight:800;color:#c7c9e4}
+.recent i{font-style:normal;font-family:Archivo;font-weight:800;color:var(--text)}
 .waitpill{flex-shrink:0;display:inline-flex;align-items:center;gap:.5em;padding:.35em .9em;
-          border-radius:20px;background:rgba(201,154,46,.16);border:1px solid rgba(201,154,46,.35);
-          color:var(--gold);font-weight:700}
+          border-radius:20px;background:var(--gold-wash);border:1px solid #eadcb4;
+          color:#8a6713;font-weight:700}
 .unlock{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:50;
         background:var(--indigo-2);color:#fff;padding:11px 22px;border-radius:11px;
         font-size:13.5px;font-weight:600;box-shadow:var(--sh-lg)}
@@ -279,31 +283,27 @@ select.inp{cursor:pointer}
 }
 
 /* ═══════════ KIOSK ═══════════ */
-.kio{min-height:100vh;background:var(--ink);color:#fff;display:flex;flex-direction:column;
+.kio{min-height:100vh;background:var(--surf);color:var(--on-surf);display:flex;flex-direction:column;
      padding:0 0 env(safe-area-inset-bottom,0px)}
 .kio-h{text-align:center;padding:4.5vh 22px 2vh}
 .kio-mark{width:68px;height:68px;border-radius:17px;margin:0 auto 14px;display:grid;place-items:center;
           background:linear-gradient(135deg,var(--indigo-2),var(--green));
           font-family:Archivo;font-weight:900;font-size:30px}
 .kio-t{font-size:clamp(20px,3vw,30px);font-weight:800;letter-spacing:-.02em}
-.kio-s{color:#8e91b8;font-size:14.5px;margin-top:5px}
+.kio-s{color:var(--dim);font-size:14.5px;margin-top:5px}
 .kio-b{flex:1;padding:0 4vw 4vh;max-width:1000px;margin:0 auto;width:100%}
-.kio-ask{font-size:15px;font-weight:600;color:#a9acd0;margin:2.4vh 0 1.2vh}
-.pris{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:3vh}
-.pri{flex:1;min-width:140px;padding:15px;border-radius:13px;border:1.5px solid rgba(255,255,255,.13);
-     background:rgba(255,255,255,.05);color:#fff;font-size:14.5px;font-weight:600;transition:.15s}
-.pri:hover{background:rgba(255,255,255,.1)}
-.pri.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.kio-ask{font-size:15px;font-weight:600;color:var(--dim);margin:2.4vh 0 1.2vh}
 .svcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:12px}
-.svc{padding:22px 16px;border-radius:15px;border:1.5px solid rgba(255,255,255,.11);
-     background:rgba(255,255,255,.05);color:#fff;text-align:left;transition:.15s;position:relative;
-     min-height:104px;display:flex;flex-direction:column;justify-content:flex-end;gap:3px}
-.svc:hover{background:rgba(255,255,255,.1);transform:translateY(-2px)}
+.svc{padding:22px 16px;border-radius:15px;border:1.5px solid var(--line);
+     background:var(--surf-2);color:var(--text);text-align:left;transition:.15s;position:relative;
+     box-shadow:var(--sh);min-height:104px;display:flex;flex-direction:column;
+     justify-content:flex-end;gap:3px}
+.svc:hover{border-color:var(--indigo);transform:translateY(-2px);box-shadow:var(--sh-lg)}
 .svc:active{transform:scale(.98)}
 .svc-bar{position:absolute;top:16px;left:16px;width:30px;height:4px;border-radius:2px}
 .svc-n{font-size:16.5px;font-weight:700;letter-spacing:-.01em}
-.svc-f{font-size:12.5px;color:#9ea1c4}
-.ticket{position:fixed;inset:0;background:rgba(10,12,30,.88);backdrop-filter:blur(6px);z-index:300;
+.svc-f{font-size:12.5px;color:var(--dim)}
+.ticket{position:fixed;inset:0;background:rgba(21,24,58,.55);backdrop-filter:blur(6px);z-index:300;
         display:grid;place-items:center;padding:20px;animation:fi .16s}
 .ticket-c{background:#fff;color:var(--text);border-radius:22px;padding:38px 32px;text-align:center;
           max-width:360px;width:100%;animation:su .22s}
@@ -334,7 +334,6 @@ const { useState, useEffect, useRef, useCallback, createContext, useContext } = 
 /* ════════════════════════════════════════════════════════════
    HELPERS
    ════════════════════════════════════════════════════════════ */
-const PRI = {senior:'Senior Citizen', pwd:'PWD', pregnant:'Buntis'}
 const STATUS = {waiting:['Waiting','t-wait'], serving:['Serving','t-serv'], done:['Done','t-done'],
                 held:['On hold','t-held'], skipped:['Skipped','t-skip'], cancelled:['Cancelled','t-skip']}
 
@@ -475,36 +474,34 @@ function SignIn({onSignIn}) {
   }
   return (
     <div style={{minHeight:'100vh',display:'grid',placeItems:'center',padding:18,
-      background:'radial-gradient(1100px 520px at 50% -10%,#262a52 0%,#15183a 58%,#101229 100%)'}}>
+      background:'radial-gradient(900px 460px at 50% -8%,#e4e7f7 0%,#f0f1f8 46%,var(--paper) 100%)'}}>
       <div style={{width:'100%',maxWidth:368}}>
         <div style={{textAlign:'center',marginBottom:26}}>
           <div className="mark" style={{width:58,height:58,borderRadius:15,fontSize:25,margin:'0 auto 14px'}}>T</div>
-          <h1 style={{color:'#fff',fontSize:22,fontWeight:800,letterSpacing:'-.02em'}}>TDMH Queuing</h1>
-          <p style={{color:'#8e91b8',fontSize:13.5,marginTop:4}}>Taytay Doctors Multispecialty Hospital</p>
+          <h1 style={{color:'var(--text)',fontSize:22,fontWeight:800,letterSpacing:'-.02em'}}>TDMH Queuing</h1>
+          <p style={{color:'var(--muted)',fontSize:13.5,marginTop:4}}>Taytay Doctors Multispecialty Hospital</p>
         </div>
-        <form onSubmit={go} style={{background:'rgba(255,255,255,.055)',border:'1px solid rgba(255,255,255,.1)',
-          borderRadius:17,padding:23,display:'flex',flexDirection:'column',gap:14}}>
+        <form onSubmit={go} style={{background:'var(--card)',border:'1px solid var(--line)',
+          boxShadow:'var(--sh-lg)',borderRadius:17,padding:23,display:'flex',flexDirection:'column',gap:14}}>
           <div>
-            <label className="lbl" style={{color:'#a9acd0'}}>Email</label>
+            <label className="lbl">Email</label>
             <input className="inp" type="email" required value={email} onChange={e=>setEmail(e.target.value)}
-              style={{background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.12)',color:'#fff'}}
               placeholder="ikaw@tdmh.ph" autoComplete="username"/>
           </div>
           <div>
-            <label className="lbl" style={{color:'#a9acd0'}}>Password</label>
+            <label className="lbl">Password</label>
             <input className="inp" type="password" required value={pass} onChange={e=>setPass(e.target.value)}
-              style={{background:'rgba(255,255,255,.08)',border:'1px solid rgba(255,255,255,.12)',color:'#fff'}}
               placeholder="••••••••" autoComplete="current-password"/>
           </div>
-          {err && <div style={{background:'rgba(192,69,63,.18)',border:'1px solid rgba(192,69,63,.4)',
-            color:'#ffb4b0',padding:'9px 12px',borderRadius:9,fontSize:13}}>{err}</div>}
+          {err && <div style={{background:'var(--red-wash)',border:'1px solid #f0c9c7',
+            color:'#8f2e2a',padding:'9px 12px',borderRadius:9,fontSize:13}}>{err}</div>}
           <button className="btn b-pri b-lg b-full" disabled={busy} style={{marginTop:3}}>
             {busy ? <div className="spin"/> : 'Sign in'}
           </button>
         </form>
-        <p style={{textAlign:'center',color:'#50537a',fontSize:12,marginTop:16}}>
-          Para sa TV: <code style={{color:'#8e91b8'}}>?tv=lab</code> &nbsp;·&nbsp;
-          Kiosk: <code style={{color:'#8e91b8'}}>?kiosk=1</code>
+        <p style={{textAlign:'center',color:'var(--faint)',fontSize:12,marginTop:16}}>
+          Para sa TV: <code style={{color:'var(--muted)'}}>?tv=lab</code> &nbsp;·&nbsp;
+          Kiosk: <code style={{color:'var(--muted)'}}>?kiosk=1</code>
         </p>
       </div>
     </div>
@@ -627,7 +624,7 @@ function TV({slug}) {
                 {ring ? (last.kind==='recall' ? 'TINATAWAG ULIT' : 'TINATAWAG NGAYON') : 'HULING TINAWAG'}
               </div>
               <div className="hero-num" key={last.id}
-                   style={{color: ring ? '#fff' : (last.service_color || '#fff')}}>
+                   style={{color: ring ? '#fff' : (last.service_color || 'var(--indigo)')}}>
                 {String(last.number).split('').map((c,i)=>(
                   <span key={i} style={{animationDelay:(i*55)+'ms'}}>{c}</span>
                 ))}
@@ -650,7 +647,7 @@ function TV({slug}) {
           <div className="rail-head"><span>COUNTER</span><span>NUMERO</span></div>
           <div className={'rail-rows '+(twoUp?'two':'')}>
             {rows.length === 0 && (
-              <div style={{color:'#43466e',fontSize:'clamp(12px,1.2vw,18px)',padding:'2vh .6vw'}}>
+              <div style={{color:'var(--faint2)',fontSize:'clamp(12px,1.2vw,18px)',padding:'2vh .6vw'}}>
                 Walang bukas na counter ngayon.
               </div>
             )}
@@ -662,8 +659,9 @@ function TV({slug}) {
                   <div className="crow-s">{r.service_name || '—'}</div>
                 </div>
                 {r.number
-                  ? <div className="crow-n" style={{color: r.status==='done' ? '#55587f'
-                                                         : (r.service_color || '#fff')}}>
+                  ? <div className="crow-n" style={{color: litWin===r.window_id ? '#fff'
+                                                         : r.status==='done' ? 'var(--faint2)'
+                                                         : (r.service_color || 'var(--indigo)')}}>
                       {r.status==='serving' && <span className="pulse"/>}{r.number}
                     </div>
                   : <div className="crow-n idle">—</div>}
@@ -677,7 +675,7 @@ function TV({slug}) {
         <span className="foot-k">KATATAPOS</span>
         <div className="recent">
           {(data.recent||[]).length === 0
-            ? <span style={{color:'#3a3d63'}}>wala pa</span>
+            ? <span style={{color:'var(--faint2)'}}>wala pa</span>
             : data.recent.map((a,i)=>(
                 <span key={i}><i>{a.number}</i> <span style={{opacity:.55}}>{a.window_name}</span></span>
               ))}
@@ -695,14 +693,13 @@ function TV({slug}) {
    ════════════════════════════════════════════════════════════ */
 function Kiosk() {
   const [svcs,setSvcs]   = useState([])
-  const [pri,setPri]     = useState(null)
   const [tk,setTk]       = useState(null)
   const [busy,setBusy]   = useState(false)
   const [note,setNote]   = useState('')
   const [now,setNow]     = useState(new Date())
 
   useEffect(()=>{
-    sb.from('services').select('id,code,name,name_fil,color,allow_priority')
+    sb.from('services').select('id,code,name,name_fil,color')
       .eq('is_active',true).eq('show_on_kiosk',true).order('sort_order')
       .then(({data})=>setSvcs(data||[]))
     sb.from('settings').select('kiosk_note').eq('id',1).maybeSingle()
@@ -714,13 +711,10 @@ function Kiosk() {
   const take = async svc => {
     if (busy) return
     setBusy(true)
-    const {data,error} = await sb.rpc('issue_ticket',{
-      p_service_id: svc.id, p_priority: svc.allow_priority ? pri : null
-    })
+    const {data,error} = await sb.rpc('issue_ticket',{ p_service_id: svc.id })
     setBusy(false)
     if (error) { alert('Hindi nakuha ang numero. Pakitawag po ang staff.'); return }
     setTk({...data, service:svc})
-    setPri(null)
     setTimeout(()=>setTk(null), 14000)
   }
 
@@ -733,14 +727,6 @@ function Kiosk() {
       </div>
 
       <div className="kio-b">
-        <div className="kio-ask">May kabilang po ba kayo sa mga ito?</div>
-        <div className="pris">
-          {Object.entries(PRI).map(([k,label])=>(
-            <button key={k} className={'pri '+(pri===k?'on':'')}
-                    onClick={()=>setPri(p=>p===k?null:k)}>{label}</button>
-          ))}
-        </div>
-
         <div className="kio-ask">Ano po ang kailangan ninyo?</div>
         <div className="svcs">
           {svcs.map(s=>(
@@ -751,7 +737,7 @@ function Kiosk() {
             </button>
           ))}
           {svcs.length===0 && (
-            <div style={{gridColumn:'1/-1',textAlign:'center',color:'#4a4d75',padding:40}}>
+            <div style={{gridColumn:'1/-1',textAlign:'center',color:'var(--faint)',padding:40}}>
               Walang available na serbisyo ngayon.
             </div>
           )}
@@ -764,7 +750,6 @@ function Kiosk() {
             <div style={{fontSize:12.5,fontWeight:700,color:'var(--muted)'}}>Taytay Doctors Multispecialty Hospital</div>
             <div className="ticket-n" style={{color:tk.service?.color||'var(--indigo)'}}>{tk.number}</div>
             <div style={{fontSize:16,fontWeight:700}}>{tk.service?.name_fil || tk.service?.name}</div>
-            {tk.priority_type && <div className="tag t-pri" style={{marginTop:9}}>{PRI[tk.priority_type]}</div>}
             <div style={{marginTop:17,padding:'11px 14px',background:'var(--paper)',borderRadius:11,
                          fontSize:13,color:'var(--muted)'}}>{note}</div>
             <div style={{fontSize:12,color:'var(--faint)',marginTop:11}}>
@@ -966,11 +951,10 @@ function Counter({me}) {
             </div>
           )}
           {shown.map(t=>(
-            <div key={t.id} className={'tk '+(t.priority_type?'pri':'')}>
+            <div key={t.id} className="tk">
               <div className="tk-top">
                 <span className="num tk-n">{t.number}</span>
                 <span className="tk-s" style={{color:t.services?.color}}>{t.services?.name}</span>
-                {t.priority_type && <span className="tag t-pri">{PRI[t.priority_type]}</span>}
                 {t.journey_step>1 && <span className="tag t-step">Hakbang {t.journey_step}</span>}
                 {t.status==='held' && <Tag s="held"/>}
               </div>
@@ -1009,7 +993,6 @@ function Counter({me}) {
               <div className="now-n" style={{color:serving.services?.color||'var(--indigo)'}}>{serving.number}</div>
               <div style={{display:'flex',alignItems:'center',gap:9,marginTop:13,flexWrap:'wrap',justifyContent:'center'}}>
                 <span style={{fontWeight:700,fontSize:15,color:serving.services?.color}}>{serving.services?.name}</span>
-                {serving.priority_type && <span className="tag t-pri">{PRI[serving.priority_type]}</span>}
                 {serving.journey_step>1 && <span className="tag t-step">Hakbang {serving.journey_step}</span>}
               </div>
               {serving.patient_name && <div style={{marginTop:9,fontSize:15}}>{serving.patient_name}</div>}
@@ -1265,8 +1248,11 @@ function Board({me}) {
 /* ════════════════════════════════════════════════════════════
    ADMIN — services
    ════════════════════════════════════════════════════════════ */
-const SWATCH = ['#3b3fa3','#5b60d6','#2f6fb0','#1f8a4c','#2fa85e','#17766f',
-                '#c99a2e','#b4881f','#c0453f','#8a6d3b','#6d5bd0','#2a9d5c']
+// Every swatch clears 4.5:1 against white, so a service colour can never
+// become unreadable as a queue number on the TV.
+const SWATCH = ['#676bcc','#8164c5','#2b7ab6','#4775bb','#9c58be','#a258ad',
+                '#1b8550','#2a8546','#158378','#1b7f99','#bf498c','#ce453c',
+                '#986d19','#a66627','#48822b','#3e8436']
 
 function Services() {
   const toast = useToast()
@@ -1293,7 +1279,7 @@ function Services() {
     const {error} = await sb.from('services').update({
       code:v('code'), name:v('name'), name_fil:v('name_fil'), color:v('color'),
       is_active:v('is_active'), show_on_kiosk:v('show_on_kiosk'),
-      allow_priority:v('allow_priority'), sort_order:Number(v('sort_order'))||0,
+      sort_order:Number(v('sort_order'))||0,
     }).eq('id',sel.id)
     if (error) return toast(error.message,'err')
     setDraft({}); await load(sel.id); toast('Na-save','ok')
@@ -1402,8 +1388,7 @@ function Services() {
 
             <div className="card">
               {[['is_active','Aktibo','Kapag patay, hindi na makakakuha ng bagong numero.'],
-                ['show_on_kiosk','Ipakita sa kiosk','Makikita ng pasyente sa touchscreen.'],
-                ['allow_priority','Payagan ang priority','Senior, PWD at buntis ay mauuna.']].map(([k,t,d],i)=>(
+                ['show_on_kiosk','Ipakita sa kiosk','Makikita ng pasyente sa touchscreen.']].map(([k,t,d],i)=>(
                 <div key={k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,
                   padding:'13px 17px',borderTop:i?'1px solid var(--line-2)':'none'}}>
                   <div><div style={{fontWeight:600,fontSize:13.5}}>{t}</div>
@@ -1868,7 +1853,6 @@ function Settings() {
     const {error} = await sb.from('settings').update({
       hospital_name:v('hospital_name'), short_name:v('short_name'),
       voice_enabled:v('voice_enabled'), announce_repeat:Number(v('announce_repeat'))||1,
-      priority_ratio:Number(v('priority_ratio'))||3,
       keep_on_tv_secs:Number(v('keep_on_tv_secs'))||45,
       kiosk_note:v('kiosk_note'),
     }).eq('id',1)
@@ -1916,16 +1900,6 @@ function Settings() {
           </div>
         </div>
 
-        <div className="card" style={{padding:17}}>
-          <label className="lbl">Priority bawat regular</label>
-          <input className="inp" type="number" min="1" max="10" style={{maxWidth:120}}
-            value={v('priority_ratio')} onChange={e=>set('priority_ratio',e.target.value)}/>
-          <div style={{fontSize:12.5,color:'var(--muted)',marginTop:7,lineHeight:1.55}}>
-            Mauuna ang senior, PWD at buntis. Pero pagkatapos ng <b>{v('priority_ratio')}</b> sunod-sunod
-            na priority, isisingit ang isang regular para umusad din ang karaniwang pila.
-          </div>
-        </div>
-
         {dirty && (
           <div style={{display:'flex',gap:8,marginTop:13}}>
             <button className="btn b-out" style={{flex:1}} onClick={()=>setD({})}>Kanselahin</button>
@@ -1951,13 +1925,13 @@ function Reports() {
   const run = async () => {
     setBusy(true); setRows(null)
     const {data} = await sb.from('tickets')
-      .select('number,status,priority_type,journey_step,sort_at,called_at,completed_at,patient_name,services(name),windows(name)')
+      .select('number,status,journey_step,sort_at,called_at,completed_at,patient_name,services(name),windows(name)')
       .gte('ticket_date',from).lte('ticket_date',to).order('sort_at',{ascending:false}).limit(3000)
     const t = data||[]
     if (kind==='log') {
       setRows(t.map(x=>({
         Numero:x.number, Serbisyo:x.services?.name||'—', Counter:x.windows?.name||'—',
-        Kalagayan:STATUS[x.status]?.[0]||x.status, Priority:PRI[x.priority_type]||'—',
+        Kalagayan:STATUS[x.status]?.[0]||x.status,
         Hakbang:x.journey_step, Dumating:hhmm(x.sort_at), Tinawag:hhmm(x.called_at), Tapos:hhmm(x.completed_at),
       })))
     } else {
@@ -2077,7 +2051,7 @@ function Shell() {
 
           {auth.isManager && <>
             <button className="nav" onClick={()=>setOpen(o=>!o)}
-              style={{justifyContent:'space-between',color:'#50537a',fontSize:11,fontWeight:700,
+              style={{justifyContent:'space-between',color:'var(--faint)',fontSize:11,fontWeight:700,
                       padding:'13px 11px 5px'}}>
               <span>SETUP</span><Ico n={open?'down':'right'} s={12}/>
             </button>
@@ -2103,8 +2077,8 @@ function Shell() {
               <div className="who-n">{me.full_name}</div>
               <div className="who-r">{me.role}</div>
             </div>
-            <button className="btn b-ghost b-ico" onClick={auth.signOut} title="Mag-sign out"
-              style={{color:'#7b7ea8'}}><Ico n="out" s={15}/></button>
+            <button className="btn b-ghost b-ico" onClick={auth.signOut} title="Mag-sign out">
+              <Ico n="out" s={15}/></button>
           </div>
         </div>
       </div>
