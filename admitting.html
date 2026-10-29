@@ -273,7 +273,7 @@ td.num,th.num{text-align:right;font-family:'JetBrains Mono';font-variant-numeric
 .prow .body{flex:1;min-width:0}
 .prow .nm{font-weight:600;font-size:15px}
 .prow .meta{font-size:13px;color:var(--txt2)}
-.prow .side{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.prow .pside{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:none}
 .hosp{font:600 12.5px 'JetBrains Mono';color:var(--txt2);background:var(--surf3);border-radius:6px;padding:1px 7px}
 
 /* ───────── Drawer (patient wristband) ───────── */
@@ -1338,7 +1338,7 @@ async function runPSearch(){
   box.innerHTML = data.map(r => `<button class="card prow" onclick="openPatient(${r.id})">
     <span class="avatar">${esc(initials(r.full_name).toUpperCase())}</span>
     <div class="body"><div class="nm">${esc(tc(r.full_name))}</div><div class="meta"><span class="hosp">${esc(r.hosp_no)}</span> · ${esc([age(r.dob), r.sex==='F'?'Female':r.sex==='M'?'Male':''].filter(Boolean).join(' · ') || '—')} · ${r.admissions} admission${r.admissions===1?'':'s'}, last ${fmtDate(r.last_admitted)}</div></div>
-    <div class="side">${r.active_admission ? `<span class="pill indigo">${ic('pin','sm')}Admitted · ${esc(r.active_location||'')}</span>` : ''}${r.needs_review?'<span class="pill amber">Needs review</span>':''}</div></button>`).join('')
+    <div class="pside">${r.active_admission ? `<span class="pill indigo">${ic('pin','sm')}Admitted · ${esc(r.active_location||'')}</span>` : ''}${r.needs_review?'<span class="pill amber">Needs review</span>':''}</div></button>`).join('')
 }
 async function openPatient(id){
   $('dHead').innerHTML = '<span class="spin"></span>'; $('dBody').innerHTML = ''; openDrawer(); CUR_ADM = null
