@@ -311,6 +311,23 @@ dl.kv dd{word-break:break-word}
 .alert ul{list-style:none;margin-top:6px}
 .alert li{padding:5px 0;border-top:1px solid var(--bdr)}
 
+.logday{font:700 13.5px 'Bricolage Grotesque';color:var(--txt2);margin:18px 2px 8px}
+.logday:first-child{margin-top:0}
+.logrow{display:grid;grid-template-columns:74px 190px 1fr auto;gap:14px;align-items:start;padding:11px 16px;border-bottom:1px solid var(--bdr)}
+.logrow:last-child{border-bottom:0}
+.logrow .t{font:600 12.5px 'JetBrains Mono';color:var(--txt2);padding-top:2px}
+.logrow .who{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;min-width:0}
+.logrow .who .avatar{width:26px;height:26px;font-size:10.5px}
+.logrow .what{font-size:13.5px;line-height:1.45;word-break:break-word}
+.logrow .what .k{margin-right:6px;vertical-align:1px}
+.logrow .go{white-space:nowrap}
+@media (max-width:820px){.logrow{grid-template-columns:60px 1fr}.logrow .what,.logrow .go{grid-column:2}}
+.hist{list-style:none;font-size:13px}
+.hist li{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:8px 0;border-top:1px solid var(--bdr)}
+.hist li:first-child{border-top:0;padding-top:0}
+.hist .avatar{width:24px;height:24px;font-size:10px;grid-row:span 2}
+.hist .when{font-size:12px;color:var(--txt2)}
+
 /* ───────── Modal ───────── */
 .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;padding:6vh 16px;background:rgba(15,23,42,.45);overflow-y:auto;backdrop-filter:blur(2px)}
 .modal.on{display:flex}
@@ -602,9 +619,15 @@ dl.kv dd{word-break:break-word}
 
       <!-- LOG -->
       <section id="v-log" class="hidden">
-        <div class="view-head"><div><h2>Activity log</h2><p>Who admitted, transferred, discharged, viewed or changed a record. Kept for Data Privacy Act compliance.</p></div>
-          <div class="actions"><button class="btn" onclick="loadLog()"><svg class="ic sm"><use href="#i-refresh"/></svg>Refresh</button></div></div>
-        <div class="toolbar"><select class="inp" id="logTbl" onchange="loadLog()"><option value="">Everything</option><option value="adm_admissions">Admissions</option><option value="adm_patients">Patients</option><option value="adm_transfers">Transfers</option><option value="adm_beds">Bed status</option><option value="adm_reservations">Waitlist</option><option value="adm_dna">Do-not-admit</option><option value="adm_incidents">Incidents</option><option value="adm_users">Staff</option></select></div>
+        <div class="view-head"><div><h2>Activity log</h2><p>Every admission, transfer, discharge, edit and setting change — who did it and when. Entries can’t be edited or deleted.</p></div>
+          <div class="actions"><button class="btn" onclick="exportLog()"><svg class="ic sm"><use href="#i-download"/></svg>Export CSV</button><button class="btn" onclick="loadLog()"><svg class="ic sm"><use href="#i-refresh"/></svg>Refresh</button></div></div>
+        <div class="toolbar">
+          <div class="seg" id="logKind"><button class="on" data-t="changes">Changes</button><button data-t="access">Access</button><button data-t="">All</button></div>
+          <select class="inp" id="logTbl"><option value="">All records</option><option value="adm_admissions">Admissions</option><option value="adm_patients">Patients</option><option value="adm_transfers">Transfers</option><option value="adm_beds">Beds</option><option value="adm_reservations">Waitlist</option><option value="adm_dna">Do-not-admit</option><option value="adm_incidents">Incidents</option><option value="setup">Setup (doctors, HMOs, rooms)</option><option value="adm_users">Staff accounts</option></select>
+          <select class="inp" id="logWho"><option value="">All staff</option></select>
+          <input class="inp" type="date" id="logFrom"><span class="raw">to</span><input class="inp" type="date" id="logTo">
+          <input class="inp" id="logQ" placeholder="Search activity" style="min-width:200px">
+        </div>
         <div id="logList"></div>
       </section>
     </main>
@@ -735,7 +758,7 @@ async function doLogin(ev){
   try{
     const { data, error } = await SB.auth.signInWithPassword({ email, password: pw })
     if (error || !data.user) return showErr('lg_err', 'Incorrect email or password.')
-    clearRecovery(); await boot(data.user)
+    clearRecovery(); await boot(data.user); SB.rpc('adm_log_event', { p_action:'sign_in' }).then(()=>{})
   }catch(e){ showErr('lg_err', 'Couldn’t connect. Check the network and try again.') }
   finally{ btn.disabled = false; btn.textContent = 'Sign in' }
 }
@@ -811,7 +834,7 @@ function setView(v){
   document.querySelectorAll('#nav .nav-btn').forEach(b => b.classList.toggle('on', b.dataset.v === v))
   VIEWS.forEach(x => $('v-'+x).classList.toggle('hidden', x !== v))
   ;({ board:loadBoard, census:loadCensus, lineup:loadLineup, patients:()=>setTimeout(()=>$('pq').focus(),30), dna:loadDna, incidents:loadIncidents,
-     reports:()=>{ if(!$('rpFrom').value) setPreset('month'); if(!REP) loadReport() }, review:loadReview, setup:loadSetup, staff:loadStaff, log:loadLog })[v]?.()
+     reports:()=>{ if(!$('rpFrom').value) setPreset('month'); if(!REP) loadReport() }, review:loadReview, setup:loadSetup, staff:loadStaff, log:openLog })[v]?.()
 }
 document.addEventListener('keydown', e => {
   if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && ME){ e.preventDefault(); $('gq').focus() }
@@ -1108,7 +1131,7 @@ async function openAdmission(id){
   const { data:a, error } = await SB.from('adm_admissions').select(ADM_SELECT).eq('id', id).single()
   if (error){ $('dBody').innerHTML = `<div class="err">${esc(errMsg(error))}</div>`; return }
   CUR_ADM = a; CUR_PAT = a.patient
-  SB.from('adm_audit_log').insert({ user_id: ME.id, action:'view', table_name:'adm_admissions', record_id:id }).then(()=>{})
+  SB.rpc('adm_log_event', { p_action:'view', p_table:'adm_admissions', p_record:id }).then(()=>{})
   const [tr, others, kids] = await Promise.all([
     SB.from('adm_transfers').select('*, from:adm_beds!adm_transfers_from_bed_id_fkey(code), to:adm_beds!adm_transfers_to_bed_id_fkey(code)').eq('admission_id', id).order('transferred_at'),
     SB.from('adm_admissions').select('id, admitted_at, discharged_at, admitting_room, admitting_dx, disposition').eq('patient_id', a.patient_id).neq('id', id).order('admitted_at', { ascending:false }),
@@ -1155,8 +1178,19 @@ async function openAdmission(id){
     </dl></div>
     <div class="sec"><h3>Bed transfers</h3>${tr.data?.length ? `<ul class="timeline">${tr.data.map(t => `<li><b>${esc(t.from?.code || '—')} → ${esc(t.to?.code || 'Rooming-in')}</b> <span class="raw">${esc(tc(t.reason || ''))}</span><div class="when">${fmtDT(t.transferred_at)}${t.notes ? ' · ' + esc(t.notes) : ''}</div></li>`).join('')}</ul>` : '<p class="raw">No transfers.</p>'}</div>
     <div class="sec"><h3>Previous admissions</h3>${others.data?.length ? `<ul class="timeline">${others.data.map(o => `<li><a href="#" onclick="openAdmission(${o.id});return false"><b>${fmtDate(o.admitted_at)}</b></a> · ${esc(o.admitting_room || '')} · ${esc(o.admitting_dx || '')}<div class="when">${o.discharged_at ? esc(tc(o.disposition || '')) + ' ' + fmtDate(o.discharged_at) : 'Active'}</div></li>`).join('')}</ul>` : '<p class="raw">First admission.</p>'}</div>
+    <div class="sec"><h3>Activity <span class="raw" style="font-family:'Instrument Sans';font-weight:500">Who changed this patient’s records</span></h3><div id="histBox"><span class="spin"></span></div></div>
     <div class="acts"><button class="btn btn-sm" onclick="openIncident({ admission_id:${a.id}, patient_name:${esc(JSON.stringify(p.full_name))}, room:${esc(JSON.stringify(a.bed?.code || ''))} })">${ic('alert','sm')}Log incident</button>
       ${IS_SUP ? `<button class="btn btn-sm" onclick="openMoveAdmission()">${ic('transfer','sm')}Move to another Hosp No.</button>` : ''}</div>`
+  loadHistory(p.id)
+}
+async function loadHistory(patientId){
+  const box = $('histBox'); if (!box) return
+  const { data, error } = await SB.from('adm_audit_log').select('at, actor_name, action, summary').eq('patient_id', patientId)
+    .not('action', 'in', '("view","search","sign_in","print","export")').order('at', { ascending:false }).limit(40)
+  if (error){ box.innerHTML = `<p class="raw">${esc(errMsg(error))}</p>`; return }
+  box.innerHTML = data.length ? `<ul class="hist">${data.map(h => `<li><span class="avatar">${esc(initials(h.actor_name || 'S').toUpperCase())}</span>
+      <div>${esc(h.summary || h.action)}</div><div class="when">${esc(h.actor_name || 'System')} · ${fmtDT(h.at)}</div></li>`).join('')}</ul>`
+    : '<p class="raw">No changes recorded yet. Records imported from Excel start their history here.</p>'
 }
 async function markReviewed(t, id){
   const { error } = await SB.rpc('adm_mark_reviewed', { p_table:t, p_id:id })
@@ -1345,7 +1379,7 @@ async function openPatient(id){
   const { data:p, error } = await SB.from('adm_patients').select('*, admissions:adm_admissions(id, admitted_at, discharged_at, admitting_room, admitting_dx, disposition, account_type, needs_review, physician:adm_physicians!adm_admissions_physician_id_fkey(name))').eq('id', id).single()
   if (error){ $('dBody').innerHTML = `<div class="err">${esc(errMsg(error))}</div>`; return }
   CUR_PAT = p
-  SB.from('adm_audit_log').insert({ user_id: ME.id, action:'view', table_name:'adm_patients', record_id:id }).then(()=>{})
+  SB.rpc('adm_log_event', { p_action:'view', p_table:'adm_patients', p_record:id }).then(()=>{})
   const adms = (p.admissions||[]).sort((a,b) => new Date(b.admitted_at) - new Date(a.admitted_at))
   const act = adms.find(a => !a.discharged_at)
   $('dHead').innerHTML = bandHead(p, `<span>${adms.length} admission${adms.length===1?'':'s'}</span>`)
@@ -1355,7 +1389,9 @@ async function openPatient(id){
     <div class="sec"><h3>Patient details <button class="btn btn-sm" onclick="editPatient()">${ic('edit','sm')}Edit</button></h3><dl class="kv">
       <dt>Address</dt><dd>${esc(p.address || '—')}</dd><dt>Contact</dt><dd class="mono">${esc((p.contact_numbers||[]).join(' / ') || '—')}</dd><dt>Nationality</dt><dd>${esc(tc(p.nationality || '') || '—')}</dd></dl></div>
     <div class="sec"><h3>Admissions</h3><ul class="timeline">${adms.map(a => `<li><a href="#" onclick="openAdmission(${a.id});return false"><b>${fmtDate(a.admitted_at)}</b></a> · ${esc(a.admitting_room || '')} ${payerChip(a.account_type)}${a.needs_review?' <span class="pill amber">Review</span>':''}
-      <div>${esc(a.admitting_dx || '')}</div><div class="when">${esc(a.physician?.name || '')} · ${a.discharged_at ? esc(tc(a.disposition||'')) + ' ' + fmtDate(a.discharged_at) : 'Active'}</div></li>`).join('')}</ul></div>`
+      <div>${esc(a.admitting_dx || '')}</div><div class="when">${esc(a.physician?.name || '')} · ${a.discharged_at ? esc(tc(a.disposition||'')) + ' ' + fmtDate(a.discharged_at) : 'Active'}</div></li>`).join('')}</ul></div>
+    <div class="sec"><h3>Activity</h3><div id="histBox"><span class="spin"></span></div></div>`
+  loadHistory(p.id)
 }
 function CUR_PAT_SNAPSHOT(){ const p = CUR_PAT; return p ? { hosp_no:p.hosp_no, last_name:p.last_name, given_names:p.given_names, dob:p.dob, sex:p.sex, address:p.address, contact_numbers:p.contact_numbers } : {} }
 </script>
@@ -1403,9 +1439,11 @@ function printCensus(){
   const list = censusFiltered()
   $('printArea').innerHTML = `<h1>Taytay Doctors Multispecialty Hospital — In-patient census</h1><p>${new Date().toLocaleString('en-PH',{dateStyle:'full',timeStyle:'short'})} · ${list.length} patients · printed by ${esc(ME.full_name)}</p>
     <table><thead>${CENSUS_HEAD}</thead><tbody>${censusRows(list, true)}</tbody></table>`
+  SB.rpc('adm_log_event', { p_action:'print', p_note:`census (${list.length} patients)` }).then(()=>{})
   window.print()
 }
 function exportCensus(){
+  SB.rpc('adm_log_event', { p_action:'export', p_note:`census CSV (${censusFiltered().length} patients)` }).then(()=>{})
   csvDownload('census-' + todayStr() + '.csv', [['Bed','Station','Hosp No','Name','Age','Sex','Admitted','Day','PHIC','Case','Payment','HMO','Coordinator','Admitting diagnosis','Attending','Service','Companion pass']]
     .concat(censusFiltered().map(a => [a.loc, a.station, a.patient.hosp_no, a.patient.full_name, age(a.patient.dob), a.patient.sex, fmtDT(a.admitted_at), dayNo(a.admitted_at), a.phic, a.admission_case,
       a.account_type, a.hmo?.name, a.hmo_coordinator, a.admitting_dx, a.physician?.name, a.medical_case, [a.companion_pass_no, a.companion_pass_status].filter(Boolean).join(' ')])))
@@ -1664,6 +1702,7 @@ async function loadReport(){
 function exportReport(which){
   if (!REP) return toast('Apply a date range first.', true)
   const R = REP, tag = R.from + '_to_' + R.to
+  SB.rpc('adm_log_event', { p_action:'export', p_note:`report CSV ${R.from} to ${R.to}` }).then(()=>{})
   if (which === 'ap') return csvDownload('admissions-by-physician-' + tag + '.csv', [['Attending physician','As attending','Co-managing','Total']].concat((R.by_physician||[]).map(x => [x.k, x.main, x.co, x.main + x.co])))
   const T = R.today
   const rows = [['TDMH Admitting report', R.from + ' to ' + R.to], [],
@@ -1679,6 +1718,7 @@ function exportReport(which){
 }
 function printReport(){
   if (!REP) return toast('Apply a date range first.', true)
+  SB.rpc('adm_log_event', { p_action:'print', p_note:`report ${REP.from} to ${REP.to}` }).then(()=>{})
   $('printArea').innerHTML = `<h1>Taytay Doctors Multispecialty Hospital — Admitting report</h1><p>${fmtDate(REP.from)} – ${fmtDate(REP.to)} · printed ${new Date().toLocaleString('en-PH')}</p>` + $('rpOut').innerHTML
   window.print()
 }
@@ -1894,25 +1934,65 @@ function openStaffPw(id){
 }
 
 // ═══════════ ACTIVITY LOG (supervisor) ═══════════
-const LOG_ACT = { insert:'Added', update:'Changed', delete:'Deleted', view:'Viewed', search:'Searched', user_created:'Created account', user_updated:'Updated account', user_linked:'Linked account',
-  password_set:'Set password', reset_link_sent:'Sent reset link', merge_physician:'Merged doctor', excel_import:'Excel import', move_admission:'Moved admission' }
-async function loadLog(){
-  const box = $('logList'); box.innerHTML = '<div class="empty"><span class="spin"></span></div>'
-  let q = SB.from('adm_audit_log').select('*').order('at', { ascending:false }).limit(300)
-  if ($('logTbl').value) q = q.eq('table_name', $('logTbl').value)
-  const [{ data, error }, { data:names }] = await Promise.all([q, SB.rpc('adm_user_names')])
+const ACCESS = ['view','search','sign_in','print','export']
+const KIND = { insert:['Added','green'], update:['Changed','indigo'], delete:['Deleted','red'], view:['Viewed',''], search:['Searched',''], sign_in:['Signed in',''],
+  print:['Printed','amber'], export:['Exported','amber'], merge_physician:['Merged','violet'], excel_import:['Import',''], user_created:['Account','violet'],
+  user_updated:['Account','violet'], user_linked:['Account','violet'], password_set:['Password','violet'], reset_link_sent:['Password','violet'] }
+function kindOf(r){
+  const s = r.summary || ''
+  const rules = [[/^Admitted/,'Admission','green'],[/^Transferred/,'Transfer','blue'],[/^Discharge/,'Discharge','indigo'],[/^Moved admission/,'Move','violet'],
+    [/^(Bed |Hid bed|Restored bed|Added bed)/,'Bed',''],[/^(Added to waitlist|Waitlist|Edited reservation|Deleted reservation)/,'Waitlist','amber'],
+    [/do-not-admit/,'Do-not-admit','red'],[/incident/i,'Incident','red'],[/^Marked/,'Reviewed','green'],[/^New patient/,'New patient','green'],
+    [/^Edited (patient|admission)/,'Edit','indigo'],[/^(Added|Edited) (doctor|HMO|room)|^Merged/,'Setup','violet']]
+  for (const [re, l, c] of rules) if (re.test(s)) return [l, c]
+  return KIND[r.action] || [r.action, '']
+}
+let LOG = [], logPage = 0, logLoaded = false
+function openLog(){
+  if (!logLoaded){
+    logLoaded = true; $('logFrom').value = todayStr(-6); $('logTo').value = todayStr()
+    segInit('logKind', () => loadLog())
+    ;['logTbl','logWho','logFrom','logTo'].forEach(i => $(i).addEventListener('change', () => loadLog()))
+    let t; $('logQ').addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => loadLog(), 400) })
+    SB.rpc('adm_user_names').then(({ data }) => { $('logWho').innerHTML = '<option value="">All staff</option>' + (data||[]).sort((a,b)=>a.full_name.localeCompare(b.full_name)).map(u => `<option value="${u.id}">${esc(u.full_name)}</option>`).join('') })
+  }
+  loadLog()
+}
+function logQuery(){
+  let q = SB.from('adm_audit_log').select('id, at, user_id, actor_name, action, table_name, record_id, patient_id, summary, detail')
+  const kind = segVal('logKind'), tbl = $('logTbl').value
+  if (kind === 'changes') q = q.not('action', 'in', '(' + ACCESS.map(a => `"${a}"`).join(',') + ')')
+  if (kind === 'access') q = q.in('action', ACCESS)
+  if (tbl === 'setup') q = q.in('table_name', ['adm_physicians','adm_hmo','adm_rooms'])
+  else if (tbl) q = q.eq('table_name', tbl)
+  if ($('logWho').value) q = q.eq('user_id', $('logWho').value)
+  if ($('logFrom').value) q = q.gte('at', new Date($('logFrom').value + 'T00:00:00').toISOString())
+  if ($('logTo').value) q = q.lt('at', new Date(new Date($('logTo').value + 'T00:00:00').getTime() + 864e5).toISOString())
+  if (val('logQ')) q = q.ilike('summary', '%' + val('logQ').replace(/[%_]/g, '') + '%')
+  return q.order('at', { ascending:false })
+}
+async function loadLog(more){
+  const box = $('logList')
+  if (!more){ logPage = 0; LOG = []; box.innerHTML = '<div class="empty"><span class="spin"></span></div>' }
+  const { data, error } = await logQuery().range(logPage*100, logPage*100+99)
   if (error){ box.innerHTML = `<div class="err">${esc(errMsg(error))}</div>`; return }
-  const N = Object.fromEntries((names||[]).map(u => [u.id, u.full_name]))
-  const brief = r => { const d = r.detail || {}
-    if (r.action === 'update') return Object.entries(d).map(([k,v]) => `${k}: ${JSON.stringify(v.from)} → ${JSON.stringify(v.to)}`).join('; ')
-    if (r.action === 'insert') return d.full_name || d.patient_name || d.code || (d.patient_id ? 'Admission #' + r.record_id : '')
-    if (r.action === 'search') return d.q
-    return !d || JSON.stringify(d) === '{}' ? '' : JSON.stringify(d) }
-  const TBL = { adm_admissions:'Admission', adm_patients:'Patient', adm_transfers:'Transfer', adm_beds:'Bed', adm_reservations:'Waitlist', adm_dna:'Do-not-admit', adm_incidents:'Incident', adm_users:'Staff', adm_physicians:'Doctor' }
-  box.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Record</th><th>Details</th></tr></thead><tbody>
-    ${data.map(r => `<tr><td style="white-space:nowrap">${fmtDT(r.at)}</td><td>${esc(N[r.user_id] || (r.user_id ? 'Staff' : 'System'))}</td><td>${esc(LOG_ACT[r.action] || r.action)}</td>
-      <td>${esc(TBL[r.table_name] || r.table_name || '')}${r.record_id?` <span class="raw">#${r.record_id}</span>`:''}</td><td class="raw" style="max-width:560px;word-break:break-word">${esc(String(brief(r)).slice(0,400))}</td></tr>`).join('')}
-  </tbody></table></div><p class="more-note">Latest 300 events.</p>`
+  LOG = LOG.concat(data)
+  if (!LOG.length){ box.innerHTML = '<div class="card empty"><h3>No activity found</h3><p>Try a wider date range or clear the filters.</p></div>'; return }
+  const days = []; LOG.forEach(r => { const d = new Date(r.at).toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); let g = days.find(x => x.d === d); if (!g) days.push(g = { d, rows:[] }); g.rows.push(r) })
+  box.innerHTML = days.map(g => `<div class="logday">${esc(g.d)} <span class="raw" style="font-family:'Instrument Sans';font-weight:500">· ${g.rows.length} event${g.rows.length===1?'':'s'}</span></div>
+    <div class="tbl-wrap">${g.rows.map(r => { const k = kindOf(r)
+      return `<div class="logrow"><span class="t">${new Date(r.at).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}</span>
+        <span class="who"><span class="avatar">${esc(initials(r.actor_name || 'S').toUpperCase())}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.actor_name || 'System')}</span></span>
+        <span class="what"><span class="pill ${k[1]} k">${esc(k[0])}</span>${esc(r.summary || r.action)}</span>
+        <span class="go">${r.patient_id ? `<button class="btn btn-sm" onclick="openPatient(${r.patient_id})">Patient</button>` : ''}</span></div>` }).join('')}</div>`).join('')
+    + (data.length === 100 ? `<div style="text-align:center;margin-top:14px"><button class="btn" onclick="logPage++;loadLog(true)">Load more</button></div>` : `<p class="more-note">${LOG.length} event${LOG.length===1?'':'s'} shown.</p>`)
+}
+async function exportLog(){
+  const { data, error } = await logQuery().limit(5000)
+  if (error) return toast(errMsg(error), true)
+  SB.rpc('adm_log_event', { p_action:'export', p_note:`activity log CSV (${data.length} events)` }).then(()=>{})
+  csvDownload('activity-log-' + ($('logFrom').value || 'all') + '_to_' + ($('logTo').value || todayStr()) + '.csv',
+    [['Date & time','Staff','Type','Summary']].concat(data.map(r => [fmtDT(r.at), r.actor_name || 'System', kindOf(r)[0], r.summary || ''])))
 }
 
 // ═══════════ INIT ═══════════
