@@ -36,7 +36,7 @@
   --band:#e1ebfb;--band-edge:#a9c2ec;--band-ink:#14315e;--band-hole:#f0f5fb;
 }
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-html,body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14px;line-height:1.55}
+html,body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
 h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.01em;line-height:1.15}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -122,64 +122,77 @@ main{max-width:1320px;margin:0 auto;padding:22px 20px 80px}
 @keyframes sp{to{transform:rotate(360deg)}}
 
 /* ── Census whiteboard (top of bed board) ── */
-.whiteboard{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:stretch;background:var(--surf1);border:1px solid var(--bdr);border-radius:16px;padding:16px 18px;margin-bottom:18px}
-.wb-total{display:flex;flex-direction:column;justify-content:center;padding-right:18px;border-right:1px solid var(--bdr)}
-.wb-total .n{font:800 52px/1 'Bricolage Grotesque';letter-spacing:-.03em}
-.wb-total .l{font-size:12.5px;color:var(--txt2);margin-top:4px}
-.wb-total .sub{font-size:12px;color:var(--txt2);margin-top:8px;line-height:1.5}
-.wb-total .sub b{color:var(--txt)}
-.wb-stations{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
-.wb-st{border:1px solid var(--bdr);border-radius:11px;padding:9px 11px;background:var(--surf2);text-align:left;cursor:pointer}
+.whiteboard{display:grid;grid-template-columns:minmax(220px,auto) 1fr;gap:22px;align-items:stretch;background:var(--surf1);border:1px solid var(--bdr);border-radius:18px;padding:20px 22px;margin-bottom:20px}
+.wb-total{display:flex;flex-direction:column;justify-content:center;padding-right:22px;border-right:1px solid var(--bdr)}
+.wb-total .n{font:800 60px/1 'Bricolage Grotesque';letter-spacing:-.035em}
+.wb-total .l{font-size:14px;color:var(--txt2);margin-top:6px}
+.wb-facts{display:grid;grid-template-columns:auto auto;gap:4px 18px;margin-top:14px;font-size:13px;color:var(--txt2)}
+.wb-facts b{color:var(--txt);font-variant-numeric:tabular-nums;margin-right:4px}
+.wb-facts .vac b{color:var(--green)}
+.wb-stations{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px}
+.wb-st{border:1px solid var(--bdr);border-radius:14px;padding:12px 14px;background:var(--surf2);text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:border-color .15s,background .15s}
 .wb-st:hover{border-color:var(--bdr3)}
 .wb-st.on{border-color:var(--accent);background:var(--accent-a)}
-.wb-st .nm{font-weight:700;font-size:13px}
-.wb-st .ct{font:700 20px/1.2 'JetBrains Mono'}
-.wb-st .ct small{font-size:12px;color:var(--txt2);font-weight:500}
-.wb-st .bar{height:5px;background:var(--surf4);border-radius:5px;margin-top:6px;overflow:hidden;display:flex}
+.wb-st .nm{font-weight:600;font-size:13.5px;color:var(--txt2)}
+.wb-st .ct{font:800 26px/1.15 'Bricolage Grotesque';font-variant-numeric:tabular-nums}
+.wb-st .ct small{font:500 14px 'Instrument Sans';color:var(--txt3)}
+.wb-st .bar{height:6px;background:var(--surf4);border-radius:6px;margin:6px 0 4px;overflow:hidden;display:flex}
 .wb-st .bar i{display:block;height:100%}
-.wb-st .meta{font-size:11px;color:var(--txt2);margin-top:4px}
-@media (max-width:700px){.whiteboard{grid-template-columns:1fr}.wb-total{border-right:0;border-bottom:1px solid var(--bdr);padding:0 0 12px}}
+.wb-st .meta{font-size:12.5px;color:var(--txt2)}
+.wb-st .meta b{color:var(--green);font-weight:700}
+@media (max-width:760px){.whiteboard{grid-template-columns:1fr}.wb-total{border-right:0;border-bottom:1px solid var(--bdr);padding:0 0 16px}}
 
 /* ── Bed board ── */
-.board-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
-.board-tools .find{flex:1 1 260px;max-width:380px}
-.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--txt2);margin-left:auto}
-.legend span{display:inline-flex;align-items:center;gap:5px}
-.legend i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid var(--bdr2)}
-.ward{margin-bottom:24px}
-.ward-head{display:flex;align-items:baseline;gap:12px;margin-bottom:9px;flex-wrap:wrap}
-.ward-head h3{font-size:18px}
-.ward-head span{font-size:12.5px;color:var(--txt2)}
-.rt-group{margin-bottom:10px}
-.rt-label{font-size:12px;font-weight:600;color:var(--txt2);margin:0 0 6px 2px}
-.rt-label em{font-style:normal;font-weight:500;color:var(--txt3);margin-left:6px}
-.beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px}
-.bed{position:relative;text-align:left;border:1px solid var(--bdr);background:var(--surf1);border-radius:10px;padding:8px 10px 9px 14px;min-height:88px;cursor:pointer;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+.board-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.board-tools .find{flex:1 1 260px;max-width:360px}
+.chips{display:inline-flex;gap:4px;background:var(--surf3);border-radius:11px;padding:4px}
+.chips button{border:0;background:none;padding:7px 13px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;color:var(--txt2);display:inline-flex;gap:6px;align-items:center}
+.chips button.on{background:var(--surf1);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.chips button span{font:600 12px 'JetBrains Mono';color:var(--txt3)}
+.board-tools .spacer{flex:1}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);margin:0 0 22px 2px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:4px;display:inline-block;background:var(--surf1);border:1px solid var(--bdr2)}
+.ward{margin-bottom:34px}
+.ward-head{display:flex;align-items:baseline;gap:12px;padding-bottom:10px;margin-bottom:14px;border-bottom:1px solid var(--bdr2);flex-wrap:wrap}
+.ward-head h3{font-size:21px}
+.ward-head span{font-size:13.5px;color:var(--txt2)}
+.ward-head span b{color:var(--green)}
+.rt-group{margin-bottom:16px}
+.rt-label{display:flex;gap:10px;align-items:baseline;font-size:13px;font-weight:600;color:var(--txt);margin:0 0 8px 2px}
+.rt-label em{font-style:normal;font-weight:500;color:var(--txt2);font-size:12.5px}
+.rt-label .free{color:var(--green);font-weight:600}
+.beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:10px}
+.bed{position:relative;text-align:left;border:1px solid var(--bdr);background:var(--surf1);border-radius:13px;padding:11px 13px 12px 17px;min-height:104px;cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
 .bed::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--stripe,transparent)}
-.bed:hover{border-color:var(--bdr3)}
-.bed .r1{display:flex;justify-content:space-between;align-items:center;gap:6px}
-.bed .code{font:700 15px 'JetBrains Mono',monospace;letter-spacing:-.02em}
-.bed .day{font:600 11px 'JetBrains Mono',monospace;color:var(--txt2)}
-.bed .pt{font-weight:700;font-size:12.8px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
-.bed .sub{font-size:11.3px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bed.vacant{background:var(--surf2);border-style:dashed}
-.bed.vacant .pt{color:var(--txt3);font-weight:600}
-.bed.hold{background:repeating-linear-gradient(135deg,var(--surf2) 0 7px,var(--surf3) 7px 14px)}
-.bed.hold .pt{color:var(--txt2);font-weight:600;font-size:11.8px;-webkit-line-clamp:3}
-.bed.reserved{background:var(--green-a);border:1.5px dashed var(--green)}
-.bed.reserved .pt{color:var(--green)}
-.bed.hit{outline:3px solid var(--accent);outline-offset:1px}
-.bed.dim{opacity:.35}
-.bed .flag{position:absolute;right:7px;bottom:6px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
-.roomin-list{display:flex;flex-wrap:wrap;gap:8px}
-.roomin{border:1px dashed var(--bdr3);background:var(--surf1);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left;font-size:12.5px}
-.roomin b{display:block;font-size:13px}
+.bed:hover{border-color:var(--bdr3);box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.bed .r1{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:2px}
+.bed .code{font:700 16px 'JetBrains Mono',monospace;letter-spacing:-.02em}
+.bed .day{font-size:11.5px;font-weight:600;color:var(--txt2);background:var(--surf3);border-radius:99px;padding:1px 8px}
+.bed .pt{font-weight:600;font-size:14.5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bed .sub{font-size:12.5px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bed.vacant{background:transparent;border:1.5px dashed var(--bdr3)}
+.bed.vacant .pt{color:var(--green);font-size:13.5px;display:flex;align-items:center;gap:6px}
+.bed.vacant .pt::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--green)}
+.bed.vacant:hover{border-color:var(--green);background:var(--green-a)}
+.bed.hold{background:var(--surf3);border-color:var(--bdr)}
+.bed.hold .code{color:var(--txt2)}
+.bed.hold .tag{font-size:11.5px;font-weight:700;color:var(--txt2);background:var(--surf4);border-radius:99px;padding:1px 8px}
+.bed.hold .why{font-size:12px;line-height:1.35;color:var(--txt2);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.bed.reserved{background:var(--green-a);border:1.5px solid var(--green)}
+.bed.reserved .tag{font-size:11.5px;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:99px;padding:0 8px}
+.bed.reserved .why{font-size:12.5px;color:var(--green)}
+.bed.hit{outline:3px solid var(--accent);outline-offset:2px}
+.bed .flag{position:absolute;right:9px;bottom:9px;width:9px;height:9px;border-radius:50%;background:var(--accent)}
+.roomin-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(186px,1fr));gap:10px}
+.roomin{border:1.5px dashed var(--band-edge);background:var(--band);color:var(--band-ink);border-radius:13px;padding:11px 13px;cursor:pointer;text-align:left;font-size:12.5px}
+.roomin b{display:block;font-size:14px;margin-bottom:2px}
 
 /* ── Tables ── */
 .tbl-wrap{background:var(--surf1);border:1px solid var(--bdr);border-radius:12px;overflow:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;font-size:11.5px;color:var(--txt2);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--bdr2);background:var(--surf2);white-space:nowrap}
-td{padding:8px 12px;border-bottom:1px solid var(--bdr);vertical-align:top}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-size:12px;color:var(--txt2);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--bdr2);background:var(--surf2);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--bdr);vertical-align:top}
 tr.click{cursor:pointer}
 tr.click:hover td{background:var(--surf2)}
 tr.grp td{background:var(--surf3);font-weight:700;font-family:'Bricolage Grotesque';font-size:13.5px;padding:7px 12px}
@@ -359,18 +372,22 @@ dl.kv dd{word-break:break-word}
     <section id="v-board">
       <div class="whiteboard" id="wb"></div>
       <div class="board-tools">
-        <input class="inp find" id="bbFind" type="search" placeholder="Hanapin sa board: pangalan, Hosp No., room" aria-label="Find on bed board">
-        <button class="btn btn-primary" onclick="openAdmit({})">+ Admit</button>
-        <button class="btn" onclick="loadBoard()">Refresh</button>
-        <div class="legend">
-          <span><i style="background:var(--surf1);border-left:4px solid var(--txt3)"></i>Cash</span>
-          <span><i style="background:var(--surf1);border-left:4px solid var(--blue)"></i>HMO</span>
-          <span><i style="background:var(--surf1);border-left:4px solid var(--violet)"></i>Industrial</span>
-          <span><i style="background:var(--surf2);border-style:dashed"></i>Vacant</span>
-          <span><i style="background:var(--green-a);border:1.5px dashed var(--green)"></i>Reserved</span>
-          <span><i style="background:repeating-linear-gradient(135deg,var(--surf2) 0 3px,var(--surf4) 3px 6px)"></i>Hold</span>
-          <span><i style="background:var(--accent);border-radius:50%;width:9px;height:9px"></i>Needs review</span>
+        <input class="inp find" id="bbFind" type="search" placeholder="Hanapin: pangalan, Hosp No., room" aria-label="Find on bed board">
+        <div class="chips" id="bbShow" role="group" aria-label="Ipakita">
+          <button class="on" data-s="">Lahat</button><button data-s="available">Bakante <span id="cVac"></span></button><button data-s="occupied">May pasyente <span id="cOcc"></span></button><button data-s="hold">Hold / reserved <span id="cHold"></span></button>
         </div>
+        <span class="spacer"></span>
+        <button class="btn" onclick="loadBoard()">Refresh</button>
+        <button class="btn btn-primary" onclick="openAdmit({})">+ Admit</button>
+      </div>
+      <div class="legend">
+        <span><i style="border-left:5px solid var(--txt3)"></i>Cash</span>
+        <span><i style="border-left:5px solid var(--blue)"></i>HMO</span>
+        <span><i style="border-left:5px solid var(--violet)"></i>Industrial</span>
+        <span><i style="background:transparent;border:1.5px dashed var(--green)"></i>Bakante</span>
+        <span><i style="background:var(--green-a);border:1.5px solid var(--green)"></i>Reserved</span>
+        <span><i style="background:var(--surf3)"></i>Hold</span>
+        <span><i style="background:var(--accent);border:0;border-radius:50%;width:10px;height:10px"></i>Needs review</span>
       </div>
       <div id="board"><div class="empty"><span class="spin"></span></div></div>
     </section>
@@ -554,6 +571,13 @@ function errMsg(e){
 function showErr(id, m){ const e=$(id); e.textContent=m; e.classList.remove('hidden') }
 function hideErr(id){ $(id)?.classList.add('hidden') }
 function opts(list, sel, blank){ return (blank!==undefined ? `<option value="">${esc(blank)}</option>` : '') + list.map(o => { const [v,l] = Array.isArray(o) ? o : [o,o]; return `<option value="${esc(v)}" ${String(v)===String(sel??'')?'selected':''}>${esc(l)}</option>` }).join('') }
+// Names are stored in CAPS (as in the Excel); show them in title case so they're easier to read.
+const KEEP_UP = new Set(['II','III','IV','V','VI','N/A','NB','OB','ICU','NICU','PWD','SC'])
+function tc(v){
+  return String(v ?? '').toLowerCase().replace(/(^|[\s\-('\/])([a-zñ])/g, (m, p, c) => p + c.toUpperCase())
+    .replace(/\b([IVX]{2,4}|Nb|Ob)\b/gi, w => KEEP_UP.has(w.toUpperCase()) ? w.toUpperCase() : w)
+    .replace(/\bJr\b\.?/g, 'Jr.').replace(/\bSr\b\.?/g, 'Sr.').replace(/\bMa\b\./g, 'Ma.').replace(/\bDe La\b/g, 'de la')
+}
 function stripeFor(acct){ return acct==='HMO' ? 'var(--blue)' : acct==='INDUSTRIAL' ? 'var(--violet)' : 'var(--txt3)' }
 function shortName(full){ const s = String(full||''); const i = s.indexOf(','); return i>0 ? s.slice(0,i) + ',' + s.slice(i+1).trim().split(/\s+/)[0] : s }
 function physName(id){ return PHYS.find(p=>p.id===id)?.name || '' }
@@ -721,50 +745,60 @@ function renderWhiteboard(){
   const vac = BOARD.filter(b => b.occupancy === 'available').length
   const hold = BOARD.filter(b => b.occupancy === 'hold').length
   const rsv = BOARD.filter(b => b.occupancy === 'reserved').length
+  $('cVac').textContent = vac; $('cOcc').textContent = occ.length; $('cHold').textContent = hold + rsv
   const st = STATIONS.map(s => {
     const beds = BOARD.filter(b => b.station === s.k), o = beds.filter(b => b.occupancy === 'occupied').length
-    const h = beds.filter(b => b.occupancy === 'hold').length, v = beds.length - o - h
+    const h = beds.filter(b => b.occupancy === 'hold').length, v = beds.filter(b => b.occupancy === 'available').length
     const pct = x => beds.length ? (x/beds.length*100).toFixed(1) + '%' : '0'
     return `<button class="wb-st ${STATION===s.k?'on':''}" onclick="pickStation('${s.k}')" aria-pressed="${STATION===s.k}">
-      <div class="nm">${s.nm}</div><div class="ct">${o}<small> / ${beds.length}</small></div>
-      <div class="bar"><i style="width:${pct(o)};background:var(--blue)"></i><i style="width:${pct(h)};background:var(--txt3)"></i></div>
-      <div class="meta">${v} bakante${h?` · ${h} hold`:''}</div></button>`
+      <span class="nm">${s.nm}</span><span class="ct">${o}<small> / ${beds.length}</small></span>
+      <span class="bar"><i style="width:${pct(o)};background:var(--blue)"></i><i style="width:${pct(h)};background:var(--txt3)"></i></span>
+      <span class="meta">${v ? `<b>${v}</b> bakante` : 'Puno'}</span></button>`
   }).join('')
-  $('wb').innerHTML = `<div class="wb-total"><div class="n">${tot}</div><div class="l">pasyenteng naka-admit ngayon</div>
-    <div class="sub"><b>${tot - nicu - ROOMIN.length}</b> excluding newborns · <b>${nicu}</b> NICU · <b>${ROOMIN.length}</b> room-in<br><b>${vac}</b> bakante · <b>${rsv}</b> reserved · <b>${hold}</b> hold</div></div>
+  $('wb').innerHTML = `<div class="wb-total"><div class="n">${tot}</div><div class="l">naka-admit ngayon</div>
+    <div class="wb-facts"><span><b>${tot - nicu - ROOMIN.length}</b>adult/pedia</span><span><b>${nicu + ROOMIN.length}</b>newborn</span>
+      <span class="vac"><b>${vac}</b>bakante</span><span><b>${hold + rsv}</b>hold/reserved</span></div></div>
     <div class="wb-stations">${st}</div>`
 }
 function pickStation(k){ STATION = STATION === k ? '' : k; renderWhiteboard(); renderBoard() }
+let SHOW = ''
+$('bbShow').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SHOW = b.dataset.s; $('bbShow').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderBoard() })
 $('bbFind').addEventListener('input', () => renderBoard())
 function renderBoard(){
   const q = $('bbFind').value.trim().toUpperCase()
-  const hit = b => q && ((b.full_name||'').toUpperCase().includes(q) || (b.hosp_no||'').includes(q) || b.code.toUpperCase().includes(q))
+  const match = b => (!SHOW || (SHOW === 'hold' ? ['hold','reserved'].includes(b.occupancy) : b.occupancy === SHOW))
+    && (!q || (b.full_name||'').toUpperCase().includes(q) || (b.hosp_no||'').includes(q) || b.code.toUpperCase().includes(q))
   const html = STATIONS.filter(s => !STATION || STATION === s.k).map(s => {
-    const beds = BOARD.filter(b => b.station === s.k); if (!beds.length) return ''
+    const all = BOARD.filter(b => b.station === s.k), beds = all.filter(match)
+    const showRoomIn = s.k === 'NICU' && ROOMIN.length && (!SHOW || SHOW === 'occupied') && !q
+    if (!beds.length && !showRoomIn) return ''
     const groups = []; beds.forEach(b => { let g = groups.find(x => x.rt === b.room_type && x.rate === b.rate); if (!g) groups.push(g = { rt:b.room_type, rate:b.rate, note:b.rate_note, beds:[] }); g.beds.push(b) })
-    const o = beds.filter(b => b.occupancy==='occupied').length
-    const roomin = s.k === 'NICU' && ROOMIN.length ? `<div class="rt-group"><div class="rt-label">Room-in babies <em>kasama ng nanay</em></div><div class="roomin-list">${ROOMIN.map(r => {
+    const o = all.filter(b => b.occupancy==='occupied').length, v = all.filter(b => b.occupancy==='available').length
+    const roomin = showRoomIn ? `<div class="rt-group"><div class="rt-label">Room-in babies <em>kasama ng nanay sa kwarto</em></div><div class="roomin-list">${ROOMIN.map(r => {
         const mom = BOARD.find(b => b.admission_id === r.room_in_with)
-        return `<button class="roomin" onclick="openAdmission(${r.id})"><b>${esc(shortName(r.patient?.full_name))}</b>Room-in sa ${esc(mom?.code || '?')} · Day ${dayNo(r.admitted_at)}</button>` }).join('')}</div></div>` : ''
-    return `<div class="ward"><div class="ward-head"><h3>${s.nm}</h3><span>${s.sub} · ${o} sa ${beds.length} kama ang may pasyente</span></div>
-      ${groups.map(g => `<div class="rt-group"><div class="rt-label">${esc(g.rt)}<em>${g.rate ? '₱' + Number(g.rate).toLocaleString() + '/araw' : esc(g.note||'')}</em></div>
-        <div class="beds">${g.beds.map(b => bedTile(b, q ? (hit(b) ? 'hit' : 'dim') : '')).join('')}</div></div>`).join('')}
-      ${roomin}</div>`
+        return `<button class="roomin" onclick="openAdmission(${r.id})"><b>${esc(tc(r.patient?.full_name))}</b>Kasama ng nanay sa ${esc(mom?.code || '?')} · Day ${dayNo(r.admitted_at)}</button>` }).join('')}</div></div>` : ''
+    return `<section class="ward"><div class="ward-head"><h3>${s.nm}</h3><span>${s.sub} · ${o} sa ${all.length} kama ang may pasyente${v ? ` · <b>${v} bakante</b>` : ''}</span></div>
+      ${groups.map(g => { const free = g.beds.filter(b => b.occupancy === 'available').length
+        return `<div class="rt-group"><div class="rt-label">${esc(tc(g.rt))}<em>${g.rate ? '₱' + Number(g.rate).toLocaleString() + ' / araw' : esc(g.note||'')}</em>${free ? `<em class="free">${free} bakante</em>` : ''}</div>
+        <div class="beds">${g.beds.map(b => bedTile(b, q && match(b) ? 'hit' : '')).join('')}</div></div>` }).join('')}
+      ${roomin}</section>`
   }).join('')
-  $('board').innerHTML = html || '<div class="empty">Walang kama sa station na ito.</div>'
+  $('board').innerHTML = html || `<div class="empty"><h3>Walang tugma</h3><p>Subukang alisin ang filter o ang hinahanap.</p></div>`
 }
 function bedTile(b, extra){
   if (b.occupancy === 'occupied'){
     const a = age(b.dob)
     return `<button class="bed ${extra}" style="--stripe:${stripeFor(b.account_type)}" onclick="openAdmission(${b.admission_id})" title="${esc(b.full_name)}">
-      <div class="r1"><span class="code">${esc(b.code)}</span><span class="day">D${dayNo(b.admitted_at)}</span></div>
-      <div class="pt">${esc(b.full_name)}</div>
-      <div class="sub">${esc([a && a + (b.sex?'/'+b.sex:''), b.admission_case, b.hmo || b.account_type].filter(Boolean).join(' · '))}</div>
-      <div class="sub">${esc(b.physician || '')}</div>${b.review?'<span class="flag" title="Needs review"></span>':''}</button>`
+      <div class="r1"><span class="code">${esc(b.code)}</span><span class="day">Day ${dayNo(b.admitted_at)}</span></div>
+      <div class="pt">${esc(tc(b.full_name))}</div>
+      <div class="sub">${esc([a && a + (b.sex ? ' ' + b.sex : ''), b.admission_case, b.hmo ? tc(b.hmo) : tc(b.account_type)].filter(Boolean).join(' · '))}</div>
+      <div class="sub">${esc(b.physician || 'Walang AP')}</div>${b.review?'<span class="flag" title="Needs review"></span>':''}</button>`
   }
-  const cls = b.occupancy === 'hold' ? 'hold' : b.occupancy === 'reserved' ? 'reserved' : 'vacant'
-  const label = b.occupancy === 'hold' ? (b.status_note || 'Hold') : b.occupancy === 'reserved' ? 'Reserved' + (b.status_note ? ': ' + b.status_note : '') : 'Bakante'
-  return `<button class="bed ${cls} ${extra}" onclick="bedMenu(${b.bed_id})"><div class="r1"><span class="code">${esc(b.code)}</span></div><div class="pt">${esc(label)}</div></button>`
+  if (b.occupancy === 'hold') return `<button class="bed hold ${extra}" onclick="bedMenu(${b.bed_id})" title="${esc(b.status_note || '')}">
+      <div class="r1"><span class="code">${esc(b.code)}</span><span class="tag">Hold</span></div><div class="why">${esc(b.status_note || 'Walang dahilan')}</div></button>`
+  if (b.occupancy === 'reserved') return `<button class="bed reserved ${extra}" onclick="bedMenu(${b.bed_id})">
+      <div class="r1"><span class="code">${esc(b.code)}</span><span class="tag">Reserved</span></div><div class="why">${esc(b.status_note || '')}</div></button>`
+  return `<button class="bed vacant ${extra}" onclick="bedMenu(${b.bed_id})" title="Pindutin para mag-admit o mag-hold"><div class="r1"><span class="code">${esc(b.code)}</span></div><div class="pt">Bakante</div></button>`
 }
 function bedMenu(bedId){
   const b = BOARD.find(x => x.bed_id === bedId)
@@ -955,7 +989,7 @@ async function openAdmission(id){
   const loc = a.bed?.code || (a.room_in_with ? 'ROOM IN' : a.admitting_room || '—')
   $('dHead').innerHTML = `<div class="row1"><div><small>Hosp No.</small><div class="no">${esc(p.hosp_no)}</div></div>
       <button class="btn btn-sm" onclick="closeDrawer()" aria-label="Close">✕</button></div>
-    <h2>${esc(p.full_name)}</h2>
+    <h2>${esc(tc(p.full_name))}</h2>
     <div class="ids"><span>${esc([age(p.dob), p.sex].filter(Boolean).join(' / ') || '—')}</span><span>DOB ${fmtDate(p.dob)}</span><span>${esc(a.admission_case || '')} ${esc(a.account_type || '')}</span><span>${esc(a.physician?.name || '')}</span></div>`
   const rev = a.needs_review ? `<div class="alert warn"><b>Needs review</b><div class="raw">${esc((a.review_reasons||[]).join(' · '))}</div>
      <div class="acts" style="margin-top:6px"><button class="btn btn-sm" onclick="editAdmission()">Ayusin</button><button class="btn btn-sm" onclick="markReviewed('admission',${a.id})">Mark as reviewed</button></div></div>` : ''
@@ -1161,7 +1195,7 @@ async function runPSearch(){
   if (!data.length){ box.innerHTML = `<div class="empty"><h3>Walang nahanap</h3><p>Subukan ang apelyido lang o ang Hosp No. Kung bagong pasyente, i-admit mula sa <a href="#" onclick="setView('board');return false">bed board</a>.</p></div>`; return }
   box.innerHTML = data.map(r => `<button class="prow" onclick="openPatient(${r.id})">
     <div class="tab"><small>Hosp No.</small><b>${esc(r.hosp_no)}</b></div>
-    <div class="body"><div class="nm">${esc(r.full_name)}</div><div class="meta">${esc([age(r.dob), r.sex].filter(Boolean).join(' / '))}${r.dob?' · '+fmtDate(r.dob):''} · ${r.admissions} admission${r.admissions===1?'':'s'}, huli ${fmtDate(r.last_admitted)}</div></div>
+    <div class="body"><div class="nm">${esc(tc(r.full_name))}</div><div class="meta">${esc([age(r.dob), r.sex].filter(Boolean).join(' / '))}${r.dob?' · '+fmtDate(r.dob):''} · ${r.admissions} admission${r.admissions===1?'':'s'}, huli ${fmtDate(r.last_admitted)}</div></div>
     <div class="side">${r.active_admission ? `<span class="pill blue">Naka-admit · ${esc(r.active_location||'')}</span>` : ''}${r.needs_review?'<span class="pill amber">Needs review</span>':''}</div></button>`).join('')
 }
 async function openPatient(id){
@@ -1173,7 +1207,7 @@ async function openPatient(id){
   const adms = (p.admissions||[]).sort((a,b) => new Date(b.admitted_at) - new Date(a.admitted_at))
   const act = adms.find(a => !a.discharged_at)
   $('dHead').innerHTML = `<div class="row1"><div><small>Hosp No.</small><div class="no">${esc(p.hosp_no)}</div></div><button class="btn btn-sm" onclick="closeDrawer()" aria-label="Close">✕</button></div>
-    <h2>${esc(p.full_name)}</h2><div class="ids"><span>${esc([age(p.dob), p.sex].filter(Boolean).join(' / ') || '—')}</span><span>DOB ${fmtDate(p.dob)}</span><span>${adms.length} admission${adms.length===1?'':'s'}</span></div>`
+    <h2>${esc(tc(p.full_name))}</h2><div class="ids"><span>${esc([age(p.dob), p.sex].filter(Boolean).join(' / ') || '—')}</span><span>DOB ${fmtDate(p.dob)}</span><span>${adms.length} admission${adms.length===1?'':'s'}</span></div>`
   $('dBody').innerHTML = (p.needs_review ? `<div class="alert warn"><b>Needs review</b><div class="raw">${esc((p.review_reasons||[]).join(' · '))}</div><div class="acts" style="margin-top:6px"><button class="btn btn-sm" onclick="editPatient()">Ayusin</button><button class="btn btn-sm" onclick="markReviewed('patient',${p.id})">Mark as reviewed</button></div></div>` : '') + `
     <div class="sec"><div class="where"><div><div class="lt">${act ? 'Naka-admit ngayon' : 'Hindi naka-admit'}</div><div class="loc">${act ? esc(act.admitting_room || '') : '—'}</div></div>
       <div class="acts">${act ? `<button class="btn btn-sm btn-primary" onclick="openAdmission(${act.id})">Buksan ang admission</button>` : `<button class="btn btn-sm btn-primary" onclick="closeDrawer();openAdmit({ patient: CUR_PAT_SNAPSHOT() })">Admit ulit</button>`}</div></div></div>
@@ -1207,7 +1241,7 @@ function censusRows(list){
     const rows = list.filter(a => a.station === k); if (!rows.length) return ''
     const nm = STATIONS.find(s=>s.k===k)?.nm || (k === 'ROOM IN' ? 'Room-in babies' : 'Walang kama')
     return `<tr class="grp"><td colspan="11">${esc(nm)} · ${rows.length}</td></tr>` + rows.map(a => `<tr class="click" onclick="openAdmission(${a.id})">
-      <td class="mono"><b>${esc(a.loc)}</b></td><td class="mono">${esc(a.patient.hosp_no)}</td><td><b>${esc(a.patient.full_name)}</b>${a.needs_review?' <span class="pill amber">review</span>':''}</td>
+      <td class="mono"><b>${esc(a.loc)}</b></td><td class="mono">${esc(a.patient.hosp_no)}</td><td><b>${esc(tc(a.patient.full_name))}</b>${a.needs_review?' <span class="pill amber">review</span>':''}</td>
       <td>${esc([age(a.patient.dob), a.patient.sex].filter(Boolean).join('/'))}</td><td>${fmtDate(a.admitted_at)}<div class="raw">Day ${dayNo(a.admitted_at)}</div></td>
       <td>${esc([a.phic, a.admission_case].filter(Boolean).join(' '))}</td><td>${esc(a.hmo?.name || a.account_type || '')}<div class="raw">${esc(a.hmo_coordinator || '')}</div></td>
       <td>${esc(a.admitting_dx || '')}</td><td>${esc(a.physician?.name || '')}</td><td>${esc(a.medical_case || '')}</td><td>${esc([a.companion_pass_no, a.companion_pass_status].filter(Boolean).join(' '))}</td></tr>`).join('')
