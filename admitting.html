@@ -333,6 +333,7 @@ dl.kv dd{word-break:break-word}
 .modal.on{display:flex}
 .m-card{background:var(--surf1);border-radius:18px;width:100%;max-width:600px;box-shadow:var(--shadow2);border:1px solid var(--bdr)}
 .m-card.wide{max-width:880px}
+.m-card.xwide{max-width:min(1280px,96vw)}
 .m-head{padding:18px 22px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center}
 .m-head h3{font-size:19px}
 .m-body{padding:18px 22px}
@@ -754,7 +755,7 @@ function csvDownload(name, rows){
 // ═══════════ MODAL / DRAWER ═══════════
 function openModal(title, body, foot, wide){
   $('mTitle').textContent = title; $('mBody').innerHTML = body; $('mFoot').innerHTML = foot || ''
-  $('mCard').classList.toggle('wide', !!wide); $('modal').classList.add('on')
+  $('mCard').classList.toggle('wide', !!wide); $('mCard').classList.remove('xwide'); $('modal').classList.add('on')
   setTimeout(() => { const f = $('mBody').querySelector('input:not([type=hidden]):not([disabled]):not([type=checkbox]),select,textarea'); if (f) f.focus() }, 40)
 }
 function closeModal(){ $('modal').classList.remove('on') }
@@ -1730,14 +1731,14 @@ async function loadReport(){
 // ── Patient list behind a report number ──
 let RPT_F = [], RPT_LIST = null
 const RPT_SEL = `id, admitted_at, discharged_at, disposition, account_type, admission_type, admission_case, medical_case, admitting_dx, final_dx, admitting_room, room_type_admitted, admitting_officer,
-  patient:adm_patients(hosp_no, full_name, dob, sex), physician:adm_physicians!adm_admissions_physician_id_fkey(name), co:adm_physicians!adm_admissions_co_physician_id_fkey(name),
+  patient:adm_patients(hosp_no, full_name, dob, sex, address), physician:adm_physicians!adm_admissions_physician_id_fkey(name), co:adm_physicians!adm_admissions_co_physician_id_fkey(name),
   hmo:adm_hmo(name), bed:adm_beds(code)`
 async function rptOpen(i){
   const f = RPT_F[i]; if (!f) return
   const col = f.kind === 'dis' ? 'discharged_at' : 'admitted_at'
   const lo = new Date(f.from + 'T00:00:00+08:00').toISOString(), hi = new Date(new Date(f.to + 'T00:00:00+08:00').getTime() + 864e5).toISOString()
   const period = f.from === f.to ? fmtDate(f.from) : fmtDate(f.from) + ' – ' + fmtDate(f.to)
-  openModal(f.title, '<div class="empty"><span class="spin"></span></div>', '', true)
+  openModal(f.title, '<div class="empty"><span class="spin"></span></div>', '', true); $('mCard').classList.add('xwide')
   let rows = []
   for (let p = 0; p < 10; p++){
     const { data, error } = await f.apply(SB.from('adm_admissions').select(RPT_SEL).gte(col, lo).lt(col, hi)).order(col).range(p*1000, p*1000+999)
@@ -1748,10 +1749,12 @@ async function rptOpen(i){
   const dis = f.kind === 'dis'
   $('mTitle').textContent = `${f.title} · ${rows.length} patient${rows.length===1?'':'s'}`
   $('mBody').innerHTML = `<p class="raw" style="margin-bottom:12px">${esc(period)} · ${dis ? 'by discharge date' : 'by admission date'}. Select a patient to open their admission.</p>` + (rows.length ? `
-    <div class="tbl-wrap" style="max-height:60vh;box-shadow:none"><table><thead><tr><th class="num">#</th><th>${dis?'Discharged':'Admitted'}</th><th>Patient</th><th>Room</th><th>Attending</th><th>Payment</th><th>${dis?'Final diagnosis':'Admitting diagnosis'}</th><th>Status</th></tr></thead><tbody>
+    <div class="tbl-wrap" style="max-height:60vh;box-shadow:none"><table><thead><tr><th class="num">#</th><th>${dis?'Discharged':'Admitted'}</th><th>Patient</th><th>Birthday</th><th>Address</th><th>Room</th><th>Attending</th><th>Payment</th><th>${dis?'Final diagnosis':'Admitting diagnosis'}</th><th>Status</th></tr></thead><tbody>
     ${rows.map((a, n) => `<tr class="click" onclick="closeModal();openAdmission(${a.id})"><td class="num">${n+1}</td>
       <td style="white-space:nowrap">${fmtDT(a[col])}</td>
       <td style="min-width:190px"><b>${esc(tc(a.patient?.full_name))}</b><div class="raw mono">${esc(a.patient?.hosp_no || '')} · ${esc([age(a.patient?.dob, a.admitted_at), a.patient?.sex].filter(Boolean).join(' '))}</div></td>
+      <td style="white-space:nowrap">${a.patient?.dob ? fmtDate(a.patient.dob) : '—'}</td>
+      <td style="min-width:200px;max-width:30ch">${esc(a.patient?.address || '—')}</td>
       <td class="mono">${esc(a.bed?.code || a.admitting_room || '—')}</td>
       <td>${esc(a.physician?.name || '—')}${a.co ? `<div class="raw">+ ${esc(a.co.name)}</div>` : ''}</td>
       <td>${payerChip(a.account_type, a.hmo?.name)}</td>
@@ -1764,8 +1767,8 @@ function rptListCsv(){
   const { f, rows, period } = RPT_LIST
   SB.rpc('adm_log_event', { p_action:'export', p_note:`patient list “${f.title}” ${period} (${rows.length})` }).then(()=>{})
   csvDownload((f.title + ' ' + f.from + '_' + f.to).replace(/[^\w.-]+/g, '-').toLowerCase() + '.csv',
-    [['Admitted','Discharged','Disposition','Hosp No','Name','Age','Sex','Room','Attending','Co-managing','Payment','HMO','Source','Case','Service','Admitting diagnosis','Final diagnosis','Admitting officer']]
-    .concat(rows.map(a => [fmtDT(a.admitted_at), a.discharged_at ? fmtDT(a.discharged_at) : '', a.disposition || '', a.patient?.hosp_no, a.patient?.full_name, age(a.patient?.dob, a.admitted_at), a.patient?.sex,
+    [['Admitted','Discharged','Disposition','Hosp No','Name','Birthday','Age','Sex','Address','Room','Attending','Co-managing','Payment','HMO','Source','Case','Service','Admitting diagnosis','Final diagnosis','Admitting officer']]
+    .concat(rows.map(a => [fmtDT(a.admitted_at), a.discharged_at ? fmtDT(a.discharged_at) : '', a.disposition || '', a.patient?.hosp_no, a.patient?.full_name, a.patient?.dob || '', age(a.patient?.dob, a.admitted_at), a.patient?.sex, a.patient?.address || '',
       a.bed?.code || a.admitting_room || '', a.physician?.name || '', a.co?.name || '', a.account_type || '', a.hmo?.name || '', a.admission_type || '', a.admission_case || '', a.medical_case || '',
       a.admitting_dx || '', a.final_dx || '', a.admitting_officer || ''])))
 }
@@ -1773,8 +1776,8 @@ function rptListPrint(){
   const { f, rows, period, col } = RPT_LIST, dis = f.kind === 'dis'
   SB.rpc('adm_log_event', { p_action:'print', p_note:`patient list “${f.title}” ${period} (${rows.length})` }).then(()=>{})
   $('printArea').innerHTML = `<h1>Taytay Doctors Multispecialty Hospital — ${esc(f.title)}</h1><p>${esc(period)} · ${rows.length} patients · printed by ${esc(ME.full_name)}, ${new Date().toLocaleString('en-PH')}</p>
-    <table><thead><tr><th>#</th><th>${dis?'Discharged':'Admitted'}</th><th>Hosp No.</th><th>Patient</th><th>Age/Sex</th><th>Room</th><th>Attending</th><th>Payment</th><th>Diagnosis</th><th>Status</th></tr></thead><tbody>
-    ${rows.map((a, n) => `<tr><td>${n+1}</td><td>${fmtDT(a[col])}</td><td>${esc(a.patient?.hosp_no||'')}</td><td>${esc(a.patient?.full_name||'')}</td><td>${esc([age(a.patient?.dob, a.admitted_at), a.patient?.sex].filter(Boolean).join(' '))}</td>
+    <table><thead><tr><th>#</th><th>${dis?'Discharged':'Admitted'}</th><th>Hosp No.</th><th>Patient</th><th>Birthday</th><th>Age/Sex</th><th>Address</th><th>Room</th><th>Attending</th><th>Payment</th><th>Diagnosis</th><th>Status</th></tr></thead><tbody>
+    ${rows.map((a, n) => `<tr><td>${n+1}</td><td>${fmtDT(a[col])}</td><td>${esc(a.patient?.hosp_no||'')}</td><td>${esc(a.patient?.full_name||'')}</td><td>${a.patient?.dob ? fmtDate(a.patient.dob) : ''}</td><td>${esc([age(a.patient?.dob, a.admitted_at), a.patient?.sex].filter(Boolean).join(' '))}</td><td>${esc(a.patient?.address||'')}</td>
       <td>${esc(a.bed?.code || a.admitting_room || '')}</td><td>${esc(a.physician?.name||'')}</td><td>${esc(a.hmo?.name || a.account_type || '')}</td><td>${esc((dis ? a.final_dx || a.admitting_dx : a.admitting_dx) || '')}</td><td>${esc(a.discharged_at ? a.disposition || 'Discharged' : 'Admitted')}</td></tr>`).join('')}
     </tbody></table>`
   window.print()
