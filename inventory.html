@@ -639,7 +639,6 @@ function renderSidebarNav() {
     { id:'pm_schedule', icon:'🔧', label:'PM Schedule', roles:['encoder','admin'] },
     { id:'for_maintenance', icon:'⚠️', label:'For Repair/DERP', roles:['encoder','admin'] },
     { id:'depreciation', icon:'📉', label:'Depreciation', roles:['encoder','admin'] },
-    { id:'doh_compliance', icon:'📋', label:'DOH Compliance', roles:['encoder','admin'] },
     { id:'reports', icon:'📈', label:'Reports', roles:['encoder','admin'] },
     { id:'how_to', icon:'📖', label:'How-To Guide', roles:['viewer','encoder','admin'] },
   ]
@@ -659,7 +658,7 @@ function renderSidebarNav() {
 const PAGE_TITLES = {
   dashboard:'Dashboard', all_assets:'All Assets', by_category:'By Category',
   by_department:'By Department', for_maintenance:'For Repair / DERP',
-  depreciation:'Depreciation Report', doh_compliance:'DOH Compliance',
+  depreciation:'Depreciation Report', 
   reports:'Reports', checkouts:'Borrowing / Checkout',
   physical_count:'Physical Count', transfers:'Asset Transfers',
   disposals:'Disposal Certificates', pm_schedule:'PM Schedule', how_to:'How-To Guide'
@@ -678,7 +677,7 @@ function showPage(page) {
     dashboard: renderDashboard, all_assets: renderAllAssets,
     by_category: renderByCategory, by_department: renderByDepartment,
     for_maintenance: renderForMaintenance, depreciation: renderDepreciation,
-    doh_compliance: renderDOHCompliance, reports: renderReports,
+    reports: renderReports,
     checkouts: renderCheckouts, physical_count: renderPhysicalCount,
     transfers: renderTransfers, disposals: renderDisposals,
     pm_schedule: renderPMSchedule, how_to: renderHowTo
@@ -731,12 +730,7 @@ async function renderDashboard() {
   const disposal = assets.filter(a => a.status === 'for_disposal').length
   const totalValue = assets.reduce((s,a) => s + Number(a.acquisition_cost||0), 0)
 
-  // DOH due (calibration)
   const today = new Date()
-  const dohDue = assets.filter(a => {
-    if (!a.next_calibration_date) return false
-    return new Date(a.next_calibration_date) <= new Date(today.getTime() + 30*24*3600000)
-  }).length
 
   // By category
   const catMap = {}
@@ -767,7 +761,6 @@ async function renderDashboard() {
   html += sC('🔧','Under Repair',repair,'Being serviced','var(--amber)')
   html += sC('⚠️','For Disposal',disposal,'Tagged for disposal','var(--red)')
   html += sC('💰','Total Value','₱'+totalValue.toLocaleString(),'Acquisition cost','var(--blue)')
-  if (dohDue > 0) html += sC('📋','DOH Due',dohDue,'Calibration within 30 days','var(--red)')
   html += '</div>'
 
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">'
@@ -1008,7 +1001,6 @@ async function renderByCategory() {
     html += '<div style="width:44px;height:44px;border-radius:12px;background:' + cat.color + '18;border:1px solid ' + cat.color + '33;display:flex;align-items:center;justify-content:center;font-size:20px;">' + cat.icon + '</div>'
     html += '<div><div style="font-size:15px;font-weight:700;">' + cat.name + '</div>'
     html += '<div style="font-size:12px;color:var(--txt2);">' + catAssets.length + ' assets · ₱' + totalVal.toLocaleString() + '</div></div>'
-    if (cat.requires_doh) html += '<span style="margin-left:auto;font-size:10px;background:var(--red-a);color:var(--red);padding:2px 6px;border-radius:6px;">DOH</span>'
     html += '</div>'
     html += '<div style="display:flex;gap:10px;">'
     html += '<div style="flex:1;background:var(--surf2);border-radius:8px;padding:8px;text-align:center;"><div style="font-size:18px;font-weight:700;color:var(--accent);">' + active + '</div><div style="font-size:11px;color:var(--txt2);">Active</div></div>'
@@ -1152,51 +1144,6 @@ async function renderDepreciation() {
 }
 
 // ═══════════════════════════════════
-// DOH COMPLIANCE
-// ═══════════════════════════════════
-async function renderDOHCompliance() {
-  const content = document.getElementById('mainContent')
-  const assets = await loadAssets()
-  const medAssets = assets.filter(a => {
-    const cat = S.categories.find(c => c.id === a.category_id)
-    return cat && cat.requires_doh
-  })
-  const today = new Date()
-  const in30 = new Date(today.getTime() + 30*24*3600000)
-
-  let html = '<div class="page-header"><h2>📋 DOH Compliance — Medical Equipment</h2></div>'
-
-  if (medAssets.length === 0) {
-    html += '<div class="empty-state"><div class="empty-icon">📋</div><h3>No medical equipment registered</h3></div>'
-  } else {
-    html += '<div class="table-wrap"><table><thead><tr>'
-    html += '<th>Asset No.</th><th>Equipment</th><th>DOH Reg No.</th><th>Last Calibration</th><th>Next Calibration</th><th>Last PM</th><th>Next PM</th><th>Warranty</th><th>Status</th>'
-    html += '</tr></thead><tbody>'
-    medAssets.forEach(a => {
-      const calDue = a.next_calibration_date ? new Date(a.next_calibration_date) : null
-      const pmDue = a.next_pm_date ? new Date(a.next_pm_date) : null
-      const calOverdue = calDue && calDue < today
-      const calSoon = calDue && calDue <= in30 && !calOverdue
-      const pmOverdue = pmDue && pmDue < today
-
-      html += '<tr onclick="viewAsset(\'' + a.id + '\')" style="cursor:pointer;">'
-      html += '<td class="td-mono">' + a.asset_no + '</td>'
-      html += '<td><strong>' + a.asset_name + '</strong><br><span style="font-size:11px;color:var(--txt2);">' + (a.brand||'') + ' ' + (a.model||'') + '</span></td>'
-      html += '<td style="font-size:12px;">' + (a.doh_reg_no||'<span style="color:var(--red);">Missing</span>') + '</td>'
-      html += '<td style="color:var(--txt2);">' + (a.last_calibration_date ? formatDate(a.last_calibration_date) : '—') + '</td>'
-      html += '<td style="color:' + (calOverdue?'var(--red)':calSoon?'var(--amber)':'var(--txt2)') + ';font-weight:' + (calOverdue||calSoon?'700':'400') + ';">'
-      html += (a.next_calibration_date ? formatDate(a.next_calibration_date) : '—') + (calOverdue?' ⚠️':calSoon?' ⏰':'') + '</td>'
-      html += '<td style="color:var(--txt2);">' + (a.last_pm_date ? formatDate(a.last_pm_date) : '—') + '</td>'
-      html += '<td style="color:' + (pmOverdue?'var(--red)':'var(--txt2)') + ';">' + (a.next_pm_date ? formatDate(a.next_pm_date) : '—') + (pmOverdue?' ⚠️':'') + '</td>'
-      html += '<td style="color:' + (a.warranty_expiry && new Date(a.warranty_expiry) < today ? 'var(--txt3)' : 'var(--txt2)') + ';">' + (a.warranty_expiry ? formatDate(a.warranty_expiry) : '—') + '</td>'
-      html += '<td><span class="badge badge-' + a.status + '">' + formatStatus(a.status) + '</span></td>'
-      html += '</tr>'
-    })
-    html += '</tbody></table></div>'
-  }
-  content.innerHTML = html
-}
-
 // ═══════════════════════════════════
 // REPORTS
 // ═══════════════════════════════════
@@ -1260,7 +1207,7 @@ function howToInvEncoder() {
   b += stepRow(2, t('Sa <strong>📤 Borrowing / Checkout</strong>, i-record kung sino ang humihiram ng asset at kailan ibabalik.','In <strong>📤 Borrowing / Checkout</strong>, record who is borrowing an asset and when it will be returned.'))
   b += stepRow(3, t('Sa <strong>🔢 Physical Count</strong>, gawin ang inventory count — i-scan o i-check ang bawat asset para tumugma sa records.','In <strong>🔢 Physical Count</strong>, do the inventory count — scan or check each asset to match the records.'))
   b += stepRow(4, t('Sa <strong>↔️ Transfers</strong>, ilipat ang asset sa ibang department. Sa <strong>🗑️ Disposals</strong>, i-record ang mga sirang gamit na ide-dispose.','In <strong>↔️ Transfers</strong>, move an asset to another department. In <strong>🗑️ Disposals</strong>, record broken items to dispose of.'))
-  b += stepRow(5, t('Sa <strong>🔧 PM Schedule</strong>, itakda ang preventive maintenance. Sa <strong>📋 DOH Compliance</strong>, tignan ang mga requirement para sa audit.','In <strong>🔧 PM Schedule</strong>, set preventive maintenance. In <strong>📋 DOH Compliance</strong>, check requirements for audits.'))
+  b += stepRow(5, t('Sa <strong>🔧 PM Schedule</strong>, itakda ang preventive maintenance ng equipment.','In <strong>🔧 PM Schedule</strong>, set preventive maintenance for equipment.'))
   return howToCard('✏️ ' + t('Para sa Encoder — Pamamahala ng Assets','For Encoders — Managing Assets'), b)
 }
 function howToInvCommon() {
@@ -1489,21 +1436,6 @@ async function viewAsset(id) {
     body += '<div class="depr-bar"><div class="depr-fill" style="width:' + deprPct + '%;background:' + deprColor + ';"></div></div>'
     body += '<div style="font-size:11px;color:' + deprColor + ';margin-top:4px;">' + deprPct + '% depreciated</div>'
     body += '</div>'
-  }
-
-  // DOH fields (medical)
-  if (cat && cat.requires_doh) {
-    body += '<div style="background:var(--red-a);border:1px solid var(--red);border-radius:10px;padding:14px;margin-bottom:16px;">'
-    body += '<div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:10px;">📋 DOH / FDA Compliance</div>'
-    body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-    body += iF('DOH Classification', a.doh_classification || '<span style="color:var(--red);">Not set</span>')
-    body += iF('DOH Reg No.', a.doh_reg_no || '<span style="color:var(--red);">Missing</span>')
-    body += iF('Last Calibration', a.last_calibration_date ? formatDate(a.last_calibration_date) : '—')
-    body += iF('Next Calibration', a.next_calibration_date ? formatDate(a.next_calibration_date) : '—')
-    body += iF('Last PM', a.last_pm_date ? formatDate(a.last_pm_date) : '—')
-    body += iF('Next PM', a.next_pm_date ? formatDate(a.next_pm_date) : '—')
-    body += iF('Warranty Expiry', a.warranty_expiry ? formatDate(a.warranty_expiry) : '—')
-    body += '</div></div>'
   }
 
   // QR Code — generate as data URL before injecting HTML
@@ -1747,7 +1679,7 @@ async function openAssetForm(assetId) {
   html += '<div style="font-size:12px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Basic Information</div>'
   html += '<div class="field-row">'
   html += '<div class="field"><label>Asset Name <span style="color:var(--red);">*</span></label><input type="text" id="af_name" value="' + (a?a.asset_name:'') + '" placeholder="e.g. Dell Latitude 5420"></div>'
-  html += '<div class="field"><label>Category <span style="color:var(--red);">*</span></label><select id="af_cat" onchange="checkDOHFields()">' + catOptions + '</select></div>'
+  html += '<div class="field"><label>Category <span style="color:var(--red);">*</span></label><select id="af_cat">' + catOptions + '</select></div>'
   html += '</div>'
 
   html += '<div class="field-row-3">'
@@ -1795,28 +1727,6 @@ async function openAssetForm(assetId) {
   html += '</select></div>'
   html += '</div>'
 
-  // DOH fields (shown for medical category)
-  html += '<div id="dohFields" style="display:none;background:var(--red-a);border:1px solid var(--red);border-radius:10px;padding:14px;margin-top:4px;">'
-  html += '<div style="font-size:12px;font-weight:600;color:var(--red);margin-bottom:12px;">📋 DOH / FDA Compliance Fields</div>'
-  html += '<div class="field-row">'
-  html += '<div class="field"><label>DOH Classification</label><select id="af_doh_class">'
-  ;['','Class A','Class B','Class C'].forEach(c => {
-    html += '<option' + (a && a.doh_classification === c ? ' selected' : '') + '>' + c + '</option>'
-  })
-  html += '</select></div>'
-  html += '<div class="field"><label>DOH/FDA Reg No.</label><input type="text" id="af_doh_reg" value="' + (a?a.doh_reg_no||'':'') + '" placeholder="FDA-XXXXXX"></div>'
-  html += '</div>'
-  html += '<div class="field-row-3">'
-  html += '<div class="field"><label>Last Calibration</label><input type="date" id="af_last_cal" value="' + (a?a.last_calibration_date||'':'') + '"></div>'
-  html += '<div class="field"><label>Next Calibration</label><input type="date" id="af_next_cal" value="' + (a?a.next_calibration_date||'':'') + '"></div>'
-  html += '<div class="field"><label>Warranty Expiry</label><input type="date" id="af_warranty" value="' + (a?a.warranty_expiry||'':'') + '"></div>'
-  html += '</div>'
-  html += '<div class="field-row">'
-  html += '<div class="field"><label>Last PM Date</label><input type="date" id="af_last_pm" value="' + (a?a.last_pm_date||'':'') + '"></div>'
-  html += '<div class="field"><label>Next PM Date</label><input type="date" id="af_next_pm" value="' + (a?a.next_pm_date||'':'') + '"></div>'
-  html += '</div>'
-  html += '</div>'
-
   html += '<div class="field" style="margin-top:16px;"><label>Asset Photo</label>'
   html += '<div id="photo_preview" style="margin-bottom:8px;">'
   if (a && a.photo_url) {
@@ -1831,7 +1741,6 @@ async function openAssetForm(assetId) {
 
   document.getElementById('assetFormBody').innerHTML = html
   closeModal('assetDetailModal')
-  checkDOHFields()
   openModal('assetFormModal')
 }
 
@@ -1856,14 +1765,6 @@ async function uploadAssetPhoto(assetId) {
   if (error) { console.warn('Photo upload error:', error.message); return null }
   const { data: urlData } = SB.storage.from('asset-photos').getPublicUrl(path)
   return urlData.publicUrl
-}
-
-function checkDOHFields() {
-  const catEl = document.getElementById('af_cat')
-  if (!catEl) return
-  const cat = S.categories.find(c => c.id === catEl.value)
-  const dohDiv = document.getElementById('dohFields')
-  if (dohDiv) dohDiv.style.display = cat && cat.requires_doh ? 'block' : 'none'
 }
 
 async function saveAsset() {
@@ -1893,17 +1794,6 @@ async function saveAsset() {
     condition: document.getElementById('af_condition')?.value || 'good',
     notes: document.getElementById('af_notes')?.value.trim() || null,
     updated_at: new Date().toISOString()
-  }
-
-  // DOH fields
-  if (cat && cat.requires_doh) {
-    payload.doh_classification = document.getElementById('af_doh_class')?.value || null
-    payload.doh_reg_no = document.getElementById('af_doh_reg')?.value.trim() || null
-    payload.last_calibration_date = document.getElementById('af_last_cal')?.value || null
-    payload.next_calibration_date = document.getElementById('af_next_cal')?.value || null
-    payload.warranty_expiry = document.getElementById('af_warranty')?.value || null
-    payload.last_pm_date = document.getElementById('af_last_pm')?.value || null
-    payload.next_pm_date = document.getElementById('af_next_pm')?.value || null
   }
 
   try {
