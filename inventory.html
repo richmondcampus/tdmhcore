@@ -636,6 +636,7 @@ function renderSidebarNav() {
     { id:'physical_count', icon:'🔢', label:'Physical Count', roles:['encoder','admin'] },
     { id:'transfers', icon:'↔️', label:'Transfers', roles:['encoder','admin'] },
     { id:'disposals', icon:'🗑️', label:'Disposals', roles:['encoder','admin'] },
+    { id:'deleted_records', icon:'♻️', label:'Deleted Records', roles:['encoder','admin'] },
     { id:'pm_schedule', icon:'🔧', label:'PM Schedule', roles:['encoder','admin'] },
     { id:'for_maintenance', icon:'⚠️', label:'For Repair/DERP', roles:['encoder','admin'] },
     { id:'depreciation', icon:'📉', label:'Depreciation', roles:['encoder','admin'] },
@@ -661,7 +662,7 @@ const PAGE_TITLES = {
   depreciation:'Depreciation Report', 
   reports:'Reports', checkouts:'Borrowing / Checkout',
   physical_count:'Physical Count', transfers:'Asset Transfers',
-  disposals:'Disposal Certificates', pm_schedule:'PM Schedule', how_to:'How-To Guide'
+  disposals:'Disposal Certificates', deleted_records:'Deleted Records', pm_schedule:'PM Schedule', how_to:'How-To Guide'
 }
 
 function showPage(page) {
@@ -679,7 +680,7 @@ function showPage(page) {
     for_maintenance: renderForMaintenance, depreciation: renderDepreciation,
     reports: renderReports,
     checkouts: renderCheckouts, physical_count: renderPhysicalCount,
-    transfers: renderTransfers, disposals: renderDisposals,
+    transfers: renderTransfers, disposals: renderDisposals, deleted_records: renderDeletedRecords,
     pm_schedule: renderPMSchedule, how_to: renderHowTo
   }
   if (pages[page]) pages[page]()
@@ -701,7 +702,7 @@ async function loadUsers() {
   S.users = data || []
 }
 async function loadAssets(filter = {}) {
-  let q = SB.from('assets').select('*').eq('is_active', true).order('created_at', { ascending: false })
+  let q = SB.from('assets').select('*').eq('is_active', true).is('deleted_at', null).order('created_at', { ascending: false })
   if (filter.category_id) q = q.eq('category_id', filter.category_id)
   if (filter.dept_id) q = q.eq('dept_id', filter.dept_id)
   if (filter.status) q = q.eq('status', filter.status)
@@ -1371,6 +1372,67 @@ async function exportCSV() {
 // ═══════════════════════════════════
 // ASSET DETAIL
 // ═══════════════════════════════════
+// Soft-delete an asset record (for double/wrong entries) — requires a reason, logged for audit.
+function openDeleteRecordModal(assetId) {
+  const a = S.assets.find(x => x.id === assetId)
+  const name = a ? (a.asset_no + ' — ' + a.asset_name) : assetId
+  closeModal('assetDetailModal')
+  document.getElementById('confirmTitle').textContent = '🗑️ Delete Record'
+  document.getElementById('confirmMsg').innerHTML =
+    '<span style="display:block;margin-bottom:12px;">Idi-delete ang record na ito (hal. double o maling entry). Ilagay ang dahilan — mare-record ito para sa audit, at pwedeng i-restore sa Deleted Records.</span>'
+    + '<span style="display:block;background:var(--surf2);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:13px;font-weight:600;">🗑️ ' + name + '</span>'
+    + '<label style="font-size:12px;font-weight:600;color:var(--txt2);display:block;">Dahilan ng pag-delete *</label>'
+    + '<textarea id="del_reason" rows="3" placeholder="hal. Double entry, o maling item" style="width:100%;margin-top:6px;padding:8px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></textarea>'
+  const okBtn = document.getElementById('confirmOkBtn')
+  okBtn.textContent = '🗑️ Delete'
+  okBtn.onclick = async () => {
+    const reason = (document.getElementById('del_reason')?.value || '').trim()
+    if (!reason) { showToast('error','Dahilan','Kailangan ng dahilan bago i-delete.'); return }
+    try {
+      await SB.from('assets').update({
+        deleted_at: new Date().toISOString(), deleted_by: S.user.id, delete_reason: reason,
+        updated_at: new Date().toISOString()
+      }).eq('id', assetId)
+      await SB.from('asset_history').insert({
+        asset_id: assetId, action: 'deleted', to_value: 'record deleted', performed_by: S.user.id, notes: reason
+      })
+      closeModal('confirmModal')
+      showToast('success','Deleted','Na-delete ang record. Nakatala sa Deleted Records.')
+      if (S.page === 'assets') { S.assets = await loadAssets(); renderAllAssets() }
+      else if (S.page === 'deleted_records') renderDeletedRecords()
+    } catch(e) { showToast('error','Error', e.message) }
+  }
+  openModal('confirmModal')
+}
+
+async function restoreAssetRecord(assetId) {
+  try {
+    await SB.from('assets').update({ deleted_at: null, deleted_by: null, delete_reason: null, updated_at: new Date().toISOString() }).eq('id', assetId)
+    await SB.from('asset_history').insert({ asset_id: assetId, action: 'restored', to_value: 'record restored', performed_by: S.user.id, notes: 'Restored from Deleted Records' })
+    showToast('success','Restored','Naibalik ang record.')
+    renderDeletedRecords()
+  } catch(e) { showToast('error','Error', e.message) }
+}
+
+async function renderDeletedRecords() {
+  const content = document.getElementById('mainContent')
+  content.innerHTML = '<div class="page-header"><h2>🗑️ Deleted Records</h2><p style="font-size:13px;color:var(--txt2);">Mga na-delete na asset record — pwedeng i-restore kung nagkamali.</p></div>'
+  const { data: rows } = await SB.from('assets').select('*').not('deleted_at','is',null).order('deleted_at', { ascending: false })
+  if (!rows || !rows.length) { content.innerHTML += '<div style="padding:30px;text-align:center;color:var(--txt3);">Walang deleted records. 🎉</div>'; return }
+  let html = '<div class="table-wrap"><table><thead><tr><th>Asset No.</th><th>Item</th><th>Dept</th><th>Dahilan</th><th>Deleted</th><th></th></tr></thead><tbody>'
+  rows.forEach(a => {
+    const dept = S.departments.find(d => d.id === a.dept_id)
+    const by = S.users.find(u => u.id === a.deleted_by)
+    html += '<tr><td class="td-mono">' + a.asset_no + '</td><td>' + a.asset_name + '</td>'
+      + '<td>' + (dept ? dept.dept_name : '—') + '</td>'
+      + '<td style="font-size:12px;color:var(--txt2);">' + (a.delete_reason || '—') + '</td>'
+      + '<td style="font-size:11px;color:var(--txt3);">' + formatDate(a.deleted_at) + (by ? '<br>' + by.full_name : '') + '</td>'
+      + '<td><button class="btn btn-ghost btn-sm" onclick="restoreAssetRecord(\'' + a.id + '\')">↩️ Restore</button></td></tr>'
+  })
+  html += '</tbody></table></div>'
+  content.innerHTML += html
+}
+
 async function viewAsset(id) {
   const { data: a } = await SB.from('assets').select('*').eq('id', id).single()
   if (!a) return
@@ -1550,6 +1612,7 @@ async function viewAsset(id) {
     footer += '<button class="btn btn-ghost" onclick="openTransferModal(\'' + a.id + '\')">↔️ Transfer</button>'
     footer += '<button class="btn btn-ghost" onclick="openCheckoutModal(\'' + a.id + '\')">📤 Checkout</button>'
     footer += '<button class="btn btn-amber" onclick="flagForDERP(\'' + a.id + '\')">♻️ DERP</button>'
+    footer += '<button class="btn btn-danger" onclick="openDeleteRecordModal(\'' + a.id + '\')">🗑️ Delete Record</button>'
   }
   if (a.status === 'for_disposal' && ['admin'].includes(role)) {
     footer += '<button class="btn btn-danger" onclick="openDisposalForm(\'' + a.id + '\')">📄 Disposal Cert</button>'
