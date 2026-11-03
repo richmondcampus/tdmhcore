@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.10.23-10'
+const APP_VERSION = '2026.11.03-2'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1335,8 +1335,11 @@ async function loadRequests(filters = {}) {
     if (filters.request_type) q = q.eq('request_type', filters.request_type)
     if (filters.dept_id) q = q.eq('dept_id', filters.dept_id)
     // Server-side text search on request_no/purpose (so filtering finds ALL matches, not
-    // just the loaded page).
-    if (filters.search) q = q.or('request_no.ilike.%' + filters.search + '%,purpose.ilike.%' + filters.search + '%')
+    // just the loaded page). Sanitize: commas and parens break PostgREST's .or() syntax.
+    if (filters.search) {
+      const t = String(filters.search).replace(/[,()%]/g, ' ').trim()
+      if (t) q = q.or('request_no.ilike.%' + t + '%,purpose.ilike.%' + t + '%')
+    }
     // Limit for speed; omitted when we need everything (e.g. an active search/filter).
     if (filters.limit) q = q.limit(filters.limit)
     const { data, error } = await q
@@ -1349,7 +1352,9 @@ async function loadRequests(filters = {}) {
 // requests, not just the loaded page).
 async function findRequestIdsByItem(term) {
   try {
-    const { data } = await SB.from('request_items').select('request_id').ilike('item_name', '%' + term + '%').limit(500)
+    const t = String(term).replace(/[%]/g, ' ').trim()
+    if (!t) return []
+    const { data } = await SB.from('request_items').select('request_id').ilike('item_name', '%' + t + '%').limit(1000)
     return [...new Set((data || []).map(r => r.request_id))]
   } catch(_) { return [] }
 }
@@ -1695,7 +1700,7 @@ function buildCSRKanban(requests) {
     { id:'approved',         label:'⚡ Needs Fulfillment', color:'var(--green)',  bg:'var(--green-a)', filter: r => ((r.status === 'approved' || r.status === 'partially_issued') && r.current_approval_level !== 3) || ((r.status === 'for_po' || r.status === 'partially_issued') && requestHasPendingIssue(r)) || (r.status === 'delivered' && requestHasReceivedPO(r)) },
     // For PO: only requests explicitly forwarded for purchasing (for_po) or at the
     // Purchasing Officer level (3). These are NOT for the Supply Officer to issue.
-    { id:'for_po',           label:'💰 For PO',            color:'var(--accent)', bg:'var(--accent-a)', filter: r => r.status === 'for_po' || (r.status === 'approved' && r.current_approval_level === 3) },
+    { id:'for_po',           label:'🛒 Ordered / Waiting Delivery', color:'var(--accent)', bg:'var(--accent-a)', filter: r => r.status === 'for_po' || (r.status === 'approved' && r.current_approval_level === 3) },
     { id:'issued',           label:'📦 Issued/Done',       color:'var(--blue)',   bg:'var(--blue-a)',  filter: r => r.status === 'issued' || r.status === 'ordered' },
     { id:'cancelled',        label:'❌ Cancelled',         color:'var(--red)',    bg:'var(--red-a)',   filter: r => r.status === 'cancelled' },
   ]
@@ -12512,7 +12517,7 @@ function formatStatus(s) {
   const map = {
     draft:'Draft', pending_approval:'Pending Approval',
     pending_evaluation:'Pending Evaluation', under_evaluation:'Under Evaluation',
-    approved:'Approved', for_po:'For PO', ordered:'Ordered',
+    approved:'Approved', for_po:'Ordered / Waiting Delivery', ordered:'Ordered',
     delivered:'Delivered', issued:'Issued', partially_issued:'Partially Issued', cancelled:'Cancelled',
     for_repair:'For Repair', repair_in_progress:'Repair In Progress',
     repair_completed:'Repair Completed', for_replacement:'For Replacement',
