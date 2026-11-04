@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.11.03-2'
+const APP_VERSION = '2026.11.04-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1198,7 +1198,7 @@ function renderSidebarNav() {
   // My Requests / Dept Requests / All Requests — label changes by role
   { id:'my_requests', icon:'📋',
     label: state.user?.csr_role === 'dept_head' ? '🏢 Dept Requests' :
-           ['supply_officer','admin'].includes(state.user?.csr_role) ? '🗂 All Requests' : '📋 My Requests',
+           ['supply_officer','admin','purchasing_officer'].includes(state.user?.csr_role) ? '🗂 All Requests' : '📋 My Requests',
     roles:['requester','dept_head','supply_officer','purchasing_officer','admin'] },
 
   // Approval Queue — only roles that actually approve
@@ -1298,10 +1298,33 @@ function showPage(page) {
 // ═══════════════════════════════════════════
 // DATA LOADERS
 // ═══════════════════════════════════════════
-async function loadDepartments() {
+// Short-lived cache for reference data (departments, users). SAFE because: (1) reference
+// data rarely changes, (2) 5-min TTL keeps it fresh, (3) sessionStorage clears on tab close.
+// NEVER used for requests/assets/POs — those always query live.
+const REF_CACHE_TTL = 5 * 60 * 1000  // 5 minutes
+function _cacheGet(key) {
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (!raw) return null
+    const o = JSON.parse(raw)
+    if (!o || (Date.now() - o.t) > REF_CACHE_TTL) return null
+    return o.v
+  } catch(_) { return null }
+}
+function _cacheSet(key, val) {
+  try { sessionStorage.setItem(key, JSON.stringify({ t: Date.now(), v: val })) } catch(_) {}
+}
+function clearRefCache() {
+  try { sessionStorage.removeItem('csr_depts'); sessionStorage.removeItem('csr_users') } catch(_) {}
+}
+
+async function loadDepartments(force) {
+  const cached = !force && _cacheGet('csr_depts')
+  if (cached) { state.departments = cached; return }
   try {
     const { data } = await SB.from('departments').select('*').eq('is_active', true).order('dept_name')
     state.departments = data || []
+    _cacheSet('csr_depts', state.departments)
   } catch(e) { console.error('loadDepartments', e) }
 }
 
@@ -1320,10 +1343,13 @@ async function loadMyHeadedDepts() {
   }
 }
 
-async function loadUsers() {
+async function loadUsers(force) {
+  const cached = !force && _cacheGet('csr_users')
+  if (cached) { state.users = cached; return }
   try {
     const { data } = await SB.from('users').select('id,full_name,dept_id,csr_role,maintenance_role,it_role,phone,email,sms_csr,sms_maintenance,sms_it').eq('is_active', true)
     state.users = data || []
+    _cacheSet('csr_users', state.users)
   } catch(e) { console.error('loadUsers', e) }
 }
 
@@ -1817,7 +1843,7 @@ async function renderMyRequests() {
   const role = state.user.csr_role
 
   let requests, title, subtitle
-  if (['admin','supply_officer'].includes(role)) {
+  if (['admin','supply_officer','purchasing_officer'].includes(role)) {
     // All Requests — fast default (50 recent); search/filter query the DB for all matches.
     const term = (state.allReqSearch || '').trim()
     const fStatus = state.allReqStatus || '', fType = state.allReqType || '', fDept = state.allReqDept || ''
@@ -2854,6 +2880,14 @@ async function viewRequest(id) {
   // Items table (collapsible for purchasing officer)
   if (isPurchasingView) {
     body += '<details style="margin-bottom:16px;"><summary style="cursor:pointer;font-size:11px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;padding:4px 0;">▸ Buong Request (Requested Items + Naibigay na)</summary><div style="margin-top:10px;">'
+  }
+  // Requester's attached reference photo (e.g. a specific item they want) — visible to
+  // approvers and purchasing so they order the right thing.
+  if (req.attachment_url) {
+    body += '<div style="margin-bottom:16px;">'
+    body += '<div style="font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📎 Attached Photo (galing sa requester)</div>'
+    body += '<img src="' + req.attachment_url + '" style="max-width:100%;border-radius:10px;border:1px solid var(--bdr2);cursor:pointer;" onclick="window.open(\'' + req.attachment_url + '\',\'_blank\')" title="I-click para lakihan">'
+    body += '</div>'
   }
   body += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Items</div>'
   if (items.length === 0) {
@@ -4644,9 +4678,15 @@ async function renderPurchaseOrders() {
     }
     html += '</div>'
   } else {
-    // Search box (PO no., supplier, or item)
-    html += '<div style="margin-bottom:12px;">'
-    html += '<input type="text" id="poSearch" placeholder="🔍 PO no., supplier, o item..." value="' + escStk(poState.search || '') + '" oninput="poState.search=this.value;filterPOTable()" style="width:100%;max-width:480px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    // Search box (PO no., supplier, or item) + department filter
+    html += '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+    html += '<input type="text" id="poSearch" placeholder="🔍 PO no., supplier, o item..." value="' + escStk(poState.search || '') + '" oninput="poState.search=this.value;filterPOTable()" style="flex:1;min-width:220px;max-width:480px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    html += '<select id="poDeptFilter" onchange="poState.filterDept=this.value;filterPOTable()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    html += '<option value="">🏢 Lahat ng dept</option>'
+    ;(state.departments || []).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).forEach(d => {
+      html += '<option value="' + d.id + '"' + (poState.filterDept===d.id?' selected':'') + '>' + escStk(d.dept_name) + '</option>'
+    })
+    html += '</select>'
     html += '</div>'
     // Filter bar
     html += '<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">'
@@ -4662,6 +4702,8 @@ async function renderPurchaseOrders() {
     let filtered = (poState.filterStatus && poState.filterStatus !== 'all')
       ? poState.pos.filter(p => p.status === poState.filterStatus)
       : poState.pos
+    // Department filter
+    if (poState.filterDept) filtered = filtered.filter(p => p.dept_id === poState.filterDept)
     // Search by PO no., supplier, or item (sensitive — matches any item in the PO)
     const poq = (poState.search || '').trim().toLowerCase()
     if (poq) filtered = filtered.filter(p => {
@@ -11654,6 +11696,9 @@ async function renderSettingsTab(tab) {
 async function renderUsersSettings(el) {
   const { data: users } = await SB.from('users').select('*').order('full_name')
   const allUsers = users || []
+  // Entering user management invalidates the cached users list so edits propagate fresh.
+  clearRefCache()
+  loadUsers(true)  // refresh state.users in the background (don't block the UI)
 
   let html = ''
 
@@ -11845,9 +11890,11 @@ async function saveDept(deptId) {
     showToast('success','Created','Department created.')
   }
   closeModal('userModal')
-  // Refresh departments in state
+  // Refresh departments in state + cache so the change shows immediately (no stale data)
+  clearRefCache()
   const { data: depts } = await SB.from('departments').select('*').eq('is_active', true).order('dept_name')
   state.departments = depts || []
+  _cacheSet('csr_depts', state.departments)
   const el = document.getElementById('settingsUsersContainer')
   if (el) renderUsersSettings(el)
 }
