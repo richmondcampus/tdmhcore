@@ -42,6 +42,7 @@ ol{margin:8px 0 0 22px} li{margin:5px 0}
   <button id="b1">Speak a test number</button>
   <button id="b2" class="alt">Play a beep</button>
   <button id="b3" style="background:#986d19">Speak via Fully Kiosk</button>
+  <button id="b4" style="background:#15793f">Play recorded clips</button>
   <p style="color:#63647f;margin-top:10px">
     Press with the remote. The beep uses a different sound path than the voice,
     so it tells you whether the problem is the speaker or the voice engine.
@@ -149,6 +150,38 @@ document.getElementById('b3').onclick = ()=>{
     window.fully.textToSpeech('Number L A B 0 0 1. Please proceed to Laboratory Window 1.', 'en-US')
     log('sent to Fully Kiosk speech engine')
   } catch(e) { log('FULLY TTS ERROR: ' + e.message) }
+}
+
+document.getElementById('b4').onclick = async ()=>{
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext
+    if (!AC) { log('no AudioContext on this device'); return }
+    const ac = new AC(); await ac.resume()
+    let base = null, idx = null
+    for (const b of ['voice/','/voice/','./voice/','../voice/']) {
+      try {
+        const r = await fetch(b + 'index.json', {cache:'no-store'})
+        if (!r.ok) continue
+        const j = await r.json()
+        if (j && j.keys && j.keys.length) { base = b; idx = j; break }
+      } catch(e) {}
+    }
+    if (!idx) { log('index.json not found in voice/, /voice/, ./voice/ or ../voice/ — upload the folder'); return }
+    log('voice pack found at ' + base + ' — ' + idx.keys.length + ' clips')
+    const seq = ['_number','c_LAB','d_0','d_0','d_1','_proceed','w_lab_1']
+    const bufs = []
+    for (const k of seq) {
+      const res = await fetch(base + k + '.mp3', {cache:'no-store'})
+      if (!res.ok) { log('missing clip: ' + k); return }
+      bufs.push(await ac.decodeAudioData(await res.arrayBuffer()))
+    }
+    let t = ac.currentTime + 0.06
+    for (const b of bufs) {
+      const s = ac.createBufferSource(); s.buffer = b
+      s.connect(ac.destination); s.start(t); t += b.duration + 0.05
+    }
+    log('playing recorded announcement (' + (t - ac.currentTime).toFixed(1) + 's)')
+  } catch(e) { log('CLIP ERROR: ' + e.message) }
 }
 
 log('page loaded')
