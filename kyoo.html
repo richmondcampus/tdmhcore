@@ -669,15 +669,98 @@ function Toasts({children}) {
 
 /* ─── speech ─── */
 function useSpeech() {
-  const ready = useRef(false)
-  const voice = useRef(null)
+  const ready  = useRef(false)
+  const voice  = useRef(null)
+  const ac     = useRef(null)
+  const clips  = useRef(null)      // key -> AudioBuffer
+  const keys   = useRef(null)      // Set of keys the voice pack has
 
-  /* Fully Kiosk exposes the Android speech engine directly. Android WebView
-     often reports speechSynthesis but produces no sound, so when the kiosk
-     bridge is there we use it and skip the WebView path entirely. */
   const bridge = () => (typeof window.fully === 'object'
                         && typeof window.fully.textToSpeech === 'function')
                         ? window.fully : null
+
+  /* ── recorded voice pack ──────────────────────────────────────
+     Android TV WebViews often have no speechSynthesis at all, so the
+     announcement is assembled from short recordings instead. Works on
+     any device that can play audio. */
+  const ctx = () => {
+    if (!ac.current) {
+      const AC = window.AudioContext || window.webkitAudioContext
+      if (!AC) return null
+      try { ac.current = new AC() } catch { return null }
+    }
+    if (ac.current.state === 'suspended') ac.current.resume().catch(()=>{})
+    return ac.current
+  }
+
+  useEffect(()=>{
+    let dead = false
+    ;(async ()=>{
+      // the page may be served as /kyoo, /kyoo/ or /kyoo.html, so try the
+      // places the voice folder could sit rather than guessing one
+      const bases = ['voice/', '/voice/', './voice/', '../voice/']
+      let base = null, idx = null
+      for (const b of bases) {
+        try {
+          const r = await fetch(b + 'index.json', {cache:'force-cache'})
+          if (!r.ok) continue
+          const j = await r.json()
+          if (j && Array.isArray(j.keys) && j.keys.length) { base = b; idx = j; break }
+        } catch {}
+      }
+      if (dead || !idx) return
+      keys.current = new Set(idx.keys)
+      const c = ctx(); if (!c) return
+      const store = {}
+      await Promise.all(idx.keys.map(async k=>{
+        try {
+          const res = await fetch(`${base}${k}.mp3`, {cache:'force-cache'})
+          if (!res.ok) return
+          store[k] = await c.decodeAudioData(await res.arrayBuffer())
+        } catch {}
+      }))
+      if (!dead && Object.keys(store).length) clips.current = store
+    })()
+    return ()=>{ dead = true }
+  },[])
+
+  const slug = t => 'w_' + String(t).toLowerCase().trim()
+                      .replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')
+
+  /* number -> clip keys. Uses the whole service code when we have it
+     recorded, otherwise spells it letter by letter. */
+  const numberKeys = num => {
+    const s = String(num).toUpperCase()
+    const m = s.match(/^([A-Z]+)(.*)$/)
+    const out = []
+    const head = m ? m[1] : ''
+    const tail = m ? m[2] : s
+    if (head) {
+      if (clips.current?.['c_'+head]) out.push('c_'+head)
+      else for (const ch of head) out.push('l_'+ch)
+    }
+    for (const ch of tail) {
+      if (/[0-9]/.test(ch)) out.push('d_'+ch)
+      else if (/[A-Z]/.test(ch)) out.push('l_'+ch)
+    }
+    return out
+  }
+
+  const playPack = (number, where) => {
+    const store = clips.current, c = ctx()
+    if (!store || !c) return false
+    const seq = ['_number', ...numberKeys(number), '_proceed', slug(where)]
+    const bufs = seq.map(k=>store[k]).filter(Boolean)
+    // if the counter name is not in the pack, do not announce a half sentence
+    if (!store[slug(where)] || bufs.length < 3) return false
+    let t = c.currentTime + 0.06
+    for (const b of bufs) {
+      const src = c.createBufferSource()
+      src.buffer = b; src.connect(c.destination); src.start(t)
+      t += b.duration + 0.05
+    }
+    return true
+  }
 
   const pickVoice = useCallback(()=>{
     const synth = window.speechSynthesis
@@ -704,9 +787,10 @@ function useSpeech() {
   },[pickVoice])
 
   const unlock = useCallback(()=>{
+    ctx()
     if (ready.current) return
     ready.current = true
-    if (bridge()) return                       // the kiosk bridge needs no gesture
+    if (bridge()) return
     if (!('speechSynthesis' in window)) return
     const u = new SpeechSynthesisUtterance(' '); u.volume = 0
     window.speechSynthesis.speak(u)
@@ -714,19 +798,23 @@ function useSpeech() {
   },[pickVoice])
 
   const say = useCallback((number, where, repeat=2)=>{
+    const n = Math.max(1, repeat)
+
+    // 1. recorded clips — the only path that works on every device
+    if (playPack(number, where)) return
+
     const spoken = String(number).replace(/([A-Za-z])/g,'$1 ').replace(/(\d)/g,'$1 ').trim()
     const first  = `Number ${spoken}. Please proceed to ${where}.`
     const again  = `${spoken}. ${where}.`
-    const n = Math.max(1, repeat)
 
+    // 2. the kiosk browser's own bridge to Android speech
     const fk = bridge()
     if (fk) {
-      try {
-        for (let i=0;i<n;i++) fk.textToSpeech(i===0 ? first : again, 'en-US')
-        return
-      } catch (e) { /* fall through to the browser path */ }
+      try { for (let i=0;i<n;i++) fk.textToSpeech(i===0 ? first : again, 'en-US'); return }
+      catch {}
     }
 
+    // 3. the browser's speech engine
     if (!('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     if (!voice.current) voice.current = pickVoice()
@@ -740,7 +828,8 @@ function useSpeech() {
   },[pickVoice])
 
   return {unlock, say, isReady:()=>ready.current,
-          engine:()=> bridge() ? 'kiosk' : (voice.current ? 'browser' : 'none')}
+          engine:()=> clips.current ? 'clips' : bridge() ? 'kiosk'
+                    : voice.current ? 'browser' : 'none'}
 }
 
 /* ════════════════════════════════════════════════════════════
