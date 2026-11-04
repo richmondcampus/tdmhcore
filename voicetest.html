@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>TDMH — Voice test</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f4f5fa;color:#1c1c33;
+     padding:3vh 4vw;font-size:clamp(14px,1.6vw,20px);line-height:1.5}
+h1{font-size:clamp(20px,2.6vw,34px);letter-spacing:-.02em;margin-bottom:4px}
+p.sub{color:#63647f;margin-bottom:3vh}
+.card{background:#fff;border:1px solid #e1e2ee;border-radius:14px;padding:18px 20px;margin-bottom:14px}
+.k{font-size:11.5px;font-weight:800;letter-spacing:.09em;color:#9394ab;margin-bottom:10px}
+.row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+     padding:9px 0;border-bottom:1px solid #eff0f6}
+.row:last-child{border-bottom:none}
+.row b{font-weight:600}
+.v{font-weight:700;text-align:right;white-space:pre-wrap}
+.ok{color:#15793f} .bad{color:#c0453f} .warn{color:#986d19}
+button{font:inherit;font-weight:700;border:none;border-radius:11px;padding:16px 26px;
+       background:#3b3fa3;color:#fff;cursor:pointer;margin:6px 8px 6px 0}
+button.alt{background:#15793f}
+button:focus{outline:4px solid #a9acd0;outline-offset:3px}
+#log{font-family:ui-monospace,monospace;font-size:13px;white-space:pre-wrap;
+     background:#15183a;color:#c7c9e4;border-radius:11px;padding:14px;min-height:90px;
+     max-height:30vh;overflow:auto}
+ol{margin:8px 0 0 22px} li{margin:5px 0}
+</style>
+</head>
+<body>
+<h1>Voice test</h1>
+<p class="sub">Open this on the TV. It reports what the browser itself can see.</p>
+
+<div class="card">
+  <div class="k">WHAT THIS DEVICE REPORTS</div>
+  <div id="facts"></div>
+</div>
+
+<div class="card">
+  <div class="k">TRY IT</div>
+  <button id="b1">Speak a test number</button>
+  <button id="b2" class="alt">Play a beep</button>
+  <button id="b3" style="background:#986d19">Speak via Fully Kiosk</button>
+  <p style="color:#63647f;margin-top:10px">
+    Press with the remote. The beep uses a different sound path than the voice,
+    so it tells you whether the problem is the speaker or the voice engine.
+  </p>
+</div>
+
+<div class="card">
+  <div class="k">LOG</div>
+  <div id="log">waiting…</div>
+</div>
+
+<div class="card">
+  <div class="k">VOICES INSTALLED</div>
+  <div id="voices">checking…</div>
+</div>
+
+<script>
+const log = (m)=>{ const el=document.getElementById('log')
+  el.textContent = new Date().toLocaleTimeString() + '  ' + m + '\n' + el.textContent }
+
+function row(label, value, cls) {
+  return `<div class="row"><b>${label}</b><span class="v ${cls||''}">${value}</span></div>`
+}
+
+function facts() {
+  const synth = window.speechSynthesis
+  const hasSynth = !!synth
+  const hasGet = hasSynth && typeof synth.getVoices === 'function'
+  let voices = []
+  try { voices = hasGet ? (synth.getVoices()||[]) : [] } catch(e){}
+  const eng = voices.filter(v=>(v.lang||'').toLowerCase().startsWith('en'))
+  const AC = window.AudioContext || window.webkitAudioContext
+  let acState = 'no AudioContext'
+  if (AC) { try { acState = new AC().state } catch(e){ acState = 'blocked' } }
+
+  document.getElementById('facts').innerHTML =
+    row('speechSynthesis', hasSynth?'present':'MISSING', hasSynth?'ok':'bad') +
+    row('getVoices()', hasGet?'works':'MISSING', hasGet?'ok':'bad') +
+    row('voices installed', voices.length, voices.length?'ok':'bad') +
+    row('English voices', eng.length, eng.length?'ok':'bad') +
+    row('audio state', acState, acState==='running'?'ok':'warn') +
+    row('Fully Kiosk bridge',
+        (typeof window.fully==='object') ? 'present' : 'not present',
+        (typeof window.fully==='object') ? 'ok' : 'warn') +
+    row('fully.textToSpeech',
+        (typeof window.fully==='object' && typeof window.fully.textToSpeech==='function')
+          ? 'available' : 'MISSING',
+        (typeof window.fully==='object' && typeof window.fully.textToSpeech==='function')
+          ? 'ok' : 'bad') +
+    row('browser language', navigator.language || '—') +
+    row('user agent', (navigator.userAgent||'').slice(0,70))
+
+  document.getElementById('voices').innerHTML = voices.length
+    ? voices.map(v=>row(v.name, v.lang, (v.lang||'').toLowerCase().startsWith('en')?'ok':'')).join('')
+    : '<p class="bad" style="font-weight:700">None. Install voice data on the TV: '
+      + 'Settings → Accessibility → Text-to-speech → Engine Configuration → Install voice data '
+      + '→ English (United States).</p>'
+  return {voices, eng}
+}
+
+let state = facts()
+if (window.speechSynthesis && window.speechSynthesis.addEventListener) {
+  window.speechSynthesis.addEventListener('voiceschanged', ()=>{
+    state = facts(); log('voice list arrived: ' + state.voices.length + ' voices')
+  })
+}
+setTimeout(()=>{ state = facts(); log('rechecked after 1.5s: ' + state.voices.length + ' voices') }, 1500)
+
+document.getElementById('b1').onclick = ()=>{
+  const synth = window.speechSynthesis
+  if (!synth) { log('ERROR speechSynthesis missing on this device'); return }
+  synth.cancel()
+  const pick = state.eng[0] || state.voices[0] || null
+  const u = new SpeechSynthesisUtterance('Number L A B 0 0 1. Please proceed to Laboratory Window 1.')
+  if (pick) { u.voice = pick; u.lang = pick.lang }
+  u.rate = .82; u.volume = 1
+  u.onstart = ()=>log('speaking with: ' + (pick ? pick.name + ' (' + pick.lang + ')' : 'device default'))
+  u.onend   = ()=>log('finished speaking')
+  u.onerror = e =>log('SPEECH ERROR: ' + (e.error || 'unknown'))
+  synth.speak(u)
+  setTimeout(()=>{ if (!synth.speaking && !synth.pending)
+    log('nothing started — the engine accepted it but produced no sound') }, 900)
+}
+
+document.getElementById('b2').onclick = ()=>{
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext
+    const ac = new AC(); ac.resume()
+    const o = ac.createOscillator(), g = ac.createGain()
+    o.type='sine'; o.frequency.value=880; o.connect(g); g.connect(ac.destination)
+    g.gain.setValueAtTime(0.0001, ac.currentTime)
+    g.gain.exponentialRampToValueAtTime(.3, ac.currentTime+.02)
+    g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime+.5)
+    o.start(); o.stop(ac.currentTime+.55)
+    log('beep sent, audio state: ' + ac.state)
+  } catch(e) { log('BEEP ERROR: ' + e.message) }
+}
+
+document.getElementById('b3').onclick = ()=>{
+  if (typeof window.fully !== 'object') {
+    log('fully object not present — the Fully Kiosk JavaScript Interface is off'); return }
+  if (typeof window.fully.textToSpeech !== 'function') {
+    log('fully.textToSpeech missing — check the Fully Kiosk version'); return }
+  try {
+    window.fully.textToSpeech('Number L A B 0 0 1. Please proceed to Laboratory Window 1.', 'en-US')
+    log('sent to Fully Kiosk speech engine')
+  } catch(e) { log('FULLY TTS ERROR: ' + e.message) }
+}
+
+log('page loaded')
+</script>
+</body>
+</html>
