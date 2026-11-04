@@ -672,9 +672,13 @@ function useSpeech() {
   const ready = useRef(false)
   const voice = useRef(null)
 
-  /* Pick whatever English voice this device actually has. A TV set to
-     English (Canada) has no en-CA data, so asking for a fixed language
-     gives silence — ask for a voice that exists instead. */
+  /* Fully Kiosk exposes the Android speech engine directly. Android WebView
+     often reports speechSynthesis but produces no sound, so when the kiosk
+     bridge is there we use it and skip the WebView path entirely. */
+  const bridge = () => (typeof window.fully === 'object'
+                        && typeof window.fully.textToSpeech === 'function')
+                        ? window.fully : null
+
   const pickVoice = useCallback(()=>{
     const synth = window.speechSynthesis
     if (!synth || typeof synth.getVoices !== 'function') return null
@@ -690,31 +694,44 @@ function useSpeech() {
   },[])
 
   useEffect(()=>{
-    if (!('speechSynthesis' in window)) return
     const synth = window.speechSynthesis
+    if (!synth) return
     const load = ()=>{ voice.current = pickVoice() }
     load()
-    // some devices fill the voice list a moment after load
     const t = setTimeout(load, 1200)
     synth.addEventListener?.('voiceschanged', load)
     return ()=>{ clearTimeout(t); synth.removeEventListener?.('voiceschanged', load) }
   },[pickVoice])
 
   const unlock = useCallback(()=>{
-    if (ready.current || !('speechSynthesis' in window)) return
+    if (ready.current) return
+    ready.current = true
+    if (bridge()) return                       // the kiosk bridge needs no gesture
+    if (!('speechSynthesis' in window)) return
     const u = new SpeechSynthesisUtterance(' '); u.volume = 0
-    window.speechSynthesis.speak(u); ready.current = true
+    window.speechSynthesis.speak(u)
     if (!voice.current) voice.current = pickVoice()
   },[pickVoice])
 
   const say = useCallback((number, where, repeat=2)=>{
+    const spoken = String(number).replace(/([A-Za-z])/g,'$1 ').replace(/(\d)/g,'$1 ').trim()
+    const first  = `Number ${spoken}. Please proceed to ${where}.`
+    const again  = `${spoken}. ${where}.`
+    const n = Math.max(1, repeat)
+
+    const fk = bridge()
+    if (fk) {
+      try {
+        for (let i=0;i<n;i++) fk.textToSpeech(i===0 ? first : again, 'en-US')
+        return
+      } catch (e) { /* fall through to the browser path */ }
+    }
+
     if (!('speechSynthesis' in window)) return
     window.speechSynthesis.cancel()
     if (!voice.current) voice.current = pickVoice()
-    const spoken = String(number).replace(/([A-Za-z])/g,'$1 ').replace(/(\d)/g,'$1 ').trim()
-    for (let i=0;i<Math.max(1,repeat);i++){
-      const u = new SpeechSynthesisUtterance(
-        i===0 ? `Number ${spoken}. Please proceed to ${where}.` : `${spoken}. ${where}.`)
+    for (let i=0;i<n;i++){
+      const u = new SpeechSynthesisUtterance(i===0 ? first : again)
       if (voice.current) { u.voice = voice.current; u.lang = voice.current.lang }
       else u.lang = 'en-US'
       u.rate=.82; u.pitch=1; u.volume=1
@@ -722,7 +739,8 @@ function useSpeech() {
     }
   },[pickVoice])
 
-  return {unlock, say, isReady:()=>ready.current, voiceName:()=>voice.current?.name || null}
+  return {unlock, say, isReady:()=>ready.current,
+          engine:()=> bridge() ? 'kiosk' : (voice.current ? 'browser' : 'none')}
 }
 
 /* ════════════════════════════════════════════════════════════
