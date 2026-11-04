@@ -404,41 +404,43 @@ dl.kv dd{word-break:break-word}
   @page{size:landscape;margin:10mm}
   /* Patient Information form — letter portrait, same layout as the paper TDMH-AI-F-001-1-0 */
   #printArea.pif{font-family:Arial,Helvetica,sans-serif;color:#000}
-  #printArea .pf{font-size:9.6px;line-height:1.25}
-  #printArea .pf-top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:5px}
-  #printArea .pf-top img{height:56px}
-  #printArea .pf-room{font-weight:700;font-size:11px}
-  #printArea .pf-room u{display:inline-block;min-width:110px;text-align:center;text-decoration:none;border-bottom:1px solid #000;font-size:12px}
-  #printArea .pf-bar{background:#222;color:#fff;text-align:center;font-weight:700;font-size:15px;letter-spacing:.03em;padding:4px 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  #printArea table.pf-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.6px}
-  #printArea .pf-t td{border:1.2px solid #000;padding:4px 6px;vertical-align:top;background:#fff;color:#000}
+  #printArea .pf{font-size:11.5px;line-height:1.28}
+  #printArea .pf-top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px}
+  #printArea .pf-top img{height:54px}
+  #printArea .pf-room{font-weight:700;font-size:13px}
+  #printArea .pf-room u{display:inline-block;min-width:130px;text-align:center;text-decoration:none;border-bottom:1px solid #000;font-size:15px}
+  #printArea .pf-bar{background:#222;color:#fff;text-align:center;font-weight:700;font-size:18px;letter-spacing:.03em;padding:4px 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printArea table.pf-t{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11.5px}
+  #printArea .pf-t td{border:1.3px solid #000;padding:4px 7px;vertical-align:top;background:#fff;color:#000}
   #printArea .pf-t.thick{border-top:3px solid #000}
   #printArea .pf-t td.c,#printArea .pf-t .c{text-align:center;display:block}
   #printArea .pf-t td.c{display:table-cell}
-  #printArea .pf-t b{font-weight:700;font-size:10px}
-  #printArea .pf-t small{display:block;font-size:7.5px}
-  #printArea .pf-t i{font-size:7.5px;font-style:italic;font-weight:700;display:block;text-align:center}
-  #printArea .pf .v{font-size:11px;font-weight:600;min-height:15px;padding-top:3px;text-align:center;font-family:Arial,Helvetica,sans-serif;letter-spacing:.01em}
-  #printArea .pf .v.l{text-align:left;min-height:28px}
+  #printArea .pf-t b{font-weight:700;font-size:11.5px}
+  #printArea .pf-t small{display:block;font-size:8.5px}
+  #printArea .pf-t i{font-size:8.5px;font-style:italic;font-weight:700;display:block;text-align:center}
+  #printArea .pf .v{font-size:14px;font-weight:700;min-height:18px;padding-top:3px;text-align:center;letter-spacing:.01em}
+  #printArea .pf .v.l{text-align:left;min-height:20px}
   #printArea .pf .v.dr{text-align:left}
+  #printArea .pf .v small.rod,#printArea .pf .line small.rel{display:inline;font-size:10px;font-weight:700}
   #printArea .pf tr.nm td{border-top:0;text-align:center}
-  #printArea .pf-cb{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:9.6px;white-space:nowrap;margin:1.5px 8px 1.5px 0}
-  #printArea .pf-cb i{width:9px;height:9px;border:1.2px solid #000;display:inline-block;position:relative;flex:none}
-  #printArea .pf-cb i.on::after{content:"";position:absolute;inset:0;background:linear-gradient(45deg,transparent 42%,#000 42% 58%,transparent 58%),linear-gradient(-45deg,transparent 42%,#000 42% 58%,transparent 58%);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printArea .pf-cb{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:11px;white-space:nowrap;margin:2px 8px 2px 0}
+  #printArea .pf-cb i{width:11px;height:11px;border:1.3px solid #000;display:inline-block;position:relative;flex:none}
+  #printArea .pf-cb i.on::after{content:"";position:absolute;inset:0;background:linear-gradient(45deg,transparent 40%,#000 40% 60%,transparent 60%),linear-gradient(-45deg,transparent 40%,#000 40% 60%,transparent 60%);-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #printArea .pf .g2{display:grid;grid-template-columns:1fr 1fr;gap:0 6px}
   #printArea .pf .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 6px}
   #printArea .pf td.stack{padding:0}
-  #printArea .pf td.stack .cell{border-bottom:1.2px solid #000;padding:4px 6px}
+  #printArea .pf td.stack .cell{border-bottom:1.3px solid #000;padding:4px 7px}
   #printArea .pf td.stack .cell.last{border-bottom:0}
-  #printArea .pf td.list{line-height:1.55}
-  #printArea .pf .sig{display:flex;gap:28px;margin-top:22px}
+  #printArea .pf td.list{line-height:1.5}
+  #printArea .pf .sig{display:flex;gap:28px;margin-top:14px}
   #printArea .pf .sig>div{flex:1}
-  #printArea .pf .line{display:block;border-bottom:1px solid #000;min-height:16px;text-align:center;font-weight:600;font-size:11px}
-  #printArea .pf td.box{height:58px}
-  #printArea .pf i.inl{display:inline;font-size:9px}
-  #printArea .pf td.sigdr{vertical-align:bottom;padding-top:26px}
-  #printArea .pf u.fill{display:inline-block;min-width:120px;border-bottom:1px solid #000;text-decoration:none;font-weight:600;font-size:10px}
-  #printArea .pf-code{text-align:right;font-weight:700;font-size:10px;margin-top:4px}
+  #printArea .pf .line{display:block;border-bottom:1px solid #000;min-height:19px;text-align:center;font-weight:700;font-size:13.5px}
+  #printArea .pf td.box{height:50px}
+  #printArea .pf i.inl{display:inline;font-size:10px}
+  #printArea .pf td.sigdr{vertical-align:bottom;padding-top:22px}
+  #printArea .pf td.sigdr .line{font-size:13.5px}
+  #printArea .pf u.fill{display:inline-block;min-width:130px;border-bottom:1px solid #000;text-decoration:none;font-weight:700;font-size:12px}
+  #printArea .pf-code{text-align:right;font-weight:700;font-size:11px;margin-top:4px}
 
 }
 </style>
@@ -710,6 +712,8 @@ dl.kv dd{word-break:break-word}
 <div id="printArea"></div>
 <datalist id="physList"></datalist>
 <datalist id="hmoList"></datalist>
+<datalist id="rodList"></datalist>
+<datalist id="relationList"></datalist>
 <script>
 // ═══════════ CONFIG ═══════════
 // Same Supabase project as OPD Records; Admitting has its own tables (adm_*) and staff list.
@@ -739,6 +743,29 @@ const ARRIVAL = ['AMBULATORY','WHEEL CHAIR','STRETCHER','FROM DR','EMERGENCY','E
 const PHIC_CAT = ['NON-MEMBER','MEMBER','DEPENDENT','OWWA','INDIGENT','PROGRAM']
 const MANNER = [['AMBULATORY','Ambulatory'],['WHEEL CHAIR','Wheelchair'],['STRETCHER','Stretcher'],['TRANSFERRED','Transferred'],['HAMA','Home against medical advice'],['CUDDLED BY MOTHER','Cuddled by mother']]
 const SHARE = [['N/A','N/A'],['SHAREHOLDER','TDMH shareholder'],['DEPENDENT','Shareholder dependent']]
+const ADTYPE = [['same','Same as attending'],['rod','ROD / ER doctor'],['doctor','Another doctor on the list']]
+const RELATIONS = ['SELF','MOTHER','FATHER','SPOUSE','SON','DAUGHTER','BROTHER','SISTER','GRANDCHILD','GUARDIAN','RELATIVE','FRIEND']
+// admitting physician picker: same as attending / ROD-ER doctor (typed) / another doctor on the list
+function adPicker(pre, a = {}){
+  const t = a.admitting_rod ? 'rod' : (a.adp && a.physician && a.adp.name !== a.physician.name) ? 'doctor' : (a.__default || 'same')
+  return `<div class="field"><label for="${pre}_adtype">Admitting physician</label><select class="inp" id="${pre}_adtype">${opts(ADTYPE, t)}</select></div>
+    <div class="field ${t==='rod'?'':'hidden'}" id="${pre}_rodWrap"><label for="${pre}_rod">ROD / ER doctor’s name</label><input class="inp" id="${pre}_rod" list="rodList" value="${esc(a.admitting_rod || '')}" placeholder="e.g. Dr. Juan Dela Cruz" autocomplete="off"></div>
+    <div class="field ${t==='doctor'?'':'hidden'}" id="${pre}_adpWrap"><label for="${pre}_adp">Doctor</label><input class="inp" id="${pre}_adp" list="physList" value="${esc(t==='doctor' ? a.adp?.name || '' : '')}" autocomplete="off"></div>`
+}
+function wireAdPicker(pre){
+  const sel = $(pre + '_adtype'); sel.dataset.touched = ''
+  const sync = () => { $(pre + '_rodWrap').classList.toggle('hidden', sel.value !== 'rod'); $(pre + '_adpWrap').classList.toggle('hidden', sel.value !== 'doctor') }
+  sel.addEventListener('change', () => { sel.dataset.touched = '1'; sync() }); sync()
+  if (!$('rodList').options.length) SB.rpc('adm_rod_names').then(({ data }) => { $('rodList').innerHTML = (data||[]).map(r => `<option value="${esc(r.name)}"></option>`).join('') })
+  return sync
+}
+// returns { admitting_physician_id, admitting_rod } or an error string
+function readAdPicker(pre, attending){
+  const t = $(pre + '_adtype').value
+  if (t === 'rod') return { admitting_physician_id: null, admitting_rod: val(pre + '_rod').replace(/^dr\.?\s*/i, '') || null }
+  if (t === 'doctor'){ const d = physByName(val(pre + '_adp')); if (!d) return 'Select the admitting doctor from the list, or choose “ROD / ER doctor” and type the name.'; return { admitting_physician_id: d.id, admitting_rod: null } }
+  return { admitting_physician_id: attending?.id ?? null, admitting_rod: null }
+}
 const RES_STATUS = { pending:['Waiting','amber'], admitted:['Admitted','green'], no_ff:['No follow-up',''], cancelled:['Cancelled',''], refused:['Declined','red'], archived:['Archived','']}
 const INC_TYPE = { companion_pass:'Companion pass', no_discharge_slip:'No discharge slip', er_concern:'ER concern', other:'Other' }
 const ROLE_LBL = { staff:'Admitting staff', supervisor:'Supervisor', admin:'Administrator' }
@@ -1117,7 +1144,7 @@ function openAdmit({ bed_id, reservation, patient }){
       </div>
       <div class="grid2">
         <div class="field"><label for="ad_ap">Attending physician</label><input class="inp" id="ad_ap" list="physList" value="${esc(physByName(r.physician)?.name || '')}" autocomplete="off"></div>
-        <div class="field"><label for="ad_adp">Admitting physician</label><input class="inp" id="ad_adp" list="physList" autocomplete="off"><span class="hint">Leave blank if same as attending</span></div>
+        <div>${adPicker('ad', { __default: (r.source && /ER/i.test(r.source)) || !r.id ? 'rod' : 'same' })}</div>
       </div>
       <div class="grid2">
         <div class="field"><label for="ad_coap">Co-managing physician <span style="color:var(--txt3);font-weight:500">(optional)</span></label><input class="inp" id="ad_coap" list="physList" autocomplete="off"></div>
@@ -1132,6 +1159,10 @@ function openAdmit({ bed_id, reservation, patient }){
         <div class="field hidden" id="ad_momWrap"><label for="ad_mom">Mother (currently admitted)</label><select class="inp" id="ad_mom"><option value="">Select</option>${motherOptions()}</select></div>
         <div class="field" id="ad_passWrap"><label for="ad_pass">Companion pass no.</label><input class="inp mono" id="ad_pass" placeholder="e.g. 0045"></div>
       </div>
+      <div class="grid2">
+        <div class="field"><label for="ad_comp">Companion / representative</label><input class="inp" id="ad_comp" placeholder="Signs the “I certify…” line on the form"></div>
+        <div class="field"><label for="ad_rel2">Relationship to patient</label><input class="inp" id="ad_rel2" list="relationList" placeholder="e.g. Mother"></div>
+      </div>
       ${hmoBlock({ account_type: rHmo ? 'HMO' : '', hmo_name: rHmo?.name, hmo_coordinator: rHmo?.coordinator })}
       <div class="field"><label for="ad_pkg">Package <span style="color:var(--txt3);font-weight:500">(if any)</span></label><input class="inp" id="ad_pkg"></div>
       <div class="field"><label for="ad_notes">Notes</label><textarea class="inp" id="ad_notes" placeholder="e.g. Two companions; senior watcher with consent">${esc(r.id ? [r.remarks, r.endorsement].filter(Boolean).join(' / ') : '')}</textarea></div>
@@ -1139,6 +1170,9 @@ function openAdmit({ bed_id, reservation, patient }){
     <div id="ad_err" class="err hidden"></div>`,
     `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn" id="ad_savep">${ic('print','sm')}Admit &amp; print form</button><button class="btn btn-primary" id="ad_save">${ic('check','sm')}Admit patient</button>`, true)
   wireHmo()
+  const syncAd = wireAdPicker('ad')
+  $('relationList').innerHTML = RELATIONS.map(r => `<option value="${r}"></option>`).join('')
+  $('ad_type').addEventListener('change', () => { if (!$('ad_adtype').dataset.touched){ $('ad_adtype').value = $('ad_type').value === 'ER' ? 'rod' : 'same'; syncAd() } })
   $('ad_sub').onchange = () => { const nb = $('ad_sub').value === 'NEWBORN'; $('ad_nb').disabled = !nb; if (!nb) $('ad_nb').value = '' }
   $('ad_bed').onchange = () => { const ri = $('ad_bed').value === 'roomin'; $('ad_momWrap').classList.toggle('hidden', !ri); $('ad_passWrap').classList.toggle('hidden', ri) }
   let lastHosp = ''
@@ -1179,14 +1213,15 @@ async function dnaCheck(boxId = 'ad_dna', name, hosp){
 }
 async function saveAdmit(reservationId, andPrint){
   hideErr('ad_err')
-  const bedSel = $('ad_bed').value, ap = physByName(val('ad_ap')), coap = physByName(val('ad_coap')), adp = physByName(val('ad_adp'))
+  const bedSel = $('ad_bed').value, ap = physByName(val('ad_ap')), coap = physByName(val('ad_coap'))
   const acct = $('ad_acct').value, h = hmoByName(val('ad_hmo'))
   if (!val('ad_hosp')) return showErr('ad_err', 'Enter the Hosp No. from Agimat.')
   if (!val('ad_last')) return showErr('ad_err', 'Enter the patient’s last name.')
   if (!$('ad_sub').value) return showErr('ad_err', 'Select a specialty.')
   if (!ap) return showErr('ad_err', 'Select the attending physician from the list. If they’re missing, ask a supervisor to add them in Setup › Doctors.')
   if (val('ad_coap') && !coap) return showErr('ad_err', 'The co-managing physician isn’t on the list.')
-  if (val('ad_adp') && !adp) return showErr('ad_err', 'The admitting physician isn’t on the list.')
+  const adm = readAdPicker('ad', ap)
+  if (typeof adm === 'string') return showErr('ad_err', adm)
   if (!val('ad_dx')) return showErr('ad_err', 'Enter the admitting diagnosis.')
   if (!bedSel) return showErr('ad_err', 'Select a bed.')
   if (bedSel === 'roomin' && !$('ad_mom').value) return showErr('ad_err', 'Select the mother for rooming-in.')
@@ -1197,7 +1232,8 @@ async function saveAdmit(reservationId, andPrint){
     address: val('ad_addr'), contact_numbers: val('ad_contact'), nationality: val('ad_nat').toUpperCase(),
     civil_status: $('ad_civil').value, religion: val('ad_rel'), occupation: $('ad_occ').value, shareholder: $('ad_share').value,
     father_name: val('ad_father'), mother_maiden_name: val('ad_mother'), spouse_name: val('ad_spouse'),
-    admitting_physician_id: adp?.id || ap.id, arrival_modes: chipVals('ad_modes'), phic_category: $('ad_phcat').value, package: val('ad_pkg'),
+    admitting_physician_id: adm.admitting_physician_id || '', admitting_rod: adm.admitting_rod || '',
+    companion_name: val('ad_comp'), companion_relation: val('ad_rel2'), arrival_modes: chipVals('ad_modes'), phic_category: $('ad_phcat').value, package: val('ad_pkg'),
     arrival_at: fromLocalInput($('ad_arrival').value), admitted_at: fromLocalInput($('ad_at').value),
     admission_type: $('ad_type').value, admission_case: $('ad_case').value, phic: $('ad_phic').value, account_type: acct,
     subspecialty: $('ad_sub').value, newborn_status: $('ad_nb').value, physician_id: ap.id, co_physician_id: coap?.id || '',
@@ -1257,7 +1293,7 @@ async function openAdmission(id){
       <dt>Admitted</dt><dd>${fmtDT(a.admitted_at)}${a.admitting_officer ? `<div class="raw">by ${esc(tc(a.admitting_officer))}</div>` : ''}</dd>
       <dt>Source · case</dt><dd>${esc([a.admission_type === 'ER' ? 'Emergency room' : a.admission_type === 'DIRECT' ? 'Direct' : '', a.admission_case === 'HC' ? 'House case' : a.admission_case === 'PC' ? 'Private case' : '', a.phic ? 'PhilHealth ' + a.phic : ''].filter(Boolean).join(' · ') || '—')}</dd>
       <dt>Specialty</dt><dd>${esc([tc(a.subspecialty || ''), a.medical_case].filter(Boolean).join(' · ') || '—')}${a.newborn_status ? ` <span class="pill ${a.newborn_status==='SICK BABY'?'red':'green'}">${esc(tc(a.newborn_status))}</span>` : ''}</dd>
-      <dt>Attending</dt><dd>${esc(a.physician?.name || a.physician_raw || '—')}${a.co ? `<div class="raw">Co-managing: ${esc(a.co.name)}</div>` : ''}${a.adp && a.adp.name !== a.physician?.name ? `<div class="raw">Admitting: ${esc(a.adp.name)}</div>` : ''}</dd>
+      <dt>Attending</dt><dd>${esc(a.physician?.name || a.physician_raw || '—')}${a.co ? `<div class="raw">Co-managing: ${esc(a.co.name)}</div>` : ''}${a.admitting_rod ? `<div class="raw">Admitting: Dr. ${esc(tc(a.admitting_rod))} (ROD/ER)</div>` : a.adp && a.adp.name !== a.physician?.name ? `<div class="raw">Admitting: ${esc(a.adp.name)}</div>` : ''}</dd>
       ${a.arrival_modes?.length ? `<dt>Mode of arrival</dt><dd>${esc(a.arrival_modes.map(tc).join(', '))}</dd>` : ''}
       ${a.phic_category ? `<dt>PhilHealth</dt><dd>${esc(tc(a.phic_category))}${a.phic ? ' · ' + esc(a.phic) : ''}</dd>` : ''}
       <dt>Admitting diagnosis</dt><dd>${esc(a.admitting_dx || '—')}</dd>
@@ -1267,6 +1303,7 @@ async function openAdmission(id){
       ${a.package ? `<dt>Package</dt><dd>${esc(a.package)}</dd>` : ''}
       <dt>Admitted to</dt><dd>${esc([a.admitting_room, tc(a.room_type_admitted||'')].filter(Boolean).join(' · ') || '—')}</dd>
       <dt>Companion pass</dt><dd>${esc([a.companion_pass_no, a.companion_pass_status].filter(Boolean).join(' · ') || '—')}</dd>
+      ${a.companion_name ? `<dt>Companion</dt><dd>${esc(tc(a.companion_name))}${a.companion_relation ? ' · ' + esc(tc(a.companion_relation)) : ''}</dd>` : ''}
       ${a.notes ? `<dt>Notes</dt><dd>${esc(a.notes)}</dd>` : ''}
     </dl></div>
     ${a.account_type && a.account_type !== 'CASH' ? `<div class="sec"><h3>${a.account_type === 'HMO' ? 'HMO coverage' : 'Industrial account'}</h3><dl class="kv">
@@ -1412,7 +1449,7 @@ function editAdmission(){
       <div class="field"><label for="ea_coap">Co-managing physician</label><input class="inp" id="ea_coap" list="physList" value="${esc(a.co?.name || '')}"></div>
     </div>
     <div class="grid2">
-      <div class="field"><label for="ea_adp">Admitting physician</label><input class="inp" id="ea_adp" list="physList" value="${esc(a.adp?.name || '')}"></div>
+      <div>${adPicker('ea', a)}</div>
       <div class="field"><label for="ea_phcat">PhilHealth membership</label><select class="inp" id="ea_phcat">${opts(PHIC_CAT.map(x=>[x,tc(x)]), a.phic_category, '—')}</select></div>
     </div>
     <div class="field"><label>Mode of arrival</label>${chips('ea_modes', ARRIVAL, a.arrival_modes)}</div>
@@ -1425,16 +1462,22 @@ function editAdmission(){
       <div class="field"><label for="ea_pass">Companion pass no.</label><input class="inp mono" id="ea_pass" value="${esc(a.companion_pass_no || '')}"></div>
       <div class="field"><label for="ea_passst">Companion pass status</label><input class="inp" id="ea_passst" value="${esc(a.companion_pass_status || '')}" placeholder="e.g. With ID pass"></div>
     </div>
+    <div class="grid2">
+      <div class="field"><label for="ea_comp">Companion / representative</label><input class="inp" id="ea_comp" value="${esc(a.companion_name || '')}"></div>
+      <div class="field"><label for="ea_rel2">Relationship to patient</label><input class="inp" id="ea_rel2" list="relationList" value="${esc(a.companion_relation || '')}"></div>
+    </div>
     ${a.discharged_at ? `<div class="grid2"><div class="field"><label for="ea_disp">Disposition</label><select class="inp" id="ea_disp">${opts(DISPOSITIONS.map(x=>[x,tc(x)]), a.disposition)}</select></div>
       <div class="field"><label for="ea_dc">Discharged</label><input class="inp" id="ea_dc" type="datetime-local" value="${toLocalInput(a.discharged_at)}"></div></div>
       <div class="field"><label for="ea_manner">Manner of discharge</label><select class="inp" id="ea_manner">${opts(MANNER, a.discharge_manner, '—')}</select></div>` : ''}
     <div class="field"><label for="ea_notes">Notes</label><textarea class="inp" id="ea_notes">${esc(a.notes || '')}</textarea></div>
     <div id="ea_err" class="err hidden"></div>`,
     `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="ea_save">Save changes</button>`, true)
-  wireHmo()
+  wireHmo(); wireAdPicker('ea')
+  $('relationList').innerHTML = RELATIONS.map(r => `<option value="${r}"></option>`).join('')
   $('ea_save').onclick = async () => {
-    const ap = physByName(val('ea_ap')), co = physByName(val('ea_coap')), adp = physByName(val('ea_adp')), acct = $('ad_acct').value, h = hmoByName(val('ad_hmo'))
-    if (val('ea_adp') && !adp) return showErr('ea_err', 'The admitting physician isn’t on the list.')
+    const ap = physByName(val('ea_ap')), co = physByName(val('ea_coap')), acct = $('ad_acct').value, h = hmoByName(val('ad_hmo'))
+    const adm = readAdPicker('ea', ap)
+    if (typeof adm === 'string') return showErr('ea_err', adm)
     if (val('ea_ap') && !ap) return showErr('ea_err', 'The attending physician isn’t on the list.')
     if (val('ea_coap') && !co) return showErr('ea_err', 'The co-managing physician isn’t on the list.')
     if (val('ad_hmo') && !h) return showErr('ea_err', 'That HMO isn’t on the list.')
@@ -1446,7 +1489,8 @@ function editAdmission(){
       hmo_id: h?.id ?? null, hmo_coordinator: val('ad_coord') || null, card_no: val('ad_card') || null, company: val('ad_company') || null,
       rnb_coverage: val('ad_rnb') || null, care_of: val('ad_careof') || null,
       companion_pass_no: val('ea_pass') || null, companion_pass_status: val('ea_passst') || null, notes: val('ea_notes') || null,
-      admitting_physician_id: adp?.id ?? null, phic_category: $('ea_phcat').value || null, arrival_modes: chipVals('ea_modes'),
+      admitting_physician_id: adm.admitting_physician_id, admitting_rod: adm.admitting_rod ? adm.admitting_rod.toUpperCase() : null,
+      companion_name: val('ea_comp').toUpperCase() || null, companion_relation: val('ea_rel2').toUpperCase() || null, phic_category: $('ea_phcat').value || null, arrival_modes: chipVals('ea_modes'),
       procedures: val('ea_proc') || null, package: val('ea_pkg') || null
     }
     if (a.discharged_at){ row.disposition = $('ea_disp').value; row.discharged_at = fromLocalInput($('ea_dc').value) || a.discharged_at; row.discharge_manner = $('ea_manner').value || null }
@@ -1591,7 +1635,7 @@ async function printPIF(admissionId){
         <div class="cell"><b>PATIENT’S SPOUSE (If any)</b><div class="v">${U(p.spouse_name)}</div></div>
         <div class="cell g2">${cb(p.shareholder==='SHAREHOLDER','TDMH SHARE HOLDER')}${cb(!p.shareholder || p.shareholder==='N/A','N/A')}${cb(p.shareholder==='DEPENDENT','SHARE HOLDER DEPENDENT')}</div>
         <div class="cell"><b>ATTENDING PHYSICIAN</b><div class="v dr"><b>DR.</b> ${U(noDr(a.physician?.name || a.physician_raw))}</div></div>
-        <div class="cell last"><b>ADMITTING PHYSICIAN</b><div class="v dr"><b>DR.</b> ${U(noDr(a.adp?.name || a.physician?.name))}</div></div>
+        <div class="cell last"><b>ADMITTING PHYSICIAN</b><div class="v dr"><b>DR.</b> ${a.admitting_rod ? U(noDr(a.admitting_rod)) + ' <small class="rod">(ROD / ER)</small>' : U(noDr(a.adp?.name || a.physician?.name))}</div></div>
       </td>
       <td class="list">${ARRIVAL.map(m => cb(modes.has(m), m)).join('<br>')}</td>
       <td class="stack">
@@ -1599,7 +1643,7 @@ async function printPIF(admissionId){
         <div class="cell last"><b class="c">PATIENT’S OCCUPATION</b><div class="g2">${cb(p.occupation==='GOVERNMENT','GOVERNMENT')}${cb(p.occupation==='OFW','OFW')}${cb(p.occupation==='PRIVATE','PRIVATE')}${cb(p.occupation==='STUDENT','STUDENT')}${cb(p.occupation==='SELF EMPLOYED','SELF EMPLOYED')}${cb(p.occupation==='N/A','N/A')}</div></div>
       </td></tr></table>
     <table class="pf-t"><tr><td>${cb(true, 'I CERTIFY THAT THE ABOVE INFORMATION IS TRUE AND CORRECT.')}
-      <div class="sig"><div><span class="line"></span><i>PATIENT’S SIGNATURE OVER PRINTED NAME / REPRESENTATIVE (RELATIONSHIP TO PATIENT)</i></div>
+      <div class="sig"><div><span class="line">${U(a.companion_name)}${a.companion_relation ? ' <small class="rel">(' + U(a.companion_relation) + ')</small>' : ''}</span><i>PATIENT’S SIGNATURE OVER PRINTED NAME / REPRESENTATIVE (RELATIONSHIP TO PATIENT)</i></div>
         <div style="flex:.55"><span class="line">${U(a.admitting_officer)}</span><i>ADMITTING/INFO CLERK</i></div></div></td></tr></table>
     <table class="pf-t thick"><tr><td class="box"><b>ICD 10 ADMITTING DIAGNOSIS</b> <i class="inl">(To be filled up by the Attending Physician)</i><div class="v l">${U(a.admitting_dx)}</div></td></tr>
       <tr><td class="box"><b>PROCEDURE / OPERATIONS DONE</b><div class="v l">${U(a.procedures)}</div></td></tr>
@@ -1617,7 +1661,7 @@ async function printPIF(admissionId){
   const img = $('printArea').querySelector('img')
   // this form prints on letter portrait; the census/report prints stay landscape
   let ps = document.getElementById('pifPage'); if (!ps){ ps = document.createElement('style'); ps.id = 'pifPage'; document.head.appendChild(ps) }
-  ps.textContent = '@page{size:letter portrait;margin:9mm 10mm}'
+  ps.textContent = '@page{size:letter portrait;margin:7mm 9mm}'
   const go = () => { window.print(); setTimeout(() => { $('printArea').className = ''; ps.textContent = '' }, 800) }
   if (img.complete) go(); else img.onload = go
 }
