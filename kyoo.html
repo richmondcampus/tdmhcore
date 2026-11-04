@@ -32,7 +32,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
 body{font-family:Figtree,system-ui,sans-serif;background:var(--paper);color:var(--text);
-     font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+     font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
 ::-webkit-scrollbar{width:6px;height:6px}
 ::-webkit-scrollbar-thumb{background:#cfcfdd;border-radius:3px}
 button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
@@ -41,43 +41,43 @@ input,select,textarea{font:inherit}
 
 /* ═══ shell ═══ */
 .app{display:flex;height:100vh;overflow:hidden}
-.rail{width:214px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);
+.rail{width:250px;flex-shrink:0;background:var(--card);border-right:1px solid var(--line);
       display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
-.rail-top{padding:17px 16px 14px;display:flex;align-items:center;gap:10px;
+.rail-top{padding:20px 18px 17px;display:flex;align-items:center;gap:10px;
           border-bottom:1px solid var(--line-2)}
-.mark{width:34px;height:34px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;
+.mark{width:38px;height:38px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;
       background:linear-gradient(135deg,var(--indigo-2),var(--green));color:#fff;
       font-family:Archivo;font-weight:900;font-size:15px}
-.rail-name{color:var(--text);font-weight:700;font-size:13.5px;line-height:1.25}
-.rail-sub{color:var(--faint);font-size:11px}
-.rail-nav{flex:1;padding:10px 9px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
-.nav{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;width:100%;
-     text-align:left;color:var(--muted);font-size:13.5px;font-weight:500;transition:.14s}
+.rail-name{color:var(--text);font-weight:700;font-size:15px;line-height:1.25}
+.rail-sub{color:var(--faint);font-size:12px}
+.rail-nav{flex:1;padding:12px 11px;overflow-y:auto;display:flex;flex-direction:column;gap:1px}
+.nav{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;width:100%;
+     text-align:left;color:var(--muted);font-size:14.5px;font-weight:500;transition:.14s}
 .nav:hover{color:var(--text);background:var(--line-2)}
 .nav.on{color:var(--indigo);background:var(--indigo-wash);font-weight:600}
-.nav svg{width:16px;height:16px;flex-shrink:0;opacity:.9}
-.nav-head{padding:13px 11px 5px;font-size:11px;font-weight:700;color:var(--faint);letter-spacing:.02em}
+.nav svg{width:17px;height:17px;flex-shrink:0;opacity:.9}
+.nav-head{padding:15px 13px 6px;font-size:11.5px;font-weight:700;color:var(--faint);letter-spacing:.02em}
 .rail-foot{padding:9px;border-top:1px solid var(--line-2)}
-.who{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:9px;background:var(--paper)}
-.pip{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+.who{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;background:var(--paper)}
+.pip{width:33px;height:33px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
      background:var(--indigo);color:#fff;font-size:11px;font-weight:700}
-.who-n{color:var(--text);font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.who-r{color:var(--faint);font-size:11px;text-transform:capitalize}
+.who-n{color:var(--text);font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who-r{color:var(--faint);font-size:12px;text-transform:capitalize}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
 
 /* ═══ page furniture ═══ */
-.head{padding:22px 26px 0}
-.h1{font-size:20px;font-weight:800;letter-spacing:-.015em}
-.sub{color:var(--muted);font-size:13.5px;margin-top:2px}
-.wrap{padding:18px 26px 26px}
+.head{padding:26px 30px 0}
+.h1{font-size:23px;font-weight:800;letter-spacing:-.015em}
+.sub{color:var(--muted);font-size:14.5px;margin-top:2px}
+.wrap{padding:20px 30px 30px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh)}
-.card-h{padding:13px 16px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;
+.card-h{padding:15px 18px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;
         justify-content:space-between;gap:10px}
-.card-t{font-size:13.5px;font-weight:700}
+.card-t{font-size:14.5px;font-weight:700}
 
 /* ═══ controls ═══ */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:8px 15px;
-     border-radius:9px;font-size:13.5px;font-weight:600;transition:.13s;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 17px;
+     border-radius:10px;font-size:14.5px;font-weight:600;transition:.13s;white-space:nowrap}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn:active:not(:disabled){transform:translateY(1px)}
 .b-pri{background:var(--indigo);color:#fff}      .b-pri:hover:not(:disabled){background:#32368d}
@@ -87,37 +87,37 @@ input,select,textarea{font:inherit}
 .b-out{background:#fff;color:var(--text);border:1px solid var(--line)}
 .b-out:hover:not(:disabled){background:#fafaff;border-color:#d2d2e2}
 .b-ghost{color:var(--muted);padding:6px 9px} .b-ghost:hover{background:var(--line-2);color:var(--text)}
-.b-sm{padding:5px 11px;font-size:12.5px} .b-ico{padding:7px;border-radius:8px}
-.b-full{width:100%} .b-lg{padding:12px 20px;font-size:15px}
-.inp{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;
+.b-sm{padding:6px 13px;font-size:13.5px} .b-ico{padding:9px;border-radius:9px}
+.b-full{width:100%} .b-lg{padding:13px 22px;font-size:15.5px}
+.inp{width:100%;padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:#fff;
      color:var(--text);outline:none;transition:.13s}
 .inp:focus{border-color:var(--indigo);box-shadow:0 0 0 3px rgba(59,63,163,.11)}
 .inp::placeholder{color:var(--faint)}
 select.inp{cursor:pointer}
-.lbl{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:5px}
-.sw{position:relative;width:40px;height:23px;border-radius:12px;background:#d8d8e6;flex-shrink:0;transition:.18s}
+.lbl{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.sw{position:relative;width:44px;height:25px;border-radius:13px;background:#d8d8e6;flex-shrink:0;transition:.18s}
 .sw.on{background:var(--green)}
-.sw i{position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;
+.sw i{position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;
       box-shadow:0 1px 3px rgba(0,0,0,.2);transition:.18s}
-.sw.on i{left:20px}
+.sw.on i{left:22px}
 
 /* ═══ live board ═══ */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:13px}
-.kpi{padding:17px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.kpi-k{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
-.kpi-v{font-size:32px;line-height:1.12;margin-top:2px;color:var(--text)}
-.kpi-sub{font-size:12px;color:var(--faint);margin-top:3px}
+.kpi{padding:20px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.kpi-k{font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
+.kpi-v{font-size:36px;line-height:1.12;margin-top:2px;color:var(--text)}
+.kpi-sub{font-size:13px;color:var(--faint);margin-top:3px}
 .kpi-sub b{color:var(--muted);font-weight:600}
-.kpi-ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex-shrink:0}
+.kpi-ic{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;flex-shrink:0}
 .two-col{display:grid;grid-template-columns:1.08fr 1fr;gap:13px;margin-top:13px;align-items:start}
 .tally{display:grid;grid-template-columns:repeat(3,1fr)}
 .tally-cell{padding:15px 17px;border-right:1px solid var(--line-2)}
 .tally-cell:last-child{border-right:none}
 .occ{display:flex;align-items:center;justify-content:space-between;gap:12px;
-     padding:11px 12px;border-radius:11px;background:var(--paper);margin-bottom:5px}
+     padding:13px 15px;border-radius:11px;background:var(--paper);margin-bottom:5px}
 .occ:last-child{margin-bottom:0}
 .occ-w{font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.03em}
-.occ-line{font-size:13.5px;margin-top:4px;display:flex;align-items:center;gap:8px;min-width:0}
+.occ-line{font-size:14.5px;margin-top:4px;display:flex;align-items:center;gap:8px;min-width:0}
 .occ-line>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .occ-pip{width:25px;height:25px;font-size:9.5px;background:var(--indigo-wash);color:var(--indigo)}
 .occ-ago{font-size:11.5px;color:var(--faint);margin-top:3px}
@@ -126,8 +126,8 @@ select.inp{cursor:pointer}
 @media(max-width:1040px){.two-col{grid-template-columns:1fr}}
 
 /* ═══ tags ═══ */
-.tag{display:inline-flex;align-items:center;gap:4px;padding:2.5px 8px;border-radius:20px;
-     font-size:11.5px;font-weight:600;white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
+     font-size:12px;font-weight:600;white-space:nowrap}
 .t-wait{background:var(--gold-wash);color:#8a6713}
 .t-serv{background:var(--green-wash);color:#166434}
 .t-done{background:var(--line-2);color:var(--muted)}
@@ -137,18 +137,18 @@ select.inp{cursor:pointer}
 
 /* ═══ counter workspace ═══ */
 .ws{display:flex;height:100vh;overflow:hidden}
-.ws-l{width:296px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);
+.ws-l{width:412px;flex-shrink:0;background:#fff;border-right:1px solid var(--line);
       display:flex;flex-direction:column}
 .ws-r{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--paper)}
 .ws-h{padding:12px 13px;border-bottom:1px solid var(--line-2)}
 .segs{display:flex;background:var(--line-2);border-radius:9px;padding:3px;gap:2px}
-.seg{flex:1;padding:6px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--muted);
+.seg{flex:1;padding:7px;border-radius:7px;font-size:13.5px;font-weight:600;color:var(--muted);
      display:flex;align-items:center;justify-content:center;gap:5px;transition:.13s}
 .seg.on{background:#fff;color:var(--text);box-shadow:var(--sh)}
 .cnt{padding:1px 6px;border-radius:9px;font-size:11px;font-weight:700;background:#dadae8;color:var(--muted)}
 .seg.on .cnt{background:var(--indigo);color:#fff}
-.ws-list{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:6px}
-.ws-f{padding:11px;border-top:1px solid var(--line-2);display:flex;flex-direction:column;gap:7px}
+.ws-list{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ws-f{padding:14px;border-top:1px solid var(--line-2);display:flex;flex-direction:column;gap:7px}
 
 .tk{padding:10px 12px;border:1.5px solid var(--line);border-radius:11px;background:#fff;transition:.13s;
     text-align:left;width:100%;display:block}
@@ -168,62 +168,124 @@ select.inp{cursor:pointer}
 .kbd{display:inline-block;padding:1px 5px;border:1px solid var(--line);border-bottom-width:2px;
      border-radius:5px;font-size:10.5px;font-weight:700;color:var(--faint);background:#fff;margin-left:5px}
 
+/* ═══ TV layout picker ═══ */
+.lay{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.layb{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:13px;
+      border:1.5px solid var(--line);border-radius:12px;text-align:left;background:var(--card);
+      transition:.14s}
+.layb:hover{border-color:#c3c4da}
+.layb.on{border-color:var(--indigo);background:var(--indigo-wash)}
+.laypic{display:grid;gap:3px;width:100%;height:46px;padding:5px;border-radius:7px;
+        background:var(--paper);border:1px solid var(--line-2)}
+.laypic i{background:#c9cadd;border-radius:2px;display:block}
+.layb.on .laypic i{background:var(--indigo-2)}
+.lay-spotlight{grid-template-columns:1.6fr 1fr;grid-template-rows:1fr 1fr}
+.lay-spotlight i:nth-child(1){grid-row:1/3}
+.lay-grid{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.lay-grid i:nth-child(3){grid-column:1/3}
+.lay-list{grid-template-columns:1.3fr 1fr}
+.lay-list i:nth-child(1){grid-row:1/3}
+.lay-list i:nth-child(3){display:none}
+.layt{font-size:13.5px;font-weight:700}
+.layd{font-size:11.5px;color:var(--muted);line-height:1.45}
+@media(max-width:900px){.lay{grid-template-columns:1fr}}
+
+/* ═══ procedures ═══ */
+.proc{display:grid;grid-template-columns:1fr 290px;gap:0;margin-bottom:14px;overflow:hidden}
+.proc-main{padding:22px 24px;min-width:0}
+.proc-side{padding:22px 24px;border-left:1px solid var(--line-2);background:#fcfcff;
+           display:flex;flex-direction:column;gap:13px}
+.proc-name{font-size:18px;font-weight:800;letter-spacing:-.015em}
+.proc-desc{font-size:13.5px;color:var(--muted);margin-top:3px}
+.proc-act{display:flex;align-items:center;justify-content:space-between;gap:12px;
+          padding-top:13px;border-top:1px solid var(--line-2)}
+.flow{display:flex;gap:0;margin-top:20px;overflow-x:auto;padding-bottom:4px}
+.flow-item{min-width:132px;flex:1}
+.flow-head{display:flex;align-items:center}
+.flow-dot{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;
+          background:var(--indigo-wash);color:var(--indigo);
+          font-family:Archivo;font-weight:800;font-size:13px}
+.flow-line{flex:1;height:2px;background:var(--line);min-width:16px}
+.flow-k{font-size:11.5px;color:var(--muted);margin-top:10px}
+.flow-s{font-size:13.5px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;margin-top:2px}
+.chip-dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.picker{display:grid;grid-template-columns:1fr 1fr;gap:3px;max-height:210px;overflow-y:auto;
+        border:1px solid var(--line);border-radius:10px;padding:7px}
+.pick{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:8px;cursor:pointer;
+      font-size:13.5px}
+.pick.on{background:var(--indigo-wash);font-weight:600}
+.steprow{display:flex;align-items:center;gap:8px}
+@media(max-width:1100px){.proc{grid-template-columns:1fr}
+  .proc-side{border-left:none;border-top:1px solid var(--line-2)}
+  .picker{grid-template-columns:1fr}}
+
+/* ═══ settings rows ═══ */
+.sgroup{padding:13px 18px;font-size:11.5px;font-weight:800;letter-spacing:.09em;
+        color:var(--faint);border-bottom:1px solid var(--line-2)}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:20px;
+      padding:15px 18px;border-bottom:1px solid var(--line-2)}
+.srow:last-child{border-bottom:none}
+.srow.off{opacity:.48}
+.srow-t{font-size:14.5px;font-weight:650}
+.srow-s{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.5}
+.sw:disabled{cursor:not-allowed}
+
 /* ═══ counter — queue workspace ═══ */
-.from{display:flex;align-items:stretch;gap:0;margin:12px 12px 0;border:1px solid var(--line);
+.from{display:flex;align-items:stretch;gap:0;margin:14px 14px 0;border:1px solid var(--line);
       border-radius:10px;overflow:hidden;background:var(--card)}
-.from-k{background:var(--ink);color:#fff;font-size:12.5px;font-weight:700;
-        padding:9px 15px;display:grid;place-items:center;flex-shrink:0}
-.from-sel{flex:1;border:none;outline:none;background:transparent;padding:9px 12px;
-          font-size:13.5px;font-weight:600;color:var(--text);cursor:pointer}
-.utabs{display:flex;margin:12px 0 0;border-bottom:1px solid var(--line)}
-.utab{flex:1;padding:11px 8px 12px;font-size:13.5px;font-weight:600;color:var(--muted);
+.from-k{background:var(--ink);color:#fff;font-size:13.5px;font-weight:700;
+        padding:11px 17px;display:grid;place-items:center;flex-shrink:0}
+.from-sel{flex:1;border:none;outline:none;background:transparent;padding:11px 14px;
+          font-size:14.5px;font-weight:600;color:var(--text);cursor:pointer}
+.utabs{display:flex;margin:14px 0 0;border-bottom:1px solid var(--line)}
+.utab{flex:1;padding:14px 8px 15px;font-size:15px;font-weight:600;color:var(--muted);
       border-bottom:2.5px solid transparent;margin-bottom:-1px;display:flex;
       align-items:center;justify-content:center;gap:7px;transition:.14s}
 .utab:hover{color:var(--text)}
 .utab.on{color:var(--indigo);border-bottom-color:var(--indigo);font-weight:700}
-.ucnt{min-width:19px;height:19px;padding:0 6px;border-radius:10px;display:grid;place-items:center;
-      font-size:11px;font-weight:800;background:var(--line-2);color:var(--muted)}
+.ucnt{min-width:21px;height:21px;padding:0 7px;border-radius:11px;display:grid;place-items:center;
+      font-size:11.5px;font-weight:800;background:var(--line-2);color:var(--muted)}
 .utab.on .ucnt{background:var(--indigo);color:#fff}
-.tools{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px}
+.tools{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px}
 .pillset{display:flex;gap:5px}
-.pillb{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;
-       border:1px solid var(--line);font-size:11.5px;font-weight:700;color:var(--faint);
+.pillb{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:20px;
+       border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--faint);
        letter-spacing:.03em;text-transform:uppercase;transition:.14s}
 .pillb.on{background:var(--indigo-wash);border-color:var(--indigo);color:var(--indigo)}
-.toolb{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;
+.toolb{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;
        color:var(--muted);letter-spacing:.03em;text-transform:uppercase;padding:5px 7px;border-radius:7px}
 .toolb:hover{background:var(--line-2);color:var(--text)}
 
-.qc{display:block;width:100%;text-align:left;padding:13px 14px;border:1px solid var(--line);
+.qc{display:block;width:100%;text-align:left;padding:17px 19px;border:1px solid var(--line);
     border-left:4px solid transparent;border-radius:11px;background:var(--card);
     box-shadow:var(--sh);transition:.14s}
 .qc:hover{border-color:#c9cadd}
 .qc.on{border-color:var(--indigo);border-left-color:var(--indigo);
        box-shadow:0 0 0 2px rgba(59,63,163,.12)}
 .qc-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-.qc-n{font-size:19px;letter-spacing:-.02em}
-.qc-svc{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;
+.qc-n{font-size:24px;letter-spacing:-.025em}
+.qc-svc{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;
         letter-spacing:.04em;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qc-mid{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:5px}
-.qc-lbl{font-size:12.5px;color:var(--muted)}
-.qc-ago{font-size:12.5px;color:var(--muted);font-weight:600}
+.qc-mid{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-top:7px}
+.qc-lbl{font-size:14px;color:var(--muted)}
+.qc-ago{font-size:14px;color:var(--muted);font-weight:600}
 
 .phead{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-shrink:0;
-       padding:13px 20px;background:var(--card);border-bottom:1px solid var(--line)}
-.phead-t{font-size:19px;font-weight:800;letter-spacing:-.02em}
+       padding:16px 24px;background:var(--card);border-bottom:1px solid var(--line)}
+.phead-t{font-size:24px;font-weight:800;letter-spacing:-.02em}
 .autobar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0;
-         padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
-.autobar-t{font-size:13.5px;font-weight:700}
-.autobar-s{font-size:12px;color:var(--muted);margin-top:1px}
+         padding:15px 24px;background:var(--card);border-bottom:1px solid var(--line)}
+.autobar-t{font-size:15px;font-weight:700}
+.autobar-s{font-size:13px;color:var(--muted);margin-top:1px}
 
 .fld{text-align:left}
 .fld.row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.fld-k{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--faint)}
-.fld-v{font-size:14px;font-weight:600;margin-top:3px}
+.fld-k{font-size:12px;font-weight:800;letter-spacing:.1em;color:var(--faint)}
+.fld-v{font-size:15.5px;font-weight:600;margin-top:5px}
 .fld.row .fld-v{margin-top:0}
 .side-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 
-.actbar{display:flex;align-items:center;gap:9px;flex-shrink:0;padding:13px 20px;
+.actbar{display:flex;align-items:center;gap:10px;flex-shrink:0;padding:16px 24px;
         background:var(--card);border-top:1px solid var(--line)}
 .dd{position:absolute;bottom:46px;left:0;z-index:60;min-width:250px;padding:5px;
     background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh-lg)}
@@ -234,62 +296,76 @@ select.inp{cursor:pointer}
 .dd-sep{height:1px;background:var(--line-2);margin:4px 0}
 
 .tl-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-.tl-when{font-size:10.5px;color:var(--faint);white-space:nowrap}
+.tl-when{font-size:11.5px;color:var(--faint);white-space:nowrap}
 
 /* ═══ counter detail pane ═══ */
 .ws-bar{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;
         display:flex;align-items:center;justify-content:space-between;gap:14px;flex-shrink:0}
 .autosw{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;
         font-weight:600;color:var(--muted);cursor:pointer}
-.detail{flex:1;display:grid;grid-template-columns:1fr 340px;gap:14px;
-        padding:16px 18px;overflow:hidden;min-height:0}
+.detail{flex:1;display:grid;grid-template-columns:1fr 372px;gap:17px;
+        padding:20px 24px;overflow:hidden;min-height:0}
 .detail-mid{overflow-y:auto;display:flex;align-items:flex-start;justify-content:center}
-.detail-side{display:flex;flex-direction:column;gap:11px;overflow:hidden;min-height:0}
-.tkcard{width:100%;max-width:430px;padding:26px 24px;text-align:center}
-.tkcard-k{font-size:11px;font-weight:800;letter-spacing:.14em;color:var(--faint)}
-.tkcard-n{font-size:clamp(48px,7vw,76px);line-height:1;letter-spacing:-.035em;margin:8px 0 0}
-.tkcard-rule{height:1px;background:var(--line-2);margin:20px 0 16px}
+.detail-side{display:flex;flex-direction:column;gap:13px;overflow:hidden;min-height:0}
+.tkcard{width:100%;max-width:490px;padding:32px 30px;text-align:center}
+.tkcard-k{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--faint)}
+.tkcard-n{font-size:clamp(54px,7.6vw,90px);line-height:1;letter-spacing:-.035em;margin:8px 0 0}
+.tkcard-rule{height:1px;background:var(--line-2);margin:24px 0 20px}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;text-align:left}
 .kv dt{font-size:12.5px;color:var(--muted)}
 .kv dd{font-size:13.5px;font-weight:600;text-align:right}
 .tknote{margin-top:16px;padding:10px 13px;background:var(--paper);border-radius:10px;
         font-size:13px;color:var(--muted);text-align:left}
 .tagbox{margin-top:18px;padding-top:16px;border-top:1px solid var(--line-2);text-align:left}
-.sidecard{padding:14px 15px}
-.side-k{font-size:10.5px;font-weight:800;letter-spacing:.11em;color:var(--faint);display:block}
+.sidecard{padding:17px 18px}
+.side-k{font-size:11.5px;font-weight:800;letter-spacing:.11em;color:var(--faint);display:block}
 
-.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:7px;
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:8px;
       background:var(--gold-wash);border:1px solid #ecdfbd;color:#7d5e11;
-      font-size:11px;font-weight:700;letter-spacing:.02em}
+      font-size:12px;font-weight:700;letter-spacing:.02em}
 .chip-x button{display:inline-flex;color:#a98b3c;padding:0;margin-left:1px}
 .chip-x button:hover{color:#6d4f0c}
 .chip-add{background:transparent;border:1px dashed var(--line);color:var(--muted);font-weight:600}
 .chip-add:hover{border-color:var(--indigo);color:var(--indigo)}
 
 .path{display:flex;flex-direction:column;gap:2px;margin-top:9px}
-.path-row{display:flex;align-items:center;gap:10px;padding:7px 0}
+.path-row{display:flex;align-items:center;gap:12px;padding:9px 0}
 .path-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-.path-n{font-size:11px;font-weight:700;color:var(--faint)}
-.path-s{font-size:13px;font-weight:700;margin-top:1px}
-.path-t{font-size:11.5px;color:var(--muted);flex-shrink:0}
+.path-n{font-size:11.5px;font-weight:700;color:var(--faint)}
+.path-s{font-size:14.5px;font-weight:700;margin-top:1px}
+.path-t{font-size:12.5px;color:var(--muted);flex-shrink:0}
 
-.tl{margin-top:10px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-right:3px}
+.tl{margin-top:12px;overflow-y:auto;display:flex;flex-direction:column;gap:15px;padding-right:3px}
 .tl-row{display:flex;gap:10px}
 .tl-dot{width:7px;height:7px;border-radius:50%;background:var(--indigo);flex-shrink:0;margin-top:5px}
-.tl-a{font-size:10.5px;font-weight:800;letter-spacing:.07em;color:var(--indigo)}
-.tl-m{font-size:11.5px;color:var(--muted);margin-top:1px}
-.tl-d{font-size:11.5px;color:var(--indigo);margin-top:3px;background:var(--indigo-wash);
+.tl-a{font-size:11.5px;font-weight:800;letter-spacing:.07em;color:var(--indigo)}
+.tl-m{font-size:13px;color:var(--muted);margin-top:1px}
+.tl-d{font-size:12.5px;color:var(--indigo);margin-top:3px;background:var(--indigo-wash);
       padding:4px 8px;border-radius:7px;display:inline-block}
 .kbd-on{color:rgba(255,255,255,.78);border-color:rgba(255,255,255,.35)}
-@media(max-width:1180px){.detail{grid-template-columns:1fr}.detail-side{display:none}}
+/* laptops: stack the side rail under the ticket instead of dropping it */
+@media(max-width:1500px){
+  .ws-l{width:352px}
+  .detail{grid-template-columns:1fr;grid-auto-rows:min-content;overflow-y:auto;
+          align-content:start}
+  .detail-mid{overflow:visible}
+  .detail-side{overflow:visible}
+  .tl{max-height:300px}
+  .tkcard{max-width:none}
+}
+@media(max-width:1100px){
+  .ws-l{width:308px}
+  .phead-t{font-size:20px}
+  .actbar{flex-wrap:wrap}
+}
 
 /* ═══ empty + misc ═══ */
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 22px;
        text-align:center;color:var(--muted);gap:4px}
 .empty-i{width:46px;height:46px;border-radius:50%;background:var(--line-2);display:grid;place-items:center;
          margin-bottom:8px;color:var(--faint)}
-.empty-t{font-weight:700;font-size:14.5px;color:var(--text)}
+.empty-t{font-weight:700;font-size:15.5px;color:var(--text)}
 .spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;
       border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
 .spin.d{border-color:rgba(59,63,163,.2);border-top-color:var(--indigo)}
@@ -305,9 +381,9 @@ select.inp{cursor:pointer}
 
 /* ═══ table ═══ */
 .tb{width:100%;border-collapse:collapse}
-.tb th{padding:9px 14px;text-align:left;font-size:11.5px;font-weight:700;color:var(--muted);
+.tb th{padding:11px 16px;text-align:left;font-size:12.5px;font-weight:700;color:var(--muted);
        background:#fafafd;border-bottom:1px solid var(--line)}
-.tb td{padding:10px 14px;border-bottom:1px solid var(--line-2);font-size:13.5px}
+.tb td{padding:12px 16px;border-bottom:1px solid var(--line-2);font-size:14.5px}
 .tb tr:last-child td{border-bottom:none}
 .tb tbody tr:hover td{background:#fafafd}
 
@@ -316,11 +392,11 @@ select.inp{cursor:pointer}
     align-items:center;justify-content:center;z-index:200;padding:16px;animation:fi .14s}
 .md{background:#fff;border-radius:18px;box-shadow:var(--sh-lg);width:100%;max-width:460px;
     max-height:88vh;overflow-y:auto;animation:su .18s}
-.md-h{padding:17px 19px 14px;border-bottom:1px solid var(--line-2);display:flex;
+.md-h{padding:20px 22px 16px;border-bottom:1px solid var(--line-2);display:flex;
       align-items:flex-start;justify-content:space-between;gap:12px;position:sticky;top:0;background:#fff;z-index:2}
-.md-t{font-size:16.5px;font-weight:800;letter-spacing:-.01em}
-.md-s{font-size:12.5px;color:var(--muted);margin-top:2px}
-.md-b{padding:19px}
+.md-t{font-size:18px;font-weight:800;letter-spacing:-.01em}
+.md-s{font-size:13.5px;color:var(--muted);margin-top:2px}
+.md-b{padding:22px}
 .md-f{display:flex;gap:8px;padding-top:16px;margin-top:16px;border-top:1px solid var(--line-2)}
 @keyframes fi{from{opacity:0}to{opacity:1}}
 @keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -404,6 +480,49 @@ select.inp{cursor:pointer}
 .pulse{display:inline-block;width:.5em;height:.5em;border-radius:50%;background:var(--green);
        margin-right:.4em;vertical-align:middle;animation:pz 1.6s ease infinite}
 @keyframes pz{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+
+/* ── TV layout: counter grid ── */
+.tv-grid{flex:1;display:grid;gap:1.4vw;padding:1.6vh 2vw;min-height:0}
+.gcell{display:flex;flex-direction:column;border-radius:16px;overflow:hidden;
+       background:var(--surf-2);border:1px solid var(--line);box-shadow:var(--sh);
+       transition:background .4s,border-color .4s;min-height:0}
+.gcell-h{background:var(--indigo);color:#fff;text-align:center;padding:1.1vh 1vw;
+         font-size:clamp(12px,1.35vw,22px);font-weight:800;letter-spacing:.04em;
+         text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcell.live .gcell-h{background:var(--green)}
+.gcell.lit{border-color:var(--green);box-shadow:0 0 0 3px rgba(47,168,94,.3)}
+.gcell.lit .gcell-h{background:var(--green)}
+.gcell.lit .gcell-b{background:var(--green)}
+.gcell.lit .gcell-s{color:rgba(255,255,255,.85)}
+.gcell-b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+         gap:.6vh;padding:1.4vh 1vw;transition:background .4s;min-height:0}
+.gcell-n{font-family:Archivo;font-weight:900;line-height:.92;letter-spacing:-.035em;
+         font-size:clamp(38px,7.4vw,124px)}
+.gcell-s{font-size:clamp(11px,1.25vw,20px);font-weight:700;color:var(--dim);
+         text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.gcell-idle{font-family:Archivo;font-weight:800;color:var(--faint2);
+            font-size:clamp(24px,3.4vw,56px)}
+
+/* ── TV layout: now serving + on-going ── */
+.tv-two{flex:1;display:grid;grid-template-columns:1.35fr 1fr;gap:1.4vw;
+        padding:1.6vh 2vw;min-height:0}
+.tvcol{display:flex;flex-direction:column;border-radius:16px;overflow:hidden;
+       background:var(--surf-2);border:1px solid var(--line);box-shadow:var(--sh);min-height:0}
+.tvcol-h{background:var(--indigo);color:#fff;text-align:center;padding:1.1vh 1vw;
+         font-size:clamp(13px,1.5vw,25px);font-weight:800;letter-spacing:.03em}
+.tvcol-h.alt{background:var(--ink)}
+.tvcol-b{flex:1;overflow:hidden;padding:1vh .9vw;display:flex;flex-direction:column;gap:.5vh}
+.tvcol-empty{color:var(--faint2);font-size:clamp(13px,1.3vw,20px);
+             text-align:center;padding:2vh 0;font-weight:600}
+.lrow{display:flex;align-items:baseline;justify-content:space-between;gap:1vw;
+      padding:.85vh 1vw;border-radius:11px;transition:background .4s}
+.lrow.lit{background:var(--green)}
+.lrow.lit .lrow-w{color:rgba(255,255,255,.85)}
+.lrow-n{font-family:Archivo;font-weight:900;letter-spacing:-.03em;
+        font-size:clamp(26px,3.5vw,58px);line-height:1}
+.lrow-w{font-size:clamp(10px,1.05vw,17px);font-weight:700;color:var(--dim);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-aspect-ratio:1/1){.tv-two{grid-template-columns:1fr}}
 
 .tv-foot{display:flex;align-items:center;gap:1.4vw;flex-shrink:0;padding:1.1vh 2vw;
          background:var(--surf-2);border-top:1px solid var(--line);
@@ -523,6 +642,7 @@ const Ico = ({n,s=16}) => {
     right:<><path d="M9 6l6 6-6 6"/></>,
     dl:<><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></>,
     route:<><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M9 19h6a3 3 0 003-3V8"/></>,
+    grid:<><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><rect x="14" y="14" width="7" height="7" rx="1.4"/></>,
   }
   return <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{p[n]}</svg>
@@ -729,17 +849,42 @@ function TV({slug}) {
     return ()=>{ clearInterval(tick); clearInterval(poll); clearInterval(mid); ch.unsubscribe() }
   },[slug, refresh, chime])
 
-  const arm = () => { speech.unlock(); chime(); setArmed(true) }
+  const arm = useCallback(() => { speech.unlock(); chime(); setArmed(true) }, [chime])
+
+  /* A TV has no touchscreen. Try to open audio by ourselves first — kiosk
+     browsers can be set to allow autoplay — and accept any remote button as
+     the gesture if the browser still insists on one. */
+  useEffect(()=>{
+    if (armed) return
+    let done = false
+    const settle = () => { if (!done) { done = true; setArmed(true) } }
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext
+      if (AC) {
+        const ac = new AC()
+        if (ac.state === 'running') { speech.unlock(); settle() }
+        else ac.resume().then(()=>{ if (ac.state==='running') { speech.unlock(); settle() } })
+            .catch(()=>{})
+      }
+    } catch {}
+    const onAny = () => { arm() }
+    window.addEventListener('keydown', onAny)
+    window.addEventListener('pointerdown', onAny)
+    return ()=>{ window.removeEventListener('keydown', onAny)
+                 window.removeEventListener('pointerdown', onAny) }
+  },[armed, arm])
 
   if (!data) return <div className="tv" style={{display:'grid',placeItems:'center'}}><div className="spin"/></div>
 
-  const rows  = data.rows || []
-  const last  = data.last_call && data.last_call !== null ? data.last_call : null
-  const twoUp = rows.length > 6
+  const rows   = data.rows || []
+  const last   = data.last_call && data.last_call !== null ? data.last_call : null
+  const twoUp  = rows.length > 6
+  const layout = data.display?.layout || 'spotlight'
+  const cols   = Math.min(Math.max(data.display?.columns || 2, 1), 4)
 
   return (
     <div className="tv" onClick={arm}>
-      {!armed && <button className="unlock" onClick={arm}>Tap anywhere to turn on sound</button>}
+      {!armed && <button className="unlock" onClick={arm}>Press any button on the remote to turn on sound</button>}
 
       <div className="tv-h">
         <div style={{display:'flex',alignItems:'center',gap:'1vw',minWidth:0}}>
@@ -758,6 +903,64 @@ function TV({slug}) {
         </div>
       </div>
 
+      {layout === 'grid' ? (
+        <div className="tv-grid" style={{gridTemplateColumns:`repeat(${cols},1fr)`}}>
+          {rows.length===0 && (
+            <div style={{gridColumn:'1/-1',display:'grid',placeItems:'center',
+                         color:'var(--faint2)',fontSize:'clamp(16px,2vw,30px)',fontWeight:800}}>
+              No counter is open right now.
+            </div>
+          )}
+          {rows.map(r=>{
+            const lit = litWin===r.window_id
+            return (
+              <div key={r.window_id} className={'gcell '+(lit?'lit':r.status==='serving'?'live':'')}>
+                <div className="gcell-h">{r.window_name}</div>
+                <div className="gcell-b">
+                  {r.number ? (
+                    <>
+                      <div className="gcell-n"
+                           style={{color: lit ? '#fff'
+                                        : r.status==='done' ? 'var(--faint2)'
+                                        : (r.service_color || 'var(--indigo)')}}>{r.number}</div>
+                      <div className="gcell-s">{r.service_name}</div>
+                    </>
+                  ) : <div className="gcell-idle">—</div>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : layout === 'list' ? (
+        <div className="tv-two">
+          <div className="tvcol">
+            <div className="tvcol-h">Now Serving</div>
+            <div className="tvcol-b">
+              {rows.filter(r=>r.number).length===0 && <div className="tvcol-empty">None yet</div>}
+              {rows.filter(r=>r.number).map(r=>(
+                <div key={r.window_id} className={'lrow '+(litWin===r.window_id?'lit':'')}>
+                  <span className="lrow-n"
+                        style={{color: litWin===r.window_id ? '#fff'
+                                     : (r.service_color || 'var(--indigo)')}}>{r.number}</span>
+                  <span className="lrow-w">{r.window_name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="tvcol">
+            <div className="tvcol-h alt">On-going{data.waiting>0 && ` · ${data.waiting}`}</div>
+            <div className="tvcol-b">
+              {(data.queue||[]).length===0 && <div className="tvcol-empty">Nobody waiting</div>}
+              {(data.queue||[]).map((q,i)=>(
+                <div key={i} className="lrow">
+                  <span className="lrow-n" style={{color:'var(--dim)'}}>{q.number}</span>
+                  <span className="lrow-w">{q.service_name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="tv-body">
         {/* ── hero: the number being called ── */}
         <div className={'hero '+(ring?'ring':'')}>
@@ -813,6 +1016,7 @@ function TV({slug}) {
           </div>
         </div>
       </div>
+      )}
 
       <div className="tv-foot">
         <span className="foot-k">RECENTLY CALLED</span>
@@ -919,7 +1123,7 @@ function Counter({me}) {
   const [svcs,setSvcs]   = useState([])        // services this counter handles
   const [svcFilter,setSvcFilter] = useState('')
   const [waiting,setWaiting] = useState([])
-  const [serving,setServing] = useState(null)
+  const [held,setHeld]   = useState([])      // queues this counter is holding
   const [done,setDone]   = useState([])
   const [tab,setTab]     = useState('ongoing')
   const [selId,setSelId] = useState(null)
@@ -933,10 +1137,16 @@ function Counter({me}) {
   const [menu,setMenu]   = useState(false)
   const [detail,setDetail] = useState(null)
   const [auto,setAuto]   = useState(()=>localStorage.getItem('tdmhq-auto')==='1')
+  const [cfg,setCfg]     = useState({})
+  const [ask,setAsk]     = useState(null)   // {kind, ticket} — remark / movement prompt
   const [, bump]         = useState(0)
   const chRef = useRef(null)
   const autoRef = useRef(auto)
   useEffect(()=>{ autoRef.current = auto; localStorage.setItem('tdmhq-auto', auto?'1':'0') },[auto])
+
+  useEffect(()=>{
+    sb.from('settings').select('*').eq('id',1).maybeSingle().then(({data})=>setCfg(data||{}))
+  },[])
 
   useEffect(()=>{
     (async ()=>{
@@ -963,16 +1173,16 @@ function Counter({me}) {
     const ids = list.map(s=>s.id)
     if (!ids.length) { setWaiting([]); setServing(null); setDone([]); return }
     const today = new Date().toISOString().slice(0,10)
-    const cols = '*,services!tickets_service_id_fkey(code,name,color)'
+    const cols = '*,services!tickets_service_id_fkey(code,name,color,allow_multi_serve)'
     const [w,s,dn] = await Promise.all([
       sb.from('tickets').select(cols).eq('ticket_date',today).in('service_id',ids)
         .in('status',['waiting','held']).order('sort_at'),
       sb.from('tickets').select(cols).eq('ticket_date',today).eq('window_id',wid)
-        .eq('status','serving').maybeSingle(),
+        .eq('status','serving').order('called_at'),
       sb.from('tickets').select(cols).eq('ticket_date',today).eq('window_id',wid)
         .in('status',['done','skipped']).order('completed_at',{ascending:false}).limit(40),
     ])
-    setWaiting(w.data||[]); setServing(s.data||null); setDone(dn.data||[])
+    setWaiting(w.data||[]); setHeld(s.data||[]); setDone(dn.data||[])
   },[])
 
   useEffect(()=>{
@@ -991,7 +1201,7 @@ function Counter({me}) {
   },[win?.id, load])
 
   /* the list currently on screen */
-  const pool = tab==='serving' ? (serving ? [serving] : []) : waiting
+  const pool = tab==='serving' ? held : waiting
   const rows = pool.filter(t=>{
     if (svcFilter && t.service_id !== svcFilter) return false
     if (mine && t.served_by !== me.id) return false
@@ -1003,13 +1213,10 @@ function Counter({me}) {
 
   /* keep a sensible selection: follow the serving ticket, else first in list */
   useEffect(()=>{
-    if (serving) { setSelId(s => s && rows.some(r=>r.id===s) ? s : serving.id); return }
-    setSelId(s => s && rows.some(r=>r.id===s) ? s : (rows[0]?.id ?? null))
-  },[serving?.id, tab, waiting.length, svcFilter])
+    setSelId(s => s && [...rows,...held].some(r=>r.id===s) ? s : (rows[0]?.id ?? held[0]?.id ?? null))
+  },[tab, waiting.length, held.length, svcFilter])
 
-  const sel = rows.find(r=>r.id===selId)
-             || (serving && serving.id===selId ? serving : null)
-             || rows[0] || serving || null
+  const sel = [...rows, ...held].find(r=>r.id===selId) || rows[0] || held[0] || null
 
   useEffect(()=>{
     if (!sel) { setDetail(null); return }
@@ -1017,45 +1224,74 @@ function Counter({me}) {
   },[sel?.id, sel?.status, sel?.journey_step, sel?.recall_count, sel?.tags?.length])
 
   const isServing = sel && sel.status==='serving'
+  // which held queues would be released if we called something single-serve now
+  const wouldDrop = held.filter(h=>!h.services?.allow_multi_serve).map(h=>h.number)
 
   const next = async () => {
     if (!win || busy) return
+    const dropped = held.filter(h=>!h.services?.allow_multi_serve).map(h=>h.number)
     setBusy(true)
     const {data,error} = await sb.rpc('call_next',{p_window_id:win.id})
     setBusy(false)
     if (error) return toast(error.message,'err')
     if (!data) return toast('No one is waiting.','info')
-    setTab('serving'); toast('Called '+data.number,'ok')
+    setTab('serving')
+    toast('Called '+data.number,'ok')
+    if (dropped.length) toast(dropped.join(', ')+' went back to the end of the queue','info')
   }
   const serveThis = async t => {
     if (busy) return
+    const dropped = held.filter(h=>h.id!==t.id && !h.services?.allow_multi_serve).map(h=>h.number)
     setBusy(true)
     const {error} = await sb.rpc('call_ticket',{p_ticket_id:t.id,p_window_id:win.id})
     setBusy(false)
     if (error) return toast(error.message,'err')
-    setTab('serving'); toast('Called '+t.number,'ok')
+    setTab('serving')
+    toast('Called '+t.number,'ok')
+    if (dropped.length) toast(dropped.join(', ')+' went back to the end of the queue','info')
   }
-  const act = async what => {
-    if (!serving || busy) return
+  const needsRemark = what => ({
+    done:    false,
+    held:    cfg.remarks_on_hold,
+    skipped: cfg.remarks_on_skip,
+    return:  cfg.remarks_on_return,
+    cancelled: cfg.remarks_on_remove,
+  }[what])
+
+  const act = async (what, detail) => {
+    const target = sel && sel.status==='serving' ? sel : held[0]
+    if (!target || busy) return
+    // Complete may first ask where the patient goes next
+    if (what==='done' && cfg.queue_movement && detail===undefined) {
+      setAsk({kind:'movement', ticket:target}); return
+    }
+    if (needsRemark(what) && detail===undefined) {
+      setAsk({kind:'remark', action:what, ticket:target}); return
+    }
     setBusy(true)
-    const {error} = what==='recall'
-      ? await sb.rpc('recall_ticket',{p_ticket_id:serving.id})
-      : await sb.rpc('set_ticket_status',{p_ticket_id:serving.id, p_status:what})
-    setBusy(false); setMenu(false)
+    const {error} =
+      what==='recall' ? await sb.rpc('recall_ticket',{p_ticket_id:target.id}) :
+      what==='return' ? await sb.rpc('return_ticket',{p_ticket_id:target.id, p_detail:detail||null}) :
+      await sb.rpc('set_ticket_status',{p_ticket_id:target.id, p_status:what, p_detail:detail||null})
+    setBusy(false); setMenu(false); setAsk(null)
     if (error) return toast(error.message,'err')
-    toast({recall:'Called again', done:'Completed', held:'On hold', skipped:'Skipped'}[what],'ok')
-    if (what!=='recall') { setTab('ongoing'); if (autoRef.current) setTimeout(next,700) }
+    toast({recall:'Called again', done:'Completed', held:'On hold',
+           skipped:'Skipped', return:'Returned to queue', cancelled:'Cancelled'}[what]
+          + ' · ' + target.number,'ok')
+    if (what!=='recall' && held.length<=1) {
+      setTab('ongoing'); if (autoRef.current) setTimeout(next,700)
+    }
   }
 
   useEffect(()=>{
     const onKey = e => {
       if (e.target.matches('input,textarea,select') || move || adding || history) return
       const k = e.key.toLowerCase()
-      if (k===' ')      { e.preventDefault(); serving ? null : next() }
-      else if (serving && k==='r') act('recall')
-      else if (serving && k==='d') act('done')
-      else if (serving && k==='h') act('held')
-      else if (serving && k==='s') act('skipped')
+      if (k===' ')      { e.preventDefault(); next() }
+      else if (isServing && k==='r') act('recall')
+      else if (isServing && k==='d') act('done')
+      else if (isServing && k==='h' && cfg.enable_hold!==false) act('held')
+      else if (isServing && k==='s' && cfg.enable_skip!==false) act('skipped')
     }
     window.addEventListener('keydown',onKey)
     return ()=>window.removeEventListener('keydown',onKey)
@@ -1102,7 +1338,7 @@ function Counter({me}) {
 
         <div className="utabs">
           <button className={'utab '+(tab==='serving'?'on':'')} onClick={()=>setTab('serving')}>
-            Current Serving <span className="ucnt">{serving?1:0}</span>
+            Current Serving <span className="ucnt">{held.length}</span>
           </button>
           <button className={'utab '+(tab==='ongoing'?'on':'')} onClick={()=>setTab('ongoing')}>
             On-going Queue <span className="ucnt">{waiting.length}</span>
@@ -1192,7 +1428,11 @@ function Counter({me}) {
                   <div className="fld">
                     <div className="fld-k">QUEUE ON</div>
                     <div className="fld-v" style={{color:sel.services?.color,fontWeight:700}}>
-                      {sel.services?.name}</div>
+                      {sel.services?.name}
+                      {sel.services?.allow_multi_serve && (
+                        <span className="tag t-step" style={{marginLeft:8,fontWeight:600}}>
+                          multiple serving</span>
+                      )}</div>
                   </div>
                   {sel.patient_name && (
                     <><div className="tkcard-rule"/>
@@ -1289,13 +1529,20 @@ function Counter({me}) {
                       <div className="dd">
                         <button className="dd-i" onClick={()=>act('recall')}>
                           <Ico n="bell" s={14}/>Call again<span className="kbd">R</span></button>
-                        <button className="dd-i" onClick={()=>act('held')}>
-                          <Ico n="pause" s={14}/>Put on hold<span className="kbd">H</span></button>
-                        <button className="dd-i" onClick={()=>act('skipped')}>
-                          <Ico n="skip" s={14}/>Skip<span className="kbd">S</span></button>
+                        {cfg.enable_hold!==false && (
+                          <button className="dd-i" onClick={()=>act('held')}>
+                            <Ico n="pause" s={14}/>Put on hold<span className="kbd">H</span></button>)}
+                        {cfg.enable_skip!==false && (
+                          <button className="dd-i" onClick={()=>act('skipped')}>
+                            <Ico n="skip" s={14}/>Skip<span className="kbd">S</span></button>)}
+                        {cfg.enable_return!==false && (
+                          <button className="dd-i" onClick={()=>act('return')}>
+                            <Ico n="next" s={14}/>Return to on-going queue</button>)}
                         <div className="dd-sep"/>
                         <button className="dd-i" onClick={()=>{setMove({kind:'service'});setMenu(false)}}>
                           <Ico n="route" s={14}/>Send to another department</button>
+                        <button className="dd-i" style={{color:'var(--red)'}} onClick={()=>act('cancelled')}>
+                          <Ico n="x" s={14}/>Cancel queue</button>
                       </div>
                     )}
                   </div>
@@ -1308,8 +1555,16 @@ function Counter({me}) {
               ) : (
                 <>
                   <div style={{flex:1}}/>
-                  {serving && <span style={{fontSize:12.5,color:'var(--muted)',marginRight:4}}>
-                    Serving {serving.number} — completing it first will free this counter.</span>}
+                  {wouldDrop.length>0 && (
+                    <span style={{fontSize:13,color:'var(--muted)',marginRight:4}}>
+                      Holding <b className="num">{wouldDrop.join(', ')}</b> — calling this one
+                      sends it back to the end of the queue.</span>
+                  )}
+                  {wouldDrop.length===0 && held.length>0 && (
+                    <span style={{fontSize:13,color:'var(--muted)',marginRight:4}}>
+                      Holding {held.length} queue{held.length>1?'s':''} — this service allows
+                      serving several at once.</span>
+                  )}
                   <button className="btn b-pri b-lg" onClick={()=>serveThis(sel)} disabled={busy}>
                     {busy ? <div className="spin"/> : <><Ico n="next" s={17}/>Serve Queue</>}
                   </button>
@@ -1328,8 +1583,8 @@ function Counter({me}) {
         )}
       </div>
 
-      {move && serving && (
-        <MoveModal ticket={serving} kind={move.kind} windowId={win.id}
+      {move && (move.ticket || sel) && (
+        <MoveModal ticket={move.ticket || sel} kind={move.kind} windowId={win.id}
           onClose={()=>setMove(null)} onDone={m=>{ setMove(null); toast(m,'ok') }}/>
       )}
       {adding && (
@@ -1337,6 +1592,77 @@ function Counter({me}) {
           onDone={n=>{ setAdding(false); toast('Queue added: '+n,'ok') }}/>
       )}
       {history && <History rows={done} onClose={()=>setHistory(false)}/>}
+      {ask && (
+        <AskModal ask={ask} cfg={cfg} windowId={win.id}
+          onClose={()=>setAsk(null)}
+          onRemark={d=>act(ask.action, d)}
+          onFinish={d=>act('done', d||'')}
+          onMove={()=>{ const t=ask.ticket; setAsk(null); setMove({kind:'service',ticket:t}) }}/>
+      )}
+    </div>
+  )
+}
+
+/* ─── asks for a remark, or where the patient goes next ─── */
+function AskModal({ask, cfg, onClose, onRemark, onFinish, onMove}) {
+  const [text,setText] = useState('')
+  const required = !!cfg.remarks_required
+  const movement = ask.kind === 'movement'
+  const LABEL = {
+    held:'Why is this queue being held?',
+    skipped:'Why is this queue being skipped?',
+    return:'Why is this queue going back to the line?',
+    cancelled:'Why is this queue being cancelled?',
+  }
+  const submit = e => {
+    e.preventDefault()
+    if (required && !text.trim()) return
+    onRemark(text.trim())
+  }
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="md" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
+        <div className="md-h">
+          <div>
+            <div className="md-t">{movement ? 'Where does this patient go next?' : 'Add a remark'}</div>
+            <div className="md-s">Queue <b className="num">{ask.ticket.number}</b></div>
+          </div>
+          <button className="btn b-ghost b-ico" onClick={onClose}><Ico n="x" s={17}/></button>
+        </div>
+
+        {movement ? (
+          <div className="md-b">
+            <p style={{fontSize:13.5,color:'var(--muted)',marginBottom:16}}>
+              Finishing keeps the same number on record. Sending the patient onward also keeps
+              the number — it just moves to the next department’s queue.
+            </p>
+            <div style={{display:'flex',flexDirection:'column',gap:9}}>
+              <button className="btn b-pri b-lg b-full" onClick={onMove}>
+                <Ico n="route" s={17}/>Send to another department</button>
+              <button className="btn b-go b-lg b-full" onClick={()=>onFinish('')}>
+                <Ico n="check" s={17}/>Finish the queue process</button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="md-b">
+            <label className="lbl">
+              {LABEL[ask.action] || 'Remark'}
+              {!required && <span style={{fontWeight:500,color:'var(--faint)'}}> (optional)</span>}
+            </label>
+            <input className="inp" autoFocus value={text} onChange={e=>setText(e.target.value)}
+                   placeholder="e.g. patient stepped out"/>
+            {required && !text.trim() && (
+              <div style={{fontSize:12.5,color:'var(--muted)',marginTop:7}}>
+                A remark is required by your branch settings.</div>
+            )}
+            <div className="md-f">
+              <button type="button" className="btn b-out" style={{flex:1}} onClick={onClose}>Cancel</button>
+              <button className="btn b-pri" style={{flex:1}} disabled={required && !text.trim()}>
+                Confirm</button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }
@@ -1347,6 +1673,7 @@ const EVENT = {
   done:'Completed', held:'Put on hold', skipped:'Skipped', cancelled:'Cancelled',
   waiting:'Returned to queue', move_service:'Sent to another department',
   move_window:'Moved to another counter', tags:'Tags changed',
+  no_show:'Did not show up', return:'Returned to queue',
 }
 
 /* ─── what this counter has finished today ─── */
@@ -1550,6 +1877,13 @@ function MoveModal({ticket, kind, windowId, onClose, onDone}) {
   const [note,setNote]   = useState('')
   const [busy,setBusy]   = useState(false)
   const [err,setErr]     = useState('')
+  const [req,setReq]     = useState(false)
+  useEffect(()=>{
+    sb.from('settings').select('remarks_required,remarks_on_transfer,remarks_on_movement')
+      .eq('id',1).maybeSingle()
+      .then(({data})=>setReq(!!data && !!data.remarks_required
+        && (data.remarks_on_transfer || data.remarks_on_movement)))
+  },[])
 
   useEffect(()=>{
     if (kind==='service')
@@ -1562,6 +1896,7 @@ function MoveModal({ticket, kind, windowId, onClose, onDone}) {
 
   const go = async () => {
     if (!pick) return
+    if (req && !note.trim()) { setErr('A note is required by your branch settings.'); return }
     setBusy(true); setErr('')
     const {error} = kind==='service'
       ? await sb.rpc('move_service',{p_ticket_id:ticket.id,p_service_id:pick.id,p_note:note||null})
@@ -1598,7 +1933,8 @@ function MoveModal({ticket, kind, windowId, onClose, onDone}) {
             ))}
           </div>
           <div style={{marginTop:14}}>
-            <label className="lbl">Note for the next counter</label>
+            <label className="lbl">Note for the next counter
+              {req && <span style={{color:'var(--red)'}}> *</span>}</label>
             <input className="inp" value={note} onChange={e=>setNote(e.target.value)}
                    placeholder="e.g. for CBC and urinalysis"/>
           </div>
@@ -1833,7 +2169,7 @@ function Services() {
     const {error} = await sb.from('services').update({
       code:v('code'), name:v('name'), name_fil:v('name_fil'), color:v('color'),
       is_active:v('is_active'), show_on_kiosk:v('show_on_kiosk'),
-      sort_order:Number(v('sort_order'))||0,
+      allow_multi_serve:v('allow_multi_serve'), sort_order:Number(v('sort_order'))||0,
     }).eq('id',sel.id)
     if (error) return toast(error.message,'err')
     setDraft({}); await load(sel.id); toast('Saved','ok')
@@ -1856,7 +2192,7 @@ function Services() {
 
   return (
     <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
-      <div style={{width:252,flexShrink:0,background:'#fff',borderRight:'1px solid var(--line)',
+      <div style={{width:278,flexShrink:0,background:'var(--card)',borderRight:'1px solid var(--line)',
                    display:'flex',flexDirection:'column'}}>
         <div style={{padding:'15px 16px',borderBottom:'1px solid var(--line-2)'}}>
           <div style={{fontWeight:800,fontSize:14.5}}>Services</div>
@@ -1942,7 +2278,9 @@ function Services() {
 
             <div className="card">
               {[['is_active','Active','When off, no new numbers can be taken for it.'],
-                ['show_on_kiosk','Show on kiosk','Patients can pick it on the touchscreen.']].map(([k,t,d],i)=>(
+                ['show_on_kiosk','Show on kiosk','Patients can pick it on the touchscreen.'],
+                ['allow_multi_serve','Allow multiple serving',
+                 'A counter can hold several of these at once — for departments where one patient is being prepared while another is attended to. When off, calling a new queue sends the held one back to the line.']].map(([k,t,d],i)=>(
                 <div key={k} style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,
                   padding:'13px 17px',borderTop:i?'1px solid var(--line-2)':'none'}}>
                   <div><div style={{fontWeight:600,fontSize:13.5}}>{t}</div>
@@ -2037,7 +2375,7 @@ function Windows() {
 
   return (
     <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
-      <div style={{width:252,flexShrink:0,background:'#fff',borderRight:'1px solid var(--line)',
+      <div style={{width:278,flexShrink:0,background:'var(--card)',borderRight:'1px solid var(--line)',
                    display:'flex',flexDirection:'column'}}>
         <div style={{padding:'15px 16px',borderBottom:'1px solid var(--line-2)'}}>
           <div style={{fontWeight:800,fontSize:14.5}}>Counters</div>
@@ -2202,7 +2540,7 @@ function Displays() {
 
   return (
     <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
-      <div style={{width:252,flexShrink:0,background:'#fff',borderRight:'1px solid var(--line)',
+      <div style={{width:278,flexShrink:0,background:'var(--card)',borderRight:'1px solid var(--line)',
                    display:'flex',flexDirection:'column'}}>
         <div style={{padding:'15px 16px',borderBottom:'1px solid var(--line-2)'}}>
           <div style={{fontWeight:800,fontSize:14.5}}>TV displays</div>
@@ -2263,6 +2601,38 @@ function Displays() {
                 <button className="btn b-pri b-sm" onClick={()=>window.open('?tv='+sel.slug,'_blank')}>
                   <Ico n="tv" s={14}/>Open</button>
               </div>
+            </div>
+
+            <div className="card" style={{padding:'16px 18px'}}>
+              <div className="side-k" style={{marginBottom:10}}>LAYOUT</div>
+              <div className="lay">
+                {[['spotlight','Spotlight','One big number plus a list of counters. Best where a lobby watches one call at a time.'],
+                  ['grid','Counter grid','A tile per counter, each with its own number. Best for a department with 2–6 counters.'],
+                  ['list','Serving + on-going','Who is being served next to the line that is still waiting. Best where people want to see their place.']
+                ].map(([k,t,d])=>(
+                  <button key={k} className={'layb '+(sel.layout===k?'on':'')} onClick={async()=>{
+                    await sb.from('displays').update({layout:k}).eq('id',sel.id); load(sel.id)
+                  }}>
+                    <span className={'laypic lay-'+k}><i/><i/><i/></span>
+                    <span className="layt">{t}</span>
+                    <span className="layd">{d}</span>
+                  </button>
+                ))}
+              </div>
+              {sel.layout==='grid' && (
+                <div style={{marginTop:14,display:'flex',alignItems:'center',gap:12}}>
+                  <label className="lbl" style={{marginBottom:0}}>Columns</label>
+                  <select className="inp" style={{width:110}} value={sel.columns}
+                    onChange={async e=>{
+                      await sb.from('displays').update({columns:Number(e.target.value)}).eq('id',sel.id)
+                      load(sel.id)
+                    }}>
+                    {[1,2,3,4].map(n=><option key={n} value={n}>{n}</option>)}
+                  </select>
+                  <span style={{fontSize:12.5,color:'var(--muted)'}}>
+                    {mine.length || '—'} counter{mine.length===1?'':'s'} on this TV</span>
+                </div>
+              )}
             </div>
 
             <div className="card" style={{padding:'14px 17px',display:'flex',alignItems:'center',
@@ -2392,6 +2762,523 @@ function Team({me}) {
 }
 
 /* ════════════════════════════════════════════════════════════
+   ADMIN — service procedures
+   ════════════════════════════════════════════════════════════ */
+function Procedures() {
+  const toast = useToast()
+  const [list,setList] = useState([])
+  const [svcs,setSvcs] = useState([])
+  const [edit,setEdit] = useState(null)      // null | {} for new | row for edit
+  const [loading,setLoading] = useState(true)
+
+  const load = async () => {
+    const [{data:p},{data:s}] = await Promise.all([
+      sb.from('procedures')
+        .select('*,procedure_steps(id,step_order,is_optional,services!inner(id,code,name,color)),'
+              + 'procedure_origins(service_id,services!inner(id,code,name))')
+        .order('sort_order'),
+      sb.from('services').select('id,code,name,color').eq('is_active',true).order('name'),
+    ])
+    setList(p||[]); setSvcs(s||[]); setLoading(false)
+  }
+  useEffect(()=>{ load() },[])
+
+  const toggleActive = async p => {
+    const {error} = await sb.from('procedures').update({is_active:!p.is_active}).eq('id',p.id)
+    if (error) return toast(error.message,'err')
+    load()
+  }
+  const remove = async p => {
+    if (!confirm(`Delete "${p.name}"? Tickets already on this route keep their history.`)) return
+    const {error} = await sb.from('procedures').delete().eq('id',p.id)
+    if (error) return toast('Cannot delete — a ticket still references it.','err')
+    load(); toast('Deleted','ok')
+  }
+
+  if (loading) return <div className="mid"><div className="spin d"/></div>
+
+  return (
+    <>
+      <div className="head">
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:16}}>
+          <div>
+            <h1 className="h1">Service Procedures</h1>
+            <p className="sub">List of all available procedures</p>
+          </div>
+          <button className="btn b-pri" onClick={()=>setEdit({})}>
+            <Ico n="plus" s={16}/>New Procedure</button>
+        </div>
+      </div>
+
+      <div className="wrap">
+        {list.length===0 && (
+          <div className="card empty" style={{padding:50}}>
+            <div className="empty-i"><Ico n="route" s={22}/></div>
+            <div className="empty-t">No procedures yet</div>
+            <div style={{fontSize:13.5,maxWidth:420}}>
+              A procedure is a named route through the hospital. Set it once and staff no longer
+              have to remember where a patient goes next.
+            </div>
+            <button className="btn b-pri" style={{marginTop:16}} onClick={()=>setEdit({})}>
+              <Ico n="plus" s={16}/>New Procedure</button>
+          </div>
+        )}
+
+        {list.map(p=>{
+          const steps = (p.procedure_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order)
+          const origins = p.procedure_origins||[]
+          return (
+            <div key={p.id} className="card proc" style={{opacity:p.is_active?1:.62}}>
+              <div className="proc-main">
+                <div className="proc-name">{p.name}</div>
+                {p.description && <div className="proc-desc">{p.description}</div>}
+
+                <div className="flow">
+                  {steps.length===0 && (
+                    <div style={{fontSize:13,color:'var(--faint)',padding:'10px 0'}}>
+                      No steps yet — open Edit details to build the route.
+                    </div>
+                  )}
+                  {steps.map((st,i)=>(
+                    <div key={st.id} className="flow-item">
+                      <div className="flow-head">
+                        <span className="flow-dot">{st.step_order}</span>
+                        {i < steps.length-1 && <span className="flow-line"/>}
+                      </div>
+                      <div className="flow-k">
+                        Step {st.step_order}{st.is_optional && ' (optional)'}
+                      </div>
+                      <div className="flow-s" style={{color:st.services?.color}}>
+                        {st.services?.name}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{marginTop:18}}>
+                  <div className="side-k">ORIGIN</div>
+                  <div className="chips" style={{marginTop:7}}>
+                    {origins.length===0
+                      ? <span style={{fontSize:12.5,color:'var(--faint)'}}>
+                          No origin set — this route cannot be handed out yet.</span>
+                      : origins.map(o=>(
+                          <span key={o.service_id} className="chip chip-dark">
+                            {o.services?.name}</span>))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="proc-side">
+                <dl className="kv" style={{gridTemplateColumns:'1fr auto'}}>
+                  <dt>Type</dt>
+                  <dd>{p.type==='flexible' ? 'Flexible' : 'Step-by-Step'}</dd>
+                  <dt>Total Steps</dt>
+                  <dd>{steps.length} Step{steps.length===1?'':'s'}</dd>
+                  <dt>Assign procedure on complete?</dt>
+                  <dd>{p.assign_on_complete ? 'Yes' : 'No'}</dd>
+                </dl>
+                <div className="proc-act">
+                  <span style={{display:'flex',alignItems:'center',gap:8,fontSize:13.5,fontWeight:600}}>
+                    <Ico n="bell" s={14}/>Activate Procedure</span>
+                  <button className={'sw '+(p.is_active?'on':'')} onClick={()=>toggleActive(p)}><i/></button>
+                </div>
+                <button className="btn b-out b-full" onClick={()=>setEdit(p)}>
+                  <Ico n="edit" s={15}/>Edit Details</button>
+                <button className="btn b-ghost b-full b-sm" style={{color:'var(--red)'}}
+                        onClick={()=>remove(p)}>Delete procedure</button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {edit && <ProcedureModal row={edit} svcs={svcs}
+        onClose={()=>setEdit(null)}
+        onSaved={msg=>{ setEdit(null); load(); toast(msg,'ok') }}/>}
+    </>
+  )
+}
+
+/* ─── create / edit one procedure ─── */
+function ProcedureModal({row, svcs, onClose, onSaved}) {
+  const isNew = !row.id
+  const [name,setName]   = useState(row.name || '')
+  const [type,setType]   = useState(row.type || '')
+  const [desc,setDesc]   = useState(row.description || '')
+  const [assign,setAssign] = useState(!!row.assign_on_complete)
+  const [origins,setOrigins] = useState(
+    (row.procedure_origins||[]).map(o=>o.service_id))
+  const [steps,setSteps] = useState(
+    (row.procedure_steps||[]).slice().sort((a,b)=>a.step_order-b.step_order)
+      .map(s=>({service_id:s.services?.id, is_optional:s.is_optional})))
+  const [busy,setBusy]   = useState(false)
+  const [err,setErr]     = useState('')
+
+  const toggleOrigin = id =>
+    setOrigins(o => o.includes(id) ? o.filter(x=>x!==id) : [...o,id])
+  const addStep    = () => setSteps(s=>[...s,{service_id:'',is_optional:false}])
+  const setStep    = (i,patch) => setSteps(s=>s.map((x,j)=>j===i?{...x,...patch}:x))
+  const dropStep   = i => setSteps(s=>s.filter((_,j)=>j!==i))
+  const moveStep   = (i,by) => setSteps(s=>{
+    const j=i+by; if (j<0||j>=s.length) return s
+    const c=[...s]; [c[i],c[j]]=[c[j],c[i]]; return c
+  })
+
+  const save = async e => {
+    e.preventDefault(); setErr('')
+    if (!name.trim())       return setErr('Give the procedure a name.')
+    if (!type)              return setErr('Choose a procedure type.')
+    if (!origins.length)    return setErr('Pick at least one origin, or the route can never be handed out.')
+    if (!steps.length)      return setErr('Add at least one step.')
+    if (steps.some(s=>!s.service_id)) return setErr('Every step needs a service.')
+    const seen = new Set()
+    for (const s of steps) {
+      if (seen.has(s.service_id)) return setErr('The same service appears twice in the route.')
+      seen.add(s.service_id)
+    }
+    setBusy(true)
+    try {
+      let id = row.id
+      const payload = {name:name.trim(), type, description:desc.trim()||null,
+                       assign_on_complete:assign}
+      if (isNew) {
+        const {data,error} = await sb.from('procedures').insert(payload).select().single()
+        if (error) throw error
+        id = data.id
+      } else {
+        const {error} = await sb.from('procedures').update(payload).eq('id',id)
+        if (error) throw error
+        await sb.from('procedure_steps').delete().eq('procedure_id',id)
+        await sb.from('procedure_origins').delete().eq('procedure_id',id)
+      }
+      const {error:se} = await sb.from('procedure_steps').insert(
+        steps.map((s,i)=>({procedure_id:id, service_id:s.service_id,
+                           step_order:i+1, is_optional:!!s.is_optional})))
+      if (se) throw se
+      const {error:oe} = await sb.from('procedure_origins').insert(
+        origins.map(sid=>({procedure_id:id, service_id:sid})))
+      if (oe) throw oe
+      onSaved(isNew ? 'Procedure created' : 'Procedure saved')
+    } catch(e) { setErr(e.message); setBusy(false) }
+  }
+
+  const svcName = id => svcs.find(s=>s.id===id)?.name || '—'
+
+  return (
+    <div className="ov" onClick={onClose}>
+      <div className="md" style={{maxWidth:620}} onClick={e=>e.stopPropagation()}>
+        <div className="md-h">
+          <div>
+            <div className="md-t">{isNew ? 'New Procedure' : 'Edit Procedure'}</div>
+            <div className="md-s">Enter the service procedure details. All fields are required.</div>
+          </div>
+          <button className="btn b-ghost b-ico" onClick={onClose}><Ico n="x" s={17}/></button>
+        </div>
+
+        <form onSubmit={save} className="md-b">
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div>
+              <label className="lbl">Template name</label>
+              <input className="inp" autoFocus value={name} onChange={e=>setName(e.target.value)}
+                     placeholder="e.g. HMO OB Ultrasound"/>
+            </div>
+
+            <div>
+              <label className="lbl">Procedure type</label>
+              <select className="inp" value={type} onChange={e=>setType(e.target.value)}>
+                <option value="">Please select type</option>
+                <option value="step_by_step">Step-by-Step</option>
+                <option value="flexible">Flexible</option>
+              </select>
+              <div style={{fontSize:12.5,color:'var(--muted)',marginTop:6,lineHeight:1.5}}>
+                {type==='flexible'
+                  ? 'Staff may take the steps in any order — useful when a department can see the patient whenever it is free.'
+                  : type==='step_by_step'
+                  ? 'The patient follows the steps in order, and the counter always suggests the next one.'
+                  : 'Step-by-Step follows the order you set. Flexible lets staff pick any remaining step.'}
+              </div>
+            </div>
+
+            <div>
+              <label className="lbl">Select origin</label>
+              <div style={{fontSize:12.5,color:'var(--muted)',marginBottom:8,lineHeight:1.5}}>
+                Where this route can be handed out. A patient queued at any of these services
+                can be put on it — the origin itself does not have to be part of the route.
+              </div>
+              <div className="picker">
+                {svcs.map(s=>(
+                  <label key={s.id} className={'pick '+(origins.includes(s.id)?'on':'')}>
+                    <input type="checkbox" checked={origins.includes(s.id)}
+                           onChange={()=>toggleOrigin(s.id)}
+                           style={{accentColor:'var(--indigo)'}}/>
+                    <span style={{width:8,height:8,borderRadius:'50%',background:s.color,flexShrink:0}}/>
+                    {s.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+                <label className="lbl" style={{marginBottom:0}}>Route</label>
+                <button type="button" className="btn b-out b-sm" onClick={addStep}>
+                  <Ico n="plus" s={13}/>Add step</button>
+              </div>
+              {steps.length===0 && (
+                <div style={{fontSize:13,color:'var(--faint)',padding:'12px 14px',
+                             border:'1px dashed var(--line)',borderRadius:10}}>
+                  No steps yet. Add the departments the patient goes through, in order.
+                </div>
+              )}
+              <div style={{display:'flex',flexDirection:'column',gap:7}}>
+                {steps.map((st,i)=>(
+                  <div key={i} className="steprow">
+                    <span className="flow-dot" style={{flexShrink:0}}>{i+1}</span>
+                    <select className="inp" style={{flex:1}} value={st.service_id}
+                            onChange={e=>setStep(i,{service_id:e.target.value})}>
+                      <option value="">Choose a service</option>
+                      {svcs.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <label style={{display:'flex',alignItems:'center',gap:6,fontSize:12.5,
+                                   color:'var(--muted)',whiteSpace:'nowrap'}}>
+                      <input type="checkbox" checked={!!st.is_optional}
+                             onChange={e=>setStep(i,{is_optional:e.target.checked})}
+                             style={{accentColor:'var(--indigo)'}}/>
+                      Optional
+                    </label>
+                    <button type="button" className="btn b-ghost b-ico b-sm" title="Move up"
+                            onClick={()=>moveStep(i,-1)} disabled={i===0}>↑</button>
+                    <button type="button" className="btn b-ghost b-ico b-sm" title="Move down"
+                            onClick={()=>moveStep(i,1)} disabled={i===steps.length-1}>↓</button>
+                    <button type="button" className="btn b-ghost b-ico b-sm" style={{color:'var(--red)'}}
+                            onClick={()=>dropStep(i)}><Ico n="x" s={14}/></button>
+                  </div>
+                ))}
+              </div>
+              {steps.length>0 && (
+                <div style={{fontSize:12.5,color:'var(--muted)',marginTop:9}}>
+                  {steps.map((s,i)=>(
+                    <span key={i}>{i>0 && ' → '}{svcName(s.service_id)}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="lbl">Description (optional)</label>
+              <textarea className="inp" rows={2} value={desc} onChange={e=>setDesc(e.target.value)}
+                        placeholder="Enter description"/>
+            </div>
+
+            <div className="srow" style={{padding:'13px 0',borderBottom:'none'}}>
+              <div>
+                <div className="srow-t">Assign procedure on complete</div>
+                <div className="srow-s">
+                  Ask staff whether to put the patient on this route when they finish a queue
+                  at one of the origins above.</div>
+              </div>
+              <button type="button" className={'sw '+(assign?'on':'')}
+                      onClick={()=>setAssign(a=>!a)}><i/></button>
+            </div>
+
+            {err && <div style={{background:'var(--red-wash)',border:'1px solid #f0c9c7',
+              color:'#8f2e2a',padding:'10px 13px',borderRadius:9,fontSize:13}}>{err}</div>}
+          </div>
+
+          <div className="md-f">
+            <button type="button" className="btn b-out" style={{flex:1}} onClick={onClose}>Cancel</button>
+            <button className="btn b-pri" style={{flex:1}} disabled={busy}>
+              {busy ? <div className="spin"/> : (isNew ? 'Proceed' : 'Save changes')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════════════════════
+   ADMIN — service categories
+   ════════════════════════════════════════════════════════════ */
+function Categories() {
+  const toast = useToast()
+  const [cats,setCats] = useState([])
+  const [svcs,setSvcs] = useState([])
+  const [sel,setSel]   = useState(null)
+  const [draft,setDraft] = useState({})
+  const [adding,setAdding] = useState(false)
+  const [nw,setNw] = useState('')
+
+  const load = async keep => {
+    const [{data:c},{data:s}] = await Promise.all([
+      sb.from('service_categories').select('*').order('sort_order'),
+      sb.from('services').select('id,code,name,color,category_id').eq('is_active',true).order('sort_order'),
+    ])
+    setCats(c||[]); setSvcs(s||[])
+    const pick = keep ? (c||[]).find(x=>x.id===keep) : (sel ? (c||[]).find(x=>x.id===sel.id) : c?.[0])
+    setSel(pick||null)
+  }
+  useEffect(()=>{ load() },[])
+  useEffect(()=>{ setDraft({}) },[sel?.id])
+
+  const v = k => draft[k]!==undefined ? draft[k] : sel?.[k]
+  const set = (k,val) => setDraft(d=>({...d,[k]:val}))
+  const dirty = Object.keys(draft).length>0
+  const mine = svcs.filter(s=>s.category_id===sel?.id)
+
+  const save = async () => {
+    const {error} = await sb.from('service_categories').update({
+      name:v('name'), name_fil:v('name_fil'), color:v('color'), is_active:v('is_active'),
+    }).eq('id',sel.id)
+    if (error) return toast(error.message,'err')
+    setDraft({}); await load(sel.id); toast('Saved','ok')
+  }
+  const add = async e => {
+    e.preventDefault()
+    if (!nw.trim()) return
+    const {data,error} = await sb.from('service_categories')
+      .insert({name:nw.trim(), sort_order:(cats.length+1)*10}).select().single()
+    if (error) return toast(error.message,'err')
+    setNw(''); setAdding(false); await load(data.id); toast('Added','ok')
+  }
+  const assign = async (serviceId, on) => {
+    const {error} = await sb.from('services')
+      .update({category_id: on ? sel.id : null}).eq('id',serviceId)
+    if (error) return toast(error.message,'err')
+    load(sel.id)
+  }
+
+  return (
+    <div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+      <div style={{width:278,flexShrink:0,background:'var(--card)',borderRight:'1px solid var(--line)',
+                   display:'flex',flexDirection:'column'}}>
+        <div style={{padding:'15px 16px',borderBottom:'1px solid var(--line-2)'}}>
+          <div style={{fontWeight:800,fontSize:14.5}}>Service Categories</div>
+          <div style={{fontSize:12,color:'var(--muted)'}}>{cats.length} total</div>
+        </div>
+        <div style={{flex:1,overflowY:'auto',padding:5}}>
+          {cats.map(c=>{
+            const n = svcs.filter(s=>s.category_id===c.id).length
+            return (
+              <button key={c.id} onClick={()=>setSel(c)}
+                style={{display:'flex',alignItems:'center',gap:9,width:'100%',padding:'10px 11px',
+                  borderRadius:9,textAlign:'left',
+                  background:sel?.id===c.id?'var(--indigo-wash)':'transparent',
+                  color:sel?.id===c.id?'var(--indigo)':'var(--text)',
+                  opacity:c.is_active?1:.5}}>
+                <span style={{width:9,height:9,borderRadius:'50%',background:c.color,flexShrink:0}}/>
+                <span style={{flex:1,fontWeight:sel?.id===c.id?600:500,fontSize:14}}>{c.name}</span>
+                <span style={{fontSize:11.5,color:'var(--faint)'}}>{n}</span>
+              </button>
+            )
+          })}
+        </div>
+        <div style={{padding:10,borderTop:'1px solid var(--line-2)'}}>
+          {adding ? (
+            <form onSubmit={add} style={{display:'flex',flexDirection:'column',gap:6}}>
+              <input className="inp" autoFocus style={{fontSize:13}} value={nw}
+                     onChange={e=>setNw(e.target.value)} placeholder="Category name"/>
+              <div style={{display:'flex',gap:5}}>
+                <button className="btn b-pri b-sm" style={{flex:1}}>Add</button>
+                <button type="button" className="btn b-out b-sm b-ico" onClick={()=>setAdding(false)}>
+                  <Ico n="x" s={14}/></button>
+              </div>
+            </form>
+          ) : (
+            <button className="btn b-pri b-full b-sm" onClick={()=>setAdding(true)}>
+              <Ico n="plus" s={14}/>New category</button>
+          )}
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',padding:24}}>
+        {!sel ? <div className="empty" style={{paddingTop:80}}>
+            <div className="empty-t">Choose a category</div></div> : (
+          <div style={{maxWidth:640,display:'flex',flexDirection:'column',gap:14}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12}}>
+              <div>
+                <h2 className="h1" style={{fontSize:19}}>{sel.name}</h2>
+                <p className="sub">{mine.length} service{mine.length===1?'':'s'} in this category</p>
+              </div>
+              <button className="btn b-out b-sm" style={{color:'var(--red)'}} onClick={async()=>{
+                if(!confirm(`Delete "${sel.name}"? Its services stay, they just lose the grouping.`))return
+                await sb.from('service_categories').delete().eq('id',sel.id)
+                setSel(null); load(); toast('Deleted','ok')
+              }}><Ico n="trash" s={14}/></button>
+            </div>
+
+            <div className="card" style={{padding:18}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:13}}>
+                <div><label className="lbl">Name</label>
+                  <input className="inp" value={v('name')||''} onChange={e=>set('name',e.target.value)}/></div>
+                <div><label className="lbl">Filipino name</label>
+                  <input className="inp" value={v('name_fil')||''} onChange={e=>set('name_fil',e.target.value)}
+                         placeholder="Shown on the kiosk"/></div>
+              </div>
+              <div style={{marginTop:14}}>
+                <label className="lbl">Colour</label>
+                <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+                  {SWATCH.map(c=>(
+                    <button key={c} type="button" onClick={()=>set('color',c)} aria-label={c}
+                      style={{width:26,height:26,borderRadius:'50%',background:c,
+                        outline:v('color')===c?`2px solid ${c}`:'none',outlineOffset:2}}/>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="srow">
+                <div>
+                  <div className="srow-t">Active</div>
+                  <div className="srow-s">When off, the kiosk skips this category and shows its
+                    services with everything else.</div>
+                </div>
+                <button className={'sw '+(v('is_active')?'on':'')}
+                        onClick={()=>set('is_active',!v('is_active'))}><i/></button>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-h">
+                <span className="card-t">Services in this category</span>
+                <span style={{fontSize:12,color:'var(--muted)'}}>{mine.length} selected</span>
+              </div>
+              <div style={{padding:7,maxHeight:360,overflowY:'auto'}}>
+                {svcs.map(s=>{
+                  const here  = s.category_id===sel.id
+                  const other = s.category_id && !here
+                  return (
+                    <label key={s.id} style={{display:'flex',alignItems:'center',
+                      justifyContent:'space-between',gap:11,padding:'9px 11px',borderRadius:9,
+                      cursor:'pointer',background:here?'var(--indigo-wash)':'transparent'}}>
+                      <span style={{display:'flex',alignItems:'center',gap:9,minWidth:0}}>
+                        <span style={{width:8,height:8,borderRadius:'50%',background:s.color,flexShrink:0}}/>
+                        <span style={{fontSize:14,fontWeight:here?600:500}}>{s.name}</span>
+                        {other && <span style={{fontSize:11.5,color:'var(--faint)'}}>
+                          in {cats.find(c=>c.id===s.category_id)?.name}</span>}
+                      </span>
+                      <input type="checkbox" checked={here} onChange={e=>assign(s.id,e.target.checked)}
+                             style={{width:15,height:15,accentColor:'var(--indigo)'}}/>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            {dirty && (
+              <div style={{display:'flex',gap:8}}>
+                <button className="btn b-out" style={{flex:1}} onClick={()=>setDraft({})}>Cancel</button>
+                <button className="btn b-pri" style={{flex:1}} onClick={save}>
+                  <Ico n="check" s={15}/>Save</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+/* ════════════════════════════════════════════════════════════
    ADMIN — settings
    ════════════════════════════════════════════════════════════ */
 function Settings() {
@@ -2404,60 +3291,149 @@ function Settings() {
   const dirty = Object.keys(d).length>0
 
   const save = async () => {
-    const {error} = await sb.from('settings').update({
-      hospital_name:v('hospital_name'), short_name:v('short_name'),
+    const payload = {
+      hospital_name:v('hospital_name'), short_name:v('short_name'), kiosk_note:v('kiosk_note'),
       voice_enabled:v('voice_enabled'), announce_repeat:Number(v('announce_repeat'))||1,
       keep_on_tv_secs:Number(v('keep_on_tv_secs'))||45,
-      kiosk_note:v('kiosk_note'),
-    }).eq('id',1)
+      enable_hold:v('enable_hold'), enable_return:v('enable_return'), enable_skip:v('enable_skip'),
+      random_numbers:v('random_numbers'), queue_movement:v('queue_movement'),
+      remarks_required:v('remarks_required'),
+      remarks_on_remove:v('remarks_on_remove'), remarks_on_transfer:v('remarks_on_transfer'),
+      remarks_on_skip:v('remarks_on_skip'), remarks_on_movement:v('remarks_on_movement'),
+      remarks_on_hold:v('remarks_on_hold'), remarks_on_return:v('remarks_on_return'),
+      auto_reset:v('auto_reset'), auto_complete_at:v('auto_complete_at') || null,
+    }
+    const {error} = await sb.from('settings').update(payload).eq('id',1)
     if (error) return toast(error.message,'err')
     const {data} = await sb.from('settings').select('*').eq('id',1).maybeSingle()
     setS(data); setD({}); toast('Saved','ok')
   }
   if (!s) return <div className="mid"><div className="spin d"/></div>
 
+  const Row = ({k, t, note, disabled, why}) => (
+    <div className={'srow '+(disabled?'off':'')}>
+      <div style={{minWidth:0}}>
+        <div className="srow-t">{t}</div>
+        <div className="srow-s">{disabled && why ? why : note}</div>
+      </div>
+      <button className={'sw '+(v(k)&&!disabled?'on':'')} disabled={disabled}
+              onClick={()=>!disabled && set(k,!v(k))}><i/></button>
+    </div>
+  )
+  const Group = ({title, children}) => (
+    <div className="card" style={{marginBottom:14}}>
+      <div className="sgroup">{title}</div>
+      {children}
+    </div>
+  )
+
   return (
     <>
-      <div className="head"><h1 className="h1">Settings</h1>
-        <p className="sub">These apply to every kiosk, TV and counter.</p></div>
-      <div className="wrap" style={{maxWidth:640}}>
-        <div className="card" style={{padding:17,marginBottom:13}}>
-          <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12}}>
-            <div><label className="lbl">Hospital name</label>
-              <input className="inp" value={v('hospital_name')||''} onChange={e=>set('hospital_name',e.target.value)}/></div>
-            <div><label className="lbl">Short name</label>
-              <input className="inp" value={v('short_name')||''} onChange={e=>set('short_name',e.target.value)}/></div>
+      <div className="head">
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:16}}>
+          <div>
+            <h1 className="h1">Queue Settings</h1>
+            <p className="sub">These apply to every kiosk, TV and counter.</p>
           </div>
-          <div style={{marginTop:13}}>
-            <label className="lbl">Note printed on kiosk tickets</label>
-            <input className="inp" value={v('kiosk_note')||''} onChange={e=>set('kiosk_note',e.target.value)}/>
-          </div>
+          {dirty && (
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn b-out" onClick={()=>setD({})}>Revert changes</button>
+              <button className="btn b-pri" onClick={save}><Ico n="check" s={15}/>Save changes</button>
+            </div>
+          )}
         </div>
+      </div>
 
-        <div className="card" style={{marginBottom:13}}>
-          <div className="card-h"><span className="card-t">TV announcements</span></div>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,padding:'13px 17px'}}>
-            <div><div style={{fontWeight:600,fontSize:13.5}}>Voice on the TV</div>
-              <div style={{fontSize:12.5,color:'var(--muted)'}}>Reads out the number and the counter.</div></div>
-            <button className={'sw '+(v('voice_enabled')?'on':'')}
-              onClick={()=>set('voice_enabled',!v('voice_enabled'))}><i/></button>
+      <div className="wrap" style={{maxWidth:820}}>
+        <Group title="BRANCH">
+          <div style={{padding:'16px 18px'}}>
+            <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:13}}>
+              <div><label className="lbl">Hospital name</label>
+                <input className="inp" value={v('hospital_name')||''} onChange={e=>set('hospital_name',e.target.value)}/></div>
+              <div><label className="lbl">Short name</label>
+                <input className="inp" value={v('short_name')||''} onChange={e=>set('short_name',e.target.value)}/></div>
+            </div>
+            <div style={{marginTop:13}}>
+              <label className="lbl">Note printed on kiosk tickets</label>
+              <input className="inp" value={v('kiosk_note')||''} onChange={e=>set('kiosk_note',e.target.value)}/>
+            </div>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,padding:'0 17px 15px'}}>
-            <div><label className="lbl">How many times to read it</label>
-              <input className="inp" type="number" min="1" max="4" value={v('announce_repeat')}
-                onChange={e=>set('announce_repeat',e.target.value)}/></div>
-            <div><label className="lbl">How long it stays up (seconds)</label>
-              <input className="inp" type="number" min="5" max="300" value={v('keep_on_tv_secs')}
-                onChange={e=>set('keep_on_tv_secs',e.target.value)}/>
-              <div style={{fontSize:11.5,color:'var(--faint)',marginTop:4}}>
-                After a queue is completed, it stays on the TV this long.</div></div>
+        </Group>
+
+        <Group title="QUEUE SERVING">
+          <Row k="enable_hold" t="Enable HOLD queue feature"
+               note="Staff can pause a queue. Serving time stops while it is held."/>
+          <Row k="enable_return" t="Enable RETURN queue feature"
+               note="Staff can send a queue from Current Serving back to the on-going list."/>
+          <Row k="enable_skip" t="Enable SKIP queue feature"
+               note="Staff can skip a queue. It goes to the back of the line."/>
+        </Group>
+
+        <Group title="QUEUE MOVEMENT">
+          <Row k="random_numbers" t="Generate random queue numbers"
+               note="Numbers use random characters instead of the X001 counting format."/>
+          <Row k="queue_movement" t="Enable Queue Movement feature"
+               note="After Complete, ask staff whether the patient moves to another department or is finished."/>
+        </Group>
+
+        <Group title="REMARKS">
+          <Row k="remarks_required" t="Require all remarks fields"
+               note="Remarks change from optional to required wherever they are asked for."/>
+          <Row k="remarks_on_remove" t="Remarks on Cancel Queue"
+               note="Staff enter a remark when a queue is cancelled."/>
+          <Row k="remarks_on_transfer" t="Remarks on Transfer Queue"
+               note="Staff enter a remark when a queue moves to another service or counter."/>
+          <Row k="remarks_on_skip" t="Remarks on Skip Queue"
+               note="Staff enter a remark when a queue is skipped."
+               disabled={!v('enable_skip')} why="Skip queue is required for this function."/>
+          <Row k="remarks_on_movement" t="Remarks on Queue Movement"
+               note="Staff enter a remark when a patient is moved to the next department."
+               disabled={!v('queue_movement')} why="Queue movement is required for this function."/>
+          <Row k="remarks_on_hold" t="Remarks on Hold Queue"
+               note="Staff enter a remark when a queue is held."
+               disabled={!v('enable_hold')} why="Hold queue is required for this function."/>
+          <Row k="remarks_on_return" t="Remarks on Return Queue"
+               note="Staff enter a remark when a queue is returned to the on-going list."
+               disabled={!v('enable_return')} why="Return queue is required for this function."/>
+        </Group>
+
+        <Group title="AUTOMATE QUEUE">
+          <Row k="auto_reset" t="Auto-reset queue numbers"
+               note="At 12 midnight, anything still pending from the previous day is closed and numbering starts again."/>
+          <div className="srow">
+            <div style={{minWidth:0}}>
+              <div className="srow-t">Auto-complete queues</div>
+              <div className="srow-s">Anything still being served is completed automatically at this time. Leave empty to turn off.</div>
+            </div>
+            <input className="inp" type="time" style={{width:140,flexShrink:0}}
+                   value={(v('auto_complete_at')||'').slice(0,5)}
+                   onChange={e=>set('auto_complete_at', e.target.value || null)}/>
           </div>
-        </div>
+        </Group>
+
+        <Group title="TV ANNOUNCEMENTS">
+          <Row k="voice_enabled" t="Voice on the TV"
+               note="Reads out the number and the counter when a queue is called."/>
+          <div className="srow">
+            <div><div className="srow-t">How many times to read it</div>
+              <div className="srow-s">The chime plays once, then the number is read this many times.</div></div>
+            <input className="inp" type="number" min="1" max="4" style={{width:90,flexShrink:0}}
+                   value={v('announce_repeat')} onChange={e=>set('announce_repeat',e.target.value)}/>
+          </div>
+          <div className="srow">
+            <div><div className="srow-t">How long a finished queue stays up</div>
+              <div className="srow-s">Seconds a completed number remains on the TV before it disappears.</div></div>
+            <input className="inp" type="number" min="5" max="300" style={{width:90,flexShrink:0}}
+                   value={v('keep_on_tv_secs')} onChange={e=>set('keep_on_tv_secs',e.target.value)}/>
+          </div>
+        </Group>
 
         {dirty && (
-          <div style={{display:'flex',gap:8,marginTop:13}}>
-            <button className="btn b-out" style={{flex:1}} onClick={()=>setD({})}>Cancel</button>
-            <button className="btn b-pri" style={{flex:1}} onClick={save}><Ico n="check" s={15}/>Save</button>
+          <div style={{display:'flex',gap:8,position:'sticky',bottom:0,padding:'14px 0',
+            background:'linear-gradient(transparent,var(--paper) 30%)'}}>
+            <button className="btn b-out" style={{flex:1}} onClick={()=>setD({})}>Revert changes</button>
+            <button className="btn b-pri" style={{flex:1}} onClick={save}>
+              <Ico n="check" s={15}/>Save changes</button>
           </div>
         )}
       </div>
@@ -2582,6 +3558,8 @@ function Shell() {
     board:    <Board me={me}/>,
     services: <Services/>,
     windows:  <Windows/>,
+    categories: <Categories/>,
+    procedures: <Procedures/>,
     displays: <Displays/>,
     team:     <Team me={me}/>,
     settings: <Settings/>,
@@ -2612,6 +3590,8 @@ function Shell() {
             {open && <>
               {nav('services','Services','board')}
               {nav('windows','Counters','desk')}
+              {nav('categories','Categories','grid')}
+              {nav('procedures','Procedures','route')}
               {nav('displays','TV displays','tv')}
               {nav('team','Team','users')}
               {nav('settings','Settings','cog')}
