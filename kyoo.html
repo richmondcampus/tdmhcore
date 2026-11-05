@@ -743,7 +743,10 @@ function useSpeech() {
       seq.push('x_number')
       for (const ch of head) seq.push('l_'+ch)
     }
-    for (const ch of tail) {
+    // a whole three-digit number is one recording, so the digits do not
+    // have to be stitched one at a time
+    if (/^[0-9]{3}$/.test(tail) && store['q_'+tail]) seq.push('q_'+tail)
+    else for (const ch of tail) {
       if (/[0-9]/.test(ch)) seq.push('d_'+ch)
       else if (/[A-Z]/.test(ch)) seq.push('l_'+ch)
     }
