@@ -411,8 +411,11 @@ select.inp{cursor:pointer}
 .toast.ok{border-left-color:var(--green-2)} .toast.err{border-left-color:var(--red)}
 
 /* ═══════════ TV DISPLAY ═══════════ */
-.tv{height:100vh;background:var(--surf);color:var(--on-surf);display:flex;flex-direction:column;overflow:hidden;
-    padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tv{height:100vh;background:var(--surf);color:var(--on-surf);display:flex;flex-direction:column;
+    overflow:hidden;
+    padding-top:calc(env(safe-area-inset-top,0px) + var(--safe-y,0px));
+    padding-bottom:calc(env(safe-area-inset-bottom,0px) + var(--safe-y,0px));
+    padding-left:var(--safe-x,0px); padding-right:var(--safe-x,0px)}
 .tv-h{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0;
       padding:1.3vh 2vw;background:#fff;border-bottom:3px solid var(--green)}
 .tv-logo{height:clamp(34px,4.4vh,64px);width:auto;display:block}
@@ -482,26 +485,27 @@ select.inp{cursor:pointer}
 @keyframes pz{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
 
 /* ── TV layout: counter grid ── */
-.tv-grid{flex:1;display:grid;gap:1.4vw;padding:1.6vh 2vw;min-height:0}
+.tv-grid{flex:1;display:grid;gap:1vw;padding:1.1vh 1.4vw;min-height:0}
 .gcell{display:flex;flex-direction:column;border-radius:9px;overflow:hidden;
        background:#fff;border:1px solid var(--line);
        transition:background .3s,border-color .3s;min-height:0}
-.gcell-h{background:var(--indigo);color:#fff;text-align:center;padding:1.2vh 1vw;
-         font-size:clamp(12px,1.35vw,22px);font-weight:800;letter-spacing:.04em;
-         text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gcell-h{display:block;width:100%;background:var(--indigo);color:#fff;text-align:center;
+         padding:.9vh 1vw;font-size:var(--hdrsize,20px);font-weight:800;letter-spacing:.04em;
+         text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+         flex-shrink:0}
 .gcell.live .gcell-h{background:var(--green-2)}
 .gcell.lit{border-color:var(--green);box-shadow:0 0 0 4px var(--gold-2)}
 .gcell.lit .gcell-h{background:var(--green)}
 .gcell.lit .gcell-b{background:var(--green)}
 .gcell.lit .gcell-s{color:rgba(255,255,255,.85)}
 .gcell-b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-         gap:.6vh;padding:1.4vh 1vw;transition:background .4s;min-height:0}
-.gcell-n{font-family:Archivo;font-weight:900;line-height:.92;letter-spacing:-.035em;
-         font-size:clamp(38px,7.4vw,124px)}
-.gcell-s{font-size:clamp(11px,1.25vw,20px);font-weight:700;color:var(--dim);
+         gap:.4vh;padding:.6vh .6vw;transition:background .3s;min-height:0}
+.gcell-n{font-family:Archivo;font-weight:900;line-height:.88;letter-spacing:-.04em;
+         font-size:var(--numsize,90px)}
+.gcell-s{font-size:var(--svcsize,18px);font-weight:700;color:var(--dim);
          text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .gcell-idle{font-family:Archivo;font-weight:800;color:var(--faint2);
-            font-size:clamp(24px,3.4vw,56px)}
+            font-size:calc(var(--numsize,90px) * .42)}
 
 /* ── TV layout: now serving + on-going ── */
 .tv-two{flex:1;display:grid;grid-template-columns:1.35fr 1fr;gap:1.4vw;
@@ -1044,8 +1048,33 @@ function TV({slug}) {
   const layout = data.display?.layout || 'spotlight'
   const cols   = Math.min(Math.max(data.display?.columns || 2, 1), 4)
 
+  /* The number should fill its cell on any screen. vw and vh are relative,
+     so dividing by the grid shape adapts to a 32-inch set and a 75-inch one
+     alike — the type grows with the tile, not with a fixed ceiling. */
+  const safeGuess = () => 2 * Math.min(Math.max(parseFloat(
+    new URLSearchParams(location.search).get('safe') ?? '1.5') || 0, 0), 8)
+  const cells   = Math.max(rows.length, 1)
+  const gcols   = Math.min(cols, cells)
+  const grows   = Math.max(1, Math.ceil(cells / gcols))
+  const longest = rows.reduce((m,r)=>Math.max(m, (r.number||'').length), 6)
+  // width a cell can give the number, allowing for grid gaps and padding
+  const cellVW = (92 - safeGuess()) / gcols
+  // height left after the cell's own header band and the service line
+  const cellVH = Math.max(14, (78 / grows) - 11)
+  const numVW  = cellVW / (Math.max(longest, 4) * 0.66)   // .60em a glyph, plus breathing room
+  const gridVars = {
+    '--numsize': `min(${numVW.toFixed(1)}vw, ${(cellVH * 0.78).toFixed(1)}vh)`,
+    '--svcsize': `min(${(cellVW / 14).toFixed(1)}vw, ${Math.min(2.6, cellVH * 0.13).toFixed(1)}vh)`,
+    '--hdrsize': `min(${(cellVW / 11).toFixed(1)}vw, 3.4vh)`,
+  }
+
+  /* Most TVs crop the edges. ?safe=3 trims a further 3% for stubborn sets. */
+  const safe = Math.min(Math.max(parseFloat(
+    new URLSearchParams(location.search).get('safe') ?? '1.5') || 0, 0), 8)
+  const safeVars = {'--safe-x': safe + 'vw', '--safe-y': safe * 0.8 + 'vh'}
+
   return (
-    <div className="tv" onClick={arm}>
+    <div className="tv" onClick={arm} style={safeVars}>
       {!armed && <button className="unlock" onClick={arm}>Press any button on the remote to turn on sound</button>}
 
       <div className="tv-h">
@@ -1064,7 +1093,7 @@ function TV({slug}) {
       </div>
 
       {layout === 'grid' ? (
-        <div className="tv-grid" style={{gridTemplateColumns:`repeat(${cols},1fr)`}}>
+        <div className="tv-grid" style={{gridTemplateColumns:`repeat(${gcols},1fr)`, ...gridVars}}>
           {rows.length===0 && (
             <div style={{gridColumn:'1/-1',display:'grid',placeItems:'center',
                          color:'var(--faint2)',fontSize:'clamp(16px,2vw,30px)',fontWeight:800}}>
