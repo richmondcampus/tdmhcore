@@ -168,7 +168,7 @@ document.getElementById('b4').onclick = async ()=>{
     }
     if (!idx) { log('index.json not found in voice/, /voice/, ./voice/ or ../voice/ — upload the folder'); return }
     log('voice pack found at ' + base + ' — ' + idx.keys.length + ' clips')
-    const seq = ['_number','c_LAB','d_0','d_0','d_1','_proceed','w_lab_1']
+    const seq = ['n_LAB','d_0','d_0','d_1','p_lab_1']
     const bufs = []
     for (const k of seq) {
       const res = await fetch(base + k + '.mp3', {cache:'no-store'})
