@@ -810,8 +810,16 @@ function useSpeech() {
     // 2. the kiosk browser's own bridge to Android speech
     const fk = bridge()
     if (fk) {
-      try { for (let i=0;i<n;i++) fk.textToSpeech(i===0 ? first : again, 'en-US'); return }
-      catch {}
+      // some devices reject an explicit locale but accept the device default
+      for (const loc of ['en-US', null]) {
+        try {
+          for (let i=0;i<n;i++) {
+            const t = i===0 ? first : again
+            loc ? fk.textToSpeech(t, loc) : fk.textToSpeech(t)
+          }
+          return
+        } catch {}
+      }
     }
 
     // 3. the browser's speech engine
