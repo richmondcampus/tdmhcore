@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.11.04-4'
+const APP_VERSION = '2026.11.04-5'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1360,6 +1360,7 @@ async function loadRequests(filters = {}) {
     if (filters.status) q = q.eq('status', filters.status)
     if (filters.request_type) q = q.eq('request_type', filters.request_type)
     if (filters.dept_id) q = q.eq('dept_id', filters.dept_id)
+    if (filters.has_photo) q = q.not('attachment_url', 'is', null)
     // Server-side text search on request_no/purpose (so filtering finds ALL matches, not
     // just the loaded page). Sanitize: commas and parens break PostgREST's .or() syntax.
     if (filters.search) {
@@ -1847,12 +1848,14 @@ async function renderMyRequests() {
     // All Requests — fast default (50 recent); search/filter query the DB for all matches.
     const term = (state.allReqSearch || '').trim()
     const fStatus = state.allReqStatus || '', fType = state.allReqType || '', fDept = state.allReqDept || ''
+    const fPhoto = state.allReqPhoto === 'with'
     const deptName = fDept ? (state.departments.find(d => d.id === fDept)?.dept_name || '') : ''
     if (term) {
       const base = { search: term }
       if (fStatus) base.status = fStatus
       if (fType) base.request_type = fType
       if (fDept) base.dept_id = fDept
+      if (fPhoto) base.has_photo = true
       const [byText, itemReqIds] = await Promise.all([ loadRequests(base), findRequestIdsByItem(term) ])
       const seen = new Set(byText.map(r => r.id))
       let byItem = []
@@ -1865,16 +1868,18 @@ async function renderMyRequests() {
         if (fStatus) byItem = byItem.filter(r => r.status === fStatus)
         if (fType) byItem = byItem.filter(r => r.request_type === fType)
         if (fDept) byItem = byItem.filter(r => r.dept_id === fDept)
+        if (fPhoto) byItem = byItem.filter(r => r.attachment_url)
       }
       requests = byText.concat(byItem)
       subtitle = 'Search results for "' + term + '"' + (deptName ? ' in ' + deptName : '')
-    } else if (fStatus || fType || fDept) {
+    } else if (fStatus || fType || fDept || fPhoto) {
       const base = {}
       if (fStatus) base.status = fStatus
       if (fType) base.request_type = fType
       if (fDept) base.dept_id = fDept
+      if (fPhoto) base.has_photo = true
       requests = await loadRequests(base)
-      subtitle = 'Filtered — ' + [deptName, fStatus && formatStatus(fStatus), fType && fType.toUpperCase()].filter(Boolean).join(' · ')
+      subtitle = 'Filtered — ' + [deptName, fStatus && formatStatus(fStatus), fType && fType.toUpperCase(), fPhoto && '📎 May Photo'].filter(Boolean).join(' · ')
     } else {
       requests = await loadRequests({ limit: 50 })
       subtitle = 'Showing 50 most recent — use search/filter to find others'
@@ -1993,6 +1998,9 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '</select>'
   html += '<select onchange="filterRequests(this.value,\'urgency\')" id="filterUrgency"><option value="">All Urgency</option>'
   ;['routine','urgent','emergency'].forEach(u => { html += '<option value="' + u + '">' + u.charAt(0).toUpperCase()+u.slice(1) + '</option>' })
+  html += '</select>'
+  html += '<select onchange="state.allReqPhoto=this.value;onAllReqFilter()" id="filterPhoto"><option value="">📎 Lahat</option>'
+  html += '<option value="with"' + (state.allReqPhoto==='with'?' selected':'') + '>📎 May Photo</option>'
   html += '</select>'
   // Department filter — type-to-search with suggestions (autocomplete). Faster than a
   // long dropdown when there are many departments.
