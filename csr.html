@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.11.05-8'
+const APP_VERSION = '2026.11.05-10'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -826,6 +826,23 @@ function showUpdateBanner() {
 }
 // Check on load + whenever the user returns to the tab (event-based, no timer).
 window.addEventListener('load', () => setTimeout(checkForUpdate, 3000))
+
+// Connection indicator — warns staff when offline so they don't think a save went through.
+function updateConnBanner() {
+  let b = document.getElementById('connBanner')
+  if (!navigator.onLine) {
+    if (!b) {
+      b = document.createElement('div')
+      b.id = 'connBanner'
+      b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;text-align:center;padding:7px 12px;font-size:13px;font-weight:600;font-family:inherit;'
+      b.innerHTML = '📡 Walang internet — HUWAG mag-issue/mag-save muna. Maghintay ng connection.'
+      document.body.appendChild(b)
+    }
+  } else if (b) { b.remove() }
+}
+window.addEventListener('online', updateConnBanner)
+window.addEventListener('offline', updateConnBanner)
+window.addEventListener('load', updateConnBanner)
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate() })
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeWh3ZHVsaXpvcmduZ2F5eHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjU0NTgsImV4cCI6MjA5NDg0MTQ1OH0.xLdKGNqjNZNRfjAf5NmXGI1GyTbQZAmbZiKokpgAhUo'
 const SB = supabase.createClient(SUPA_URL, SUPA_KEY, {
@@ -2441,9 +2458,18 @@ async function renderApprovalQueue() {
     ? await loadRequests({ status: 'approved' })
     : []
   // for_po requests waiting for Purchasing Officer approval (no PO yet, not approved).
-  const forPoPending = ['purchasing_officer','admin'].includes(role)
-    ? (await loadRequests({ status: 'for_po' })).filter(r => !r.po_approved_at && r.request_type !== 'derp')
-    : []
+  // for_po requests awaiting Purchasing approval = no PO yet AND not approved/rejected.
+  // Requests that already have a PO (auto-created before this flow existed) are NOT pending.
+  let forPoPending = []
+  if (['purchasing_officer','admin'].includes(role)) {
+    const forPoReqs = (await loadRequests({ status: 'for_po' })).filter(r => !r.po_approved_at && r.request_type !== 'derp')
+    if (forPoReqs.length) {
+      // Find which of these already have a PO — those are NOT pending approval.
+      const { data: posFor } = await SB.from('purchase_orders').select('request_id').in('request_id', forPoReqs.map(r => r.id))
+      const hasPO = new Set((posFor || []).map(p => p.request_id))
+      forPoPending = forPoReqs.filter(r => !hasPO.has(r.id))
+    }
+  }
   const autoApprovedPending = approvedPending.filter(r => r.current_approval_level === 99 && r.request_type !== 'derp')
 
   let myQueue
@@ -8241,7 +8267,7 @@ async function saveIssuance() {
     // Insert issuance items + deduct stock + track cumulative issued per request item
     for (const item of issItems) {
       const realReqItemId = item.request_item_id?.startsWith('man_') ? null : item.request_item_id
-      await SB.from('issuance_items').insert({
+      const { error: iiErr } = await SB.from('issuance_items').insert({
         issuance_id: iss.id,
         request_item_id: realReqItemId,
         quantity_issued: item.quantity_issued,
@@ -8250,6 +8276,9 @@ async function saveIssuance() {
         item_name_snapshot: item.item_name || null,
         unit_snapshot: item.unit || null
       })
+      // Fail loudly if an item didn't save (e.g. weak internet) — never show "success"
+      // when the data is incomplete.
+      if (iiErr) throw new Error('Hindi kumpletong na-save ang items (mahina ang internet?). Subukan ulit. [' + (iiErr.message||'') + ']')
 
       // Add to the request item's cumulative issued qty (for follow-up tracking),
       // and persist any edited unit and item name (corrections made in the form).
@@ -13062,6 +13091,16 @@ function handleSupabaseError(error, context) {
   if (!error) return false
   releaseAllClicks()  // free any in-flight action guard so the user can retry
   const msg = error.message || error.code || ''
+  // Network / weak-internet errors — tell the user plainly it did NOT save, so they retry.
+  const isNetworkError = !navigator.onLine ||
+    msg.includes('Failed to fetch') || msg.includes('NetworkError') ||
+    msg.includes('network') || msg.includes('fetch') || msg.includes('timeout') ||
+    msg.includes('Load failed')
+  if (isNetworkError) {
+    showToast('error', '📡 Walang/mahina ang internet',
+      'HINDI pa na-save. Hintayin ang stable na connection, tapos subukan ulit — huwag isipin na tapos na.')
+    return true
+  }
   const isAuthError = msg.includes('permission denied') ||
     msg.includes('JWT') || msg.includes('invalid') ||
     msg.includes('row-level security') || error.code === '42501' ||
