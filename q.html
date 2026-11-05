@@ -534,6 +534,9 @@ select.inp{cursor:pointer}
 .foot-k{font-weight:800;letter-spacing:.1em;color:#7d80ab;flex-shrink:0;font-size:.86em}
 .recent{display:flex;gap:1.1vw;overflow:hidden;flex:1}
 .recent i{font-style:normal;font-family:Archivo;font-weight:800;color:#fff}
+.up-next i{color:var(--gold-2)}
+.up-next::after{content:'next';font-size:.72em;font-weight:700;color:var(--gold-2);
+                margin-left:.45em;letter-spacing:.06em;text-transform:uppercase}
 .waitpill{flex-shrink:0;display:inline-flex;align-items:center;gap:.5em;padding:.35em .9em;
           border-radius:6px;background:var(--gold-2);color:#3a2c00;font-weight:800}
 .unlock{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:50;
@@ -1061,11 +1064,11 @@ function TV({slug}) {
   const cellVW = (92 - safeGuess()) / gcols
   // height left after the cell's own header band and the service line
   const cellVH = Math.max(14, (78 / grows) - 11)
-  const numVW  = cellVW / (Math.max(longest, 4) * 0.66)   // .60em a glyph, plus breathing room
+  const numVW  = cellVW / (Math.max(longest, 4) * 0.63)   // .60em a glyph, plus breathing room
   const gridVars = {
     '--numsize': `min(${numVW.toFixed(1)}vw, ${(cellVH * 0.78).toFixed(1)}vh)`,
-    '--svcsize': `min(${(cellVW / 14).toFixed(1)}vw, ${Math.min(2.6, cellVH * 0.13).toFixed(1)}vh)`,
-    '--hdrsize': `min(${(cellVW / 11).toFixed(1)}vw, 3.4vh)`,
+    '--svcsize': `min(${(cellVW / 9).toFixed(1)}vw, ${Math.min(4.6, cellVH * 0.16).toFixed(1)}vh)`,
+    '--hdrsize': `min(${(cellVW / 7.5).toFixed(1)}vw, 5.2vh)`,
   }
 
   /* Most TVs crop the edges. ?safe=3 trims a further 3% for stubborn sets. */
@@ -1207,15 +1210,33 @@ function TV({slug}) {
       </div>
       )}
 
+      {/* The counters above already show who is at a window, so the strip
+          answers the other question: how far away am I? The list layout
+          carries the queue in its own column, so there it stays history. */}
       <div className="tv-foot">
-        <span className="foot-k">RECENTLY CALLED</span>
-        <div className="recent">
-          {(data.recent||[]).length === 0
-            ? <span style={{color:'var(--faint2)'}}>none yet</span>
-            : data.recent.map((a,i)=>(
-                <span key={i}><i>{a.number}</i> <span style={{opacity:.55}}>{a.window_name}</span></span>
-              ))}
-        </div>
+        {layout === 'list' ? (
+          <>
+            <span className="foot-k">RECENTLY CALLED</span>
+            <div className="recent">
+              {(data.recent||[]).length === 0
+                ? <span style={{color:'#6a6d96'}}>none yet</span>
+                : data.recent.map((a,i)=>(
+                    <span key={i}><i>{a.number}</i> <span style={{opacity:.55}}>{a.window_name}</span></span>
+                  ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="foot-k">NEXT IN LINE</span>
+            <div className="recent">
+              {(data.queue||[]).length === 0
+                ? <span style={{color:'#6a6d96'}}>nobody waiting</span>
+                : data.queue.map((q,i)=>(
+                    <span key={i} className={i===0 ? 'up-next' : ''}><i>{q.number}</i></span>
+                  ))}
+            </div>
+          </>
+        )}
         {data.waiting > 0 && (
           <span className="waitpill">{data.waiting} waiting</span>
         )}
