@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.11.04-5'
+const APP_VERSION = '2026.11.05-3'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2432,6 +2432,10 @@ async function renderApprovalQueue() {
   const approvedPending = ['supply_officer','admin'].includes(role)
     ? await loadRequests({ status: 'approved' })
     : []
+  // for_po requests waiting for Purchasing Officer approval (no PO yet, not approved).
+  const forPoPending = ['purchasing_officer','admin'].includes(role)
+    ? (await loadRequests({ status: 'for_po' })).filter(r => !r.po_approved_at && r.request_type !== 'derp')
+    : []
   const autoApprovedPending = approvedPending.filter(r => r.current_approval_level === 99 && r.request_type !== 'derp')
 
   let myQueue
@@ -2457,19 +2461,24 @@ async function renderApprovalQueue() {
       ...autoApprovedPending
     ]
   } else if (role === 'purchasing_officer') {
-    // Purchasing officer: Level 3, PLUS any dept-head Level 1 items
+    // Purchasing officer: Level 3, dept-head Level 1, PLUS for_po items awaiting PO approval
     myQueue = [
       ...deptHeadQueue,
-      ...pendingRequests.filter(r => r.current_approval_level === 3 && r.request_type !== 'derp')
+      ...pendingRequests.filter(r => r.current_approval_level === 3 && r.request_type !== 'derp'),
+      ...forPoPending
     ]
   } else if (role === 'admin') {
     myQueue = [
       ...pendingRequests.filter(r => r.request_type !== 'derp'),
-      ...autoApprovedPending
+      ...autoApprovedPending,
+      ...forPoPending
     ]
   } else {
     myQueue = []
   }
+  // Dedupe by id (a request can match more than one bucket, e.g. for_po for admin).
+  const _seenQ = new Set()
+  myQueue = myQueue.filter(r => r && r.id && !_seenQ.has(r.id) && _seenQ.add(r.id))
   state.requests = myQueue
   state.approvalQueue = myQueue   // full set, for search filtering
   await loadRequestItemsIndex(myQueue.map(r => r.id))
@@ -3028,6 +3037,15 @@ async function viewRequest(id) {
   // those from stock, independently of the PO side. Show whenever any non-PO item owes qty.
   else if (req.request_type !== 'derp' && (req.status === 'for_po' || req.status === 'partially_issued' || req.status === 'delivered') && ['supply_officer','admin'].includes(role) && requestItemsHavePendingIssue(items)) {
     footer += '<button class="btn btn-success" onclick="fulfillFromRequest(\'' + req.id + '\')">📦 Issue Remaining (Stock)</button>'
+  }
+  // PURCHASING APPROVAL — for_po request waiting for the Purchasing Officer to approve
+  // before the PO is created. Approve → auto-PO → Incoming Deliveries. Reject → back to Supply.
+  const forPoAwaiting = (items || []).some(it => it.fulfillment_type === 'for_po' && !it.is_removed && !it.po_id && !it.po_created)
+  if (req.request_type !== 'derp' && req.status === 'for_po'
+      && ['purchasing_officer','admin'].includes(role)
+      && !req.po_approved_at && forPoAwaiting) {
+    footer += '<button class="btn btn-primary" onclick="approvePurchasing(\'' + req.id + '\')">✅ Approve → Gumawa ng PO</button>'
+    footer += '<button class="btn btn-danger" onclick="rejectPurchasing(\'' + req.id + '\')">❌ Reject</button>'
   }
   // Pull Back to Issuance — for for_po items that DON'T have a PO yet (emergency bought
   // directly, or stock suddenly available). Works even if OTHER items already have POs —
@@ -4768,6 +4786,70 @@ function filterPOs(status) {
   renderPurchaseOrders()
 }
 
+// Purchasing Officer approves the for_po request → auto-creates the PO → Incoming Deliveries.
+async function approvePurchasing(id) {
+  confirm2('Aprubahan ang for-PO items at gumawa ng Purchase Order?', async () => {
+    try {
+      const { data: reqRow } = await SB.from('requests').select('dept_id').eq('id', id).maybeSingle()
+      const { data: forPoItems } = await SB.from('request_items')
+        .select('item_name,quantity,quantity_for_po,unit,estimated_cost')
+        .eq('request_id', id).eq('fulfillment_type', 'for_po')
+        .or('is_removed.is.null,is_removed.eq.false')
+      const { data: existingPO } = await SB.from('purchase_orders').select('id').eq('request_id', id).limit(1).maybeSingle()
+      if (!existingPO && forPoItems && forPoItems.length) {
+        const { data: numData } = await SB.rpc('generate_po_number')
+        const poNumber = numData || ('PO-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
+        const { data: po } = await SB.from('purchase_orders').insert({
+          po_number: poNumber, request_id: id, dept_id: reqRow?.dept_id || null,
+          total_amount: 0, po_date: new Date().toISOString().split('T')[0],
+          status: 'sent', sent_at: new Date().toISOString(), sent_by: state.user.id, created_by: state.user.id,
+          notes: 'Approved by Purchasing Officer'
+        }).select().single()
+        if (po) {
+          await SB.from('po_items').insert(forPoItems.map(it => ({
+            po_id: po.id, item_name: it.item_name,
+            quantity: Number(it.quantity_for_po && Number(it.quantity_for_po) > 0 ? it.quantity_for_po : it.quantity),
+            unit: it.unit || 'pcs', unit_price: 0, quantity_received: 0, is_fee: false
+          })))
+          await SB.from('request_items').update({ po_created: true, po_id: po.id })
+            .eq('request_id', id).eq('fulfillment_type', 'for_po')
+        }
+      }
+      await SB.from('requests').update({ po_approved_at: new Date().toISOString(), po_approved_by: state.user.id, po_rejected_at: null, po_reject_reason: null }).eq('id', id)
+      closeModal('requestDetailModal')
+      showToast('success', 'Approved', 'Na-approve ng Purchasing — may PO na, nasa Incoming Deliveries.')
+      if (state.page === 'approval_queue') renderApprovalQueue()
+      else if (state.page === 'my_requests') renderMyRequests()
+    } catch(e) { showToast('error', 'Error', e.message) }
+  })
+}
+
+function rejectPurchasing(id) {
+  closeModal('requestDetailModal')
+  document.getElementById('confirmTitle').textContent = '❌ Reject (Purchasing)'
+  document.getElementById('confirmMsg').innerHTML =
+    '<span style="display:block;margin-bottom:10px;">Ibabalik ang for-PO request sa Supply Officer. Ilagay ang dahilan:</span>'
+    + '<textarea id="po_reject_reason" rows="3" placeholder="hal. Hindi dapat bilhin / mali ang item / may stock pa" style="width:100%;padding:8px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></textarea>'
+  const okBtn = document.getElementById('confirmOkBtn')
+  okBtn.textContent = '❌ Reject'
+  okBtn.onclick = async () => {
+    const reason = (document.getElementById('po_reject_reason')?.value || '').trim()
+    if (!reason) { showToast('error','Dahilan','Kailangan ng dahilan.'); return }
+    try {
+      // Send back to supply officer: revert for_po items to issue, clear PO flags.
+      await SB.from('requests').update({
+        status: 'approved', current_approval_level: 2,
+        po_rejected_at: new Date().toISOString(), po_reject_reason: reason, po_approved_at: null
+      }).eq('id', id)
+      closeModal('confirmModal')
+      showToast('success', 'Rejected', 'Naibalik sa Supply Officer. Dahilan nakatala.')
+      if (state.page === 'approval_queue') renderApprovalQueue()
+      else if (state.page === 'my_requests') renderMyRequests()
+    } catch(e) { showToast('error', 'Error', e.message) }
+  }
+  openModal('confirmModal')
+}
+
 async function markForPO(id) {
   confirm2('Mark this request as For PO (Purchase Order)?', async () => {
     // Flag all remaining (not-issued, not-removed) items as for_po — this is what makes
@@ -4785,54 +4867,16 @@ async function markForPO(id) {
         await SB.from('request_items').update({ quantity_for_po: it.quantity }).eq('id', it.id)
       }
     }
-    const { error } = await SB.from('requests').update({ status: 'for_po', current_approval_level: 3, has_po_split: true }).eq('id', id)
+    // Set to for_po and send to the Purchasing Officer for approval FIRST.
+    // The PO is auto-created only after Purchasing approves (see approvePurchasing).
+    const { error } = await SB.from('requests').update({
+      status: 'for_po', current_approval_level: 3, has_po_split: true,
+      po_approved_at: null, po_rejected_at: null, po_reject_reason: null
+    }).eq('id', id)
     if (error) { showToast('error', 'Error', error.message); return }
 
-    // Auto-create the PO (actual purchase order is done in the external system now, so we
-    // only generate an internal PO record here) and send it straight to Incoming
-    // Deliveries — no manual "Create PO" step. Receive/Issue work the same as before.
-    try {
-      const { data: reqRow } = await SB.from('requests').select('dept_id').eq('id', id).maybeSingle()
-      const { data: forPoItems } = await SB.from('request_items')
-        .select('item_name,quantity,quantity_for_po,unit,estimated_cost')
-        .eq('request_id', id).eq('fulfillment_type', 'for_po')
-        .or('is_removed.is.null,is_removed.eq.false')
-      // Don't duplicate if this request already has a PO.
-      const { data: existingPO } = await SB.from('purchase_orders').select('id').eq('request_id', id).limit(1).maybeSingle()
-      if (!existingPO && forPoItems && forPoItems.length) {
-        const { data: numData } = await SB.rpc('generate_po_number')
-        const poNumber = numData || ('PO-' + new Date().getFullYear() + '-' + Date.now().toString().slice(-4))
-        const { data: po } = await SB.from('purchase_orders').insert({
-          po_number: poNumber,
-          request_id: id,
-          dept_id: reqRow?.dept_id || null,
-          total_amount: 0,
-          po_date: new Date().toISOString().split('T')[0],
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-          sent_by: state.user.id,
-          created_by: state.user.id,
-          notes: 'Auto-generated on approval (PO handled in external system)'
-        }).select().single()
-        if (po) {
-          await SB.from('po_items').insert(forPoItems.map(it => ({
-            po_id: po.id,
-            item_name: it.item_name,
-            quantity: Number(it.quantity_for_po && Number(it.quantity_for_po) > 0 ? it.quantity_for_po : it.quantity),
-            unit: it.unit || 'pcs',
-            unit_price: 0,
-            quantity_received: 0,
-            is_fee: false
-          })))
-          // Mark the request items as po_created so they don't reappear in any PO list.
-          await SB.from('request_items').update({ po_created: true, po_id: po.id })
-            .eq('request_id', id).eq('fulfillment_type', 'for_po')
-        }
-      }
-    } catch(e) { console.warn('auto-PO', e.message) }
-
     closeModal('requestDetailModal')
-    showToast('success', 'Approved', 'Na-approve at dumiretso na sa Incoming Deliveries.')
+    showToast('success', 'For Purchasing', 'Naipasa na sa Purchasing Officer para sa approval.')
     if (state.page === 'all_requests') renderAllRequests()
     else if (state.page === 'dashboard') renderDashboard()
     else if (state.page === 'issuance') renderIssuance()
@@ -7016,8 +7060,8 @@ async function renderIssuance() {
   // aren't in state.requests) so the list can show Request No. + Department correctly.
   const linkedReqIds = [...new Set(allIssuances.map(i => i.request_id).filter(Boolean))]
   issState.reqLookup = {}
-  if (linkedReqIds.length) {
-    const { data: linkedReqs } = await SB.from('requests').select('id,request_no,dept_id').in('id', linkedReqIds.slice(0, 800))
+  for (let i = 0; i < linkedReqIds.length; i += 300) {
+    const { data: linkedReqs } = await SB.from('requests').select('id,request_no,dept_id').in('id', linkedReqIds.slice(i, i + 300))
     ;(linkedReqs || []).forEach(r => { issState.reqLookup[r.id] = r })
   }
 
@@ -7306,11 +7350,12 @@ function applyIssuanceFilters() {
   else if (f.tab === 'cancelled') list = list.filter(i => !!i.cancelled_at)
   else list = list.filter(i => !i.cancelled_at) // 'all' hides cancelled by default
 
-  // Department (issuance's own dept_id, or via the linked request)
+  // Department — issuance's own dept_id, or (most issuances have null dept_id) via the
+  // linked request. Use issState.reqLookup which is loaded for ALL listed issuances.
   if (f.dept) {
     list = list.filter(i => {
       if (i.dept_id) return i.dept_id === f.dept
-      const r = state.requests?.find(x => x.id === i.request_id)
+      const r = (issState.reqLookup && issState.reqLookup[i.request_id]) || state.requests?.find(x => x.id === i.request_id)
       return r && r.dept_id === f.dept
     })
   }
@@ -7332,7 +7377,7 @@ function applyIssuanceFilters() {
   if (f.search && f.search.trim()) {
     const q = f.search.trim().toLowerCase()
     list = list.filter(i => {
-      const r = state.requests?.find(x => x.id === i.request_id)
+      const r = (issState.reqLookup && issState.reqLookup[i.request_id]) || state.requests?.find(x => x.id === i.request_id)
       const receiver = state.users?.find(u => u.id === i.received_by)
       const items = issState.itemsByIssuance[i.id] || []
       const itemMatch = items.some(it => (it.name || '').toLowerCase().includes(q))
@@ -11254,30 +11299,45 @@ async function renderIssuanceReport() {
 
   content.innerHTML = '<div class="empty-state"><div class="skeleton" style="width:220px;height:20px;margin:0 auto 10px;"></div><div class="skeleton" style="width:320px;height:14px;margin:0 auto;"></div></div>'
 
-  // Pull ALL issuances + their items (paginated — the 1000-row cap would otherwise
-  // silently drop rows, leaving blank items in the export).
-  async function fetchAll(table, order) {
-    // Always order by a stable key — without a deterministic sort, Supabase paging can
-    // return the SAME row on different pages, which duplicated rows in the export.
+  // Default the report window to the last 60 days so it loads fast — the user can widen
+  // the date range to pull older records. (Loading ALL 993+ issuances took ~30s.)
+  if (!issRptState.filters.from && !issRptState.filters.to && !issRptState._widened) {
+    const d = new Date(); d.setDate(d.getDate() - 60)
+    issRptState.filters.from = d.toISOString().split('T')[0]
+  }
+
+  // Paginated fetch (1000-row cap would silently drop rows). Deterministic order + de-dupe.
+  async function fetchAll(table, order, dateCol) {
     const ord = order || { col: 'id', asc: true }
     let all = [], from = 0, size = 1000
     while (true) {
-      const { data, error } = await SB.from(table).select('*').order(ord.col, { ascending: ord.asc }).range(from, from + size - 1)
+      let q = SB.from(table).select('*').order(ord.col, { ascending: ord.asc }).range(from, from + size - 1)
+      // Server-side date range (only for issuances, which have the date column).
+      if (dateCol && issRptState.filters.from) q = q.gte(dateCol, issRptState.filters.from)
+      if (dateCol && issRptState.filters.to) q = q.lte(dateCol, issRptState.filters.to + 'T23:59:59')
+      const { data, error } = await q
       if (error) break
       all = all.concat(data || [])
       if (!data || data.length < size) break
       from += size
-      if (from > 50000) break // safety
+      if (from > 50000) break
     }
-    // Belt-and-suspenders: de-dupe by id in case of any overlap.
     const seen = new Set(), uniq = []
     for (const r of all) { if (r && r.id != null && !seen.has(r.id)) { seen.add(r.id); uniq.push(r) } }
     return uniq
   }
-  const [issuances, allItems] = await Promise.all([
-    fetchAll('issuances', { col: 'issued_at', asc: false }),
-    fetchAll('issuance_items', { col: 'id', asc: true })
-  ])
+  // Load issuances in the date window first, then only THEIR items (much smaller set).
+  const issuances = await fetchAll('issuances', { col: 'issued_at', asc: false }, 'issued_at')
+  const issIds = new Set(issuances.map(i => i.id))
+  async function fetchItemsFor(ids) {
+    const idList = [...ids], out = []
+    for (let i = 0; i < idList.length; i += 300) {
+      const { data } = await SB.from('issuance_items').select('*').in('issuance_id', idList.slice(i, i + 300))
+      if (data) out.push(...data)
+    }
+    return out
+  }
+  const allItems = await fetchItemsFor(issIds)
 
   // Resolve item names from request_items + stock_items
   const reqItemIds = [...new Set(allItems.map(x => x.request_item_id).filter(Boolean))]
@@ -11354,9 +11414,9 @@ async function renderIssuanceReport() {
   html += '<select id="ir_scenario" onchange="issRptState.filters.scenario=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Types</option><option value="from_stock">📦 From Stock</option><option value="after_po">🚚 After PO</option></select>'
   html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="confirmed"' + (issRptState.filters.status==='confirmed'?' selected':'') + '>✅ Confirmed (tapos na)</option><option value="pending"' + (issRptState.filters.status==='pending'?' selected':'') + '>⏳ Pending</option><option value=""' + (issRptState.filters.status===''?' selected':'') + '>Lahat</option></select>'
   html += '<span style="font-size:11px;color:var(--txt3);">📅</span>'
-  html += '<input type="date" id="ir_from" value="'+escStk(issRptState.filters.from)+'" onchange="issRptState.filters.from=this.value;applyIssRptFilters()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
+  html += '<input type="date" id="ir_from" value="'+escStk(issRptState.filters.from)+'" onchange="issRptState.filters.from=this.value;issRptState._widened=true;renderIssuanceReport()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
   html += '<span style="font-size:11px;color:var(--txt3);">→</span>'
-  html += '<input type="date" id="ir_to" value="'+escStk(issRptState.filters.to)+'" onchange="issRptState.filters.to=this.value;applyIssRptFilters()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
+  html += '<input type="date" id="ir_to" value="'+escStk(issRptState.filters.to)+'" onchange="issRptState.filters.to=this.value;issRptState._widened=true;renderIssuanceReport()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
   html += '<button class="btn btn-ghost btn-sm" onclick="clearIssRptFilters()" style="font-size:12px;">✕ Clear</button>'
   html += '</div>'
 
@@ -11458,8 +11518,9 @@ function applyIssRptFilters() {
 
 function clearIssRptFilters() {
   issRptState.filters = { search:'', dept:'', from:'', to:'', scenario:'', status:'', stock:'' }
+  issRptState._widened = false  // back to the fast default 60-day window
   ;['ir_search','ir_dept','ir_scenario','ir_status','ir_from','ir_to'].forEach(id => { const el=document.getElementById(id); if(el) el.value='' })
-  applyIssRptFilters()
+  renderIssuanceReport()
 }
 
 async function exportIssuanceReport(fmt) {
