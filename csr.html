@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.11.05-7'
+const APP_VERSION = '2026.11.05-8'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -2394,9 +2394,17 @@ function buildApprovalRows(queue, role, levelLabels) {
 function filterApprovalQueue(term) {
   const q = (term !== undefined ? term : (document.getElementById('approvalSearch')?.value || '')).trim().toLowerCase()
   const deptFilter = state._approvalDeptFilter || ''
+  const stageFilter = state.approvalStage || ''
   const queue = state.approvalQueue || []
   let list = queue
   if (deptFilter) list = list.filter(r => r.dept_id === deptFilter)
+  if (stageFilter) {
+    list = list.filter(r => {
+      // Stage = who it's pending with. for_po (awaiting PO approval) counts as Purchasing (3).
+      if (r.status === 'for_po' && !r.po_approved_at) return stageFilter === '3'
+      return String(r.current_approval_level || '') === stageFilter
+    })
+  }
   if (q) {
     list = list.filter(r => {
       const items = (state.itemsByRequest && state.itemsByRequest[r.id]) || []
@@ -2536,6 +2544,12 @@ async function renderApprovalQueue() {
   } else {
     html += '<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
     html += '<input type="text" id="approvalSearch" placeholder="🔍 Request no., purpose, o item..." oninput="filterApprovalQueue(this.value)" style="flex:1;min-width:200px;max-width:360px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
+    html += '<select id="approvalStage" onchange="state.approvalStage=this.value;filterApprovalQueue(document.getElementById(\'approvalSearch\')?.value||\'\')" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
+    html += '<option value="">⏳ Lahat ng stage</option>'
+    html += '<option value="1"' + (state.approvalStage==='1'?' selected':'') + '>🏢 Pending: Dept Head</option>'
+    html += '<option value="2"' + (state.approvalStage==='2'?' selected':'') + '>📋 Pending: Supply Officer</option>'
+    html += '<option value="3"' + (state.approvalStage==='3'?' selected':'') + '>💰 Pending: Purchasing</option>'
+    html += '</select>'
     html += deptAutocompleteHtml('approvalDept', 'acPickApprovalDept')
     html += '</div>'
     html += '<div class="table-wrap table-wrap-desktop"><table><thead><tr>'
