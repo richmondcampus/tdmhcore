@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.11.05-10'
+const APP_VERSION = '2026.11.05-11'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -1609,21 +1609,9 @@ async function renderDashboard() {
   let c = {}
   try { const { data } = await SB.rpc('csr_dashboard_counts'); c = data || {} } catch(_) {}
 
-  let attention = []
-  try {
-    const { data } = await SB.from('requests').select('*')
-      .in('status', ['pending_approval','approved','for_po','partially_issued'])
-      .neq('request_type','derp')
-      .order('created_at', { ascending: true })
-      .limit(60)
-    const urgencyRank = { emergency: 0, urgent: 1, routine: 2 }
-    attention = (data || []).sort((a,b) => {
-      const au = urgencyRank[a.urgency] ?? 3, bu = urgencyRank[b.urgency] ?? 3
-      if (au !== bu) return au - bu
-      return new Date(a.created_at) - new Date(b.created_at)
-    }).slice(0, 15)
-    state.requests = data || []
-  } catch(_) {}
+  // Chart aggregates (fast — counts only, no row fetch).
+  let charts = {}
+  try { const { data } = await SB.rpc('csr_dashboard_charts'); charts = data || {} } catch(_) {}
 
   let html = ''
   html += '<div class="page-header">'
@@ -1655,29 +1643,61 @@ async function renderDashboard() {
   html += '</div>'
 
   if (['supply_officer','purchasing_officer','admin','dept_head'].includes(role)) {
-    html += '<div style="margin-top:24px;">'
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
-    html += '<h3 style="margin:0;font-size:15px;">\u{1F514} Needs Attention</h3>'
-    html += '<span style="font-size:12px;color:var(--txt3);">Urgent at matagal nang naghihintay</span></div>'
-    if (!attention.length) {
-      html += '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:13px;background:var(--surf1);border-radius:12px;">Walang pending \u2014 malinis! \u{1F389}</div>'
-    } else {
-      html += '<div style="display:flex;flex-direction:column;gap:7px;">'
-      attention.forEach(r => {
-        const dept = state.departments.find(d => d.id === r.dept_id)
-        const age = Math.floor((Date.now() - new Date(r.created_at)) / 86400000)
-        const uColor = r.urgency === 'emergency' ? 'var(--red)' : r.urgency === 'urgent' ? 'var(--amber)' : 'var(--txt3)'
-        const uBg = r.urgency === 'emergency' ? 'rgba(220,50,50,.12)' : r.urgency === 'urgent' ? 'rgba(240,200,56,.14)' : 'var(--surf2)'
-        html += '<div onclick="viewRequest(\'' + r.id + '\')" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surf1);border:1px solid var(--bdr);border-left:3px solid ' + uColor + ';border-radius:10px;cursor:pointer;">'
-        html += '<div style="min-width:120px;"><div style="font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:600;color:var(--accent);">' + r.request_no + '</div>'
-        html += '<span style="font-size:10px;font-weight:600;color:' + uColor + ';background:' + uBg + ';padding:1px 7px;border-radius:20px;">' + (r.urgency || 'routine') + '</span></div>'
-        html += '<div style="flex:1;min-width:0;"><div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escStk(r.purpose || r.request_type || '\u2014') + '</div>'
-        html += '<div style="font-size:11px;color:var(--txt3);">\u{1F3E2} ' + escStk((dept && dept.dept_name) || '\u2014') + ' \u00B7 ' + formatStatus(r.status) + '</div></div>'
-        html += '<div style="font-size:11px;color:' + (age >= 3 ? 'var(--red)' : 'var(--txt3)') + ';white-space:nowrap;">' + (age === 0 ? 'ngayon' : age + 'd') + '</div>'
-        html += '</div>'
-      })
+    const statusColor = { pending_approval:'#C8860B', approved:'#2E74B5', for_po:'#8B5CF6', partially_issued:'#2E74B5', delivered:'#12A62F', draft:'#888' }
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:24px;">'
+
+    // Chart 1 — Open requests by status (horizontal bars)
+    const byStatus = charts.by_status || []
+    const maxStatus = Math.max(1, ...byStatus.map(s => s.count))
+    html += '<div style="background:var(--surf1);border:1px solid var(--bdr);border-radius:14px;padding:16px;">'
+    html += '<h3 style="margin:0 0 12px;font-size:14px;">📊 Open Requests by Status</h3>'
+    if (!byStatus.length) html += '<div style="color:var(--txt3);font-size:13px;text-align:center;padding:12px;">Walang open requests 🎉</div>'
+    byStatus.forEach(s => {
+      const pct = Math.round((s.count / maxStatus) * 100)
+      const col = statusColor[s.status] || 'var(--accent)'
+      html += '<div style="margin-bottom:8px;cursor:pointer;" onclick="state.allReqStatus=\'' + s.status + '\';showPage(\'my_requests\')">'
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span>' + formatStatus(s.status) + '</span><span style="font-weight:700;">' + s.count + '</span></div>'
+      html += '<div style="height:8px;background:var(--surf2);border-radius:5px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:5px;"></div></div>'
       html += '</div>'
-    }
+    })
+    html += '</div>'
+
+    // Chart 2 — Weekly activity (requests vs issued, last 6 weeks)
+    const weekly = charts.weekly || []
+    const maxWk = Math.max(1, ...weekly.map(w => Math.max(w.requests, w.issued)))
+    html += '<div style="background:var(--surf1);border:1px solid var(--bdr);border-radius:14px;padding:16px;">'
+    html += '<h3 style="margin:0 0 12px;font-size:14px;">📈 Weekly Activity (6 weeks)</h3>'
+    html += '<div style="display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:8px;">'
+    weekly.forEach(w => {
+      const rH = Math.round((w.requests / maxWk) * 100), iH = Math.round((w.issued / maxWk) * 100)
+      html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;">'
+      html += '<div style="display:flex;gap:2px;align-items:flex-end;height:100px;">'
+      html += '<div title="Requests: ' + w.requests + '" style="width:11px;height:' + rH + '%;background:#2E74B5;border-radius:3px 3px 0 0;"></div>'
+      html += '<div title="Issued: ' + w.issued + '" style="width:11px;height:' + iH + '%;background:#12A62F;border-radius:3px 3px 0 0;"></div>'
+      html += '</div>'
+      html += '<span style="font-size:9px;color:var(--txt3);">' + w.week + '</span></div>'
+    })
+    html += '</div>'
+    html += '<div style="display:flex;gap:14px;justify-content:center;margin-top:10px;font-size:11px;color:var(--txt2);">'
+    html += '<span><span style="display:inline-block;width:9px;height:9px;background:#2E74B5;border-radius:2px;"></span> Requests</span>'
+    html += '<span><span style="display:inline-block;width:9px;height:9px;background:#12A62F;border-radius:2px;"></span> Issued</span></div>'
+    html += '</div>'
+
+    // Chart 3 — Top departments by open requests
+    const topDepts = charts.top_depts || []
+    const maxDept = Math.max(1, ...topDepts.map(d => d.count))
+    html += '<div style="background:var(--surf1);border:1px solid var(--bdr);border-radius:14px;padding:16px;">'
+    html += '<h3 style="margin:0 0 12px;font-size:14px;">🏢 Top Departments (open)</h3>'
+    if (!topDepts.length) html += '<div style="color:var(--txt3);font-size:13px;text-align:center;padding:12px;">—</div>'
+    topDepts.forEach(d => {
+      const pct = Math.round((d.count / maxDept) * 100)
+      html += '<div style="margin-bottom:8px;">'
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;">' + escStk(d.dept) + '</span><span style="font-weight:700;">' + d.count + '</span></div>'
+      html += '<div style="height:8px;background:var(--surf2);border-radius:5px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--accent);border-radius:5px;"></div></div>'
+      html += '</div>'
+    })
+    html += '</div>'
+
     html += '</div>'
   } else {
     html += '<div style="margin-top:24px;padding:24px;text-align:center;background:var(--surf1);border-radius:14px;">'
