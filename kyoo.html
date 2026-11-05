@@ -727,37 +727,47 @@ function useSpeech() {
   const slug = t => 'w_' + String(t).toLowerCase().trim()
                       .replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')
 
-  /* number -> clip keys. Uses the whole service code when we have it
-     recorded, otherwise spells it letter by letter. */
-  const numberKeys = num => {
-    const s = String(num).toUpperCase()
+  /* The pack holds whole phrases — "Number L A B" and "Please proceed to
+     Lab 1" — so only the digits are joins. Falls back to spelling when a
+     code or counter has no recording of its own. */
+  const buildSeq = (number, where) => {
+    const store = clips.current
+    const s = String(number).toUpperCase()
     const m = s.match(/^([A-Z]+)(.*)$/)
-    const out = []
     const head = m ? m[1] : ''
     const tail = m ? m[2] : s
-    if (head) {
-      if (clips.current?.['c_'+head]) out.push('c_'+head)
-      else for (const ch of head) out.push('l_'+ch)
+    const seq = []
+
+    if (head && store['n_'+head]) seq.push('n_'+head)
+    else {
+      seq.push('x_number')
+      for (const ch of head) seq.push('l_'+ch)
     }
     for (const ch of tail) {
-      if (/[0-9]/.test(ch)) out.push('d_'+ch)
-      else if (/[A-Z]/.test(ch)) out.push('l_'+ch)
+      if (/[0-9]/.test(ch)) seq.push('d_'+ch)
+      else if (/[A-Z]/.test(ch)) seq.push('l_'+ch)
     }
-    return out
+
+    const w = slug(where)                      // w_lab_1
+    const tailKey = 'p_' + w.slice(2)          // p_lab_1
+    if (store[tailKey]) seq.push(tailKey)
+    else if (store['x_proceed'] && store[w]) seq.push('x_proceed', w)
+    else return null                           // never say half a sentence
+    return seq
   }
 
   const playPack = (number, where) => {
     const store = clips.current, c = ctx()
     if (!store || !c) return false
-    const seq = ['_number', ...numberKeys(number), '_proceed', slug(where)]
-    const bufs = seq.map(k=>store[k]).filter(Boolean)
-    // if the counter name is not in the pack, do not announce a half sentence
-    if (!store[slug(where)] || bufs.length < 3) return false
+    const seq = buildSeq(number, where)
+    if (!seq) return false
+    const bufs = seq.map(k=>store[k])
+    if (bufs.some(b=>!b)) return false
     let t = c.currentTime + 0.06
     for (const b of bufs) {
       const src = c.createBufferSource()
       src.buffer = b; src.connect(c.destination); src.start(t)
-      t += b.duration + 0.05
+      t += b.duration + 0.02     // phrases carry their own pacing now
     }
     return true
   }
