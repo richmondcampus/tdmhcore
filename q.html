@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="color-scheme" content="light"/>
+<meta name="supported-color-schemes" content="light"/>
 <title>TDMH Queuing</title>
 <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='.9em' font-size='90'&gt;🏥&lt;/text&gt;&lt;/svg&gt;"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,6 +17,7 @@
 <style>
 /* ═══ TDMH tokens — indigo, green, gold from the hospital mark ═══ */
 :root{
+  color-scheme:light;
   --ink:#15183a; --ink-2:#262a52;
   /* taken from the hospital mark: green #189c30, indigo #2418b4, gold #fce454 */
   --indigo:#231a9e; --indigo-2:#2418b4; --indigo-wash:#eceaf8;
@@ -712,14 +715,31 @@ function useSpeech() {
     return ac.current
   }
 
+  /* The pack holds a clip for every three-digit number, so decoding all of
+     it would hold well over a hundred megabytes of audio on a TV. Only the
+     phrases that every announcement needs are loaded up front; the one
+     number clip is fetched when it is called and then kept. */
+  const baseRef = useRef(null)
+  const fetchClip = useCallback(async k => {
+    const store = clips.current, c = ctx(), base = baseRef.current
+    if (!store || !c || !base || !keys.current?.has(k)) return null
+    if (store[k]) return store[k]
+    try {
+      const res = await fetch(`${base}${k}.mp3`, {cache:'force-cache'})
+      if (!res.ok) return null
+      const buf = await c.decodeAudioData(await res.arrayBuffer())
+      store[k] = buf
+      return buf
+    } catch { return null }
+  },[])
+
   useEffect(()=>{
     let dead = false
     ;(async ()=>{
-      // the page may be served as /kyoo, /kyoo/ or /kyoo.html, so try the
-      // places the voice folder could sit rather than guessing one
-      const bases = ['voice/', '/voice/', './voice/', '../voice/']
+      // the page may be served as /q, /q/ or /q.html, so try the places the
+      // voice folder could sit rather than guessing one
       let base = null, idx = null
-      for (const b of bases) {
+      for (const b of ['voice/', '/voice/', './voice/', '../voice/']) {
         try {
           const r = await fetch(b + 'index.json', {cache:'force-cache'})
           if (!r.ok) continue
@@ -729,16 +749,18 @@ function useSpeech() {
       }
       if (dead || !idx) return
       keys.current = new Set(idx.keys)
+      baseRef.current = base
+      clips.current = {}
       const c = ctx(); if (!c) return
-      const store = {}
-      await Promise.all(idx.keys.map(async k=>{
+      // everything except the thousand number clips — about forty files
+      const upfront = idx.keys.filter(k => !k.startsWith('q_'))
+      for (const k of upfront) {
+        if (dead) return
         try {
           const res = await fetch(`${base}${k}.mp3`, {cache:'force-cache'})
-          if (!res.ok) return
-          store[k] = await c.decodeAudioData(await res.arrayBuffer())
+          if (res.ok) clips.current[k] = await c.decodeAudioData(await res.arrayBuffer())
         } catch {}
-      }))
-      if (!dead && Object.keys(store).length) clips.current = store
+      }
     })()
     return ()=>{ dead = true }
   },[])
@@ -778,18 +800,23 @@ function useSpeech() {
     return seq
   }
 
-  const playPack = (number, where) => {
+  const playPack = async (number, where) => {
     const store = clips.current, c = ctx()
     if (!store || !c) return false
     const seq = buildSeq(number, where)
     if (!seq) return false
-    const bufs = seq.map(k=>store[k])
-    if (bufs.some(b=>!b)) return false
+    // the number clip is usually the only one not in memory yet
+    const bufs = []
+    for (const k of seq) {
+      const b = store[k] || await fetchClip(k)
+      if (!b) return false
+      bufs.push(b)
+    }
     let t = c.currentTime + 0.06
     for (const b of bufs) {
       const src = c.createBufferSource()
       src.buffer = b; src.connect(c.destination); src.start(t)
-      t += b.duration + 0.02     // phrases carry their own pacing now
+      t += b.duration + 0.02     // phrases carry their own pacing
     }
     return true
   }
@@ -833,7 +860,10 @@ function useSpeech() {
     const n = Math.max(1, repeat)
 
     // 1. recorded clips — the only path that works on every device
-    if (playPack(number, where)) return
+    playPack(number, where).then(played => { if (!played) fallback(number, where, n) })
+  },[pickVoice])
+
+  const fallback = useCallback((number, where, n)=>{
 
     const spoken = String(number).replace(/([A-Za-z])/g,'$1 ').replace(/(\d)/g,'$1 ').trim()
     const first  = `Number ${spoken}. Please proceed to ${where}.`
