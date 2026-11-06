@@ -129,6 +129,41 @@ select.inp{cursor:pointer}
 .occ-t{font-size:16px;margin-top:2px}
 @media(max-width:1040px){.two-col{grid-template-columns:1fr}}
 
+/* ═══ dark theme — for sets that repaint light pages anyway ═══ */
+html[data-theme="dark"]{color-scheme:dark}
+html[data-theme="dark"] :root,
+html[data-theme="dark"] body{color-scheme:dark}
+html[data-theme="dark"]{
+  --paper:#0f1226; --card:#191d3a; --line:#2b3158; --line-2:#232849;
+  --text:#f2f3fb; --muted:#a7abce; --faint:#9094b8;
+  --surf:#0f1226; --surf-2:#191d3a; --surf-3:#232849;
+  --on-surf:#f2f3fb; --dim:#a7abce; --faint2:#9094b8;
+  --ink:#070a1a;
+  --indigo:#4349c9; --indigo-2:#8d92ff; --indigo-wash:#242a5c;
+  --green:#38c46a;  --green-2:#45d87a;  --green-wash:#15351f;
+  --gold:#e8c35a;   --gold-2:#fce454;   --gold-wash:#352c10;
+  --red:#ff7a72;    --red-wash:#3a1d1c;
+  --sh:none; --sh-lg:0 10px 30px rgba(0,0,0,.5);
+}
+html[data-theme="dark"] .tv-h{background:var(--card);border-bottom-color:var(--green)}
+html[data-theme="dark"] .tv-logo{filter:brightness(0) invert(1)}
+html[data-theme="dark"] .tv-clock{color:var(--text)}
+html[data-theme="dark"] .tv-where,
+html[data-theme="dark"] .rail-head,
+html[data-theme="dark"] .hero-num{color:var(--indigo-2)}
+html[data-theme="dark"] .hero,
+html[data-theme="dark"] .crow,
+html[data-theme="dark"] .gcell,
+html[data-theme="dark"] .tvcol{background:var(--card)}
+html[data-theme="dark"] .hero.ring{background:var(--green-wash);border-color:var(--green)}
+html[data-theme="dark"] .hero.ring .hero-num{color:var(--green-2)}
+html[data-theme="dark"] .gcell.lit .gcell-b{background:var(--green-wash)}
+html[data-theme="dark"] .gcell.lit{box-shadow:0 0 0 4px var(--gold-2)}
+html[data-theme="dark"] .crow.lit{background:var(--green-wash);color:var(--text)}
+html[data-theme="dark"] .tv-foot{background:#070a1a;border-top-color:var(--green)}
+html[data-theme="dark"] .waitpill{background:var(--gold-2);color:#2a2100}
+html[data-theme="dark"] .kio-logo{filter:brightness(0) invert(1)}
+
 /* ═══ tags ═══ */
 .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;
      font-size:12px;font-weight:600;white-space:nowrap}
@@ -502,12 +537,12 @@ select.inp{cursor:pointer}
 @keyframes pz{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
 
 /* ── TV layout: counter grid ── */
-.tv-grid{flex:1;display:grid;gap:1.6vw;padding:1.4vh 1.8vw;min-height:0}
+.tv-grid{flex:1;display:grid;gap:2.2vw;padding:2.2vh 2.6vw;min-height:0}
 .gcell{display:flex;flex-direction:column;border-radius:9px;overflow:hidden;
        background:#fff;border:1px solid var(--line);
        transition:background .3s,border-color .3s;min-height:0}
 .gcell-h{display:block;width:100%;background:var(--indigo);color:#fff;text-align:center;
-         padding:.9vh 1vw;font-size:var(--hdrsize,20px);font-weight:800;letter-spacing:.04em;
+         padding:1.5vh 1vw;font-size:var(--hdrsize,20px);font-weight:800;letter-spacing:.04em;
          text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
          flex-shrink:0}
 .gcell.live .gcell-h{background:var(--green-2)}
@@ -516,7 +551,7 @@ select.inp{cursor:pointer}
 .gcell.lit .gcell-b{background:var(--green)}
 .gcell.lit .gcell-s{color:rgba(255,255,255,.85)}
 .gcell-b{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-         gap:.4vh;padding:.6vh .6vw;transition:background .3s;min-height:0}
+         gap:2vh;padding:2vh 1.2vw;transition:background .3s;min-height:0}
 .gcell-n{font-family:Archivo;font-weight:900;line-height:.88;letter-spacing:-.04em;
          font-size:var(--numsize,90px)}
 .gcell-s{font-size:var(--svcsize,18px);font-weight:700;color:var(--dim);
@@ -599,6 +634,21 @@ select.inp{cursor:pointer}
 </style>
 </head>
 <body><div id="root"></div>
+<script>
+/* Some Android TVs repaint a light page dark on their own and ignore
+   color-scheme. Rather than fight that, ?theme=dark serves a real dark
+   design and declares it, which those sets leave alone. */
+(function(){
+  var t = new URLSearchParams(location.search).get('theme')
+  if (t === 'dark') {
+    document.documentElement.setAttribute('data-theme','dark')
+    var m = document.querySelector('meta[name="color-scheme"]')
+    if (m) { m.content = 'dark'; }
+    var m2 = document.querySelector('meta[name="supported-color-schemes"]')
+    if (m2) { m2.content = 'dark'; }
+  }
+})()
+</script>
 <script type="text/babel" data-presets="react">
 /* ════════════════════════════════════════════════════════════
    CONFIG
@@ -1105,14 +1155,14 @@ function TV({slug}) {
   const grows   = Math.max(1, Math.ceil(cells / gcols))
   const longest = rows.reduce((m,r)=>Math.max(m, (r.number||'').length), 6)
   // width a cell can give the number, allowing for grid gaps and padding
-  const cellVW = (88 - safeGuess() - 1.6 * (gcols - 1)) / gcols
+  const cellVW = (84 - safeGuess() - 2.2 * (gcols - 1)) / gcols
   // height left after the cell's own header band and the service line
-  const cellVH = Math.max(14, (78 / grows) - 11)
+  const cellVH = Math.max(14, (74 / grows) - 15)
   const numVW  = cellVW / (Math.max(longest, 4) * 0.78)   // .60em a glyph, plus breathing room
   const gridVars = {
     '--numsize': `min(${numVW.toFixed(1)}vw, ${(cellVH * 0.70).toFixed(1)}vh)`,
-    '--svcsize': `min(${(cellVW / 9).toFixed(1)}vw, ${Math.min(4.6, cellVH * 0.16).toFixed(1)}vh)`,
-    '--hdrsize': `min(${(cellVW / 7.5).toFixed(1)}vw, 5.2vh)`,
+    '--svcsize': `min(${(cellVW / 7).toFixed(1)}vw, ${Math.min(5.8, cellVH * 0.20).toFixed(1)}vh)`,
+    '--hdrsize': `min(${(cellVW / 5.6).toFixed(1)}vw, 6.6vh)`,
   }
 
   /* Most TVs crop the edges. ?safe=3 trims a further 3% for stubborn sets. */
