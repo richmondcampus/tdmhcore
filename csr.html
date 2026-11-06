@@ -803,7 +803,7 @@ const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
 // shows so the user can refresh. Purely read-only, event-based (page load + tab
 // focus) — no timer, no background load, wrapped in try/catch so it can never break
 // the app.
-const APP_VERSION = '2026.11.05-11'
+const APP_VERSION = '2026.11.06-1'
 async function checkForUpdate() {
   try {
     // Fetch just this page with a cache-buster, read the APP_VERSION line from it.
@@ -8060,7 +8060,7 @@ function reviewIssuance() {
   qtyInputs.forEach(input => {
     const itemId = input.dataset.itemId
     const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
-    if (chk && !chk.checked) return  // unchecked = skip
+    if (!chk || !chk.checked) return  // skip if no checkbox or unchecked  // unchecked = skip
     const qty = Number(input.value)
     if (qty <= 0) return
     const actionSel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
@@ -8118,7 +8118,7 @@ function _oldReviewIssuance() {
   qtyInputs.forEach(input => {
     const itemId = input.dataset.itemId
     const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
-    if (chk && !chk.checked) return
+    if (!chk || !chk.checked) return  // skip if no checkbox or unchecked
     const qty = Number(input.value)
     if (qty > 0) rows.push({ itemId, name: input.dataset.itemName || 'Item', qty, unit: input.dataset.unit || '', stockId: input.dataset.stockId || '' })
   })
@@ -8196,7 +8196,7 @@ async function saveIssuance() {
     qtyInputs.forEach(input => {
       const itemId = input.dataset.itemId
       const chk = document.querySelector('.iss_item_chk[data-item-id="' + itemId + '"]')
-      if (chk && !chk.checked) return  // unchecked = skip
+      if (!chk || !chk.checked) return  // skip if no checkbox or unchecked  // unchecked = skip
       // Skip items marked "For PO" — only issue "Issue Now" items.
       const actionSel = document.querySelector('.iss_action_select[data-item-id="' + itemId + '"]')
       if (actionSel && actionSel.value === 'for_po') return
