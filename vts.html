@@ -7482,7 +7482,7 @@ async function renderReportContent() {
   let q = SB.from('vts_trips').select(`
     *,
     vehicle:vts_vehicles(plate,type,name,fuel,capacity),
-    approver:users!vts_trips_approver_id_fkey(full_name,role),
+    approver:users!vts_trips_approver_id_fkey(full_name,role:vts_role),
     assigned_by_user:users!vts_trips_assigned_by_fkey(full_name),
     guard_out_user:users!vts_trips_guard_out_id_fkey(full_name),
     guard_in_user:users!vts_trips_guard_in_id_fkey(full_name),
