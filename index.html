@@ -342,6 +342,94 @@ canvas{max-height:220px;}
 
 /* Hide the browser native password reveal (Edge/IE) so only our eye toggle shows */
 input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:none;}
+
+/* ═══ HOME — bento dashboard ═══ */
+.hx-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin:4px 0 22px;}
+.hx-greet{font-family:'Manrope',system-ui,sans-serif;font-size:clamp(26px,3.4vw,38px);font-weight:800;letter-spacing:-0.025em;line-height:1.08;color:var(--txt);}
+.hx-sum{margin-top:8px;font-size:15px;color:var(--txt2);max-width:62ch;}
+.hx-dept{display:inline-block;margin-left:6px;padding:2px 10px;border-radius:999px;background:var(--surf3);color:var(--txt2);font-size:12px;font-weight:600;vertical-align:1px;}
+.hx-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.hx-act{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border-radius:999px;border:1px solid var(--bdr2);background:var(--surf1);color:var(--txt);font:600 13px 'Inter',system-ui,sans-serif;cursor:pointer;transition:border-color .15s,background .15s!important;}
+.hx-act:hover{border-color:var(--accent);background:var(--accent-a);}
+.hx-act:first-child{background:var(--accent);border-color:var(--accent);color:#fff;}
+.hx-act:first-child:hover{opacity:.92;}
+
+.hx-systems{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px;}
+.hx-sys{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:16px;border-radius:18px;border:1px solid var(--bdr);background:var(--surf1);cursor:pointer;text-align:left;font-family:inherit;color:var(--txt);transition:transform .2s cubic-bezier(.34,1.56,.64,1),border-color .2s,box-shadow .2s!important;}
+.hx-sys:hover{transform:translateY(-3px);border-color:var(--tint);box-shadow:0 10px 24px -14px var(--tint);}
+.hx-sys:focus-visible,.hx-act:focus-visible,.hx-fchip:focus-visible,.hx-row:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.hx-chip{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--tint-a);margin-bottom:8px;}
+.hx-sys-name{font-size:13px;font-weight:700;}
+.hx-sys-num{font-family:'Manrope',system-ui,sans-serif;font-size:30px;font-weight:800;letter-spacing:-0.03em;line-height:1;color:var(--tint);margin-top:6px;}
+.hx-sys-open{font-size:13px;font-weight:600;color:var(--tint);margin-top:12px;}
+.hx-sys-cap{font-size:11.5px;color:var(--txt3);}
+
+.hx-bento{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start;}
+.hx-tile{background:var(--surf1);border:1px solid var(--bdr);border-radius:20px;padding:18px;min-width:0;}
+.hx-work{grid-column:span 2;grid-row:span 2;}
+.hx-click{cursor:pointer;transition:border-color .2s!important;}
+.hx-click:hover{border-color:var(--accent-b);}
+.hx-tile-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.hx-tile-hd h3{font-family:'Manrope',system-ui,sans-serif;font-size:16px;font-weight:800;letter-spacing:-0.01em;}
+.hx-link{background:none;border:none;color:var(--accent);font:600 12.5px 'Inter',system-ui,sans-serif;cursor:pointer;padding:0;}
+.hx-pill{min-width:26px;padding:3px 9px;border-radius:999px;background:var(--amber-a);color:var(--amber);font-weight:800;font-size:12px;text-align:center;}
+
+.hx-fchips{display:flex;gap:6px;flex-wrap:wrap;}
+.hx-fchip{padding:5px 11px;border-radius:999px;border:1px solid var(--bdr2);background:transparent;color:var(--txt2);font:600 12px 'Inter',system-ui,sans-serif;cursor:pointer;}
+.hx-fchip b{margin-left:3px;font-weight:800;}
+.hx-fchip.on{background:var(--txt);border-color:var(--txt);color:var(--surf1);}
+
+.hx-list{display:flex;flex-direction:column;}
+.hx-row{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:12px;cursor:pointer;transition:background .15s!important;}
+.hx-row:hover{background:var(--surf2);}
+.hx-row+.hx-row{border-top:1px solid var(--bdr);}
+.hx-row.urgent .hx-row-t{color:var(--red);}
+.hx-mini{flex-shrink:0;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--tint-a);}
+.hx-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;margin:0 4px;}
+.hx-row-main{flex:1;min-width:0;}
+.hx-row-t{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hx-row-m{font-size:11.5px;color:var(--txt3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hx-st{flex-shrink:0;font-size:11px;font-weight:600;color:var(--txt2);background:var(--surf3);padding:3px 9px;border-radius:999px;text-transform:capitalize;}
+.hx-more,.hx-empty{font-size:13px;color:var(--txt3);padding:14px 8px;}
+
+.hx-ann{padding:10px 8px;border-radius:12px;cursor:pointer;}
+.hx-ann+.hx-ann{border-top:1px solid var(--bdr);}
+.hx-ann:hover{background:var(--surf2);}
+.hx-ann-hd{display:flex;gap:8px;align-items:baseline;font-size:13.5px;}
+.hx-ann-hd b{flex:1;min-width:0;font-weight:600;}
+.hx-ann-t{flex-shrink:0;font-size:11px;color:var(--txt3);}
+.hx-ann-body{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:4px;font-size:12.5px;color:var(--txt2);white-space:pre-wrap;line-height:1.55;}
+.hx-ann.open .hx-ann-body{display:block;-webkit-line-clamp:unset;}
+
+.hx-fleet{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.hx-big{display:block;font-family:'Manrope',system-ui,sans-serif;font-size:34px;font-weight:800;letter-spacing:-0.03em;line-height:1;color:var(--accent);}
+.hx-fleet>div:last-child .hx-big{color:var(--green);}
+.hx-big-l{display:block;margin-top:4px;font-size:12px;color:var(--txt2);}
+.hx-next{margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr);font-size:12.5px;color:var(--txt2);line-height:1.5;}
+
+/* Sidebar profile card */
+.sb-profile{display:flex;align-items:center;gap:12px;margin:12px 12px 4px;padding:12px;border-radius:16px;background:var(--surf2);border:1px solid var(--bdr);}
+.sb-profile .user-avatar{width:42px;height:42px;border-radius:12px;font-size:14px;}
+.sb-profile .user-name{font-size:13px;}
+.sb-foot-btn{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border:none;background:none;border-radius:9px;color:var(--txt2);font:500 13px 'Inter',system-ui,sans-serif;cursor:pointer;text-align:left;}
+.sb-foot-btn:hover{background:var(--surf3);color:var(--txt);}
+.sb-foot-btn.danger:hover{background:var(--red-a);color:var(--red);}
+
+@media(max-width:1024px){
+  .hx-bento{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .hx-work{grid-column:span 2;grid-row:auto;}
+}
+@media(max-width:768px){
+  .hx-hero{align-items:flex-start;}
+  .hx-actions{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;}
+  .hx-act{flex-shrink:0;}
+  .hx-systems{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px;}
+  .hx-sys{flex:0 0 150px;scroll-snap-align:start;}
+  .hx-bento{grid-template-columns:1fr;}
+  .hx-work{grid-column:auto;}
+}
+@media(prefers-reduced-motion:reduce){.hx-sys:hover{transform:none!important;}}
+
 </style>
 </head>
 <body>
@@ -390,23 +478,20 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
           <p style="font-size:10px;">Hospital Systems</p>
         </div>
       </div>
+      <div class="sb-profile">
+        <div class="user-avatar" id="userAvatar">--</div>
+        <div class="user-info"><div class="user-name" id="userName">Loading...</div><div class="user-role" id="userRoleLabel">--</div></div>
+      </div>
       <nav class="sidebar-nav">
+        <div class="nav-item active" onclick="showPage('my_work')" id="nav_my_work"><span class="nav-icon">🏠</span>Home</div>
         <div class="nav-section">Hub</div>
         <div class="nav-item" onclick="showPage('announcements')" id="nav_announcements"><span class="nav-icon">📢</span>Announcements<span class="nav-badge" id="annNavBadge" style="display:none;">0</span></div>
         <div class="nav-item" onclick="showPage('memos')" id="nav_memos"><span class="nav-icon">📄</span>Memos<span class="nav-badge" id="memoNavBadge" style="display:none;">0</span></div>
         <div class="nav-item" onclick="showPage('documents')" id="nav_documents"><span class="nav-icon">📁</span>Documents</div>
-        <div class="nav-section">My Work</div>
-        <div class="nav-item active" onclick="showPage('my_work')" id="nav_my_work"><span class="nav-icon">🎯</span>My Work</div>
-        <div class="nav-item" onclick="showPage('notifications')" id="nav_notifications"><span class="nav-icon">🔔</span>Notifications<span class="nav-badge" id="notifNavBadge" style="display:none;">0</span></div>
-        <div class="nav-section">Operations</div>
-        <div class="nav-item" onclick="showPage('dept_view')" id="nav_dept_view"><span class="nav-icon">🏢</span>Department View</div>
-        <div class="nav-item" onclick="showPage('handover')" id="nav_handover"><span class="nav-icon">🔄</span>Shift Handover</div>
+        <div class="nav-section">Insights</div>
         <div class="nav-item" onclick="showPage('search')" id="nav_search"><span class="nav-icon">🔍</span>Global Search</div>
-        <div class="nav-item" onclick="showPage('audit_trail')" id="nav_audit_trail"><span class="nav-icon">📋</span>Audit Trail</div>
-        <div class="nav-section">Analytics</div>
         <div class="nav-item" onclick="showPage('reports')" id="nav_reports"><span class="nav-icon">📊</span>Management Reports</div>
-        <div class="nav-item" onclick="showPage('budget')" id="nav_budget"><span class="nav-icon">💰</span>Budget Tracking</div>
-        <div class="nav-item" onclick="showPage('room_view')" id="nav_room_view"><span class="nav-icon">📍</span>Room / Location</div>
+        <div class="nav-item" onclick="showPage('audit_trail')" id="nav_audit_trail"><span class="nav-icon">📋</span>Audit Trail</div>
         <div class="nav-section" id="navAdminHeader" style="display:none;">Administration</div>
         <div class="nav-item" onclick="showPage('user_mgmt')" id="nav_user_mgmt" style="display:none;"><span class="nav-icon">👥</span>User Management</div>
         <div class="nav-section" id="navSystemsHeader" style="display:none;">Systems</div>
@@ -420,28 +505,17 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
 
       </nav>
       <div class="sidebar-footer">
-        <div class="user-chip" onclick="toggleUserMenu(event)">
-          <div class="user-avatar" id="userAvatar">--</div>
-          <div class="user-info">
-            <div class="user-name" id="userName">Loading...</div>
-            <div class="user-role" id="userRoleLabel">--</div>
-          </div>
-          <span style="font-size:10px;color:var(--txt3);">⋯</span>
-        </div>
-        <div class="user-menu" id="userMenu">
-          <div class="user-menu-item" onclick="openChangePassword()"><span>🔑</span> Change Password</div>
-          <div class="user-menu-item danger" onclick="confirm2('Sign out?',doLogout)"><span>⏻</span> Sign Out</div>
-        </div>
+        <button class="sb-foot-btn" onclick="openChangePassword()"><span>🔑</span>Change Password</button>
+        <button class="sb-foot-btn danger" onclick="confirm2('Sign out?',doLogout)"><span>⏻</span>Sign Out</button>
       </div>
     </div>
     <div class="sidebar-overlay" onclick="closeSidebar()"></div>
     <div class="main">
       <div class="topbar">
         <button class="hamburger" onclick="toggleSidebar()">☰</button>
-        <div class="topbar-title" id="topbarTitle">My Work</div>
+        <div class="topbar-title" id="topbarTitle">Home</div>
         <div style="display:flex;gap:8px;">
           <div class="icon-btn" onclick="showPage('search')" title="Global Search">🔍</div>
-          <div class="icon-btn" onclick="showPage('notifications')" id="notifBell" style="position:relative;">🔔<span id="notifBadge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;"></span></div>
           <div class="icon-btn" onclick="toggleTheme()">🌙</div>
         </div>
       </div>
@@ -654,14 +728,12 @@ async function bootApp(session){
   ])
   S.departments=depts||[]
   S.users=users||[]
-  subscribeNotifications()
-  loadNotifCount()
   loadHubBadges()
   showPage('my_work')
 }
 
 // NAV
-const PAGE_TITLES={announcements:'📢 Announcements',memos:'📄 Memos',documents:'📁 Documents',my_work:'🎯 My Work',notifications:'🔔 Notifications',dept_view:'🏢 Department View',handover:'🔄 Shift Handover',search:'🔍 Global Search',audit_trail:'📋 Audit Trail',reports:'📊 Management Reports',budget:'💰 Budget Tracking',room_view:'📍 Room / Location',user_mgmt:'👥 User Management'}
+const PAGE_TITLES={announcements:'📢 Announcements',memos:'📄 Memos',documents:'📁 Documents',my_work:'🏠 Home',search:'🔍 Global Search',audit_trail:'📋 Audit Trail',reports:'📊 Management Reports',user_mgmt:'👥 User Management'}
 function showPage(page){
   S.page=page
   document.getElementById('topbarTitle').textContent=PAGE_TITLES[page]||page
@@ -673,124 +745,234 @@ function showPage(page){
   content.innerHTML=loadingBlock('Loading...')
   Object.values(S.charts).forEach(c=>{try{c.destroy()}catch(e){}})
   S.charts={}
-  const pages={announcements:renderAnnouncements,memos:renderMemos,documents:renderDocuments,my_work:renderMyWork,notifications:renderNotifications,dept_view:renderDeptView,handover:renderHandover,search:renderSearch,audit_trail:renderAuditTrail,reports:renderReports,budget:renderBudget,room_view:renderRoomView,user_mgmt:renderUserMgmt}
+  const pages={announcements:renderAnnouncements,memos:renderMemos,documents:renderDocuments,my_work:renderMyWork,search:renderSearch,audit_trail:renderAuditTrail,reports:renderReports,user_mgmt:renderUserMgmt}
   if(pages[page])pages[page]()
 }
 function goSystem(key){window.open(SYSTEMS[key],'_blank')}
 
+// ═══════════════════════════════════════════════
+// HOME — bento dashboard (replaces "My Work")
+// ═══════════════════════════════════════════════
+const HX_SYS = {
+  csr:         { name:'CSR / Supply',      icon:'📋', tint:'var(--green)',  tintA:'var(--green-a)' },
+  maintenance: { name:'Maintenance',       icon:'🔧', tint:'var(--amber)',  tintA:'var(--amber-a)' },
+  it:          { name:'IT Helpdesk',       icon:'🖥️', tint:'var(--accent)', tintA:'var(--accent-a)' },
+  inventory:   { name:'Inventory',         icon:'🏷️', tint:'var(--violet)', tintA:'var(--violet-a)' },
+  medequip:    { name:'Medical Equipment', icon:'🏥', tint:'var(--red)',    tintA:'var(--red-a)' },
+  vts:         { name:'Vehicle Ticketing', icon:'🚗', tint:'var(--accent)', tintA:'var(--accent-a)' }
+}
+let HX = { items: [], filter: 'all' }
+
+function hxAccess(u){
+  return {
+    csr: !!u.csr_role,
+    maintenance: !!u.maintenance_role && u.maintenance_role !== 'gsd',
+    it: !!u.it_role,
+    inventory: !!u.inventory_role,
+    medequip: ['gsd','admin'].includes(u.maintenance_role),
+    vts: true
+  }
+}
+function hxGreeting(){
+  const h = Number(new Date().toLocaleString('en-US',{hour:'numeric',hour12:false,timeZone:'Asia/Manila'}))
+  if (h < 12) return 'Magandang umaga'
+  if (h < 13) return 'Magandang tanghali'
+  if (h < 18) return 'Magandang hapon'
+  return 'Magandang gabi'
+}
+function hxAgo(iso){
+  const m = Math.floor((Date.now()-new Date(iso))/60000)
+  if (m < 60) return m + 'm ago'
+  if (m < 1440) return Math.floor(m/60) + 'h ago'
+  return Math.floor(m/1440) + 'd ago'
+}
+function hxStatus(s){ return String(s||'').replace(/[-_]/g,' ') }
+
 async function renderMyWork(){
-  const content=document.getElementById('mainContent')
-  const u=S.user
-  const now=new Date()
-  const weekAgo=new Date(Date.now()-7*86400000).toISOString()
-  const[maintRes,itRes,csrRes,notifRes,handoverRes,annRes,memoRes,myAckRes]=await Promise.all([
-    u.maintenance_role?SB.from('maint_tickets').select('id,title,status,priority,created_at,dept_name').or('submitted_by.eq.'+u.id+',claimed_by.eq.'+u.id).not('status','in','("closed","cancelled")').order('created_at',{ascending:false}).limit(10):{data:[]},
-    u.it_role?SB.from('it_tickets').select('id,subject,status,priority,created_at,dept_id').or('requester_id.eq.'+u.id+',assigned_to.eq.'+u.id).not('status','in','("closed","cancelled")').order('created_at',{ascending:false}).limit(10):{data:[]},
-    u.csr_role?SB.from('requests').select('id,request_no,request_type,status,urgency,purpose,created_at').eq('requested_by',u.id).not('status','in','("issued","cancelled")').order('created_at',{ascending:false}).limit(10):{data:[]},
-    SB.from('notifications').select('*').eq('user_id',u.id).eq('is_read',false).order('created_at',{ascending:false}).limit(5),
-    SB.from('shift_handover_notes').select('*').eq('received_by',u.id).is('received_at',null).order('created_at',{ascending:false}).limit(3),
-    SB.from('announcements').select('*').eq('is_active',true).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(5),
-    SB.from('memos').select('id,memo_no,title,target,dept_id,requires_ack,is_urgent,created_at').eq('is_active',true).eq('requires_ack',true).order('created_at',{ascending:false}).limit(50),
-    SB.from('memo_acknowledgments').select('memo_id').eq('user_id',u.id)
+  const content = document.getElementById('mainContent')
+  const u = S.user
+  const acc = hxAccess(u)
+  const vtsRole = u.vts_role || 'requester'
+
+  const [maintRes,itRes,csrRes,vtsRes,annRes,memoRes,myAckRes,headRes,onTripRes,availRes,vtsPendRes] = await Promise.all([
+    acc.maintenance ? SB.from('maint_tickets').select('id,title,status,priority,created_at,dept_name').or('submitted_by.eq.'+u.id+',claimed_by.eq.'+u.id).not('status','in','("closed","cancelled")').order('created_at',{ascending:false}).limit(25) : {data:[]},
+    acc.it ? SB.from('it_tickets').select('id,subject,status,priority,created_at').or('requester_id.eq.'+u.id+',assigned_to.eq.'+u.id).not('status','in','("closed","cancelled")').order('created_at',{ascending:false}).limit(25) : {data:[]},
+    acc.csr ? SB.from('requests').select('id,request_no,request_type,status,urgency,purpose,created_at').eq('requested_by',u.id).not('status','in','("issued","cancelled","closed")').order('created_at',{ascending:false}).limit(25) : {data:[]},
+    SB.from('vts_trips').select('id,ticket_no,destination,status,departure_at,vehicle_type_needed,priority').eq('requester_id',u.id).in('status',['pending-approval','approved','assigned','on-trip']).order('departure_at',{ascending:true}).limit(25),
+    SB.from('announcements').select('*').eq('is_active',true).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(6),
+    SB.from('memos').select('id,memo_no,title,target,dept_id,is_urgent,created_at').eq('is_active',true).eq('requires_ack',true).order('created_at',{ascending:false}).limit(50),
+    SB.from('memo_acknowledgments').select('memo_id').eq('user_id',u.id),
+    SB.from('dept_heads').select('dept_id').eq('user_id',u.id),
+    SB.from('vts_trips').select('id',{count:'exact',head:true}).eq('status','on-trip'),
+    SB.from('vts_vehicles').select('id',{count:'exact',head:true}).eq('status','available'),
+    ['admin','super_approver','approver_admin','approver_amb'].includes(vtsRole)
+      ? (vtsRole==='approver_amb'
+          ? SB.from('vts_trips').select('id',{count:'exact',head:true}).eq('status','pending-approval').eq('vehicle_type_needed','ambulance')
+          : vtsRole==='approver_admin'
+            ? SB.from('vts_trips').select('id',{count:'exact',head:true}).eq('status','pending-approval').neq('vehicle_type_needed','ambulance')
+            : SB.from('vts_trips').select('id',{count:'exact',head:true}).eq('status','pending-approval'))
+      : {count:0}
   ])
-  const maintTickets=maintRes.data||[]
-  const itTickets=itRes.data||[]
-  const csrRequests=csrRes.data||[]
-  const unreadNotifs=notifRes.data||[]
-  const pendingHandovers=handoverRes.data||[]
-  const announcements=(annRes.data||[]).filter(a=>!a.expires_at||new Date(a.expires_at)>=new Date())
-  const ackedIds=new Set((myAckRes.data||[]).map(a=>a.memo_id))
-  const pendingMemos=(memoRes.data||[]).filter(m=>(m.target==='all'||(m.target==='department'&&m.dept_id===u.dept_id))&&!ackedIds.has(m.id))
-  const totalPending=maintTickets.length+itTickets.length+csrRequests.length
-  const critical=maintTickets.filter(t=>t.priority==='emergency'||t.priority==='urgent').length+
-                 itTickets.filter(t=>t.priority==='critical'||t.priority==='high').length
-  let html='<div class="page-header"><h2>👋 Kamusta, '+u.full_name.split(' ')[0]+'</h2>'
-  html+='<div style="font-size:13px;color:var(--txt2);">'+now.toLocaleDateString('en-PH',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+'</div></div>'
-  if(critical>0){
-    html+='<div style="background:var(--red-a);border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">'
-    html+='<span style="font-size:20px;">🚨</span><strong style="color:var(--red);">'+critical+' urgent/critical item(s) need your attention</strong></div>'
+
+  // Dept-head approvals (CSR requests waiting in the departments this user heads)
+  const headDepts = (headRes.data||[]).map(h=>h.dept_id)
+  let approvals = []
+  if (acc.csr && headDepts.length){
+    const { data } = await SB.from('requests').select('id,request_no,request_type,purpose,urgency,created_at,dept_id')
+      .eq('status','pending_approval').in('dept_id',headDepts).order('created_at',{ascending:true}).limit(8)
+    approvals = data || []
   }
-  if(pendingHandovers.length>0){
-    html+='<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;">'
-    html+='<span style="color:var(--amber);">🔄 <strong>'+pendingHandovers.length+' shift handover note(s)</strong> pending your acknowledgment</span>'
-    html+='<button class="btn btn-ghost btn-sm" onclick="showPage(\'handover\')">View →</button></div>'
+  const vtsPending = vtsPendRes.count || 0
+
+  // Normalise everything the user is holding into one list
+  const urgentWords = ['emergency','urgent','critical','high']
+  const items = [
+    ...(csrRes.data||[]).map(r=>({ sys:'csr', title:(r.request_no||'')+' — '+(r.purpose||r.request_type||'Request'), meta:(r.request_type||'').toUpperCase(), status:r.status, urgent:urgentWords.includes(r.urgency), at:r.created_at })),
+    ...(maintRes.data||[]).map(t=>({ sys:'maintenance', title:t.id+' — '+t.title, meta:t.dept_name||'', status:t.status, urgent:urgentWords.includes(t.priority), at:t.created_at })),
+    ...(itRes.data||[]).map(t=>({ sys:'it', title:t.id+' — '+t.subject, meta:(t.priority||'')+' priority', status:t.status, urgent:urgentWords.includes(t.priority), at:t.created_at })),
+    ...(vtsRes.data||[]).map(t=>({ sys:'vts', title:t.ticket_no+' — '+(t.destination||'Trip'), meta:'Departs '+(t.departure_at?new Date(t.departure_at).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZone:'Asia/Manila'}):'—'), status:t.status, urgent:t.priority==='emergency', at:t.departure_at||new Date().toISOString() }))
+  ].sort((a,b)=> (b.urgent-a.urgent) || (new Date(b.at)-new Date(a.at)))
+  HX.items = items
+  HX.filter = 'all'
+
+  const ackedIds = new Set((myAckRes.data||[]).map(a=>a.memo_id))
+  const pendingMemos = (memoRes.data||[]).filter(m=>(m.target==='all'||(m.target==='department'&&m.dept_id===u.dept_id))&&!ackedIds.has(m.id))
+  const anns = (annRes.data||[]).filter(a=>!a.expires_at||new Date(a.expires_at)>=new Date()).slice(0,3)
+  const counts = {
+    csr: (csrRes.data||[]).length, maintenance:(maintRes.data||[]).length, it:(itRes.data||[]).length,
+    vts: (vtsRes.data||[]).length
   }
-  if(pendingMemos.length>0){
-    html+='<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;">'
-    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:'+(pendingMemos.length>0?'8px':'0')+';">'
-    html+='<span style="color:var(--amber);font-weight:600;">📄 '+pendingMemos.length+' memo'+(pendingMemos.length>1?'s':'')+' na kailangang basahin</span>'
-    html+='<button class="btn btn-ghost btn-sm" onclick="showPage(\'memos\')">View all →</button></div>'
-    pendingMemos.slice(0,3).forEach(m=>{
-      html+='<div style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--bdr);cursor:pointer;" onclick="showPage(\'memos\')">'
-      html+='<span>'+(m.is_urgent?'🚨':'📄')+'</span><span style="font-family:monospace;font-size:11px;color:var(--txt3);">'+esc(m.memo_no)+'</span>'
-      html+='<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(m.title)+'</span></div>'
-    })
-    html+='</div>'
+  const approvalTotal = approvals.length + vtsPending
+  const dept = S.departments.find(d=>d.id===u.dept_id)
+  const firstName = (u.full_name||'').split(' ')[0]
+
+  // ── Summary sentence ──
+  let summary
+  if (!items.length && !approvalTotal) summary = 'Wala kang nakabinbing gawain ngayon.'
+  else {
+    const parts = []
+    if (items.length) parts.push(items.length+' bukas na item'+(items.length!==1?'s':''))
+    if (approvalTotal) parts.push(approvalTotal+' naghihintay ng approval mo')
+    summary = 'May '+parts.join(' at ')+'.'
   }
-  if(announcements.length>0){
-    const annCat={general:{i:'📢',c:'var(--accent)'},urgent:{i:'🚨',c:'var(--red)'},event:{i:'📅',c:'var(--violet)'},system:{i:'⚙️',c:'var(--amber)'},policy:{i:'📜',c:'var(--green)'}}
-    html+='<div class="work-section"><h3 style="display:flex;align-items:center;justify-content:space-between;">📢 Announcements <button class="btn btn-ghost btn-sm" onclick="showPage(\'announcements\')">See all →</button></h3>'
-    announcements.slice(0,3).forEach(a=>{
-      const cm=annCat[a.category]||annCat.general
-      html+='<div class="work-item" style="border-left:3px solid '+cm.c+';cursor:pointer;" onclick="showPage(\'announcements\')">'
-      html+='<div class="work-icon" style="background:'+cm.c+'22;">'+cm.i+'</div>'
-      html+='<div style="flex:1;min-width:0;">'
-      html+='<div class="work-title">'+(a.is_pinned?'📌 ':'')+esc(a.title)+'</div>'
-      html+='<div class="work-meta">'+esc((a.body||'').substring(0,80))+((a.body||'').length>80?'...':'')+'</div></div>'
-      html+='<span style="font-size:11px;color:var(--txt3);white-space:nowrap;">'+timeAgo(a.created_at)+'</span></div>'
-    })
-    html+='</div>'
+
+  // ── Quick actions (only for systems the user can use) ──
+  const actions = [
+    acc.csr && ['csr','📋','Supply request'],
+    acc.maintenance && ['maintenance','🔧','Maintenance'],
+    acc.it && ['it','🖥️','IT ticket'],
+    ['vts','🚗','Sasakyan']
+  ].filter(Boolean)
+
+  // ── Systems launcher tiles ──
+  const sysCaption = {
+    csr: approvals.length ? approvals.length+' para sa approval mo' : 'bukas na request',
+    maintenance: 'bukas na ticket', it: 'bukas na ticket',
+    inventory: 'Assets at stock', medequip: 'Biomedical equipment',
+    vts: vtsPending ? vtsPending+' naghihintay ng approval' : 'aktibong biyahe mo'
   }
-  html+='<div class="stat-grid">'
-  html+=sC('📋','CSR Requests',csrRequests.length,'Active','var(--accent)')
-  html+=sC('🔧','Maint. Tickets',maintTickets.length,'Open','var(--amber)')
-  html+=sC('🖥️','IT Tickets',itTickets.length,'Open','var(--blue,var(--accent))')
-  html+=sC('🔔','Unread Notifs',unreadNotifs.length,'Alerts','var(--red)')
-  html+='</div>'
-  if(maintTickets.length>0){
-    html+='<div class="work-section"><h3>🔧 Maintenance Tickets</h3>'
-    maintTickets.forEach(t=>{
-      const age=Math.floor((now-new Date(t.created_at))/3600000)
-      html+='<div class="work-item '+(t.priority==='emergency'||t.priority==='urgent'?t.priority:'')+'" onclick="window.open(SYSTEMS.maintenance,\'_blank\')">'
-      html+='<div class="work-icon" style="background:var(--amber-a);">🔧</div>'
-      html+='<div style="flex:1;min-width:0;">'
-      html+='<div class="work-title">'+t.id+' — '+t.title+'</div>'
-      html+='<div class="work-meta">'+t.dept_name+' · '+age+'h ago</div></div>'
-      html+='<span class="badge badge-'+t.status+'">'+t.status.replace('_',' ')+'</span></div>'
-    })
-    html+='</div>'
-  }
-  if(itTickets.length>0){
-    html+='<div class="work-section"><h3>🖥️ IT Tickets</h3>'
-    itTickets.forEach(t=>{
-      const dept=S.departments.find(d=>d.id===t.dept_id)
-      const age=Math.floor((now-new Date(t.created_at))/3600000)
-      html+='<div class="work-item '+(t.priority==='critical'||t.priority==='high'?t.priority:'')+'" onclick="window.open(SYSTEMS.it,\'_blank\')">'
-      html+='<div class="work-icon" style="background:var(--accent-a);">🖥️</div>'
-      html+='<div style="flex:1;min-width:0;">'
-      html+='<div class="work-title">'+t.id+' — '+t.subject+'</div>'
-      html+='<div class="work-meta">'+(dept?dept.dept_name:'—')+' · '+age+'h ago</div></div>'
-      html+='<span class="badge badge-'+t.priority+'">'+t.priority+'</span></div>'
-    })
-    html+='</div>'
-  }
-  if(csrRequests.length>0){
-    html+='<div class="work-section"><h3>📋 CSR Requests</h3>'
-    csrRequests.forEach(r=>{
-      const age=Math.floor((now-new Date(r.created_at))/3600000)
-      html+='<div class="work-item '+(r.urgency==='emergency'||r.urgency==='urgent'?r.urgency:'')+'" onclick="window.open(SYSTEMS.csr,\'_blank\')">'
-      html+='<div class="work-icon" style="background:var(--green-a);">📋</div>'
-      html+='<div style="flex:1;min-width:0;">'
-      html+='<div class="work-title">'+r.request_no+' — '+(r.purpose||r.request_type)+'</div>'
-      html+='<div class="work-meta">'+r.request_type.toUpperCase()+' · '+age+'h ago</div></div>'
-      html+='<span class="badge badge-'+r.status+'">'+r.status.replace('_',' ')+'</span></div>'
-    })
-    html+='</div>'
-  }
-  if(totalPending===0){
-    html+='<div class="empty-state" style="padding:24px;"><div class="empty-icon">🎉</div><h3>All clear!</h3><p>No pending items across all systems.</p></div>'
-  }
-  content.innerHTML=html
+  const sysCount = { csr: counts.csr + approvals.length, maintenance:counts.maintenance, it:counts.it, vts: counts.vts + vtsPending }
+  const tiles = Object.keys(HX_SYS).filter(k=>acc[k]).map(k=>{
+    const s = HX_SYS[k]; const hasCount = k in sysCount
+    return '<button class="hx-sys" onclick="goSystem(\''+k+'\')" style="--tint:'+s.tint+';--tint-a:'+s.tintA+'">'
+      + '<span class="hx-chip">'+s.icon+'</span>'
+      + '<span class="hx-sys-name">'+s.name+'</span>'
+      + (hasCount ? '<span class="hx-sys-num" data-count="'+sysCount[k]+'">0</span>' : '<span class="hx-sys-open">Buksan ↗</span>')
+      + '<span class="hx-sys-cap">'+sysCaption[k]+'</span>'
+      + '</button>'
+  }).join('')
+
+  // ── Filter chips for "Mga hawak mo" ──
+  const chipDefs = [['all','Lahat',items.length]].concat(
+    ['csr','maintenance','it','vts'].filter(k=>items.some(i=>i.sys===k)).map(k=>[k,HX_SYS[k].name.split(' ')[0],items.filter(i=>i.sys===k).length]))
+  const chips = chipDefs.length>2 ? chipDefs.map(([k,l,n])=>'<button class="hx-fchip'+(k==='all'?' on':'')+'" data-f="'+k+'" onclick="hxFilter(\''+k+'\')">'+l+' <b>'+n+'</b></button>').join('') : ''
+
+  // ── Announcements ──
+  const annCat = {general:'📢',urgent:'🚨',event:'📅',system:'⚙️',policy:'📜'}
+  const annHtml = anns.length ? anns.map(a=>
+      '<div class="hx-ann" onclick="this.classList.toggle(\'open\')">'
+      + '<div class="hx-ann-hd"><span>'+(a.is_pinned?'📌 ':'')+(annCat[a.category]||'📢')+'</span><b>'+esc(a.title)+'</b><span class="hx-ann-t">'+timeAgo(a.created_at)+'</span></div>'
+      + '<div class="hx-ann-body">'+esc(a.body||'')+'</div></div>').join('')
+    : '<div class="hx-empty">Walang bagong announcement.</div>'
+
+  // ── Approvals tile ──
+  const apprHtml = approvalTotal ? (
+      approvals.slice(0,5).map(r=>{
+        const d = S.departments.find(x=>x.id===r.dept_id)
+        return '<div class="hx-row" onclick="goSystem(\'csr\')"><span class="hx-dot" style="background:'+(['urgent','emergency'].includes(r.urgency)?'var(--red)':'var(--amber)')+'"></span>'
+          + '<div class="hx-row-main"><div class="hx-row-t">'+esc(r.request_no)+' — '+esc(r.purpose||r.request_type||'')+'</div>'
+          + '<div class="hx-row-m">'+esc(d?d.dept_name:'')+', '+hxAgo(r.created_at)+'</div></div></div>'
+      }).join('')
+      + (vtsPending ? '<div class="hx-row" onclick="goSystem(\'vts\')"><span class="hx-dot" style="background:var(--accent)"></span><div class="hx-row-main"><div class="hx-row-t">'+vtsPending+' vehicle request'+(vtsPending!==1?'s':'')+'</div><div class="hx-row-m">Naghihintay sa VTS</div></div></div>' : '')
+    ) : ''
+
+  // ── Fleet tile ──
+  const nextTrip = (vtsRes.data||[]).find(t=>['assigned','approved','pending-approval'].includes(t.status))
+  const fleetHtml =
+      '<div class="hx-fleet"><div><span class="hx-big" data-count="'+(onTripRes.count||0)+'">0</span><span class="hx-big-l">nasa biyahe ngayon</span></div>'
+    + '<div><span class="hx-big" data-count="'+(availRes.count||0)+'">0</span><span class="hx-big-l">sasakyang available</span></div></div>'
+    + (nextTrip ? '<div class="hx-next">Ang susunod mong biyahe: <b>'+esc(nextTrip.ticket_no)+'</b> papuntang '+esc(nextTrip.destination||'—')+', '+hxStatus(nextTrip.status)+'.</div>' : '')
+
+  // ── Memos tile ──
+  const memoHtml = pendingMemos.slice(0,4).map(m=>
+      '<div class="hx-row" onclick="showPage(\'memos\')"><span class="hx-dot" style="background:'+(m.is_urgent?'var(--red)':'var(--amber)')+'"></span>'
+      + '<div class="hx-row-main"><div class="hx-row-t">'+esc(m.title)+'</div><div class="hx-row-m">'+esc(m.memo_no)+'</div></div></div>').join('')
+
+  let html = ''
+  html += '<section class="hx-hero"><div class="hx-hero-txt">'
+       +    '<h1 class="hx-greet">'+hxGreeting()+', '+esc(firstName)+'</h1>'
+       +    '<p class="hx-sum">'+summary+(dept?' <span class="hx-dept">'+esc(dept.dept_name)+'</span>':'')+'</p>'
+       +  '</div><div class="hx-actions">'
+       +    actions.map(([k,ic,l])=>'<button class="hx-act" onclick="goSystem(\''+k+'\')"><span>'+ic+'</span>'+l+'</button>').join('')
+       +  '</div></section>'
+  html += '<section class="hx-systems" aria-label="Systems">'+tiles+'</section>'
+  html += '<section class="hx-bento">'
+  html +=   '<article class="hx-tile hx-work"><header class="hx-tile-hd"><h3>Mga hawak mo</h3><div class="hx-fchips">'+chips+'</div></header>'
+       +    '<div class="hx-list" id="hxList"></div></article>'
+  html +=   '<article class="hx-tile hx-anns"><header class="hx-tile-hd"><h3>Announcements</h3><button class="hx-link" onclick="showPage(\'announcements\')">Tingnan lahat</button></header>'+annHtml+'</article>'
+  if (approvalTotal)
+    html += '<article class="hx-tile hx-appr"><header class="hx-tile-hd"><h3>Para sa approval mo</h3><span class="hx-pill" data-count="'+approvalTotal+'">0</span></header>'+apprHtml+'</article>'
+  html +=   '<article class="hx-tile hx-click" onclick="goSystem(\'vts\')"><header class="hx-tile-hd"><h3>Sasakyan ngayon</h3><span class="hx-link">Buksan ang VTS ↗</span></header>'+fleetHtml+'</article>'
+  if (pendingMemos.length)
+    html += '<article class="hx-tile"><header class="hx-tile-hd"><h3>Memos na babasahin</h3><span class="hx-pill" data-count="'+pendingMemos.length+'">0</span></header>'+memoHtml+'</article>'
+  html += '</section>'
+
+  content.innerHTML = html
+  hxDrawList()
+  hxCountUp(content)
+}
+
+function hxFilter(f){
+  HX.filter = f
+  document.querySelectorAll('.hx-fchip').forEach(b=>b.classList.toggle('on', b.dataset.f===f))
+  hxDrawList()
+}
+function hxDrawList(){
+  const el = document.getElementById('hxList'); if (!el) return
+  const list = HX.items.filter(i=>HX.filter==='all'||i.sys===HX.filter)
+  if (!list.length){ el.innerHTML = '<div class="hx-empty">Wala kang bukas na item. Gumawa ng bagong request gamit ang mga button sa itaas.</div>'; return }
+  el.innerHTML = list.slice(0,12).map(i=>{
+    const s = HX_SYS[i.sys]
+    return '<div class="hx-row'+(i.urgent?' urgent':'')+'" onclick="goSystem(\''+i.sys+'\')">'
+      + '<span class="hx-mini" style="--tint:'+s.tint+';--tint-a:'+s.tintA+'">'+s.icon+'</span>'
+      + '<div class="hx-row-main"><div class="hx-row-t">'+esc(i.title)+'</div><div class="hx-row-m">'+esc(i.meta)+(i.meta?', ':'')+hxAgo(i.at)+'</div></div>'
+      + '<span class="hx-st">'+esc(hxStatus(i.status))+'</span></div>'
+  }).join('') + (list.length>12 ? '<div class="hx-more">May '+(list.length-12)+' pa. Buksan ang system para makita lahat.</div>' : '')
+}
+function hxCountUp(root){
+  const els = root.querySelectorAll('[data-count]')
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  els.forEach(el=>{
+    const target = Number(el.dataset.count)||0
+    if (reduce || target === 0){ el.textContent = target; return }
+    const t0 = performance.now(), dur = 700
+    const step = now => {
+      const p = Math.min(1,(now-t0)/dur), e = 1-Math.pow(1-p,3)
+      el.textContent = Math.round(target*e)
+      if (p < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  })
 }
 
 function timeAgo(iso){
@@ -801,218 +983,6 @@ function timeAgo(iso){
   if(s<86400)return Math.floor(s/3600)+'h'
   if(s<604800)return Math.floor(s/86400)+'d'
   return new Date(iso).toLocaleDateString('en-PH',{month:'short',day:'numeric'})
-}
-
-async function renderNotifications(){
-  const content=document.getElementById('mainContent')
-  const{data}=await SB.from('notifications').select('*').eq('user_id',S.user.id).order('created_at',{ascending:false}).limit(50)
-  const all=data||[]
-  await SB.from('notifications').update({is_read:true}).eq('user_id',S.user.id).eq('is_read',false)
-  updateNotifBadge(0)
-  const icons={info:'ℹ️',warning:'⚠️',success:'✅',error:'❌',action_required:'🔔'}
-  const sysIcons={csr:'📋',maintenance:'🔧',it:'🖥️',inventory:'🏷️',system:'🏥'}
-  let html='<div class="page-header"><h2>🔔 Notifications</h2>'
-  html+='<button class="btn btn-ghost btn-sm" onclick="clearAllNotifs()">Clear All</button></div>'
-  if(all.length===0){
-    html+='<div class="empty-state"><div class="empty-icon">🔔</div><h3>No notifications</h3><p>You\'re all caught up!</p></div>'
-  } else {
-    html+='<div style="display:flex;flex-direction:column;gap:8px;">'
-    all.forEach(n=>{
-      const ago=Math.floor((Date.now()-new Date(n.created_at))/60000)
-      const timeStr=ago<60?ago+'m ago':ago<1440?Math.floor(ago/60)+'h ago':Math.floor(ago/1440)+'d ago'
-      html+='<div style="display:flex;gap:12px;padding:14px;background:var(--surf1);border:1px solid '+(n.is_read?'var(--bdr)':'var(--bdr2)')+';border-radius:12px;'+(n.action_url?'cursor:pointer;':'')+(n.is_read?'opacity:.7':'')+'" '
-      if(n.action_url)html+='onclick="window.open(\''+n.action_url+'\',\'_blank\')"'
-      html+='>'
-      html+='<div style="font-size:20px;flex-shrink:0;">'+(icons[n.type]||'ℹ️')+'</div>'
-      html+='<div style="flex:1;min-width:0;">'
-      html+='<div style="font-size:13px;font-weight:600;margin-bottom:2px;">'+n.title+'</div>'
-      if(n.body)html+='<div style="font-size:12px;color:var(--txt2);margin-bottom:4px;">'+n.body+'</div>'
-      html+='<div style="font-size:11px;color:var(--txt3);display:flex;gap:10px;">'
-      html+='<span>'+(sysIcons[n.source_system]||'')+'</span><span>'+timeStr+'</span>'
-      if(n.action_url)html+='<span style="color:var(--accent);">View →</span>'
-      html+='</div></div></div>'
-    })
-    html+='</div>'
-  }
-  content.innerHTML=html
-}
-
-async function clearAllNotifs(){
-  await SB.from('notifications').delete().eq('user_id',S.user.id)
-  showToast('success','Cleared','All notifications cleared.')
-  showPage('notifications')
-}
-
-async function renderDeptView(){
-  const content=document.getElementById('mainContent')
-  const isAdmin=S.user.csr_role==='admin'||S.user.maintenance_role==='admin'||S.user.it_role==='admin'||S.user.inventory_role==='admin'
-  const depts=isAdmin?S.departments:S.departments.filter(d=>d.id===S.user.dept_id)
-  let html='<div class="page-header"><h2>🏢 Department View</h2>'
-  if(!isAdmin)html+='<span style="font-size:12px;color:var(--txt2);">Showing your department only</span>'
-  html+='</div>'
-  for(const dept of depts){
-    const[maintRes,itRes,csrRes,assetRes]=await Promise.all([
-      SB.from('maint_tickets').select('id,status,priority').eq('dept_id',dept.id).not('status','in','("closed","cancelled")'),
-      SB.from('it_tickets').select('id,status,priority').eq('dept_id',dept.id).not('status','in','("closed","cancelled")'),
-      SB.from('requests').select('id,status,urgency').eq('dept_id',dept.id).not('status','in','("issued","cancelled")'),
-      SB.from('assets').select('id,status').eq('dept_id',dept.id).eq('is_active',true)
-    ])
-    const maint=maintRes.data||[]
-    const it=itRes.data||[]
-    const csr=csrRes.data||[]
-    const assets=assetRes.data||[]
-    const critical=maint.filter(t=>['emergency','urgent'].includes(t.priority)).length+
-                   it.filter(t=>['critical','high'].includes(t.priority)).length
-    html+='<div class="card" style="margin-bottom:14px;">'
-    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
-    html+='<div><div style="font-size:16px;font-weight:700;">🏢 '+dept.dept_name+'</div>'
-    if(dept.dept_code)html+='<div style="font-size:11px;color:var(--txt2);">'+dept.dept_code+'</div>'
-    html+='</div>'
-    if(critical>0)html+='<span class="badge badge-critical">⚠️ '+critical+' critical</span>'
-    html+='</div>'
-    html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">'
-    html+=deptStat('🔧',maint.length,'Maint.','var(--amber)')
-    html+=deptStat('🖥️',it.length,'IT','var(--accent)')
-    html+=deptStat('📋',csr.length,'CSR','var(--green)')
-    html+=deptStat('🏷️',assets.length,'Assets','var(--violet)')
-    html+='</div>'
-    const critItems=[...maint.filter(t=>['emergency','urgent'].includes(t.priority)),...it.filter(t=>['critical','high'].includes(t.priority))]
-    if(critItems.length>0){
-      html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bdr);">'
-      html+='<div style="font-size:11px;font-weight:600;color:var(--red);margin-bottom:8px;">⚠️ CRITICAL ITEMS</div>'
-      critItems.slice(0,3).forEach(t=>{
-        html+='<div style="font-size:12px;color:var(--txt2);margin-bottom:4px;">• '+t.id+' — '+t.status+'</div>'
-      })
-      html+='</div>'
-    }
-    html+='</div>'
-  }
-  content.innerHTML=html
-}
-function deptStat(icon,count,label,color){
-  return '<div style="background:var(--surf2);border-radius:9px;padding:10px;text-align:center;">'
-    +'<div style="font-size:18px;font-weight:700;color:'+color+';">'+count+'</div>'
-    +'<div style="font-size:11px;color:var(--txt2);">'+icon+' '+label+'</div></div>'
-}
-
-async function renderHandover(){
-  const content=document.getElementById('mainContent')
-  const{data}=await SB.from('shift_handover_notes').select('*').order('created_at',{ascending:false}).limit(30)
-  const all=data||[]
-  const pending=all.filter(n=>!n.received_at&&n.received_by===S.user.id)
-  let html='<div class="page-header"><h2>🔄 Shift Handover</h2>'
-  html+='<button class="btn btn-primary" onclick="openHandoverForm()">✍️ Write Handover Note</button></div>'
-  if(pending.length>0){
-    html+='<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:12px 16px;margin-bottom:16px;">'
-    html+='<strong style="color:var(--amber);">🔄 '+pending.length+' handover note(s) pending your acknowledgment</strong></div>'
-  }
-  if(all.length===0){
-    html+='<div class="empty-state"><div class="empty-icon">🔄</div><h3>No handover notes yet</h3></div>'
-  } else {
-    html+='<div style="display:flex;flex-direction:column;gap:8px;">'
-    all.forEach(n=>{
-      const writer=S.users.find(u=>u.id===n.written_by)
-      const receiver=S.users.find(u=>u.id===n.received_by)
-      const dept=S.departments.find(d=>d.id===n.dept_id)
-      const isPending=!n.received_at&&n.received_by===S.user.id
-      html+='<div class="handover-card'+(n.is_urgent?' urgent':'')+'" onclick="viewHandover(\''+n.id+'\')">'
-      html+='<div style="display:flex;justify-content:space-between;margin-bottom:8px;">'
-      html+='<div style="display:flex;gap:8px;align-items:center;">'
-      html+='<span style="font-size:13px;font-weight:600;">'+SHIFT_ICONS[n.shift_type||'morning']+' '+(n.shift_type||'').replace(/\b\w/g,l=>l.toUpperCase())+' Shift</span>'
-      if(n.is_urgent)html+='<span class="badge badge-critical">URGENT</span>'
-      if(isPending)html+='<span class="badge badge-pending">⏳ Needs Acknowledgment</span>'
-      html+='</div>'
-      html+='<span style="font-size:11px;color:var(--txt2);">'+formatDate(n.created_at)+'</span>'
-      html+='</div>'
-      html+='<div style="font-size:12px;color:var(--txt2);margin-bottom:6px;">From: '+( writer?writer.full_name:'—')+' → To: '+(receiver?receiver.full_name:'—')+'</div>'
-      html+='<div style="font-size:13px;">'+(n.notes||'').substring(0,120)+(n.notes?.length>120?'...':'')+'</div>'
-      if(dept)html+='<div style="font-size:11px;color:var(--txt3);margin-top:6px;">🏢 '+dept.dept_name+'</div>'
-      html+='</div>'
-    })
-    html+='</div>'
-  }
-  content.innerHTML=html
-}
-
-const SHIFT_ICONS={morning:'☀️',afternoon:'🌤️',night:'🌙',relief:'🔄'}
-
-function openHandoverForm(){
-  document.getElementById('modalTitle').textContent='✍️ Write Shift Handover Note'
-  const shiftOpts=['morning','afternoon','night','relief']
-  let html='<div class="field-row">'
-  html+='<div class="field"><label>Department</label><select id="h_dept"><option value="">— Select —</option>'
-  S.departments.forEach(d=>{const sel=d.id===S.user.dept_id?' selected':'';html+='<option value="'+d.id+'"'+sel+'>'+d.dept_name+'</option>'})
-  html+='</select></div>'
-  html+='<div class="field"><label>Shift</label><select id="h_shift">'
-  shiftOpts.forEach(s=>{html+='<option value="'+s+'">'+SHIFT_ICONS[s]+' '+s.replace(/\b\w/g,l=>l.toUpperCase())+'</option>'})
-  html+='</select></div></div>'
-  html+='<div class="field"><label>Hand Over To (Receiver)</label><select id="h_receiver"><option value="">— Select —</option>'
-  S.users.forEach(u=>{html+='<option value="'+u.id+'">'+u.full_name+'</option>'})
-  html+='</select></div>'
-  html+='<div class="field"><label>Notes *</label><textarea id="h_notes" rows="5" placeholder="Write handover notes here — pending tasks, ongoing issues, important events during your shift..."></textarea></div>'
-  html+='<div class="field"><label>Urgent?</label>'
-  html+='<label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="h_urgent" style="width:16px;height:16px;accent-color:var(--red);"> <span style="font-size:13px;">Mark as urgent</span></label></div>'
-  document.getElementById('modalBody').innerHTML=html
-  document.getElementById('modalFooter').innerHTML=
-    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>'+
-    '<button class="btn btn-primary" onclick="saveHandover()">📤 Submit Handover</button>'
-  openModal('mainModal')
-}
-
-async function saveHandover(){
-  const notes=document.getElementById('h_notes')?.value.trim()
-  const deptId=document.getElementById('h_dept')?.value
-  const shift=document.getElementById('h_shift')?.value
-  const receiverId=document.getElementById('h_receiver')?.value
-  const urgent=document.getElementById('h_urgent')?.checked
-  if(!notes){showToast('error','Required','Please write handover notes.');return}
-  await SB.from('shift_handover_notes').insert({
-    dept_id:deptId||null,shift_type:shift||'morning',
-    written_by:S.user.id,received_by:receiverId||null,
-    notes,is_urgent:urgent||false,shift_date:new Date().toISOString().split('T')[0]
-  })
-  if(receiverId){
-    await SB.from('notifications').insert({
-      user_id:receiverId,title:'🔄 Shift Handover from '+S.user.full_name,
-      body:notes.substring(0,80)+'...',
-      type:urgent?'action_required':'info',source_system:'system'
-    })
-  }
-  closeModal('mainModal')
-  showToast('success','Handover Submitted','Receiver has been notified.')
-  showPage('handover')
-}
-
-async function viewHandover(id){
-  const{data:n}=await SB.from('shift_handover_notes').select('*').eq('id',id).single()
-  if(!n)return
-  const writer=S.users.find(u=>u.id===n.written_by)
-  const receiver=S.users.find(u=>u.id===n.received_by)
-  const dept=S.departments.find(d=>d.id===n.dept_id)
-  const isPending=!n.received_at&&n.received_by===S.user.id
-  document.getElementById('modalTitle').textContent=SHIFT_ICONS[n.shift_type||'morning']+' Handover Note'
-  let body='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">'
-  body+=iF('From',writer?writer.full_name:'—')
-  body+=iF('To',receiver?receiver.full_name:'—')
-  body+=iF('Shift',(n.shift_type||'').replace(/\b\w/g,l=>l.toUpperCase()))
-  body+=iF('Date',formatDate(n.created_at))
-  body+=iF('Department',dept?dept.dept_name:'—')
-  body+=iF('Status',n.received_at?'✅ Acknowledged':'⏳ Pending')
-  body+='</div>'
-  if(n.is_urgent)body+='<div style="background:var(--red-a);border:1px solid var(--red);border-radius:8px;padding:8px 12px;margin-bottom:12px;color:var(--red);font-weight:600;">⚠️ URGENT</div>'
-  body+='<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:14px;white-space:pre-wrap;font-size:13px;">'+n.notes+'</div>'
-  document.getElementById('modalBody').innerHTML=body
-  let footer='<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Close</button>'
-  if(isPending)footer+='<button class="btn btn-success" onclick="acknowledgeHandover(\''+id+'\')">✅ Acknowledge</button>'
-  document.getElementById('modalFooter').innerHTML=footer
-  openModal('mainModal')
-}
-
-async function acknowledgeHandover(id){
-  await SB.from('shift_handover_notes').update({received_at:new Date().toISOString()}).eq('id',id)
-  closeModal('mainModal')
-  showToast('success','Acknowledged','Handover note acknowledged.')
-  showPage('handover')
 }
 
 function renderSearch(){
@@ -1188,192 +1158,6 @@ function renderBar(canvasId,labels,data){
   if(!ctx)return
   const chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:'rgba(34,34,168,0.7)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'var(--txt2)',font:{size:11}}},y:{ticks:{color:'var(--txt2)',font:{size:11}},grid:{color:'var(--bdr)'}}}}})
   S.charts[canvasId]=chart
-}
-
-async function renderBudget(){
-  const content=document.getElementById('mainContent')
-  const now=new Date()
-  const yr=now.getFullYear()
-  const[budgetRes,spendRes]=await Promise.all([
-    SB.from('dept_budgets').select('*').eq('budget_year',yr),
-    SB.from('requests').select('request_items(estimated_cost,actual_cost),dept_id,request_type').not('status','in','("draft","cancelled")')
-  ])
-  const budgets=budgetRes.data||[]
-  const spends=spendRes.data||[]
-  const deptSpend={}
-  spends.forEach(r=>{
-    if(!r.dept_id)return
-    const items=r.request_items||[]
-    const total=items.reduce((s,i)=>s+Number(i.actual_cost||i.estimated_cost||0),0)
-    deptSpend[r.dept_id]=(deptSpend[r.dept_id]||0)+total
-  })
-  let html='<div class="page-header"><h2>💰 Budget Tracking</h2><button class="btn btn-primary btn-sm" onclick="openBudgetForm()">＋ Set Budget</button></div>'
-  if(budgets.length===0&&Object.keys(deptSpend).length===0){
-    html+='<div class="empty-state"><div class="empty-icon">💰</div><h3>No budget data yet</h3><p>Set department budgets to start tracking.</p></div>'
-  } else {
-    const allDepts=[...new Set([...budgets.map(b=>b.dept_id),...Object.keys(deptSpend)])]
-    allDepts.forEach(deptId=>{
-      const dept=S.departments.find(d=>d.id===deptId)
-      if(!dept)return
-      const deptBudgets=budgets.filter(b=>b.dept_id===deptId)
-      const totalBudget=deptBudgets.reduce((s,b)=>s+Number(b.total_budget||0),0)
-      const spent=deptSpend[deptId]||0
-      const pct=totalBudget>0?Math.min(100,Math.round(spent/totalBudget*100)):0
-      const color=pct>=90?'var(--red)':pct>=70?'var(--amber)':'var(--green)'
-      html+='<div class="card" style="margin-bottom:12px;">'
-      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">'
-      html+='<div style="font-weight:600;">🏢 '+dept.dept_name+'</div>'
-      html+='<div style="font-size:12px;color:var(--txt2);">₱'+spent.toLocaleString()+' / ₱'+totalBudget.toLocaleString()+'</div>'
-      html+='</div>'
-      if(totalBudget>0){
-        html+='<div class="budget-track"><div class="budget-fill" style="width:'+pct+'%;background:'+color+';"></div></div>'
-        html+='<div style="font-size:11px;color:'+color+';margin-top:4px;">'+pct+'% utilized</div>'
-      } else {
-        html+='<div style="font-size:12px;color:var(--txt3);">No budget set — ₱'+spent.toLocaleString()+' spent</div>'
-      }
-      html+='</div>'
-    })
-  }
-  content.innerHTML=html
-}
-
-function openBudgetForm(){
-  document.getElementById('modalTitle').textContent='💰 Set Department Budget'
-  let html='<div class="field"><label>Department</label><select id="b_dept"><option value="">— Select —</option>'
-  S.departments.forEach(d=>{html+='<option value="'+d.id+'">'+d.dept_name+'</option>'})
-  html+='</select></div>'
-  html+='<div class="field-row">'
-  html+='<div class="field"><label>Year</label><input type="number" id="b_year" value="'+new Date().getFullYear()+'" min="2024"></div>'
-  html+='<div class="field"><label>Category</label><select id="b_cat">'
-  ;['general','supplies','equipment','maintenance','it','other'].forEach(c=>{html+='<option value="'+c+'">'+c.charAt(0).toUpperCase()+c.slice(1)+'</option>'})
-  html+='</select></div></div>'
-  html+='<div class="field"><label>Total Budget (₱)</label><input type="number" id="b_amount" placeholder="0" min="0"></div>'
-  html+='<div class="field"><label>Notes</label><input type="text" id="b_notes" placeholder="Optional"></div>'
-  document.getElementById('modalBody').innerHTML=html
-  document.getElementById('modalFooter').innerHTML=
-    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>'+
-    '<button class="btn btn-primary" onclick="saveBudget()">Save Budget</button>'
-  openModal('mainModal')
-}
-
-async function saveBudget(){
-  const deptId=document.getElementById('b_dept')?.value
-  const yr=Number(document.getElementById('b_year')?.value)
-  const cat=document.getElementById('b_cat')?.value
-  const amount=Number(document.getElementById('b_amount')?.value)
-  if(!deptId){showToast('error','Required','Please select a department.');return}
-  await SB.from('dept_budgets').upsert({
-    dept_id:deptId,budget_year:yr,category:cat||'general',
-    total_budget:amount,created_by:S.user.id
-  },{onConflict:'dept_id,budget_year,budget_month,category'})
-  closeModal('mainModal')
-  showToast('success','Budget Saved','Department budget updated.')
-  showPage('budget')
-}
-
-async function renderRoomView(){
-  const content=document.getElementById('mainContent')
-  const{data:locations}=await SB.from('locations').select('*').eq('is_active',true).order('name')
-  const locs=locations||[]
-  let html='<div class="page-header"><h2>📍 Room / Location View</h2>'
-  if(S.user.inventory_role||S.user.it_role){
-    html+='<button class="btn btn-primary btn-sm" onclick="openLocationForm()">＋ Add Location</button>'
-  }
-  html+='</div>'
-  if(locs.length===0){
-    html+='<div class="empty-state"><div class="empty-icon">📍</div><h3>No locations registered yet</h3>'
-    html+='<p>Add rooms and locations to track asset placements.</p></div>'
-  } else {
-    const{data:assets}=await SB.from('assets').select('id,asset_no,asset_name,status,location_id').eq('is_active',true)
-    const assetsByLoc={}
-    ;(assets||[]).forEach(a=>{
-      if(a.location_id){assetsByLoc[a.location_id]=(assetsByLoc[a.location_id]||[]);assetsByLoc[a.location_id].push(a)}
-    })
-    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">'
-    locs.forEach(loc=>{
-      const dept=S.departments.find(d=>d.id===loc.dept_id)
-      const locAssets=assetsByLoc[loc.id]||[]
-      const underRepair=locAssets.filter(a=>a.status==='under_repair').length
-      html+='<div class="card" style="cursor:pointer;" onclick="viewLocation(\''+loc.id+'\')">'
-      html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">'
-      html+='<div>'
-      html+='<div style="font-size:15px;font-weight:700;">📍 '+loc.name+'</div>'
-      html+='<div style="font-size:11px;color:var(--txt3);font-family:monospace;">'+loc.code+'</div>'
-      html+='</div>'
-      if(underRepair>0)html+='<span class="badge badge-in_progress">'+underRepair+' in repair</span>'
-      html+='</div>'
-      if(dept)html+='<div style="font-size:12px;color:var(--txt2);margin-bottom:8px;">🏢 '+dept.dept_name+'</div>'
-      if(loc.floor)html+='<div style="font-size:12px;color:var(--txt2);margin-bottom:8px;">🏗 Floor '+loc.floor+'</div>'
-      html+='<div style="font-size:13px;font-weight:600;color:var(--accent);">'+locAssets.length+' assets</div>'
-      html+='</div>'
-    })
-    html+='</div>'
-  }
-  content.innerHTML=html
-}
-
-async function viewLocation(locId){
-  const{data:loc}=await SB.from('locations').select('*').eq('id',locId).single()
-  const{data:assets}=await SB.from('assets').select('*').eq('location_id',locId).eq('is_active',true)
-  if(!loc)return
-  const dept=S.departments.find(d=>d.id===loc.dept_id)
-  document.getElementById('modalTitle').textContent='📍 '+loc.name
-  let body='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">'
-  body+=iF('Location Code','<span style="font-family:monospace;">'+loc.code+'</span>')
-  body+=iF('Department',dept?dept.dept_name:'—')
-  body+=iF('Floor',loc.floor||'—')
-  body+=iF('Building',loc.building||'Main')
-  body+='</div>'
-  if(loc.description)body+='<p style="font-size:13px;color:var(--txt2);margin-bottom:16px;">'+loc.description+'</p>'
-  body+='<div style="font-size:12px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Assets in this Location ('+( assets?.length||0)+')</div>'
-  if(!assets||assets.length===0){
-    body+='<div style="color:var(--txt3);font-size:13px;">No assets assigned to this location.</div>'
-  } else {
-    body+='<div class="table-wrap"><table><thead><tr><th>Asset No.</th><th>Name</th><th>Status</th></tr></thead><tbody>'
-    assets.forEach(a=>{
-      body+='<tr><td class="td-mono">'+a.asset_no+'</td><td>'+a.asset_name+'</td>'
-      body+='<td><span class="badge badge-'+a.status+'">'+a.status+'</span></td></tr>'
-    })
-    body+='</tbody></table></div>'
-  }
-  document.getElementById('modalBody').innerHTML=body
-  document.getElementById('modalFooter').innerHTML='<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Close</button>'
-  openModal('mainModal')
-}
-
-function openLocationForm(){
-  document.getElementById('modalTitle').textContent='📍 Add Location / Room'
-  let html='<div class="field"><label>Room / Location Name *</label><input type="text" id="l_name" placeholder="e.g. Room 301, ICU, OR 1"></div>'
-  html+='<div class="field-row">'
-  html+='<div class="field"><label>Floor</label><input type="text" id="l_floor" placeholder="3rd, Ground, etc."></div>'
-  html+='<div class="field"><label>Building</label><input type="text" id="l_building" value="Main"></div>'
-  html+='</div>'
-  html+='<div class="field"><label>Department</label><select id="l_dept"><option value="">— Select —</option>'
-  S.departments.forEach(d=>{html+='<option value="'+d.id+'">'+d.dept_name+'</option>'})
-  html+='</select></div>'
-  html+='<div class="field"><label>Description</label><textarea id="l_desc" rows="2" placeholder="Optional description"></textarea></div>'
-  document.getElementById('modalBody').innerHTML=html
-  document.getElementById('modalFooter').innerHTML=
-    '<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button>'+
-    '<button class="btn btn-primary" onclick="saveLocation()">Add Location</button>'
-  openModal('mainModal')
-}
-
-async function saveLocation(){
-  const name=document.getElementById('l_name')?.value.trim()
-  if(!name){showToast('error','Required','Please enter a location name.');return}
-  const code='LOC-'+name.replace(/[^A-Z0-9]/gi,'').toUpperCase().substring(0,8)+'-'+Date.now().toString().slice(-4)
-  await SB.from('locations').insert({
-    name,code,
-    floor:document.getElementById('l_floor')?.value.trim()||null,
-    building:document.getElementById('l_building')?.value.trim()||'Main',
-    dept_id:document.getElementById('l_dept')?.value||null,
-    description:document.getElementById('l_desc')?.value.trim()||null,
-    qr_code:code
-  })
-  closeModal('mainModal')
-  showToast('success','Location Added','📍 '+name+' added.')
-  showPage('room_view')
 }
 
 function canPost(){
@@ -2519,27 +2303,6 @@ async function doResetPwd(userId){
 function esc(s){
   if(s==null)return''
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-}
-
-async function loadNotifCount(){
-  const{data}=await SB.from('notifications').select('id').eq('user_id',S.user.id).eq('is_read',false)
-  const count=(data||[]).length
-  updateNotifBadge(count)
-}
-
-function updateNotifBadge(count){
-  const badge=document.getElementById('notifBadge')
-  const navBadge=document.getElementById('notifNavBadge')
-  if(badge){badge.textContent=count>9?'9+':count;badge.style.display=count>0?'flex':'none'}
-  if(navBadge){navBadge.textContent=count>9?'9+':count;navBadge.style.display=count>0?'':'none'}
-}
-
-function subscribeNotifications(){
-  SB.channel('hub-notif-'+S.user.id)
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+S.user.id},(payload)=>{
-      showToast('info',payload.new.title,payload.new.body||'')
-      loadNotifCount()
-    }).subscribe()
 }
 
 function sC(icon,label,val,sub,color){
