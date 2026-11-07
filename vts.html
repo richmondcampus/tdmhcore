@@ -239,6 +239,16 @@ body.dark .b-overdue{background:rgba(225,29,72,.15);color:#fb7185;border-color:r
 /* ── GPS dot ── */
 .ping{width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;position:relative}
 .gps-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}
+.gps-map{height:clamp(420px,calc(100vh - 200px),900px);width:100%;background:var(--bg)}
+.gps-legend{position:absolute;left:10px;bottom:10px;z-index:500;display:flex;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:11px;color:var(--text2)}
+.gps-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.gps-pin{position:relative}
+.gps-dot{position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35)}
+.gps-arrow{position:absolute;left:50%;top:50%;width:0;height:0;margin:-17px 0 0 -5px;border:5px solid transparent;border-bottom:8px solid;transform-origin:50% 17px}
+.gps-tag{position:absolute;left:12px;top:-10px;white-space:nowrap;background:#0f172a;color:#fff;font:700 10.5px/1 system-ui,sans-serif;padding:3px 6px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.gps-home-tip{font-weight:700;font-size:11px}
+.gps-card{display:block;width:100%;text-align:left;font-family:inherit;color:var(--text);background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;cursor:pointer}
+.gps-card:hover{background:var(--bg)}
 @media(max-width:860px){.gps-grid{grid-template-columns:1fr}}
 .ping::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--green);animation:pinga 1.6s ease-out infinite}
 @keyframes pinga{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(2.3)}}
@@ -839,6 +849,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 })
 
 async function handleSignOut() {
+  if (typeof gpsLeave === 'function') gpsLeave()
   if (!confirm('Sign out?')) return
   try { await SB.auth.signOut() } catch(e) {}
   localStorage.removeItem('vts_user')  // clean up legacy session key
@@ -1036,6 +1047,7 @@ function updateNavBadge(count) {
 }
 
 function goTo(page) {
+  if (page !== 'gps' && typeof gpsLeave === 'function') gpsLeave()
   // Guard: if user is on new-ticket page with unsaved input, confirm before leaving
   if (currentPage === 'new-ticket' && page !== 'new-ticket') {
     const hasInput = [
@@ -7225,76 +7237,178 @@ async function deleteDept(id, name) {
 
 
 // ════════════════════════════════════════════════
-// GPS — live AKSH (aika168) monitor + vehicles physically outside right now
-// The monitor link is a credential, so it lives in vts_settings (RLS: admin, super_approver, guard), never in this public file.
+// GPS — live map from AKSH (aika168) via the vts-gps edge function.
+// The AKSH login lives in Supabase secrets; the browser only ever sees positions for VTS admin / super approver / guard.
 // ════════════════════════════════════════════════
 const gpsEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const GPS_HOME = { lat: 14.5735, lng: 121.1252, radiusM: 250, label: 'TDMH' }   // hospital motor pool
+const GPS_REFRESH_MS = 30000
+const GPS_COLORS = { Move: '#16a34a', Stop: '#2563eb', Offline: '#94a3b8' }
+const GPS_LABEL = { Move: 'Umaandar', Stop: 'Nakahinto', Offline: 'Offline' }
+let GPS = { map: null, markers: {}, data: [], timer: null, selected: null, home: null }
+
+function gpsLeave() {
+  if (GPS.timer) { clearInterval(GPS.timer); GPS.timer = null }
+  if (GPS.map) { GPS.map.remove(); GPS.map = null; GPS.markers = {} }
+}
+function gpsDistM(a, b) {
+  const R = 6371000, r = x => x * Math.PI / 180
+  const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng)
+  const h = Math.sin(dLat/2)**2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng/2)**2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+function gpsAgo(iso) {
+  if (!iso) return '—'
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000))
+  if (m < 1) return 'ngayon lang'
+  if (m < 60) return m + ' min ang nakalipas'
+  if (m < 1440) return Math.floor(m / 60) + ' oras ang nakalipas'
+  return Math.floor(m / 1440) + ' araw ang nakalipas'
+}
+function gpsLoadLeaflet() {
+  if (window.L) return Promise.resolve()
+  return new Promise((res, rej) => {
+    const css = document.createElement('link'); css.rel = 'stylesheet'
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(css)
+    const js = document.createElement('script'); js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'
+    js.onload = res; js.onerror = () => rej(new Error('Hindi ma-load ang map library')); document.head.appendChild(js)
+  })
+}
+// Enrich each device with where it is relative to TDMH and whether that matches the VTS trip state
+function gpsAnalyse(d) {
+  const has = isFinite(d.lat) && isFinite(d.lng) && (d.lat || d.lng)
+  const dist = has ? gpsDistM(GPS_HOME, d) : null
+  const atHome = dist != null && dist <= GPS_HOME.radiusM
+  let flag = null
+  if (d.trip && atHome && d.gps_status !== 'Offline') flag = { lvl: 'warn', txt: 'Nasa TDMH na pero hindi pa na-gate-in.' }
+  else if (!d.trip && !atHome && d.gps_status === 'Move' && d.vehicle_id) flag = { lvl: 'bad', txt: 'Umaandar sa labas pero walang trip sa VTS.' }
+  else if (!d.trip && !atHome && d.gps_status !== 'Offline' && d.vehicle_id) flag = { lvl: 'warn', txt: 'Nasa labas pero walang trip sa VTS.' }
+  else if (d.gps_status === 'Offline') flag = { lvl: 'mute', txt: 'Walang signal mula sa GPS ' + gpsAgo(d.last_at) + '.' }
+  return { ...d, has, dist, atHome, flag }
+}
 
 async function renderGPS() {
+  gpsLeave()
   const C = document.getElementById('CONTENT')
-  C.innerHTML = `<div style="color:var(--text3);padding:40px;text-align:center;font-size:13px">${hourglass()}<div style="margin-top:10px">Loading GPS...</div></div>`
-  const [cfgRes, outRes] = await Promise.all([
-    SB.from('vts_settings').select('value').eq('key', 'gps_monitor_url').maybeSingle(),
-    SB.from('vts_trips').select('ticket_no,destination,driver_name,gate_out_at,priority,vehicle:vts_vehicles(plate,name)')
-      .eq('status', 'on-trip').not('gate_out_at', 'is', null).is('gate_in_at', null).order('gate_out_at', { ascending: true })
-  ])
-  const url = cfgRes.data?.value || ''
-  const out = outRes.data || []
+  const { data: cfg } = await SB.from('vts_settings').select('value').eq('key', 'gps_monitor_url').maybeSingle()
+  window._gpsUrl = cfg?.value || ''
   const isAdmin = currentProfile?.role === 'admin'
-  window._gpsUrl = url
-
-  const outList = out.length ? out.map(t => {
-    const mins = Math.max(0, (Date.now() - new Date(t.gate_out_at)) / 60000)
-    const long = mins > 360
-    return `<div style="background:var(--card);border:1px solid ${long ? 'var(--amber)' : 'var(--border)'};border-radius:12px;padding:11px 12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <span style="font-size:12.5px;font-weight:700">${gpsEsc(t.vehicle?.plate || '—')}</span>
-        <span style="font-size:11px;font-weight:700;color:${long ? 'var(--amber)' : 'var(--text2)'}">${fmtMins(mins)} na</span>
-      </div>
-      <div style="font-size:11.5px;color:var(--text2);margin-top:2px">${gpsEsc(t.vehicle?.name || '')}</div>
-      <div style="font-size:11.5px;margin-top:6px">${gpsEsc(t.driver_name || '—')} papuntang <strong>${gpsEsc(t.destination || '—')}</strong></div>
-      <div style="font-size:10.5px;color:var(--text3);margin-top:3px">${gpsEsc(t.ticket_no)}, gate-out ${new Date(t.gate_out_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' })}</div>
-      ${long ? `<div style="font-size:10.5px;color:var(--amber);margin-top:5px;font-weight:600">Mahigit 6 na oras na. Pakicheck kung nakabalik na at hindi lang na-gate-in.</div>` : ''}
-    </div>`
-  }).join('') : `<div style="font-size:12px;color:var(--text3);padding:12px;background:var(--card);border:1px solid var(--border);border-radius:12px">Walang sasakyang nasa labas ngayon.</div>`
-
-  const mapCard = url
-    ? `<div class="card card-np" style="overflow:hidden;display:flex;flex-direction:column">
-        <iframe src="${gpsEsc(url)}" title="AKSH live GPS map" referrerpolicy="no-referrer"
-          style="width:100%;height:clamp(420px,calc(100vh - 230px),900px);border:0;display:block;background:var(--bg)"></iframe>
-        <div style="padding:9px 12px;font-size:11px;color:var(--text3);border-top:1px solid var(--border)">
-          Kung blangko ang mapa, hindi pinapayagan ng AKSH na i-embed ito sa device na ito. Gamitin ang <strong>Buksan sa bagong tab</strong>.
-        </div>
-      </div>`
-    : `<div class="card" style="text-align:center;padding:40px 20px">
-        <div style="font-size:30px">📍</div>
-        <div style="font-weight:700;margin-top:8px">Wala pang naka-set na GPS link</div>
-        <div style="font-size:12.5px;color:var(--text2);margin-top:4px">${isAdmin ? 'I-paste ang AKSH monitor link para lumabas dito ang live map.' : 'Hilingin sa VTS admin na i-set ang AKSH monitor link.'}</div>
-        ${isAdmin ? `<button class="btn btn-pri btn-sm" style="margin-top:14px" onclick="openAKSH()">I-set ang link</button>` : ''}
-      </div>`
-
   C.innerHTML = `
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><span class="ping"></span> Live tracking mula sa AKSH GPS</div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><span class="ping"></span> Live mula sa AKSH GPS <span id="gpsStamp" style="color:var(--text3)"></span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${url ? `<a class="btn btn-ghost btn-sm" href="${gpsEsc(url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Buksan sa bagong tab ↗</a>` : ''}
-      ${isAdmin && url ? `<button class="btn btn-ghost btn-sm" onclick="openAKSH()">Palitan ang link</button>` : ''}
-      <button class="btn btn-ghost btn-sm" onclick="renderGPS()">↻ Refresh</button>
+      ${window._gpsUrl ? `<a class="btn btn-ghost btn-sm" href="${gpsEsc(window._gpsUrl)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Buksan sa AKSH ↗</a>` : ''}
+      ${isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="openAKSH()">AKSH link</button>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="gpsRefresh(true)">↻ Refresh</button>
     </div>
   </div>
   <div class="gps-grid">
-    ${mapCard}
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <div style="font-size:13px;font-weight:700">Nasa labas ngayon <span style="color:var(--text3);font-weight:600">${out.length}</span></div>
-      ${outList}
+    <div class="card card-np" style="overflow:hidden;position:relative">
+      <div id="gpsMap" class="gps-map"></div>
+      <div class="gps-legend">${['Move','Stop','Offline'].map(s => `<span><i style="background:${GPS_COLORS[s]}"></i>${GPS_LABEL[s]}</span>`).join('')}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <div id="gpsSummary" style="font-size:13px;font-weight:700">Kinukuha ang lokasyon...</div>
+      <div id="gpsList" style="display:flex;flex-direction:column;gap:8px"></div>
     </div>
   </div>`
+  try { await gpsLoadLeaflet() } catch (e) { document.getElementById('gpsSummary').textContent = e.message; return }
+  GPS.map = L.map('gpsMap', { zoomControl: true, attributionControl: true }).setView([GPS_HOME.lat, GPS_HOME.lng], 12)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(GPS.map)
+  GPS.home = L.circle([GPS_HOME.lat, GPS_HOME.lng], { radius: GPS_HOME.radiusM, color: '#7c3aed', weight: 1.5, fillOpacity: .08 })
+    .addTo(GPS.map).bindTooltip('🏥 TDMH', { permanent: true, direction: 'top', className: 'gps-home-tip' })
+  await gpsRefresh(false, true)
+  GPS.timer = setInterval(() => { if (currentPage === 'gps' && !document.hidden) gpsRefresh(false) }, GPS_REFRESH_MS)
+}
+
+async function gpsRefresh(manual, fit) {
+  const sum = document.getElementById('gpsSummary'); if (!sum || !GPS.map) return
+  if (manual) sum.textContent = 'Nire-refresh...'
+  const { data, error } = await SB.functions.invoke('vts-gps', { body: {} })
+  if (error || data?.error) {
+    sum.innerHTML = `<span style="color:var(--red)">Hindi makuha ang GPS ngayon.</span> <span style="font-weight:500;color:var(--text3);font-size:12px">${gpsEsc(data?.error || error?.message || '')}</span>`
+    return
+  }
+  GPS.data = (data.devices || []).map(gpsAnalyse)
+    .sort((a, b) => (b.flag?.lvl === 'bad') - (a.flag?.lvl === 'bad') || (!!b.trip) - (!!a.trip) || (a.atHome - b.atHome) || String(a.plate || a.gps_name).localeCompare(String(b.plate || b.gps_name)))
+  const stamp = document.getElementById('gpsStamp')
+  if (stamp) stamp.textContent = '· na-update ' + new Date(data.fetched_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Manila' })
+  gpsDrawMarkers(fit)
+  gpsDrawList()
+}
+
+function gpsIcon(d) {
+  const c = GPS_COLORS[d.gps_status] || GPS_COLORS.Offline
+  const arrow = d.gps_status === 'Move' ? `<b class="gps-arrow" style="transform:rotate(${d.course}deg);border-bottom-color:${c}"></b>` : ''
+  return L.divIcon({ className: 'gps-pin', iconSize: [0, 0],
+    html: `<div class="gps-dot" style="background:${c}">${arrow}</div><div class="gps-tag">${gpsEsc(d.plate || d.gps_name)}</div>` })
+}
+function gpsPopup(d) {
+  const t = d.trip
+  return `<div style="min-width:210px;font-family:inherit">
+    <div style="font-weight:800;font-size:14px">${gpsEsc(d.plate || '—')} <span style="font-weight:600;color:#64748b">${gpsEsc(d.vehicle_name || d.gps_name)}</span></div>
+    <div style="margin-top:4px;font-size:12px"><b style="color:${GPS_COLORS[d.gps_status]}">${GPS_LABEL[d.gps_status]}</b>${d.gps_status === 'Move' ? `, ${Math.round(d.speed)} km/h` : ''} · ${d.atHome ? 'nasa TDMH' : (d.dist != null ? (d.dist / 1000).toFixed(1) + ' km mula TDMH' : '')}</div>
+    <div style="font-size:11.5px;color:#64748b;margin-top:2px">Huling ulat: ${gpsAgo(d.last_at)}</div>
+    ${t ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:12px"><b>${gpsEsc(t.ticket_no)}</b>: ${gpsEsc(t.driver_name || '—')} papuntang <b>${gpsEsc(t.destination || '—')}</b><br><span style="color:#64748b">Gate-out ${fmtMins((Date.now() - new Date(t.gate_out_at)) / 60000)} na ang nakalipas</span></div>` : ''}
+    ${d.flag && d.flag.lvl !== 'mute' ? `<div style="margin-top:8px;font-size:11.5px;font-weight:700;color:${d.flag.lvl === 'bad' ? '#dc2626' : '#d97706'}">${gpsEsc(d.flag.txt)}</div>` : ''}
+    <div id="gpsAddr_${d.device_id}" style="margin-top:8px;font-size:11.5px"><a href="javascript:void(0)" onclick="gpsAddress(${d.device_id})">📍 Ano ang address dito?</a></div>
+  </div>`
+}
+function gpsDrawMarkers(fit) {
+  const seen = new Set()
+  GPS.data.filter(d => d.has).forEach(d => {
+    seen.add(d.device_id)
+    const m = GPS.markers[d.device_id]
+    if (m) { m.setLatLng([d.lat, d.lng]); m.setIcon(gpsIcon(d)); m.setPopupContent(gpsPopup(d)) }
+    else GPS.markers[d.device_id] = L.marker([d.lat, d.lng], { icon: gpsIcon(d), riseOnHover: true }).addTo(GPS.map).bindPopup(gpsPopup(d))
+  })
+  Object.keys(GPS.markers).forEach(id => { if (!seen.has(Number(id))) { GPS.markers[id].remove(); delete GPS.markers[id] } })
+  if (fit) {
+    const pts = GPS.data.filter(d => d.has && d.gps_status !== 'Offline').map(d => [d.lat, d.lng]).concat([[GPS_HOME.lat, GPS_HOME.lng]])
+    if (pts.length > 1) GPS.map.fitBounds(pts, { padding: [40, 40], maxZoom: 15 })
+  }
+}
+function gpsDrawList() {
+  const out = GPS.data.filter(d => d.has && !d.atHome && d.gps_status !== 'Offline').length
+  const flags = GPS.data.filter(d => d.flag && d.flag.lvl !== 'mute').length
+  const sum = document.getElementById('gpsSummary')
+  if (sum) sum.innerHTML = `${out} nasa labas, ${GPS.data.filter(d => d.atHome).length} nasa TDMH${flags ? ` <span style="color:var(--amber)">· ${flags} kailangang i-check</span>` : ''}`
+  const el = document.getElementById('gpsList'); if (!el) return
+  el.innerHTML = GPS.data.map(d => {
+    const c = GPS_COLORS[d.gps_status]
+    const border = d.flag?.lvl === 'bad' ? 'var(--red)' : d.flag?.lvl === 'warn' ? 'var(--amber)' : 'var(--border)'
+    const where = d.atHome ? 'Nasa TDMH' : d.dist != null ? (d.dist / 1000).toFixed(1) + ' km mula TDMH' : 'Walang lokasyon'
+    return `<button class="gps-card" style="border-color:${border}" onclick="gpsFocus(${d.device_id})">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span style="font-size:12.5px;font-weight:800">${gpsEsc(d.plate || d.gps_name)}</span>
+        <span style="font-size:10.5px;font-weight:700;color:${c}">● ${GPS_LABEL[d.gps_status]}${d.gps_status === 'Move' ? ' ' + Math.round(d.speed) + ' km/h' : ''}</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--text2);margin-top:1px">${gpsEsc(d.vehicle_name || d.gps_name)} · ${where}</div>
+      ${d.trip ? `<div style="font-size:11.5px;margin-top:5px">${gpsEsc(d.trip.driver_name || '—')} papuntang <b>${gpsEsc(d.trip.destination || '—')}</b> <span style="color:var(--text3)">(${gpsEsc(d.trip.ticket_no)})</span></div>` : ''}
+      ${d.flag ? `<div style="font-size:10.5px;margin-top:5px;font-weight:600;color:${d.flag.lvl === 'bad' ? 'var(--red)' : d.flag.lvl === 'warn' ? 'var(--amber)' : 'var(--text3)'}">${gpsEsc(d.flag.txt)}</div>` : ''}
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">Huling ulat ${gpsAgo(d.last_at)}</div>
+    </button>`
+  }).join('')
+}
+function gpsFocus(id) {
+  const d = GPS.data.find(x => x.device_id === id), m = GPS.markers[id]
+  if (!d || !m || !GPS.map) return
+  GPS.map.flyTo([d.lat, d.lng], Math.max(GPS.map.getZoom(), 15), { duration: .6 })
+  setTimeout(() => m.openPopup(), 650)
+  if (window.innerWidth < 860) document.getElementById('gpsMap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+async function gpsAddress(id) {
+  const d = GPS.data.find(x => x.device_id === id), el = document.getElementById('gpsAddr_' + id)
+  if (!d || !el) return
+  el.textContent = 'Hinahanap ang address...'
+  const { data, error } = await SB.functions.invoke('vts-gps', { body: { action: 'address', lat: d.lat, lng: d.lng } })
+  el.textContent = (!error && data?.address) ? '📍 ' + data.address : 'Hindi makuha ang address.'
 }
 
 function openAKSH() {
   if (currentProfile?.role !== 'admin') return
   openMO('AKSH GPS Link',
-    `<div class="info info-amber">Ang link na ito ay parang login: kahit sino ang may hawak nito ay makakakita ng tracking. Nakatago ito sa database at makikita lang ng admin, super approver, at guards.</div>
+    `<div class="info info-amber">Shortcut lang ito para sa "Buksan sa AKSH" button. Ang live map ay gumagamit ng AKSH login na naka-save sa Supabase secrets. Nakatago ang link sa database at makikita lang ng admin, super approver, at guards.</div>
      <div class="fg"><label class="fl">AKSH monitor link</label>
        <input class="fi" id="akUrl" placeholder="https://en.aika168.com/Monitor.aspx?..." value="${gpsEsc(window._gpsUrl || '')}"></div>`,
     `<button class="btn btn-ghost" onclick="closeMO()">Cancel</button>
