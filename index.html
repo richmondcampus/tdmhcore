@@ -189,6 +189,7 @@ canvas{max-height:220px;}
 /* PAGE */
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
 .page-header h2{font-size:20px;font-weight:700;}
+.page-desc{font-size:14px;color:var(--txt2);max-width:62ch;line-height:1.5;margin:0;}
 .empty-state{text-align:center;padding:40px 20px;color:var(--txt2);}
 .empty-state .empty-icon{font-size:36px;margin-bottom:10px;}
 
@@ -988,7 +989,7 @@ function timeAgo(iso){
 function renderSearch(){
   const content=document.getElementById('mainContent')
   content.innerHTML=`
-    <div class="page-header"><h2>🔍 Global Search</h2></div>
+    <div class="page-header"><p class="page-desc">Hanapin ang tickets, requests, assets, at empleyado sa lahat ng systems.</p></div>
     <div class="search-bar">
       <input type="text" id="globalSearch" placeholder="Search tickets, assets, requests, employees..." autocomplete="off" onkeydown="if(event.key==='Enter')doGlobalSearch()">
       <button class="btn btn-primary" onclick="doGlobalSearch()">Search</button>
@@ -1053,7 +1054,7 @@ async function renderAuditTrail(){
     ...(itReplies.data||[]).map(r=>({type:'it',icon:'🖥️',title:r.is_internal?'Internal Note':'Reply',sub:r.body?.substring(0,60),by:r.author_id,date:r.created_at,ref:r.ticket_id}))
   ].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,40)
   const typeColors={asset:'var(--violet-a)',maintenance:'var(--amber-a)',it:'var(--accent-a)'}
-  let html='<div class="page-header"><h2>📋 Audit Trail</h2><span style="font-size:12px;color:var(--txt2);">Recent activity across all systems</span></div>'
+  let html='<div class="page-header"><p class="page-desc">Pinakabagong galaw sa lahat ng systems: sino ang gumawa, ano, at kailan.</p></div>'
   html+='<div style="display:flex;flex-direction:column;gap:6px;">'
   all.forEach(a=>{
     const user=S.users.find(u=>u.id===a.by)
@@ -1097,8 +1098,7 @@ async function renderReports(){
   const rated=it.filter(t=>t.rating)
   const avgRating=rated.length>0?(rated.reduce((s,t)=>s+t.rating,0)/rated.length).toFixed(1):'—'
   const lowStock=stock.filter(s=>s.quantity_on_hand<=s.reorder_level).length
-  let html='<div class="page-header"><h2>📊 Management Reports</h2>'
-  html+='<span style="font-size:12px;color:var(--txt2);">'+now.toLocaleDateString('en-PH',{month:'long',year:'numeric'})+'</span></div>'
+  let html='<div class="page-header"><p class="page-desc">Buod ng tickets at requests sa lahat ng systems para sa '+now.toLocaleDateString('en-PH',{month:'long',year:'numeric'})+'.</p></div>'
   html+='<div class="stat-grid">'
   html+=sC('🔧','Maint. This Month',maintThisMonth.length,'Tickets filed','var(--amber)')
   html+=sC('🖥️','IT This Month',itThisMonth.length,'Tickets filed','var(--accent)')
@@ -1198,7 +1198,7 @@ async function renderAnnouncements(){
     system:{icon:'⚙️',color:'var(--amber)',label:'System'},
     policy:{icon:'📜',color:'var(--green)',label:'Policy'}
   }
-  let html='<div class="page-header"><h2>📢 Announcements</h2>'
+  let html='<div class="page-header"><p class="page-desc">Mga balita at paalala para sa buong ospital.</p>'
   if(canPost())html+='<button class="btn btn-primary" onclick="openAnnouncementForm()">＋ Post Announcement</button>'
   html+='</div>'
   if(all.length===0){
@@ -1292,7 +1292,7 @@ async function renderMemos(){
   const memos=(data||[]).filter(m=>m.target==='all'||(m.target==='department'&&m.dept_id===S.user.dept_id)||canPost())
   const{data:acks}=await SB.from('memo_acknowledgments').select('memo_id').eq('user_id',S.user.id)
   const ackedIds=new Set((acks||[]).map(a=>a.memo_id))
-  let html='<div class="page-header"><h2>📄 Memos</h2>'
+  let html='<div class="page-header"><p class="page-desc">Mga opisyal na memo at kung sino na ang naka-acknowledge.</p>'
   if(canPost())html+='<button class="btn btn-primary" onclick="openMemoForm()">＋ New Memo</button>'
   html+='</div>'
   if(memos.length===0){
@@ -1503,7 +1503,7 @@ async function renderDocuments(){
     guideline:{icon:'📐',label:'Guideline',color:'var(--blue,var(--accent))'},
     general:{icon:'📁',label:'General',color:'var(--txt2)'}
   }
-  let html='<div class="page-header"><h2>📁 Documents</h2>'
+  let html='<div class="page-header"><p class="page-desc">Mga form, policy, at file na puwedeng i-download.</p>'
   if(canPost())html+='<button class="btn btn-primary" onclick="openDocumentForm()">＋ Upload Document</button>'
   html+='</div>'
   if(docs.length===0){
@@ -1643,7 +1643,7 @@ function drawUserMgmt(){
     list = list.filter(u => (u.full_name||'').toLowerCase().includes(q) || (u.employee_no||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
   }
 
-  let html = '<div class="page-header"><h2>👥 User Management</h2>'
+  let html = '<div class="page-header"><p class="page-desc">Mga account, department, at access ng bawat user sa mga system.</p>'
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
   html += '<button class="btn btn-ghost btn-sm" onclick="downloadUserTemplate()">📥 Template</button>'
   html += '<button class="btn btn-secondary btn-sm" onclick="openBulkImport()">📤 Bulk Import</button>'
