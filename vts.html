@@ -245,7 +245,8 @@ body.dark .b-overdue{background:rgba(225,29,72,.15);color:#fb7185;border-color:r
 .gps-pin{position:relative}
 .gps-dot{position:absolute;left:-9px;top:-9px;width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35)}
 .gps-arrow{position:absolute;left:50%;top:50%;width:0;height:0;margin:-17px 0 0 -5px;border:5px solid transparent;border-bottom:8px solid;transform-origin:50% 17px}
-.gps-tag{position:absolute;left:12px;top:-10px;white-space:nowrap;background:#0f172a;color:#fff;font:700 10.5px/1 system-ui,sans-serif;padding:3px 6px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.gps-tag{position:absolute;left:12px;top:-14px;white-space:nowrap;background:#0f172a;color:#fff;font:700 10.5px/1.15 system-ui,sans-serif;padding:3px 7px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.25);display:flex;flex-direction:column}
+.gps-tag small{font-size:9.5px;font-weight:600;opacity:.75}
 .gps-home-tip{font-weight:700;font-size:11px}
 .gps-card{display:block;width:100%;text-align:left;font-family:inherit;color:var(--text);background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;cursor:pointer}
 .gps-card:hover{background:var(--bg)}
@@ -7337,16 +7338,18 @@ async function gpsRefresh(manual, fit) {
   gpsDrawList()
 }
 
+// Short name for the map tag: VTS name without the bracketed part ("PTV (Patient Transport Vehicle)" → "PTV")
+function gpsShort(d) { return String(d.vehicle_name || d.gps_name || '').replace(/\s*\(.*?\)\s*/g, ' ').trim() || d.gps_name || '' }
 function gpsIcon(d) {
   const c = GPS_COLORS[d.gps_status] || GPS_COLORS.Offline
   const arrow = d.gps_status === 'Move' ? `<b class="gps-arrow" style="transform:rotate(${d.course}deg);border-bottom-color:${c}"></b>` : ''
   return L.divIcon({ className: 'gps-pin', iconSize: [0, 0],
-    html: `<div class="gps-dot" style="background:${c}">${arrow}</div><div class="gps-tag">${gpsEsc(d.plate || d.gps_name)}</div>` })
+    html: `<div class="gps-dot" style="background:${c}">${arrow}</div><div class="gps-tag"><span>${gpsEsc(gpsShort(d))}</span>${d.plate ? `<small>${gpsEsc(d.plate)}</small>` : ''}</div>` })
 }
 function gpsPopup(d) {
   const t = d.trip
   return `<div style="min-width:210px;font-family:inherit">
-    <div style="font-weight:800;font-size:14px">${gpsEsc(d.plate || '—')} <span style="font-weight:600;color:#64748b">${gpsEsc(d.vehicle_name || d.gps_name)}</span></div>
+    <div style="font-weight:800;font-size:14px">${gpsEsc(d.vehicle_name || d.gps_name)}</div><div style="font-size:12px;font-weight:700;color:#64748b">${gpsEsc(d.plate || '—')}</div>
     <div style="margin-top:4px;font-size:12px"><b style="color:${GPS_COLORS[d.gps_status]}">${GPS_LABEL[d.gps_status]}</b>${d.gps_status === 'Move' ? `, ${Math.round(d.speed)} km/h` : ''} · ${d.atHome ? 'nasa TDMH' : (d.dist != null ? (d.dist / 1000).toFixed(1) + ' km mula TDMH' : '')}</div>
     <div style="font-size:11.5px;color:#64748b;margin-top:2px">Huling ulat: ${gpsAgo(d.last_at)}</div>
     ${t ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:12px"><b>${gpsEsc(t.ticket_no)}</b>: ${gpsEsc(t.driver_name || '—')} papuntang <b>${gpsEsc(t.destination || '—')}</b><br><span style="color:#64748b">Gate-out ${fmtMins((Date.now() - new Date(t.gate_out_at)) / 60000)} na ang nakalipas</span></div>` : ''}
@@ -7380,10 +7383,10 @@ function gpsDrawList() {
     const where = d.atHome ? 'Nasa TDMH' : d.dist != null ? (d.dist / 1000).toFixed(1) + ' km mula TDMH' : 'Walang lokasyon'
     return `<button class="gps-card" style="border-color:${border}" onclick="gpsFocus(${d.device_id})">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <span style="font-size:12.5px;font-weight:800">${gpsEsc(d.plate || d.gps_name)}</span>
+        <span style="font-size:12.5px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${gpsEsc(gpsShort(d))} <span style="font-weight:600;color:var(--text3)">${gpsEsc(d.plate || '')}</span></span>
         <span style="font-size:10.5px;font-weight:700;color:${c}">● ${GPS_LABEL[d.gps_status]}${d.gps_status === 'Move' ? ' ' + Math.round(d.speed) + ' km/h' : ''}</span>
       </div>
-      <div style="font-size:11.5px;color:var(--text2);margin-top:1px">${gpsEsc(d.vehicle_name || d.gps_name)} · ${where}</div>
+      <div style="font-size:11.5px;color:var(--text2);margin-top:1px">${where}</div>
       ${d.trip ? `<div style="font-size:11.5px;margin-top:5px">${gpsEsc(d.trip.driver_name || '—')} papuntang <b>${gpsEsc(d.trip.destination || '—')}</b> <span style="color:var(--text3)">(${gpsEsc(d.trip.ticket_no)})</span></div>` : ''}
       ${d.flag ? `<div style="font-size:10.5px;margin-top:5px;font-weight:600;color:${d.flag.lvl === 'bad' ? 'var(--red)' : d.flag.lvl === 'warn' ? 'var(--amber)' : 'var(--text3)'}">${gpsEsc(d.flag.txt)}</div>` : ''}
       <div style="font-size:10px;color:var(--text3);margin-top:4px">Huling ulat ${gpsAgo(d.last_at)}</div>
