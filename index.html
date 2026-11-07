@@ -1888,7 +1888,7 @@ function drawUserMgmt(){
       const dept = S.departments.find(d=>d.id===u.dept_id)
       const roleChips = []
       ;['csr','maintenance','it','inventory','vts'].forEach(sys=>{
-        const r = u[sys+'_role']
+        const r = u[sys+'_role'] || (sys==='vts' ? 'requester' : null)  // VTS: no role = requester
         if(r) roleChips.push('<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:var(--surf3);color:var(--txt2);white-space:nowrap;">'+ROLE_LABELS[sys]+': '+r+'</span>')
       })
       const hasRealEmail = u.email && !u.email.endsWith('@tdmh.local')
@@ -1916,7 +1916,7 @@ function drawUserMgmt(){
 
 function roleSelect(sys, current){
   const onChange = sys==='csr' ? ' onchange="toggleDeptHeadField(this.value)"' : ''
-  let h = '<div class="field"><label>'+ROLE_LABELS[sys]+' Role</label><select id="uf_'+sys+'"'+onChange+'><option value="">— None (no access) —</option>'
+  let h = '<div class="field"><label>'+ROLE_LABELS[sys]+' Role</label><select id="uf_'+sys+'"'+onChange+'><option value="">'+(sys==='vts'?'— Requester (default) —':'— None (no access) —')+'</option>'
   ROLE_OPTS[sys].forEach(r=>{
     // Clarify that GSD under Maintenance = Medical Equipment system access
     const label = (sys==='maintenance' && r==='gsd') ? 'gsd (Medical Equipment)' : r
