@@ -4753,10 +4753,10 @@ async function doGateIn(id, ticketNo, vehicleId, driverId) {
     }
   }
   // Always update vehicle odometer on gate-in
-  if (vehicleId && vehicleId !== 'null') await SB.from('vts_vehicles').update({ odometer: odo }).eq('id', vehicleId).catch(() => {})
+  if (vehicleId && vehicleId !== 'null') await SB.from('vts_vehicles').update({ odometer: odo }).eq('id', vehicleId)  // (fixed: query builders have no .catch — it threw and aborted gate-in)
   // Log fuel if recorded
   if (fuelL && vehicleId && vehicleId !== 'null') {
-    await SB.from('vts_fuel_logs').insert({ vehicle_id: vehicleId, trip_id: id, liters: fuelL, price_per_liter: fuelP, total_cost: fuelCost, odometer_at: odo, log_type: 'trip', logged_by: currentProfile?.id }).catch(() => {})
+    await SB.from('vts_fuel_logs').insert({ vehicle_id: vehicleId, trip_id: id, liters: fuelL, price_per_liter: fuelP, total_cost: fuelCost, odometer_at: odo, log_type: 'trip', logged_by: currentProfile?.id })  // (fixed: query builders have no .catch — it threw and aborted gate-in)
   }
   if (driverId && driverId!=='null') await SB.from('vts_drivers').update({ status:'available' }).eq('id',driverId)
   if (vehicleId && vehicleId!=='null') await SB.from('vts_vehicles').update({ status:'available' }).eq('id',vehicleId)
@@ -4815,7 +4815,7 @@ function selectRating(n, tripId) {
 async function submitRating(tripId) {
   if (_selectedRating === 0) { alert('Please select a rating.'); return }
   const comment = document.getElementById('ratingComment')?.value?.trim()
-  await SB.from('vts_trips').update({ rating: _selectedRating, rating_comment: comment||null, rated_at: new Date().toISOString() }).eq('id', tripId).catch(() => {})
+  await SB.from('vts_trips').update({ rating: _selectedRating, rating_comment: comment||null, rated_at: new Date().toISOString() }).eq('id', tripId)  // (fixed: query builders have no .catch — it threw and aborted gate-in)
   document.getElementById('ratingToast')?.remove()
   _selectedRating = 0
 }
