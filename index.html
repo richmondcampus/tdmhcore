@@ -796,10 +796,10 @@ async function renderMyWork(){
   const vtsRole = u.vts_role || 'requester'
 
   const [maintRes,itRes,csrRes,vtsRes,annRes,memoRes,myAckRes,headRes,onTripRes,availRes,vtsPendRes] = await Promise.all([
-    acc.maintenance ? SB.from('maint_tickets').select('id,title,status,priority,created_at,dept_name').or('submitted_by.eq.'+u.id+',claimed_by.eq.'+u.id).not('status','in','("closed","cancelled")').order('created_at',{ascending:false}).limit(25) : {data:[]},
-    acc.it ? SB.from('it_tickets').select('id,subject,status,priority,created_at').or('requester_id.eq.'+u.id+',assigned_to.eq.'+u.id).not('status','in','("closed","cancelled")').order('created_at',{ascending:false}).limit(25) : {data:[]},
-    acc.csr ? SB.from('requests').select('id,request_no,request_type,status,urgency,purpose,created_at').eq('requested_by',u.id).not('status','in','("issued","cancelled","closed")').order('created_at',{ascending:false}).limit(25) : {data:[]},
-    SB.from('vts_trips').select('id,ticket_no,destination,status,departure_at,vehicle_type_needed,priority').eq('requester_id',u.id).in('status',['pending-approval','approved','assigned','on-trip']).order('departure_at',{ascending:true}).limit(25),
+    acc.maintenance ? SB.from('maint_tickets').select('id,title,status,priority,created_at,dept_name',{count:'exact'}).or('submitted_by.eq.'+u.id+',claimed_by.eq.'+u.id).not('status','in','("closed","cancelled","resolved")').order('created_at',{ascending:false}).limit(25) : {data:[]},
+    acc.it ? SB.from('it_tickets').select('id,subject,status,priority,created_at',{count:'exact'}).or('requester_id.eq.'+u.id+',assigned_to.eq.'+u.id).not('status','in','("closed","cancelled","resolved")').order('created_at',{ascending:false}).limit(25) : {data:[]},
+    acc.csr ? SB.from('requests').select('id,request_no,request_type,status,urgency,purpose,created_at',{count:'exact'}).eq('requested_by',u.id).not('status','in','("issued","cancelled","closed","repair_completed","rejected")').order('created_at',{ascending:false}).limit(25) : {data:[]},
+    SB.from('vts_trips').select('id,ticket_no,destination,status,departure_at,vehicle_type_needed,priority',{count:'exact'}).eq('requester_id',u.id).in('status',['pending-approval','approved','assigned','on-trip']).order('departure_at',{ascending:true}).limit(25),
     SB.from('announcements').select('*').eq('is_active',true).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(6),
     SB.from('memos').select('id,memo_no,title,target,dept_id,is_urgent,created_at').eq('is_active',true).eq('requires_ack',true).order('created_at',{ascending:false}).limit(50),
     SB.from('memo_acknowledgments').select('memo_id').eq('user_id',u.id),
@@ -840,8 +840,8 @@ async function renderMyWork(){
   const pendingMemos = (memoRes.data||[]).filter(m=>(m.target==='all'||(m.target==='department'&&m.dept_id===u.dept_id))&&!ackedIds.has(m.id))
   const anns = (annRes.data||[]).filter(a=>!a.expires_at||new Date(a.expires_at)>=new Date()).slice(0,3)
   const counts = {
-    csr: (csrRes.data||[]).length, maintenance:(maintRes.data||[]).length, it:(itRes.data||[]).length,
-    vts: (vtsRes.data||[]).length
+    csr: csrRes.count ?? (csrRes.data||[]).length, maintenance: maintRes.count ?? (maintRes.data||[]).length,
+    it: itRes.count ?? (itRes.data||[]).length, vts: vtsRes.count ?? (vtsRes.data||[]).length
   }
   const approvalTotal = approvals.length + vtsPending
   const dept = S.departments.find(d=>d.id===u.dept_id)
@@ -849,10 +849,11 @@ async function renderMyWork(){
 
   // ── Summary sentence ──
   let summary
-  if (!items.length && !approvalTotal) summary = 'Wala kang nakabinbing gawain ngayon.'
+  if (!(counts.csr+counts.maintenance+counts.it+counts.vts) && !approvalTotal) summary = 'Wala kang nakabinbing gawain ngayon.'
   else {
     const parts = []
-    if (items.length) parts.push(items.length+' bukas na item'+(items.length!==1?'s':''))
+    const totalOpen = counts.csr+counts.maintenance+counts.it+counts.vts
+    if (totalOpen) parts.push(totalOpen+' bukas na item'+(totalOpen!==1?'s':''))
     if (approvalTotal) parts.push(approvalTotal+' naghihintay ng approval mo')
     summary = 'May '+parts.join(' at ')+'.'
   }
@@ -867,8 +868,8 @@ async function renderMyWork(){
 
   // ── Systems launcher tiles ──
   const sysCaption = {
-    csr: approvals.length ? approvals.length+' para sa approval mo' : 'bukas na request',
-    maintenance: 'bukas na ticket', it: 'bukas na ticket',
+    csr: approvals.length ? approvals.length+' para sa approval mo' : 'bukas na request mo',
+    maintenance: 'bukas na ticket mo', it: 'bukas na ticket mo',
     inventory: 'Assets at stock', medequip: 'Biomedical equipment',
     vts: vtsPending ? vtsPending+' naghihintay ng approval' : 'aktibong biyahe mo'
   }
@@ -884,8 +885,8 @@ async function renderMyWork(){
   }).join('')
 
   // ── Filter chips for "Mga hawak mo" ──
-  const chipDefs = [['all','Lahat',items.length]].concat(
-    ['csr','maintenance','it','vts'].filter(k=>items.some(i=>i.sys===k)).map(k=>[k,HX_SYS[k].name.split(' ')[0],items.filter(i=>i.sys===k).length]))
+  const chipDefs = [['all','Lahat',counts.csr+counts.maintenance+counts.it+counts.vts]].concat(
+    ['csr','maintenance','it','vts'].filter(k=>items.some(i=>i.sys===k)).map(k=>[k,HX_SYS[k].name.split(' ')[0],counts[k]]))
   const chips = chipDefs.length>2 ? chipDefs.map(([k,l,n])=>'<button class="hx-fchip'+(k==='all'?' on':'')+'" data-f="'+k+'" onclick="hxFilter(\''+k+'\')">'+l+' <b>'+n+'</b></button>').join('') : ''
 
   // ── Announcements ──
