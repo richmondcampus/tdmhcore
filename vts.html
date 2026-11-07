@@ -369,13 +369,13 @@ body.dark .b-overdue{background:rgba(225,29,72,.15);color:#fb7185;border-color:r
     <!-- Login form -->
     <div id="loginForm">
       <h2 style="font-size:18px;font-weight:700;margin-bottom:22px">Sign in to your account</h2>
-      <div class="fg"><label class="fl">Username</label><input class="fi" type="text" id="loginUsername" placeholder="e.g. admin" autocomplete="username" style="text-transform:lowercase"></div>
+      <div class="fg"><label class="fl">Email or Employee No.</label><input class="fi" type="text" id="loginUsername" placeholder="you@taytaydoctorshospital.com" autocomplete="username"></div>
       <div class="fg"><label class="fl">Password</label><input class="fi" type="password" id="loginPw" placeholder="••••••••" autocomplete="current-password"></div>
       <div id="loginErr" style="display:none;background:var(--red-s);color:var(--red);padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid rgba(220,38,38,.2)"></div>
       <button class="btn btn-pri" style="width:100%;justify-content:center;padding:10px" onclick="handleLogin()" id="loginBtn">Sign in</button>
       <p style="font-size:11.5px;color:var(--text3);text-align:center;margin-top:16px">
         <span onclick="showForgotPanel()" style="color:var(--pri);cursor:pointer;text-decoration:underline">Forgot password?</span>
-        &nbsp;·&nbsp; Contact your administrator if you cannot log in.
+        &nbsp;·&nbsp; Same login as TDMH Core.
       </p>
     </div>
 
@@ -467,7 +467,7 @@ function initSupabase() {
   const lib = window.supabase || window.Supabase || window.supabaseJs
   if (!lib || !lib.createClient) {
     console.error('[VTS] Supabase library not loaded. Check network or CDN.')
-    document.getElementById('APP').innerHTML = `
+    document.body.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:center;height:100dvh;flex-direction:column;gap:16px;font-family:sans-serif;padding:24px;text-align:center">
         <div style="font-size:32px">⚠️</div>
         <div style="font-size:16px;font-weight:700;color:#dc2626">Failed to load system</div>
@@ -480,14 +480,16 @@ function initSupabase() {
 }
 
 const createClient = initSupabase()
-const SB_URL  = 'https://blgscwtseqvhgdoksvjh.supabase.co'
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJsZ3Njd3RzZXF2aGdkb2tzdmpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0ODkwNzAsImV4cCI6MjA5MDA2NTA3MH0.NoJ8ASqwyJBMCkbufoYZy9iCYkZvZIi6bz2vLamlQG0'
-const SB = createClient ? createClient(SB_URL, SB_ANON) : null
+const SB_URL  = 'https://zcyhwdulizorgngayxya.supabase.co'  // TDMH Core
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjeWh3ZHVsaXpvcmduZ2F5eHlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyNjU0NTgsImV4cCI6MjA5NDg0MTQ1OH0.xLdKGNqjNZNRfjAf5NmXGI1GyTbQZAmbZiKokpgAhUo'
+const SB = createClient ? createClient(SB_URL, SB_ANON, {
+  auth: { storageKey: 'tdmh-vts-auth', persistSession: true, autoRefreshToken: true }
+}) : null
 
 // ════════════════════════════════════════════════
 // SMS — TextBee via Edge Function
 // ════════════════════════════════════════════════
-const SMS_URL = 'https://blgscwtseqvhgdoksvjh.supabase.co/functions/v1/send-sms'
+const SMS_URL = 'https://zcyhwdulizorgngayxya.supabase.co/functions/v1/send-sms'
 
 // Animated hourglass markup — reusable loading indicator
 function hourglass(){
@@ -534,7 +536,7 @@ async function sendSMS(phones, message, eventType='general', ticketNo=null) {
       body: JSON.stringify({ phones: validPhones, message })
     })
     // Log to sms_logs — fire and forget, don't block on error
-    SB.from('sms_logs').insert({
+    SB.from('vts_sms_logs').insert({
       recipients:  validPhones,
       sms_count:   validPhones.length,
       message:     message.slice(0, 500),
@@ -547,7 +549,7 @@ async function sendSMS(phones, message, eventType='general', ticketNo=null) {
   }
 }
 
-const EMAIL_URL = 'https://blgscwtseqvhgdoksvjh.supabase.co/functions/v1/send-email'
+const EMAIL_URL = 'https://zcyhwdulizorgngayxya.supabase.co/functions/v1/vts-send-email'
 
 async function sendEmail(to, type, ticket) {
   const toList = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean)
@@ -565,19 +567,19 @@ async function sendEmail(to, type, ticket) {
 
 // Get emails of all users with a given role
 async function getEmailsForRole(role) {
-  const { data } = await SB.from('users').select('email').eq('role', role).eq('status', 'active')
+  const { data } = await SB.from('users').select('email').eq('vts_role', role).eq('is_active', true)
   return (data || []).map(u => u.email).filter(Boolean)
 }
 
 // Get phone numbers of all users with a given role
 async function getPhonesForRole(role) {
-  const { data } = await SB.from('users').select('phone').eq('role', role).eq('status', 'active')
+  const { data } = await SB.from('users').select('phone').eq('vts_role', role).eq('is_active', true)
   return (data || []).map(u => u.phone).filter(Boolean)
 }
 
 // Get ONLY the specific requester's phone and email (the person who submitted the ticket)
 async function getRequesterContacts(tripId) {
-  const { data: trip } = await SB.from('trips').select('requester_id').eq('id', tripId).single()
+  const { data: trip } = await SB.from('vts_trips').select('requester_id').eq('id', tripId).single()
   if (!trip?.requester_id) return { phones: [], emails: [], name: '' }
   const { data: user } = await SB.from('users').select('phone, email, full_name').eq('id', trip.requester_id).single()
   return {
@@ -638,8 +640,8 @@ const DEPT_COLORS = ['#0c6fdb','#7c3aed','#0d9488','#d97706','#dc2626','#0ea5e9'
 
 // Load departments from DB and cache
 async function loadDepartments() {
-  const { data } = await SB.from('departments').select('*').eq('status','active').order('name')
-  _departments = data || []
+  const { data } = await SB.from('departments').select('*').eq('is_active',true).order('dept_name')
+  _departments = (data || []).map(d => ({ ...d, name: d.dept_name, code: d.dept_code }))
   return _departments
 }
 
@@ -699,7 +701,7 @@ function wfHtml(status) {
 }
 
 async function addAudit(ticketId, ticketNo, action, details) {
-  await SB.from('audit_logs').insert([{
+  await SB.from('vts_audit_logs').insert([{
     ticket_id: ticketId, ticket_no: ticketNo,
     action, details,
     user_id: currentProfile?.id || null,
@@ -760,169 +762,122 @@ function closeMO(force=false) {
 }
 
 // ════════════════════════════════════════════════
-// AUTH
+// AUTH — TDMH Core (Supabase Auth). Same account as tdmhcore.io.
+// VTS role comes from users.vts_role; no vts_role = requester.
 // ════════════════════════════════════════════════
-async function fetchProfile(authUser) {
+async function resolveCoreProfile(authUser) {
   if (!authUser) return null
-  const { data } = await SB.from('users').select('*').eq('id', authUser.id).single()
-  return data
+  let { data: p } = await SB.from('users').select('*').eq('auth_id', authUser.id).maybeSingle()
+  if (!p) { const r = await SB.from('users').select('*').eq('email_auth_id', authUser.id).maybeSingle(); p = r.data }
+  if (!p) {
+    const { data: alias } = await SB.from('user_auth_aliases').select('primary_user_id').eq('alias_auth_id', authUser.id).maybeSingle()
+    if (alias) { const r = await SB.from('users').select('*').eq('id', alias.primary_user_id).maybeSingle(); p = r.data }
+  }
+  if (!p || !p.is_active) return null
+  let deptName = ''
+  if (p.dept_id) {
+    const { data: d } = await SB.from('departments').select('dept_name').eq('id', p.dept_id).maybeSingle()
+    deptName = d?.dept_name || ''
+  }
+  const prof = { ...p, role: p.vts_role || 'requester', department: deptName,
+                 username: p.email || p.employee_no || '', status: 'active' }
+  if (prof.role === 'driver') {
+    const { data: dRec } = await SB.from('vts_drivers').select('id').eq('user_id', p.id).maybeSingle()
+    if (dRec) prof.driver_record_id = dRec.id
+  }
+  return prof
 }
 
-// ════════════════════════════════════════════════
-// AUTH — Pure custom login for all users
-// ════════════════════════════════════════════════
-function loadSession() {
+// Kept for compatibility with older calls — session now lives in Supabase Auth
+function loadSession() { return !!currentProfile }
+
+async function restoreSession() {
   try {
-    const saved = localStorage.getItem('vts_user')
-    if (saved) { currentProfile = JSON.parse(saved); return true }
-  } catch(e) {}
+    const { data: { session } } = await SB.auth.getSession()
+    if (session?.user) {
+      const prof = await resolveCoreProfile(session.user)
+      if (prof) { currentProfile = prof; currentUser = session.user; return true }
+      await SB.auth.signOut()
+    }
+  } catch(e) { console.warn('[VTS] session restore', e) }
   return false
 }
 
 async function handleLogin() {
-  const username = (document.getElementById('loginUsername').value || '').trim().toLowerCase()
+  const raw = (document.getElementById('loginUsername').value || '').trim()
   const pw = document.getElementById('loginPw').value
   const btn = document.getElementById('loginBtn')
   const err = document.getElementById('loginErr')
   err.style.display = 'none'
-  if (!username || !pw) { err.textContent = 'Please enter your username and password.'; err.style.display = 'block'; return }
+  if (!raw || !pw) { err.textContent = 'Please enter your email and password.'; err.style.display = 'block'; return }
+  // Same rule as TDMH Core: no "@" means employee number login
+  const email = raw.includes('@') ? raw.toLowerCase() : raw.toLowerCase().replace(/[^a-z0-9]/g,'-') + '@tdmh.local'
   btn.textContent = 'Signing in...'; btn.disabled = true
   try {
-    const { data, error } = await SB
-      .from('users')
-      .select('*')
-      .eq('username', username)
-      .eq('password', pw)
-      .eq('status', 'active')
-      .single()
-    if (error || !data) throw new Error('Invalid username or password.')
-    // For driver role, also fetch their drivers.id for trip filtering
-    if (data.role === 'driver') {
-      const { data: dRec } = await SB.from('drivers').select('id').eq('user_id', data.id).single()
-      if (dRec) data.driver_record_id = dRec.id
-    }
-    localStorage.setItem('vts_user', JSON.stringify(data))
-    currentProfile = data
+    const { data, error } = await SB.auth.signInWithPassword({ email, password: pw })
+    if (error || !data?.user) throw new Error('Invalid email or password.')
+    const prof = await resolveCoreProfile(data.user)
+    if (!prof) { await SB.auth.signOut(); throw new Error('Account not found or inactive. Contact IT.') }
+    currentProfile = prof; currentUser = data.user
     showApp()
   } catch(e) {
-    err.textContent = e.message || 'Invalid username or password.'
+    err.textContent = e.message || 'Invalid email or password.'
     err.style.display = 'block'
     btn.textContent = 'Sign in'; btn.disabled = false
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (loadSession() && currentProfile) { showApp(); return }
-  showLogin()
-  // Handle redirect back from password reset confirmation link
-  const params = new URLSearchParams(window.location.search)
-  if (params.get('pw_reset') === 'success') {
-    window.history.replaceState({}, '', window.location.pathname)
-    setTimeout(() => {
-      const err = document.getElementById('loginErr')
-      if (err) {
-        err.style.display = 'block'
-        err.style.background = 'var(--green-s)'
-        err.style.color = 'var(--green)'
-        err.style.border = '1px solid rgba(22,163,74,.3)'
-        err.innerHTML = '✓ Password reset confirmed! Check your email for your temporary password, then log in below.'
-      }
-    }, 300)
-  }
+document.addEventListener('DOMContentLoaded', async () => {
   const pwEl = document.getElementById('loginPw')
   if (pwEl) pwEl.addEventListener('keydown', e => { if(e.key==='Enter') handleLogin() })
   const unEl = document.getElementById('loginUsername')
   if (unEl) unEl.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('loginPw').focus() })
+  if (await restoreSession()) { showApp(); return }
+  showLogin()
 })
 
 async function handleSignOut() {
   if (!confirm('Sign out?')) return
-  localStorage.removeItem('vts_user')
+  try { await SB.auth.signOut() } catch(e) {}
+  localStorage.removeItem('vts_user')  // clean up legacy session key
   currentProfile = null; currentUser = null
   showLogin()
 }
 
-// ── Forgot Password (Supabase Auth users only) ──────
-// ── Forgot Password Panel ────────────────────────
+// ── Forgot Password → shared TDMH Core reset page ──────
 function showForgotPanel() {
-  document.getElementById('loginForm').style.display = 'none'
-  document.getElementById('forgotPanel').style.display = 'block'
-  document.getElementById('fpUsername').value = ''
-  document.getElementById('fpMsg').style.display = 'none'
-  document.getElementById('fpBtn').disabled = false
-  document.getElementById('fpBtn').textContent = 'Send Temporary Password'
-  const fpEl = document.getElementById('fpUsername')
-  fpEl.focus()
-  fpEl.onkeydown = e => { if(e.key==='Enter') doForgotPassword() }
+  window.location.href = 'https://tdmhcore.io/reset?from=vts'
 }
 function hideForgotPanel() {
   document.getElementById('forgotPanel').style.display = 'none'
   document.getElementById('loginForm').style.display = 'block'
 }
+async function doForgotPassword() { showForgotPanel() }
 
-// ── Change Password ────────────────────
+// ── Change Password (Supabase Auth — applies to all TDMH Core systems) ──
 function openChangePassword() {
   closeSidebar()
   openMO('Change Password',
-    `<div class="info info-blue">Changing password for: <strong>${currentProfile?.username}</strong></div>
-     <div class="fg"><label class="fl">Current Password *</label><input class="fi" type="password" id="cpOld" placeholder="Current password"></div>
-     <div class="fg"><label class="fl">New Password *</label><input class="fi" type="password" id="cpNew" placeholder="Min 4 characters"></div>
-     <div class="fg"><label class="fl">Confirm New Password *</label><input class="fi" type="password" id="cpNew2" placeholder="Repeat new password"></div>`,
+    `<div class="info info-blue">Changing password for: <strong>${currentProfile?.username || currentProfile?.full_name || ''}</strong><br>
+       <span style="font-size:11px">This is your TDMH Core password — it changes for all TDMH systems.</span></div>
+     <div class="fg"><label class="fl">New Password *</label><input class="fi" type="password" id="cpNew" placeholder="Min 6 characters" autocomplete="new-password"></div>
+     <div class="fg"><label class="fl">Confirm New Password *</label><input class="fi" type="password" id="cpNew2" placeholder="Repeat new password" autocomplete="new-password"></div>`,
     `<button class="btn btn-ghost" onclick="closeMO()">Cancel</button>
      <button class="btn btn-pri" id="cpBtn" onclick="doChangePassword()">Update Password</button>`
   )
 }
 
 async function doChangePassword() {
-  const oldPw  = document.getElementById('cpOld')?.value
   const newPw  = document.getElementById('cpNew')?.value
   const newPw2 = document.getElementById('cpNew2')?.value
-  if (!oldPw || !newPw || !newPw2) { alert('All fields are required.'); return }
+  if (!newPw || !newPw2) { alert('All fields are required.'); return }
   if (newPw !== newPw2) { alert('New passwords do not match.'); return }
-  if (newPw.length < 4) { alert('New password must be at least 4 characters.'); return }
-  if (oldPw === newPw) { alert('New password must be different from the current one.'); return }
+  if (newPw.length < 6) { alert('New password must be at least 6 characters.'); return }
   const btn = document.getElementById('cpBtn'); btn.disabled=true; btn.textContent='Updating...'
-  // Verify current password
-  const { data: check } = await SB.from('users').select('id').eq('id', currentProfile.id).eq('password', oldPw).single()
-  if (!check) { alert('Current password is incorrect.'); btn.disabled=false; btn.textContent='Update Password'; return }
-  // Update password
-  const { error } = await SB.from('users').update({ password: newPw }).eq('id', currentProfile.id)
+  const { error } = await SB.auth.updateUser({ password: newPw })
   if (error) { alert(error.message); btn.disabled=false; btn.textContent='Update Password'; return }
-  currentProfile.password = newPw
-  localStorage.setItem('vts_user', JSON.stringify(currentProfile))
   closeMO(true)
-  alert('Password updated successfully!')
-}
-
-async function doForgotPassword() {
-  const identifier = document.getElementById('fpUsername')?.value?.trim().toLowerCase()
-  const btn = document.getElementById('fpBtn')
-  const msg = document.getElementById('fpMsg')
-  if (!identifier) {
-    if (msg) { msg.style.cssText='display:block;background:var(--red-s);color:var(--red);border:1px solid rgba(220,38,38,.3);border-radius:9px'; msg.textContent='Please enter your username or email.' }
-    return
-  }
-  btn.disabled=true; btn.textContent='Sending...'
-  if (msg) msg.style.display='none'
-
-  try {
-    const res = await fetch(`${SB_URL}/functions/v1/password-reset`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SB_ANON },
-      body: JSON.stringify({ identifier })
-    })
-    // Always show success (prevents user enumeration)
-    if (msg) {
-      msg.style.cssText='display:block;background:var(--green-s);color:var(--green);border:1px solid rgba(22,163,74,.3);border-radius:9px;line-height:1.5'
-      msg.innerHTML = `<strong>✓ Check your email inbox!</strong><br>
-        If an account matches that username or email, a <strong>confirmation link</strong> has been sent.<br>
-        <span style="font-size:11px;opacity:.8">Click the link in the email to confirm your request. The link expires in 30 minutes.</span>`
-    }
-    btn.disabled=true; btn.textContent='Email Sent!'
-  } catch(e) {
-    if (msg) { msg.style.cssText='display:block;background:var(--red-s);color:var(--red);border:1px solid rgba(220,38,38,.3);border-radius:9px'; msg.textContent='Something went wrong. Please try again.' }
-    btn.disabled=false; btn.textContent='Send Confirmation Email'
-  }
+  alert('Password updated successfully! Use it for all TDMH Core systems.')
 }
 
 
@@ -939,6 +894,10 @@ function showLogin() {
   const unEl = document.getElementById('loginUser'); if (unEl) unEl.value = ''
   const pwEl = document.getElementById('loginPass'); if (pwEl) pwEl.value = ''
 }
+
+if (SB) SB.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT' && currentProfile) { currentProfile = null; currentUser = null; showLogin() }
+})
 
 function showApp() {
   document.getElementById('loginPage').style.display = 'none'
@@ -1109,9 +1068,9 @@ function goTo(page) {
 function subscribeRealtime() {
   if (realtimeChannel) SB.removeChannel(realtimeChannel)
   realtimeChannel = SB.channel('vts-live')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'trips' }, () => renderPage(currentPage))
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'drivers' }, () => { if(['drivers','tickets'].includes(currentPage)) renderPage(currentPage) })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, () => { if(['vehicles','tickets'].includes(currentPage)) renderPage(currentPage) })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vts_trips' }, () => renderPage(currentPage))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vts_drivers' }, () => { if(['drivers','tickets'].includes(currentPage)) renderPage(currentPage) })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vts_vehicles' }, () => { if(['vehicles','tickets'].includes(currentPage)) renderPage(currentPage) })
     .subscribe()
 }
 
@@ -1128,7 +1087,7 @@ function renderPage(page) {
 // NOTIFICATIONS
 // ════════════════════════════════════════════════
 async function showNotifs() {
-  const { data } = await SB.from('trips').select('ticket_no,department,purpose,vehicle_type_needed,departure_at').eq('status','pending-approval').order('created_at',{ascending:false}).limit(10)
+  const { data } = await SB.from('vts_trips').select('ticket_no,department,purpose,vehicle_type_needed,departure_at').eq('status','pending-approval').order('created_at',{ascending:false}).limit(10)
   const items = data || []
   openMO('Pending Notifications',
     `<div style="font-size:11px;color:var(--text3);margin-bottom:10px">${items.length} ticket${items.length!==1?'s':''} awaiting approval</div>` +
@@ -1153,7 +1112,7 @@ async function renderDashboard() {
 
   // Driver gets their own focused dashboard
   if (role === 'driver') { await renderDriverDashboard(); return }
-  let tripsQ = SB.from('trips').select('id,ticket_no,status,department,purpose,priority,vehicle_type_needed,driver_name,vehicle_name,vehicle_plate,departure_at,expected_return_at,created_at,requester_id,driver_id,vehicle_id,pool_id').order('created_at',{ascending:false})
+  let tripsQ = SB.from('vts_trips').select('id,ticket_no,status,department,purpose,priority,vehicle_type_needed,driver_name,vehicle_name,vehicle_plate,departure_at,expected_return_at,created_at,requester_id,driver_id,vehicle_id,pool_id').order('created_at',{ascending:false})
   if (role === 'requester')     tripsQ = tripsQ.eq('requester_id', currentProfile.id)
   if (role === 'driver')        tripsQ = tripsQ.eq('driver_id', currentProfile.driver_record_id || currentProfile.id)
   // Fetch ALL tickets — no vehicle type filter at DB level
@@ -1163,7 +1122,7 @@ async function renderDashboard() {
 
   const [{ data: trips }, { data: logs }] = await Promise.all([
     tripsQ,
-    SB.from('audit_logs').select('*').order('created_at',{ascending:false}).limit(6)
+    SB.from('vts_audit_logs').select('*').order('created_at',{ascending:false}).limit(6)
   ])
   const T = trips || []; const L = logs || []
 
@@ -1200,7 +1159,7 @@ async function renderDashboard() {
   const next7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   let upcomingAdvance = []
   if (['admin','guard','approver_admin','approver_amb'].includes(role)) {
-    const { data: adv } = await SB.from('trips')
+    const { data: adv } = await SB.from('vts_trips')
       .select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,departure_at,vehicle_type_needed,status')
       .in('status', ['assigned','approved'])
       .gt('departure_at', now.toISOString())
@@ -1522,11 +1481,11 @@ async function renderDashboard() {
     const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59)
 
     const [{ data: assigned }, { data: onTripData }, { data: completedToday }] = await Promise.all([
-      SB.from('trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,vehicle_id,departure_at,expected_return_at,status,pool_id')
+      SB.from('vts_trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,vehicle_id,departure_at,expected_return_at,status,pool_id')
         .eq('status','assigned').order('departure_at',{ascending:true}),
-      SB.from('trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,vehicle_id,driver_id,departure_at,expected_return_at,status,pool_id')
+      SB.from('vts_trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,vehicle_id,driver_id,departure_at,expected_return_at,status,pool_id')
         .eq('status','on-trip').order('expected_return_at',{ascending:true}),
-      SB.from('trips').select('id,ticket_no,department,destination,driver_name,vehicle_plate,gate_in_at,status')
+      SB.from('vts_trips').select('id,ticket_no,department,destination,driver_name,vehicle_plate,gate_in_at,status')
         .eq('status','completed')
         .gte('gate_in_at', new Date(today.getFullYear(),today.getMonth(),today.getDate()).toISOString())
         .order('gate_in_at',{ascending:false})
@@ -1766,7 +1725,7 @@ async function renderTickets() {
   document.getElementById('CONTENT').innerHTML = `<div style="color:var(--text3);padding:40px;text-align:center;font-size:13px">${hourglass()}<div style="margin-top:10px">Loading...</div></div>`
   const role = currentProfile?.role
   // Build query filtered by role
-  let tripsQuery = SB.from('trips').select('*,vehicle:vehicles(id,plate,type,name)').order('created_at',{ascending:false})
+  let tripsQuery = SB.from('vts_trips').select('*,vehicle:vts_vehicles(id,plate,type,name)').order('created_at',{ascending:false})
   if (role === 'requester')      tripsQuery = tripsQuery.eq('requester_id', currentProfile.id)
   if (role === 'driver')         tripsQuery = tripsQuery.eq('driver_id', currentProfile.driver_record_id || currentProfile.id)
   if (role === 'approver_admin')   tripsQuery = tripsQuery.neq('vehicle_type_needed', 'ambulance')
@@ -1774,8 +1733,8 @@ async function renderTickets() {
   // super_approver sees all tickets (no filter)
   const [{ data: trips }, { data: drvs }, { data: vehs }] = await Promise.all([
     tripsQuery,
-    SB.from('drivers').select('*,user:users(username,department)').neq('status','off-duty'),
-    SB.from('vehicles').select('*').neq('status','maintenance')
+    SB.from('vts_drivers').select('*,user:users!vts_drivers_user_id_fkey(username:email,full_name)').neq('status','off-duty'),
+    SB.from('vts_vehicles').select('*').neq('status','maintenance')
   ])
   _tickets = trips || []; _drivers = drvs || []; _vehicles = vehs || []
   // Badge counts ONLY what this role can act on (role-scoped)
@@ -2330,8 +2289,8 @@ function buildMobCards(filtered, role) {
 // VIEW
 async function openViewModal(id) {
   const [{ data: t }, { data: passengers }] = await Promise.all([
-    SB.from('trips').select('*,vehicle:vehicles(plate,type)').eq('id',id).single(),
-    SB.from('trip_passengers').select('id,full_name,department,contact_no').eq('trip_id',id).order('added_at')
+    SB.from('vts_trips').select('*,vehicle:vts_vehicles(plate,type)').eq('id',id).single(),
+    SB.from('vts_trip_passengers').select('id,full_name,department,contact_no').eq('trip_id',id).order('added_at')
   ])
   if (!t) return
   const fields = [
@@ -2461,7 +2420,7 @@ async function openViewModal(id) {
 // GUARD — PASSENGER MANIFEST EDITOR
 // ════════════════════════════════════════════════
 async function openCorrectGateData(tripId, ticketNo) {
-  const { data: t } = await SB.from('trips').select('*').eq('id', tripId).single()
+  const { data: t } = await SB.from('vts_trips').select('*').eq('id', tripId).single()
   if (!t) { alert('Trip not found.'); return }
 
   const hasOut = !!t.gate_out_at
@@ -2519,7 +2478,7 @@ async function doCorrectGateData(tripId, ticketNo) {
   const btn = document.getElementById('cgBtn'); btn.disabled=true; btn.textContent='Saving...'
 
   // Fetch current values for the audit diff
-  const { data: old } = await SB.from('trips').select('odometer_out,odometer_in,fuel_out,fuel_in,condition_out,condition_in,fuel_consumed_liters,fuel_price_per_liter,guard_out_remarks,guard_in_remarks').eq('id', tripId).single()
+  const { data: old } = await SB.from('vts_trips').select('odometer_out,odometer_in,fuel_out,fuel_in,condition_out,condition_in,fuel_consumed_liters,fuel_price_per_liter,guard_out_remarks,guard_in_remarks').eq('id', tripId).single()
 
   const g = (id) => document.getElementById(id)
   const payload = {}
@@ -2556,7 +2515,7 @@ async function doCorrectGateData(tripId, ticketNo) {
   if (!Object.keys(payload).length) { alert('No changes made.'); btn.disabled=false; btn.textContent='Save Corrections'; return }
 
   // NOTE: distance_km is GENERATED — never include it; DB auto-recomputes from odometer_out/in
-  const { error } = await SB.from('trips').update(payload).eq('id', tripId)
+  const { error } = await SB.from('vts_trips').update(payload).eq('id', tripId)
   if (error) { alert('Error: ' + error.message); btn.disabled=false; btn.textContent='Save Corrections'; return }
 
   await addAudit(tripId, ticketNo, '✏ Gate Data Corrected',
@@ -2569,7 +2528,7 @@ async function doCorrectGateData(tripId, ticketNo) {
 
 async function openManifestEditor(tripId, ticketNo) {
   // Fetch current passengers
-  const { data: passengers } = await SB.from('trip_passengers')
+  const { data: passengers } = await SB.from('vts_trip_passengers')
     .select('id,full_name,department,contact_no')
     .eq('trip_id', tripId)
     .order('added_at')
@@ -2651,15 +2610,15 @@ async function doSaveManifest(tripId, ticketNo) {
   const btn = document.querySelector('#MO .btn-pri'); if(btn){btn.disabled=true;btn.textContent='Saving...'}
 
   // Delete all existing passengers for this trip, then re-insert
-  await SB.from('trip_passengers').delete().eq('trip_id', tripId)
+  await SB.from('vts_trip_passengers').delete().eq('trip_id', tripId)
   if (newList.length > 0) {
-    await SB.from('trip_passengers').insert(newList.map(p => ({
+    await SB.from('vts_trip_passengers').insert(newList.map(p => ({
       trip_id: tripId, ...p, added_at: new Date().toISOString()
     })))
   }
 
   // Update trip passenger count
-  await SB.from('trips').update({ passengers: newList.length }).eq('id', tripId)
+  await SB.from('vts_trips').update({ passengers: newList.length }).eq('id', tripId)
 
   // Audit log
   await addAudit(tripId, ticketNo, '📋 Manifest Updated', `${newList.length} passengers updated by Guard: ${currentProfile?.full_name}`)
@@ -2685,17 +2644,17 @@ async function openApproveModal(id, ticketNo, vtype) {
     { data: activeVeh },
     { data: poolCandidates }
   ] = await Promise.all([
-    SB.from('trips').select('*').eq('id', id).single(),
-    SB.from('drivers').select('*').neq('status','off-duty').order('full_name'),
-    SB.from('vehicles').select('*').neq('status','maintenance').order('name'),
-    SB.from('trips').select('id,ticket_no,driver_id,driver_name,vehicle_id,vehicle_name,vehicle_plate,departure_at,expected_return_at,department,destination')
+    SB.from('vts_trips').select('*').eq('id', id).single(),
+    SB.from('vts_drivers').select('*').neq('status','off-duty').order('full_name'),
+    SB.from('vts_vehicles').select('*').neq('status','maintenance').order('name'),
+    SB.from('vts_trips').select('id,ticket_no,driver_id,driver_name,vehicle_id,vehicle_name,vehicle_plate,departure_at,expected_return_at,department,destination')
       .not('status','in','("completed","cancelled","rejected","pending-approval")')
       .not('driver_id','is',null).not('vehicle_id','is',null),
-    SB.from('trips').select('id,ticket_no,driver_id,vehicle_id,departure_at,expected_return_at')
+    SB.from('vts_trips').select('id,ticket_no,driver_id,vehicle_id,departure_at,expected_return_at')
       .not('status','in','("completed","cancelled","rejected","pending-approval")')
       .not('vehicle_id','is',null),
     // Assigned/approved tickets on same date for pool suggestion
-    SB.from('trips').select('id,ticket_no,driver_id,driver_name,vehicle_id,vehicle_name,vehicle_plate,departure_at,department,destination,pool_id')
+    SB.from('vts_trips').select('id,ticket_no,driver_id,driver_name,vehicle_id,vehicle_name,vehicle_plate,departure_at,department,destination,pool_id')
       .in('status',['assigned','approved'])
       .not('driver_id','is',null)
       .not('pool_id','is',null)
@@ -2703,7 +2662,7 @@ async function openApproveModal(id, ticketNo, vtype) {
   ])
 
   // Fetch passengers separately (not in destructured array above)
-  const { data: apPassengers } = await SB.from('trip_passengers')
+  const { data: apPassengers } = await SB.from('vts_trip_passengers')
     .select('full_name,department,contact_no')
     .eq('trip_id', id)
     .order('added_at')
@@ -2882,6 +2841,9 @@ async function openApproveModal(id, ticketNo, vtype) {
   , { confirmClose: true })
 }
 
+// Driver select in the Approve modal calls this on change (was never defined — no-op stub)
+function updateApproveVehicleFilter() {}
+
 function applyApproveTypeOverride() {
   const override = document.getElementById('apVtypeOverride')?.value
   if (!override) return
@@ -2979,13 +2941,13 @@ async function doApproveAndAssign(id, ticketNo) {
 
   // ── Conflict Detection ──────────────────────────
   // Get the trip's departure and expected return
-  const { data: tripData } = await SB.from('trips').select('departure_at,expected_return_at,id').eq('id',id).single()
+  const { data: tripData } = await SB.from('vts_trips').select('departure_at,expected_return_at,id').eq('id',id).single()
   if (tripData) {
     const dep = tripData.departure_at
     const ret = tripData.expected_return_at
 
     // Check vehicle conflict
-    const { data: vConflict } = await SB.from('trips')
+    const { data: vConflict } = await SB.from('vts_trips')
       .select('ticket_no,departure_at,expected_return_at')
       .eq('vehicle_id', vv)
       .not('status','in','("completed","cancelled","rejected")')
@@ -3015,7 +2977,7 @@ async function doApproveAndAssign(id, ticketNo) {
     }
 
     // Check driver conflict
-    const { data: dConflict } = await SB.from('trips')
+    const { data: dConflict } = await SB.from('vts_trips')
       .select('ticket_no,departure_at,expected_return_at')
       .eq('driver_id', driverId)
       .not('status','in','("completed","cancelled","rejected")')
@@ -3044,7 +3006,7 @@ async function doApproveAndAssign(id, ticketNo) {
     }
 
     // Check maintenance blackout
-    const { data: maintBlock } = await SB.from('maintenance_schedule')
+    const { data: maintBlock } = await SB.from('vts_maintenance_schedule')
       .select('title,start_at,end_at')
       .eq('vehicle_id', vv)
       .in('status', ['scheduled','in-progress'])
@@ -3071,7 +3033,7 @@ async function doApproveAndAssign(id, ticketNo) {
 
   // ── ATOMIC APPROVAL (prevents double-approval race condition) ──
   // First re-check status to give a fast UI response before DB lock
-  const { data: preCheck } = await SB.from('trips')
+  const { data: preCheck } = await SB.from('vts_trips')
     .select('status,approver_id')
     .eq('id', id).single()
 
@@ -3090,7 +3052,7 @@ async function doApproveAndAssign(id, ticketNo) {
   }
 
   // ── ATOMIC APPROVAL (prevents double-approval race condition) ──
-  const { data: lockResult, error: lockErr } = await SB.rpc('approve_trip_atomic', {
+  const { data: lockResult, error: lockErr } = await SB.rpc('vts_approve_trip_atomic', {
     p_trip_id:       id,
     p_approver_id:   currentProfile?.id,
     p_approved_at:   new Date().toISOString(),
@@ -3122,7 +3084,7 @@ async function doApproveAndAssign(id, ticketNo) {
   // ── Save vehicle type override if approver changed it ──────────────────────
   const vtypeOverride = window._apVtypeOverride
   if (vtypeOverride && vtypeOverride !== window._apOrigVtype) {
-    await SB.from('trips').update({ vehicle_type_needed: vtypeOverride }).eq('id', id)
+    await SB.from('vts_trips').update({ vehicle_type_needed: vtypeOverride }).eq('id', id)
     await addAudit(id, ticketNo, '🔄 Vehicle Type Overridden',
       `Requester requested "${window._apOrigVtype}" — approver changed to "${vtypeOverride}" · ${currentProfile?.full_name}`)
     window._apVtypeOverride = null
@@ -3130,18 +3092,18 @@ async function doApproveAndAssign(id, ticketNo) {
 
   // ── APPROVED SUCCESSFULLY ──
   // Fetch latest trip data for notifications
-  const { data: trip } = await SB.from('trips').select('*').eq('id',id).single()
+  const { data: trip } = await SB.from('vts_trips').select('*').eq('id',id).single()
 
   // Update driver and vehicle status
-  await SB.from('drivers').update({ status:'on-trip' }).eq('id', driverId)
-  await SB.from('vehicles').update({ status:'on-trip' }).eq('id', vv)
+  await SB.from('vts_drivers').update({ status:'on-trip' }).eq('id', driverId)
+  await SB.from('vts_vehicles').update({ status:'on-trip' }).eq('id', vv)
 
   await addAudit(id, ticketNo, 'Approved & Driver Assigned', `${rem ? rem+' · ' : ''}Driver: ${driverName}`)
 
   // Notifications
   const vehiclePlate = _vehicles.find(v => v.id === vv)?.plate || ''
   const vehicleName  = vehicle?.name || vehiclePlate
-  const { data: driverRow } = await SB.from('drivers').select('phone,user_id').eq('id', driverId).single()
+  const { data: driverRow } = await SB.from('vts_drivers').select('phone,user_id').eq('id', driverId).single()
 
   // SMS → driver (time-critical)
   if (driverRow?.phone) await sendSMS([driverRow.phone],
@@ -3173,14 +3135,14 @@ async function openReassignModal(id, ticketNo, vtype, curDriverName, curDriverId
   // newly-added relievers are current, not stale from the tickets page cache
   {
     const [{ data: drvs }, { data: vehs }] = await Promise.all([
-      SB.from('drivers').select('*').order('full_name'),
-      SB.from('vehicles').select('*').order('name')
+      SB.from('vts_drivers').select('*').order('full_name'),
+      SB.from('vts_vehicles').select('*').order('name')
     ])
     if (drvs) _drivers = drvs
     if (vehs) _vehicles = vehs
   }
 
-  const { data: tripData } = await SB.from('trips')
+  const { data: tripData } = await SB.from('vts_trips')
     .select('departure_at,expected_return_at,pool_id,driver_id,driver_name,vehicle_id,vehicle_plate,vehicle_name,status')
     .eq('id', id).single()
 
@@ -3207,8 +3169,8 @@ async function openReassignModal(id, ticketNo, vtype, curDriverName, curDriverId
   const retISO = tripData?.expected_return_at || new Date(new Date(depISO).getTime() + 4*3600000).toISOString()
 
   const [{ data: busyV }, { data: busyD }] = await Promise.all([
-    SB.rpc('get_busy_vehicle_ids', { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
-    SB.rpc('get_busy_driver_ids',  { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
+    SB.rpc('vts_get_busy_vehicle_ids', { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
+    SB.rpc('vts_get_busy_driver_ids',  { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
   ])
 
   const busyVIds = new Set((busyV||[]).map(t=>t.vehicle_id).filter(Boolean))
@@ -3439,17 +3401,17 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
   btn.disabled=true; btn.textContent='Reassigning...'
 
   // Time-based conflict check for NEW driver (exclude current trip)
-  const { data: tripData } = await SB.from('trips').select('departure_at,expected_return_at').eq('id',id).single()
+  const { data: tripData } = await SB.from('vts_trips').select('departure_at,expected_return_at').eq('id',id).single()
   const depISO = tripData?.departure_at || new Date().toISOString()
   const retISO = tripData?.expected_return_at || new Date(new Date(depISO).getTime()+4*3600000).toISOString()
 
   // Check if new driver has conflict (skip if same driver)
   if (newDriverId !== curDriverId) {
-    const { data: dConf } = await SB.rpc('get_busy_driver_ids',
+    const { data: dConf } = await SB.rpc('vts_get_busy_driver_ids',
       { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id })
       .then(async r => {
         if (!(r.data||[]).some(x => x.driver_id === newDriverId)) return { data: [] }
-        const { data } = await SB.from('trips').select('ticket_no')
+        const { data } = await SB.from('vts_trips').select('ticket_no')
           .eq('driver_id', newDriverId)
           .not('status','in','("completed","cancelled","rejected")')
           .neq('id', id)
@@ -3464,11 +3426,11 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
 
   // Check if new vehicle has conflict (skip if same vehicle)
   if (vv !== curVehicleId) {
-    const { data: vConf } = await SB.rpc('get_busy_vehicle_ids',
+    const { data: vConf } = await SB.rpc('vts_get_busy_vehicle_ids',
       { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id })
       .then(async r => {
         if (!(r.data||[]).some(x => x.vehicle_id === vv)) return { data: [] }
-        const { data } = await SB.from('trips').select('ticket_no')
+        const { data } = await SB.from('vts_trips').select('ticket_no')
           .eq('vehicle_id', vv)
           .not('status','in','("completed","cancelled","rejected")')
           .neq('id', id)
@@ -3482,12 +3444,12 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
   }
 
   // Check if this ticket is part of a pool
-  const { data: poolCheck } = await SB.from('trips').select('pool_id').eq('id', id).single()
+  const { data: poolCheck } = await SB.from('vts_trips').select('pool_id').eq('id', id).single()
   const poolId = poolCheck?.pool_id
 
   if (poolId) {
     // POOL REASSIGN — update ALL tickets in the pool + trip_pools record
-    const { data: poolTickets } = await SB.from('trips')
+    const { data: poolTickets } = await SB.from('vts_trips')
       .select('id,ticket_no,driver_id,vehicle_id')
       .eq('pool_id', poolId)
 
@@ -3495,7 +3457,7 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
     const ticketIds = (poolTickets||[]).map(t => t.id)
 
     // Batch update all pool tickets
-    await SB.from('trips').update({
+    await SB.from('vts_trips').update({
       driver_id:     newDriverId,
       driver_name:   newDriverName,
       vehicle_id:    vv,
@@ -3506,7 +3468,7 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
     }).eq('pool_id', poolId)
 
     // Update trip_pools record
-    await SB.from('trip_pools').update({
+    await SB.from('vts_trip_pools').update({
       driver_id:    newDriverId,
       driver_name:  newDriverName,
       vehicle_id:   vv,
@@ -3516,15 +3478,15 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
 
     // Release old driver + vehicle → available
     if (curDriverId && curDriverId !== newDriverId)
-      await SB.from('drivers').update({ status:'available' }).eq('id', curDriverId)
+      await SB.from('vts_drivers').update({ status:'available' }).eq('id', curDriverId)
     if (curVehicleId && curVehicleId !== vv)
-      await SB.from('vehicles').update({ status:'available' }).eq('id', curVehicleId)
+      await SB.from('vts_vehicles').update({ status:'available' }).eq('id', curVehicleId)
 
     // Set new driver + vehicle → on-trip
     if (newDriverId !== curDriverId)
-      await SB.from('drivers').update({ status:'on-trip' }).eq('id', newDriverId)
+      await SB.from('vts_drivers').update({ status:'on-trip' }).eq('id', newDriverId)
     if (vv !== curVehicleId)
-      await SB.from('vehicles').update({ status:'on-trip' }).eq('id', vv)
+      await SB.from('vts_vehicles').update({ status:'on-trip' }).eq('id', vv)
 
     // Audit log for the pool
     const changes = []
@@ -3536,12 +3498,12 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
 
     // SMS old driver
     if (curDriverId && curDriverId !== newDriverId) {
-      const { data: oldDrv } = await SB.from('drivers').select('phone').eq('id', curDriverId).single()
+      const { data: oldDrv } = await SB.from('vts_drivers').select('phone').eq('id', curDriverId).single()
       if (oldDrv?.phone) await sendSMS([oldDrv.phone], `[TDMH VTS] You have been UNASSIGNED from pool trip.\nTickets: ${ticketNos}\nReason: ${reason}`)
     }
     // SMS new driver
     if (newDriverId !== curDriverId) {
-      const { data: newDrv } = await SB.from('drivers').select('phone').eq('id', newDriverId).single()
+      const { data: newDrv } = await SB.from('vts_drivers').select('phone').eq('id', newDriverId).single()
       const dep = tripData?.departure_at ? new Date(tripData.departure_at).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : '—'
       if (newDrv?.phone) await sendSMS([newDrv.phone], `[TDMH VTS] POOL TRIP ASSIGNMENT\nTickets: ${ticketNos}\nVehicle: ${newVehicle?.name||newVehicle?.plate||'—'} (${newVehicle?.plate||'—'})\nDeparture: ${dep}\nReport to motor pool.`)
     }
@@ -3552,7 +3514,7 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
   }
 
   // SINGLE TICKET REASSIGN (non-pool) — atomic via DB function
-  const { data: result, error: rErr } = await SB.rpc('reassign_trip_atomic', {
+  const { data: result, error: rErr } = await SB.rpc('vts_reassign_trip_atomic', {
     p_trip_id:          id,
     p_admin_id:         currentProfile?.id,
     p_new_driver_id:    newDriverId,
@@ -3576,7 +3538,7 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
   // Save vehicle type override if changed
   const rsaVtypeOverride = window._rsaVtypeOverride
   if (rsaVtypeOverride && rsaVtypeOverride !== window._rsaOrigVtype) {
-    await SB.from('trips').update({ vehicle_type_needed: rsaVtypeOverride }).eq('id', id)
+    await SB.from('vts_trips').update({ vehicle_type_needed: rsaVtypeOverride }).eq('id', id)
     await addAudit(id, ticketNo, '🔄 Vehicle Type Changed on Reassign',
       `Changed from "${window._rsaOrigVtype}" to "${rsaVtypeOverride}" · ${currentProfile?.full_name}`)
     window._rsaVtypeOverride = null
@@ -3587,15 +3549,15 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
   const oldVehicleId = res.old_vehicle_id
 
   if (oldDriverId && oldDriverId !== newDriverId)
-    await SB.from('drivers').update({ status:'available' }).eq('id', oldDriverId)
+    await SB.from('vts_drivers').update({ status:'available' }).eq('id', oldDriverId)
   if (oldVehicleId && oldVehicleId !== vv)
-    await SB.from('vehicles').update({ status:'available' }).eq('id', oldVehicleId)
+    await SB.from('vts_vehicles').update({ status:'available' }).eq('id', oldVehicleId)
 
   // Set NEW driver + vehicle → on-trip (only if actually changing)
   if (newDriverId !== curDriverId)
-    await SB.from('drivers').update({ status:'on-trip' }).eq('id', newDriverId)
+    await SB.from('vts_drivers').update({ status:'on-trip' }).eq('id', newDriverId)
   if (vv !== curVehicleId)
-    await SB.from('vehicles').update({ status:'on-trip' }).eq('id', vv)
+    await SB.from('vts_vehicles').update({ status:'on-trip' }).eq('id', vv)
 
   // Audit log — use the TRUE old driver/vehicle from the atomic function's locked row
   const oldDriverName = res.old_driver_name || _drivers.find(d=>d.id===oldDriverId)?.full_name || oldDriverId
@@ -3607,13 +3569,13 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
 
   // Notify old driver via SMS (if changed and has phone)
   if (oldDriverId && oldDriverId !== newDriverId) {
-    const { data: oldDrv } = await SB.from('drivers').select('phone').eq('id', oldDriverId).single()
+    const { data: oldDrv } = await SB.from('vts_drivers').select('phone').eq('id', oldDriverId).single()
     if (oldDrv?.phone) await sendSMS([oldDrv.phone], `[TDMH VTS] You have been UNASSIGNED from trip ${ticketNo}.\nReason: ${reason}\nYou are now available for new trips.`)
   }
 
   // Notify new driver via SMS (if changed)
   if (newDriverId !== curDriverId) {
-    const { data: newDrv } = await SB.from('drivers').select('phone').eq('id', newDriverId).single()
+    const { data: newDrv } = await SB.from('vts_drivers').select('phone').eq('id', newDriverId).single()
     const dep = tripData?.departure_at ? new Date(tripData.departure_at).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : '—'
     if (newDrv?.phone) await sendSMS([newDrv.phone], `[TDMH VTS] You have been ASSIGNED to trip ${ticketNo}.\nVehicle: ${newVehicle?.name||newVehicle?.plate||'—'} (${newVehicle?.plate||'—'})\nDeparture: ${dep}\nPlease report to the motor pool.`)
   }
@@ -3630,7 +3592,7 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
 
 async function openPoolModal() {
   const role = currentProfile?.role
-  let q = SB.from('trips').select('id,ticket_no,department,purpose,destination,stops,departure_at,expected_return_at,vehicle_type_needed,driver_id,driver_name,vehicle_id,vehicle_plate,vehicle_name,status,pool_id,priority')
+  let q = SB.from('vts_trips').select('id,ticket_no,department,purpose,destination,stops,departure_at,expected_return_at,vehicle_type_needed,driver_id,driver_name,vehicle_id,vehicle_plate,vehicle_name,status,pool_id,priority')
     .in('status',['approved','assigned'])
     .is('pool_id',null)
     .order('departure_at',{ascending:true})
@@ -3667,8 +3629,8 @@ async function openPoolModal() {
 
   // Fetch drivers and vehicles
   const [{ data: drvData }, { data: vehData }] = await Promise.all([
-    SB.from('drivers').select('*').neq('status','off-duty').order('full_name'),
-    SB.from('vehicles').select('*').neq('status','maintenance').order('plate')
+    SB.from('vts_drivers').select('*').neq('status','off-duty').order('full_name'),
+    SB.from('vts_vehicles').select('*').neq('status','maintenance').order('plate')
   ])
   const isAmb = role==='approver_amb'
   const avD = (drvData||[]).filter(d => {
@@ -3848,11 +3810,11 @@ async function doFormPool() {
   const btn = document.getElementById('convoyBtn'); btn.disabled=true; btn.textContent='Forming...'
 
   // Generate convoy_no
-  const { data: noData } = await SB.rpc('generate_convoy_no')
+  const { data: noData } = await SB.rpc('vts_generate_pool_no')
   const pool_no = noData || 'TRP-0001'
 
   // Create trip pool record
-  const { data: convoy, error: cErr } = await SB.from('trip_pools').insert([{
+  const { data: convoy, error: cErr } = await SB.from('vts_trip_pools').insert([{
     pool_no,
     driver_id:    driverId,
     driver_name:  driverName,
@@ -3866,7 +3828,7 @@ async function doFormPool() {
   if (cErr) { alert('Error creating pool: '+cErr.message); btn.disabled=false; btn.textContent='🚌 Pool Trip'; return }
 
   // Update all selected tickets: set pool_id, driver, vehicle, status→assigned
-  const { error: tErr } = await SB.from('trips').update({
+  const { error: tErr } = await SB.from('vts_trips').update({
     pool_id:    convoy.id,
     driver_id:    driverId,
     driver_name:  driverName,
@@ -3880,25 +3842,25 @@ async function doFormPool() {
   if (tErr) { alert('Error updating tickets: '+tErr.message); btn.disabled=false; btn.textContent='🚌 Pool Trip'; return }
 
   // Update driver + vehicle status
-  await SB.from('drivers').update({status:'on-trip'}).eq('id',driverId)
-  await SB.from('vehicles').update({status:'on-trip'}).eq('id',vv)
+  await SB.from('vts_drivers').update({status:'on-trip'}).eq('id',driverId)
+  await SB.from('vts_vehicles').update({status:'on-trip'}).eq('id',vv)
 
   // Audit log for each ticket
   for (const tid of checked) {
-    const t = await SB.from('trips').select('ticket_no').eq('id',tid).single()
+    const t = await SB.from('vts_trips').select('ticket_no').eq('id',tid).single()
     await addAudit(tid, t.data?.ticket_no||'', '🚌 Added to Trip Pool', `Pool: ${pool_no} · Driver: ${driverName} · Vehicle: ${vehicle.plate||''} · By: ${currentProfile?.full_name}`)
   }
 
   // SMS to driver
-  const { data: drvRow } = await SB.from('drivers').select('phone').eq('id',driverId).single()
+  const { data: drvRow } = await SB.from('vts_drivers').select('phone').eq('id',driverId).single()
   const depStr = new Date(dep).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Asia/Manila'})
   if (drvRow?.phone) {
     await sendSMS([drvRow.phone], `[TDMH VTS] TRIP POOL ASSIGNMENT\nPool: ${pool_no}\nTickets: ${checked.length} departments\nDeparture: ${depStr}\nVehicle: ${vehicle.name||vehicle.plate||'—'} (${vehicle.plate||'—'})\n\nReport to motor pool for briefing.`)
   }
 
   // Email each requester — notify them their trip is now part of a pool
-  const { data: poolTrips } = await SB.from('trips')
-    .select('id,ticket_no,department,destination,requester:users!trips_requester_id_fkey(email,full_name)')
+  const { data: poolTrips } = await SB.from('vts_trips')
+    .select('id,ticket_no,department,destination,requester:users!vts_trips_requester_id_fkey(email,full_name)')
     .in('id', checked)
 
   for (const t of (poolTrips||[])) {
@@ -3925,7 +3887,7 @@ async function doFormPool() {
             </table>
           </div>
           <p style="color:#6b7280;font-size:12px">Your trip destination and details remain the same. The vehicle will serve all departments in this pool.</p>
-          <p style="color:#6b7280;font-size:12px">Track your trip: <a href="https://ittdmh.pro/vts" style="color:#0c2340">ittdmh.pro/vts</a></p>
+          <p style="color:#6b7280;font-size:12px">Track your trip: <a href="https://tdmhcore.io/vts" style="color:#0c2340">tdmhcore.io/vts</a></p>
         </div>
         <p style="text-align:center;font-size:11px;color:#9ca3af;padding:8px">Taytay Doctors Multispecialty Hospital · TDMH VTS</p>
       </div>`
@@ -3938,8 +3900,8 @@ async function doFormPool() {
 
 // ── Pool Gate Out ────────────────────────────
 async function openPoolGateOut(poolId) {
-  const { data: c } = await SB.from('trip_pools').select('*').eq('id',poolId).single()
-  const { data: trips } = await SB.from('trips').select('ticket_no,department,destination').eq('pool_id',poolId)
+  const { data: c } = await SB.from('vts_trip_pools').select('*').eq('id',poolId).single()
+  const { data: trips } = await SB.from('vts_trips').select('ticket_no,department,destination').eq('pool_id',poolId)
   if (!c) return
 
   openMO(`🚌 Pool Gate Out — ${c.pool_no}`,
@@ -3970,11 +3932,11 @@ async function doPoolGateOut(poolId) {
   const btn     = document.getElementById('cvyGoBtn'); btn.disabled=true; btn.textContent='Processing...'
 
   // Fetch pool for vehicle/driver IDs
-  const { data: pool } = await SB.from('trip_pools').select('vehicle_id,driver_id').eq('id',poolId).single()
+  const { data: pool } = await SB.from('vts_trip_pools').select('vehicle_id,driver_id').eq('id',poolId).single()
 
   // Batch update — all in parallel
   const [poolUpdate, tripsUpdate] = await Promise.all([
-    SB.from('trip_pools').update({
+    SB.from('vts_trip_pools').update({
       gate_out_at:       now,
       odometer_out:      odo,
       condition_out:     cond,
@@ -3982,7 +3944,7 @@ async function doPoolGateOut(poolId) {
       guard_out_remarks: remarks
     }).eq('id', poolId),
 
-    SB.from('trips').update({
+    SB.from('vts_trips').update({
       status:            'on-trip',
       gate_out_at:       now,
       odometer_out:      odo,
@@ -3995,17 +3957,17 @@ async function doPoolGateOut(poolId) {
 
   // Update vehicle odometer
   if (pool?.vehicle_id) {
-    await SB.from('vehicles').update({ odometer: odo }).eq('id', pool.vehicle_id)
+    await SB.from('vts_vehicles').update({ odometer: odo }).eq('id', pool.vehicle_id)
   }
 
   // Single audit log
-  const { data: trips } = await SB.from('trips').select('ticket_no').eq('pool_id', poolId)
+  const { data: trips } = await SB.from('vts_trips').select('ticket_no').eq('pool_id', poolId)
   const ticketNos = (trips||[]).map(t=>t.ticket_no).join(', ')
   await addAudit(null, ticketNos, '🚌 Pool Gate Out', `Pool gate-out · Odo: ${odo}km · Condition: ${cond} · Guard: ${currentProfile?.full_name}`)
 
   // SMS to driver
   if (pool?.driver_id) {
-    const { data: drv } = await SB.from('drivers').select('phone').eq('id', pool.driver_id).single()
+    const { data: drv } = await SB.from('vts_drivers').select('phone').eq('id', pool.driver_id).single()
     if (drv?.phone) await sendSMS([drv.phone], `[TDMH VTS] Pool Gate Out cleared.\nTickets: ${ticketNos}\nOdo: ${odo.toLocaleString()} km\nSafe travels!`)
   }
 
@@ -4014,8 +3976,8 @@ async function doPoolGateOut(poolId) {
 
 // ── Pool Gate In ─────────────────────────────
 async function openPoolGateIn(poolId) {
-  const { data: c } = await SB.from('trip_pools').select('*').eq('id',poolId).single()
-  const { data: trips } = await SB.from('trips').select('ticket_no,department,destination').eq('pool_id',poolId)
+  const { data: c } = await SB.from('vts_trip_pools').select('*').eq('id',poolId).single()
+  const { data: trips } = await SB.from('vts_trips').select('ticket_no,department,destination').eq('pool_id',poolId)
   if (!c) return
 
   openMO(`🚌 Pool Gate In — ${c.pool_no}`,
@@ -4043,7 +4005,7 @@ async function openPoolGateIn(poolId) {
   , { confirmClose: true })
 
   // Fetch odometer_out in background to show reference
-  SB.from('trip_pools').select('odometer_out').eq('id',poolId).single().then(({data}) => {
+  SB.from('vts_trip_pools').select('odometer_out').eq('id',poolId).single().then(({data}) => {
     const odoOut = data?.odometer_out
     const lbl = document.getElementById('cvyOdoInLabel')
     const inp = document.getElementById('cvyOdoIn')
@@ -4073,14 +4035,14 @@ async function doPoolGateIn(poolId, ticketCount) {
   const btn     = document.getElementById('cvyGiBtn'); btn.disabled=true; btn.textContent='Processing...'
 
   // Fetch pool record for odo_out, driver_id, vehicle_id
-  const { data: c } = await SB.from('trip_pools').select('odometer_out,gate_out_at,driver_id,vehicle_id').eq('id',poolId).single()
+  const { data: c } = await SB.from('vts_trip_pools').select('odometer_out,gate_out_at,driver_id,vehicle_id').eq('id',poolId).single()
   const distKm = c?.odometer_out && odoIn > c.odometer_out ? odoIn - c.odometer_out : null
   const distPerTicket = distKm && ticketCount ? Math.round(distKm/ticketCount) : null
   const durationMins = c?.gate_out_at ? Math.round((new Date(now)-new Date(c.gate_out_at))/60000) : null
 
   // ── BATCH update all tickets in the pool — ONE DB call ─────────────────────
   const [poolUpdate, tripsUpdate] = await Promise.all([
-    SB.from('trip_pools').update({
+    SB.from('vts_trip_pools').update({
       gate_in_at:           now,
       odometer_in:          odoIn,
       condition_in:         condIn,
@@ -4091,7 +4053,7 @@ async function doPoolGateIn(poolId, ticketCount) {
       fuel_price_per_liter: fuelP
     }).eq('id', poolId),
 
-    SB.from('trips').update({
+    SB.from('vts_trips').update({
       status:                'completed',
       gate_in_at:            now,
       odometer_in:           odoIn,
@@ -4109,12 +4071,12 @@ async function doPoolGateIn(poolId, ticketCount) {
 
   // Release driver + vehicle
   const releaseOps = []
-  if (c?.driver_id)  releaseOps.push(SB.from('drivers').update({status:'available'}).eq('id',c.driver_id))
-  if (c?.vehicle_id) releaseOps.push(SB.from('vehicles').update({odometer:odoIn,status:'available'}).eq('id',c.vehicle_id))
+  if (c?.driver_id)  releaseOps.push(SB.from('vts_drivers').update({status:'available'}).eq('id',c.driver_id))
+  if (c?.vehicle_id) releaseOps.push(SB.from('vts_vehicles').update({odometer:odoIn,status:'available'}).eq('id',c.vehicle_id))
   if (releaseOps.length) await Promise.all(releaseOps)
 
   // Single audit log for the pool (not per ticket)
-  const { data: trips } = await SB.from('trips').select('id,ticket_no').eq('pool_id',poolId)
+  const { data: trips } = await SB.from('vts_trips').select('id,ticket_no').eq('pool_id',poolId)
   const ticketNos = (trips||[]).map(t=>t.ticket_no).join(', ')
   if (trips?.[0]) {
     await addAudit(trips[0].id, ticketNos, '🚌 Pool Gate In', `Pool ${poolId} — Odo: ${odoIn}km · Fuel: ${fuelL||0}L ₱${fuelCost?.toFixed(2)||'—'} split ${ticketCount} ways · Guard: ${currentProfile?.full_name}`)
@@ -4127,20 +4089,20 @@ async function doPoolGateIn(poolId, ticketCount) {
 // ── Dissolve Pool (undo before gate-out) ────
 async function dissolvePool(poolId, poolNo) {
   if (!confirm(`Dissolve Pool ${poolNo}?\n\nAll tickets will be returned to individual assigned status. This cannot be undone.`)) return
-  const { data: trips } = await SB.from('trips').select('id,ticket_no').eq('pool_id',poolId)
+  const { data: trips } = await SB.from('vts_trips').select('id,ticket_no').eq('pool_id',poolId)
   // Remove convoy_id from all tickets — keep driver/vehicle assignment
-  await SB.from('trips').update({ pool_id: null }).eq('pool_id', poolId)
+  await SB.from('vts_trips').update({ pool_id: null }).eq('pool_id', poolId)
   for (const t of (trips||[])) {
     await addAudit(t.id, t.ticket_no, '🚌 Trip Pool Dissolved', `Convoy ${poolNo} dissolved by ${currentProfile?.full_name}`)
   }
   // Delete trip pool record
-  await SB.from('trip_pools').delete().eq('id',poolId)
+  await SB.from('vts_trip_pools').delete().eq('id',poolId)
   renderTickets()
 }
 
 async function showPoolDetails(poolId) {
-  const { data: c } = await SB.from('trip_pools').select('*').eq('id',poolId).single()
-  const { data: trips } = await SB.from('trips').select('ticket_no,department,destination,status,priority').eq('pool_id',poolId)
+  const { data: c } = await SB.from('vts_trip_pools').select('*').eq('id',poolId).single()
+  const { data: trips } = await SB.from('vts_trips').select('ticket_no,department,destination,status,priority').eq('pool_id',poolId)
   if (!c) return
   const canDissolve = ['admin','super_approver','approver_admin','approver_amb'].includes(currentProfile?.role) && !c.gate_out_at
   openMO(`🚌 Trip Pool — ${c.pool_no}`,
@@ -4175,19 +4137,19 @@ async function doApproveAndPool(id, ticketNo, poolId, driverId, driverName, vehi
   const approver = currentProfile
 
   // 1. Approve the ticket via atomic function
-  const { data: preCheck } = await SB.from('trips').select('status').eq('id',id).single()
+  const { data: preCheck } = await SB.from('vts_trips').select('status').eq('id',id).single()
   if (preCheck?.status !== 'pending-approval') { alert('Ticket status changed. Please refresh.'); closeMO(); return }
 
-  const { error: apErr } = await SB.rpc('approve_trip_atomic', {
+  const { error: apErr } = await SB.rpc('vts_approve_trip_atomic', {
     p_trip_id:      id,
     p_approver_id:  approver?.id,
-    p_approver_name:approver?.full_name,
+    p_approved_at:  new Date().toISOString(),
     p_remarks:      rem || ''
   })
   if (apErr) { alert('Approval error: ' + apErr.message); return }
 
   // 2. Assign driver + vehicle + pool_id in one update
-  const { error: assignErr } = await SB.from('trips').update({
+  const { error: assignErr } = await SB.from('vts_trips').update({
     driver_id:    driverId,
     driver_name:  driverName,
     vehicle_id:   vehicleId,
@@ -4204,9 +4166,9 @@ async function doApproveAndPool(id, ticketNo, poolId, driverId, driverName, vehi
   await addAudit(id, ticketNo, '✅ Approved + Added to Trip Pool', `Driver: ${driverName} · Vehicle: ${vehiclePlate} · Pool ID: ${poolId} · By: ${approver?.full_name}`)
 
   // 4. SMS to driver
-  const { data: drvRow } = await SB.from('drivers').select('phone').eq('id', driverId).single()
+  const { data: drvRow } = await SB.from('vts_drivers').select('phone').eq('id', driverId).single()
   if (drvRow?.phone) {
-    const { data: t } = await SB.from('trips').select('department,destination,departure_at').eq('id',id).single()
+    const { data: t } = await SB.from('vts_trips').select('department,destination,departure_at').eq('id',id).single()
     await sendSMS([drvRow.phone], `[TDMH VTS] TRIP POOL UPDATE\n${ticketNo} added to your trip pool.\nDept: ${t?.department||'—'} → ${t?.destination||'—'}\nSame departure and vehicle: ${vehiclePlate}`)
   }
 
@@ -4227,7 +4189,7 @@ async function doReject(id, ticketNo) {
   const btn = document.getElementById('rejBtn'); btn.disabled=true; btn.textContent='Rejecting...'
 
   // Pre-check status for fast UI response
-  const { data: preCheck } = await SB.from('trips').select('status,approver_id').eq('id',id).single()
+  const { data: preCheck } = await SB.from('vts_trips').select('status,approver_id').eq('id',id).single()
   if (preCheck && preCheck.status !== 'pending-approval') {
     btn.disabled=false; btn.textContent='Reject Ticket'
     closeMO()
@@ -4241,7 +4203,7 @@ async function doReject(id, ticketNo) {
   }
 
   // Atomic rejection with row lock
-  const { data: lockResult, error: lockErr } = await SB.rpc('reject_trip_atomic', {
+  const { data: lockResult, error: lockErr } = await SB.rpc('vts_reject_trip_atomic', {
     p_trip_id:     id,
     p_approver_id: currentProfile?.id,
     p_reason:      reason
@@ -4257,17 +4219,17 @@ async function doReject(id, ticketNo) {
     renderTickets(); return
   }
 
-  const { data: trip } = await SB.from('trips').select('purpose,department,destination,stops,driver_id,vehicle_id').eq('id',id).single()
+  const { data: trip } = await SB.from('vts_trips').select('purpose,department,destination,stops,driver_id,vehicle_id').eq('id',id).single()
   await addAudit(id, ticketNo, 'Ticket Rejected', reason)
   const requester = await getRequesterContacts(id)
   await sendEmail(requester.emails, 'ticket_rejected', { ticket_no: ticketNo, purpose: trip?.purpose||'', reason })
   if (trip?.driver_id) {
-    const { data: drvRow } = await SB.from('drivers').select('phone').eq('id', trip.driver_id).single()
+    const { data: drvRow } = await SB.from('vts_drivers').select('phone').eq('id', trip.driver_id).single()
     if (drvRow?.phone) await sendSMS([drvRow.phone], `[TDMH VTS] Trip ${ticketNo} has been CANCELLED.\nYou are no longer assigned to this trip.`)
     const drvEmails = await getEmailsForRole('driver')
     await sendEmail(drvEmails, 'trip_cancelled_driver', { ticket_no: ticketNo, department: trip?.department||'', purpose: trip?.purpose||'', destination: trip?.destination||'', reason })
-    await SB.from('drivers').update({ status:'available' }).eq('id', trip.driver_id)
-    if (trip?.vehicle_id) await SB.from('vehicles').update({ status:'available' }).eq('id', trip.vehicle_id)
+    await SB.from('vts_drivers').update({ status:'available' }).eq('id', trip.driver_id)
+    if (trip?.vehicle_id) await SB.from('vts_vehicles').update({ status:'available' }).eq('id', trip.vehicle_id)
   }
   closeMO(); renderTickets()
 }
@@ -4292,21 +4254,21 @@ async function doCancelTicket(id, ticketNo, driverId, vehicleId, btnEl) {
   if (!reason) { alert('Please provide a reason for cancellation.'); return }
   await guardBtn(btnEl, async () => {
   const cancelMsg = reason + ' (Cancelled by ' + (currentProfile?.full_name || currentProfile?.username) + ')'
-  const { error } = await SB.from('trips').update({
+  const { error } = await SB.from('vts_trips').update({
     status: 'cancelled',
     rejected_by: currentProfile?.id,
     rejected_at: new Date().toISOString(),
     rejection_reason: cancelMsg
   }).eq('id', id)
   if (error) { alert(error.message); throw error }
-  if (driverId && driverId !== 'null') await SB.from('drivers').update({ status:'available' }).eq('id', driverId)
-  if (vehicleId && vehicleId !== 'null') await SB.from('vehicles').update({ status:'available' }).eq('id', vehicleId)
+  if (driverId && driverId !== 'null') await SB.from('vts_drivers').update({ status:'available' }).eq('id', driverId)
+  if (vehicleId && vehicleId !== 'null') await SB.from('vts_vehicles').update({ status:'available' }).eq('id', vehicleId)
   await addAudit(id, ticketNo, 'Ticket Cancelled', cancelMsg)
   // Notify requester
   const requester = await getRequesterContacts(id)
   if (requester.emails?.length) await sendEmail(requester.emails, 'ticket_rejected', { ticket_no: ticketNo, purpose: '', reason: cancelMsg })
   if (driverId && driverId !== 'null') {
-    const { data: drvRow } = await SB.from('drivers').select('phone').eq('id', driverId).single()
+    const { data: drvRow } = await SB.from('vts_drivers').select('phone').eq('id', driverId).single()
     if (drvRow?.phone) await sendSMS([drvRow.phone], `[TDMH VTS] Trip ${ticketNo} has been CANCELLED. You are no longer assigned to this trip.`, 'cancelled', ticketNo)
     const drvEmails = await getEmailsForRole('driver')
     if (drvEmails.length) await sendEmail(drvEmails, 'trip_cancelled_driver', { ticket_no: ticketNo, reason: cancelMsg })
@@ -4323,7 +4285,7 @@ async function openAssignModal(id, ticketNo, vtype) {
   const canLastResort = ['admin','approver_admin','super_approver'].includes(role)
 
   // Fetch trip's departure/return for time-based filtering
-  const { data: tripData } = await SB.from('trips')
+  const { data: tripData } = await SB.from('vts_trips')
     .select('departure_at,expected_return_at')
     .eq('id', id).single()
 
@@ -4334,15 +4296,15 @@ async function openAssignModal(id, ticketNo, vtype) {
 
   // Fetch ALL drivers and vehicles
   const [{ data: allDrivers }, { data: allVehicles }] = await Promise.all([
-    SB.from('drivers').select('*').order('full_name'),
-    SB.from('vehicles').select('*').order('plate')
+    SB.from('vts_drivers').select('*').order('full_name'),
+    SB.from('vts_vehicles').select('*').order('plate')
   ])
 
   // Fetch conflicting driver/vehicle IDs for this time window
   // Use RPC functions that handle NULL expected_return_at via COALESCE
   const [{ data: busyVehicles }, { data: busyDrivers }] = await Promise.all([
-    SB.rpc('get_busy_vehicle_ids', { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
-    SB.rpc('get_busy_driver_ids',  { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
+    SB.rpc('vts_get_busy_vehicle_ids', { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
+    SB.rpc('vts_get_busy_driver_ids',  { p_dep: depISO, p_ret: retISO, p_exclude_trip_id: id }),
   ])
 
   // Build label map for busy drivers/vehicles
@@ -4564,14 +4526,14 @@ async function doAssign(id, ticketNo) {
   const [driverId, driverName] = dv.split('|')
   const isLastResort = document.getElementById('lastResortToggle')?.checked || false
   const btn = document.getElementById('asBtn'); btn.disabled=true; btn.textContent='Assigning...'
-  const { error } = await SB.from('trips').update({ status:'assigned', driver_id:driverId, driver_name:driverName, vehicle_id:vv, assigned_by:currentProfile?.id, assigned_at:new Date().toISOString() }).eq('id',id)
+  const { error } = await SB.from('vts_trips').update({ status:'assigned', driver_id:driverId, driver_name:driverName, vehicle_id:vv, assigned_by:currentProfile?.id, assigned_at:new Date().toISOString() }).eq('id',id)
   if (error) { alert(error.message); btn.disabled=false; btn.textContent='Assign'; return }
-  await SB.from('drivers').update({ status:'on-trip' }).eq('id',driverId)
-  await SB.from('vehicles').update({ status:'on-trip' }).eq('id',vv)
+  await SB.from('vts_drivers').update({ status:'on-trip' }).eq('id',driverId)
+  await SB.from('vts_vehicles').update({ status:'on-trip' }).eq('id',vv)
   await addAudit(id, ticketNo, isLastResort ? '⚠ Driver Assigned (LAST RESORT)' : 'Driver Assigned', `Driver: ${driverName}${isLastResort ? ' — Last Resort override by ' + currentProfile?.full_name : ''}`)
   // Get trip + driver details for notifications
-  const { data: tripData }  = await SB.from('trips').select('purpose,destination,stops,departure_at,department,vehicle_plate,requester_id').eq('id',id).single()
-  const { data: driverRow } = await SB.from('drivers').select('phone,user_id').eq('id',driverId).single()
+  const { data: tripData }  = await SB.from('vts_trips').select('purpose,destination,stops,departure_at,department,vehicle_plate,requester_id').eq('id',id).single()
+  const { data: driverRow } = await SB.from('vts_drivers').select('phone,user_id').eq('id',driverId).single()
   const vehiclePlate = _vehicles.find(v => v.id === vv)?.plate || ''
   const vehicleName  = _vehicles.find(v => v.id === vv)?.name  || vehiclePlate
   // Get driver's email via their linked user account (user_id on drivers table)
@@ -4604,7 +4566,7 @@ function gateInBtn(el) {
 
 async function openGateOutModal(id, ticketNo, purpose, driverName, plate, dest) {
   // Block individual gate-out for pooled tickets — must use Pool Gate Out All
-  const { data: poolCheck } = await SB.from('trips').select('pool_id').eq('id',id).single()
+  const { data: poolCheck } = await SB.from('vts_trips').select('pool_id').eq('id',id).single()
   if (poolCheck?.pool_id) {
     openMO('🚌 Pooled Trip',
       `<div class="info info-amber">
@@ -4617,8 +4579,8 @@ async function openGateOutModal(id, ticketNo, purpose, driverName, plate, dest) 
   }
   // Fetch trip stops + vehicle current odometer
   const [{ data: tripData }, { data: vehData }] = await Promise.all([
-    SB.from('trips').select('stops,destination,vehicle_id').eq('id',id).single(),
-    SB.from('trips').select('vehicle:vehicles(odometer,plate)').eq('id',id).single()
+    SB.from('vts_trips').select('stops,destination,vehicle_id').eq('id',id).single(),
+    SB.from('vts_trips').select('vehicle:vts_vehicles(odometer,plate)').eq('id',id).single()
   ])
   const currentOdo = vehData?.vehicle?.odometer || null
   const stops = (tripData?.stops && Array.isArray(tripData.stops) && tripData.stops.length > 0)
@@ -4664,7 +4626,7 @@ async function doGateOut(id, ticketNo) {
   const odo = parseInt(document.getElementById('odoOut')?.value)
   if (!odo) { alert('Odometer reading required.'); return }
   const btn = document.getElementById('goBtn'); btn.disabled=true; btn.textContent='Recording...'
-  const { error } = await SB.from('trips').update({
+  const { error } = await SB.from('vts_trips').update({
     status:'on-trip', guard_out_id:currentProfile?.id,
     gate_out_at:new Date().toISOString(), odometer_out:odo,
     fuel_out:document.getElementById('fuelOut')?.value,
@@ -4673,11 +4635,11 @@ async function doGateOut(id, ticketNo) {
   }).eq('id',id)
   if (error) { alert(error.message); btn.disabled=false; btn.textContent='Record Gate Out'; return }
   // Update vehicle odometer to reflect gate-out reading
-  const { data: t } = await SB.from('trips').select('vehicle_id,driver_id,driver_name,destination,stops,purpose').eq('id',id).single()
-  if (t?.vehicle_id) await SB.from('vehicles').update({ odometer: odo }).eq('id', t.vehicle_id)
+  const { data: t } = await SB.from('vts_trips').select('vehicle_id,driver_id,driver_name,destination,stops,purpose').eq('id',id).single()
+  if (t?.vehicle_id) await SB.from('vts_vehicles').update({ odometer: odo }).eq('id', t.vehicle_id)
   await addAudit(id, ticketNo, 'Gate Out', `Odometer: ${odo} km`)
   if (t?.driver_id) {
-    const { data: drv } = await SB.from('drivers').select('phone,user_id').eq('id', t.driver_id).single()
+    const { data: drv } = await SB.from('vts_drivers').select('phone,user_id').eq('id', t.driver_id).single()
     if (drv?.phone) await sendSMS([drv.phone], `[TDMH VTS] Gate Out cleared for ${ticketNo}.\nYou are now cleared to depart.\nDestination: ${t.destination||''}\nSafe travels!`)
   }
   closeMO(true); renderTickets()
@@ -4686,7 +4648,7 @@ async function doGateOut(id, ticketNo) {
 // GATE IN
 async function openGateInModal(id, ticketNo, dest, vehicleId, driverId) {
   // Block individual gate-in for pooled tickets — must use Pool Gate In All
-  const { data: poolCheck } = await SB.from('trips').select('pool_id').eq('id',id).single()
+  const { data: poolCheck } = await SB.from('vts_trips').select('pool_id').eq('id',id).single()
   if (poolCheck?.pool_id) {
     openMO('🚌 Pooled Trip',
       `<div class="info info-purple">
@@ -4724,7 +4686,7 @@ async function openGateInModal(id, ticketNo, dest, vehicleId, driverId) {
 
   // Fetch odometer in background — update label and validation when ready
   window._gateInOdoOut = 0
-  SB.from('trips').select('odometer_out').eq('id', id).single().then(({ data }) => {
+  SB.from('vts_trips').select('odometer_out').eq('id', id).single().then(({ data }) => {
     const odoOut = data?.odometer_out || 0
     window._gateInOdoOut = odoOut
     const lbl = document.getElementById('odoInLabel')
@@ -4754,7 +4716,7 @@ function validateOdoIn(minOdo) {
 async function doGateIn(id, ticketNo, vehicleId, driverId) {
   const odo = parseInt(document.getElementById('odoIn')?.value)
   if (!odo || odo <= 0) { alert('Valid odometer reading required.'); return }
-  const { data: tripCheck } = await SB.from('trips').select('odometer_out').eq('id',id).single()
+  const { data: tripCheck } = await SB.from('vts_trips').select('odometer_out').eq('id',id).single()
   if (tripCheck?.odometer_out && odo <= tripCheck.odometer_out) {
     alert(`Odometer In (${odo} km) must be greater than Odometer Out (${tripCheck.odometer_out} km).`); return
   }
@@ -4762,7 +4724,7 @@ async function doGateIn(id, ticketNo, vehicleId, driverId) {
   const fuelP = parseFloat(document.getElementById('fuelP')?.value) || 70
   const fuelCost = fuelL ? fuelL * fuelP : null
   const btn = document.getElementById('giBtn'); btn.disabled=true; btn.textContent='Recording...'
-  const { error } = await SB.from('trips').update({
+  const { error } = await SB.from('vts_trips').update({
     status:'completed', guard_in_id:currentProfile?.id,
     gate_in_at:new Date().toISOString(), odometer_in:odo,
     fuel_in:document.getElementById('fuelIn')?.value,
@@ -4775,14 +4737,14 @@ async function doGateIn(id, ticketNo, vehicleId, driverId) {
   if (error) { alert(error.message); btn.disabled=false; btn.textContent='Complete Trip'; return }
 
   // If this ticket is in a pool, update the pool record too
-  const { data: tripData2 } = await SB.from('trips').select('pool_id,odometer_out').eq('id',id).single()
+  const { data: tripData2 } = await SB.from('vts_trips').select('pool_id,odometer_out').eq('id',id).single()
   if (tripData2?.pool_id) {
     // Check if all other tickets in the pool are also completed
-    const { data: poolTrips } = await SB.from('trips').select('status').eq('pool_id', tripData2.pool_id).neq('id', id)
+    const { data: poolTrips } = await SB.from('vts_trips').select('status').eq('pool_id', tripData2.pool_id).neq('id', id)
     const allDone = (poolTrips||[]).every(t => ['completed','cancelled'].includes(t.status))
     if (allDone) {
       // All tickets done — close the pool
-      await SB.from('trip_pools').update({
+      await SB.from('vts_trip_pools').update({
         gate_in_at:   new Date().toISOString(),
         odometer_in:  odo,
         condition_in: document.getElementById('condIn')?.value || 'Good',
@@ -4791,15 +4753,15 @@ async function doGateIn(id, ticketNo, vehicleId, driverId) {
     }
   }
   // Always update vehicle odometer on gate-in
-  if (vehicleId && vehicleId !== 'null') await SB.from('vehicles').update({ odometer: odo }).eq('id', vehicleId).catch(() => {})
+  if (vehicleId && vehicleId !== 'null') await SB.from('vts_vehicles').update({ odometer: odo }).eq('id', vehicleId).catch(() => {})
   // Log fuel if recorded
   if (fuelL && vehicleId && vehicleId !== 'null') {
-    await SB.from('fuel_logs').insert({ vehicle_id: vehicleId, trip_id: id, liters: fuelL, price_per_liter: fuelP, total_cost: fuelCost, odometer_at: odo, log_type: 'trip', logged_by: currentProfile?.id }).catch(() => {})
+    await SB.from('vts_fuel_logs').insert({ vehicle_id: vehicleId, trip_id: id, liters: fuelL, price_per_liter: fuelP, total_cost: fuelCost, odometer_at: odo, log_type: 'trip', logged_by: currentProfile?.id }).catch(() => {})
   }
-  if (driverId && driverId!=='null') await SB.from('drivers').update({ status:'available' }).eq('id',driverId)
-  if (vehicleId && vehicleId!=='null') await SB.from('vehicles').update({ status:'available' }).eq('id',vehicleId)
+  if (driverId && driverId!=='null') await SB.from('vts_drivers').update({ status:'available' }).eq('id',driverId)
+  if (vehicleId && vehicleId!=='null') await SB.from('vts_vehicles').update({ status:'available' }).eq('id',vehicleId)
   await addAudit(id, ticketNo, 'Gate In', `Odometer: ${odo} km${fuelL?' | Fuel: '+fuelL+'L ₱'+fuelCost?.toFixed(2):''} — Trip completed`)
-  const { data: trip } = await SB.from('trips').select('*').eq('id',id).single()
+  const { data: trip } = await SB.from('vts_trips').select('*').eq('id',id).single()
   const approverRole = trip?.vehicle_type_needed === 'ambulance' ? 'approver_amb' : 'approver_admin'
   const approverEmails = await getEmailsForRole(approverRole)
   const requester = await getRequesterContacts(id)
@@ -4807,7 +4769,7 @@ async function doGateIn(id, ticketNo, vehicleId, driverId) {
   await sendEmail(approverEmails, 'trip_completed_approver', tripPayload)
   await sendEmail(requester.emails, 'trip_completed_requester', tripPayload)
   if (driverId && driverId !== 'null') {
-    const { data: drv } = await SB.from('drivers').select('user_id').eq('id', driverId).single()
+    const { data: drv } = await SB.from('vts_drivers').select('user_id').eq('id', driverId).single()
     if (drv?.user_id) {
       const { data: du } = await SB.from('users').select('email').eq('id', drv.user_id).single()
       if (du?.email) await sendEmail([du.email], 'trip_completed_driver', { ...tripPayload, odometer_in: odo })
@@ -4853,7 +4815,7 @@ function selectRating(n, tripId) {
 async function submitRating(tripId) {
   if (_selectedRating === 0) { alert('Please select a rating.'); return }
   const comment = document.getElementById('ratingComment')?.value?.trim()
-  await SB.from('trips').update({ rating: _selectedRating, rating_comment: comment||null, rated_at: new Date().toISOString() }).eq('id', tripId).catch(() => {})
+  await SB.from('vts_trips').update({ rating: _selectedRating, rating_comment: comment||null, rated_at: new Date().toISOString() }).eq('id', tripId).catch(() => {})
   document.getElementById('ratingToast')?.remove()
   _selectedRating = 0
 }
@@ -4868,7 +4830,7 @@ async function renderDriverDashboard() {
   const now = new Date()
 
   // Find the driver record linked to this user account
-  const { data: driverRec } = await SB.from('drivers')
+  const { data: driverRec } = await SB.from('vts_drivers')
     .select('id,full_name,status,driver_type,shift,phone,license_no')
     .eq('user_id', currentProfile.id)
     .single()
@@ -4884,7 +4846,7 @@ async function renderDriverDashboard() {
   }
 
   // Fetch all trips assigned to this driver
-  const { data: trips } = await SB.from('trips')
+  const { data: trips } = await SB.from('vts_trips')
     .select('*')
     .eq('driver_id', driverRec.id)
     .order('departure_at', { ascending: true })
@@ -5047,14 +5009,14 @@ async function renderOwnerDashboard() {
     { data: upcoming },
     { data: auditLogs }
   ] = await Promise.all([
-    SB.from('trips').select('*').order('created_at',{ascending:false}),
-    SB.from('vehicles').select('*').order('plate'),
-    SB.from('drivers').select('*').order('full_name'),
-    SB.from('trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,departure_at,status,vehicle_type_needed')
+    SB.from('vts_trips').select('*').order('created_at',{ascending:false}),
+    SB.from('vts_vehicles').select('*').order('plate'),
+    SB.from('vts_drivers').select('*').order('full_name'),
+    SB.from('vts_trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,departure_at,status,vehicle_type_needed')
       .in('status',['assigned','approved'])
       .gt('departure_at', now.toISOString())
       .order('departure_at',{ascending:true}).limit(10),
-    SB.from('audit_logs').select('*').order('created_at',{ascending:false}).limit(25)
+    SB.from('vts_audit_logs').select('*').order('created_at',{ascending:false}).limit(25)
   ])
 
   const T = allTrips || [], V = vehicles || [], D = drivers || []
@@ -5336,11 +5298,11 @@ async function renderFleet() {
     { data: allActive },
     { data: upcoming }
   ] = await Promise.all([
-    SB.from('vehicles').select('*').order('plate'),
-    SB.from('drivers').select('*').order('full_name'),
-    SB.from('trips').select('*').eq('requester_id', currentProfile?.id).not('status','in','("cancelled","rejected")').order('departure_at',{ascending:false}).limit(20),
-    SB.from('trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,departure_at,expected_return_at,status,vehicle_type_needed,pool_id').in('status',['assigned','on-trip','approved']).order('departure_at',{ascending:true}),
-    SB.from('trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,departure_at,status,vehicle_type_needed').in('status',['assigned','approved']).gt('departure_at', new Date().toISOString()).order('departure_at',{ascending:true}).limit(20)
+    SB.from('vts_vehicles').select('*').order('plate'),
+    SB.from('vts_drivers').select('*').order('full_name'),
+    SB.from('vts_trips').select('*').eq('requester_id', currentProfile?.id).not('status','in','("cancelled","rejected")').order('departure_at',{ascending:false}).limit(20),
+    SB.from('vts_trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,departure_at,expected_return_at,status,vehicle_type_needed,pool_id').in('status',['assigned','on-trip','approved']).order('departure_at',{ascending:true}),
+    SB.from('vts_trips').select('id,ticket_no,department,purpose,destination,stops,driver_name,vehicle_name,vehicle_plate,departure_at,status,vehicle_type_needed').in('status',['assigned','approved']).gt('departure_at', new Date().toISOString()).order('departure_at',{ascending:true}).limit(20)
   ])
 
   const V = vehicles || [], D = drivers || []
@@ -5518,7 +5480,7 @@ async function renderNewTicket() {
   // Load templates for quick-use
   // Load templates — requesters see their dept only, approvers/admin see all
   const role_tmpl = currentProfile?.role
-  let tmplQ = SB.from('trip_templates').select('*').eq('is_active', true).order('name')
+  let tmplQ = SB.from('vts_trip_templates').select('*').eq('is_active', true).order('name')
   if (role_tmpl === 'requester' && currentProfile?.department)
     tmplQ = tmplQ.eq('department', currentProfile.department)
   const { data: tmpl } = await tmplQ
@@ -5936,8 +5898,8 @@ async function openSaveTemplateModal() {
   // Ensure drivers and vehicles are loaded
   if (!_drivers.length || !_vehicles.length) {
     const [{ data: drvs }, { data: vehs }] = await Promise.all([
-      SB.from('drivers').select('*').neq('status','off-duty').order('full_name'),
-      SB.from('vehicles').select('*').neq('status','maintenance').order('name')
+      SB.from('vts_drivers').select('*').neq('status','off-duty').order('full_name'),
+      SB.from('vts_vehicles').select('*').neq('status','maintenance').order('name')
     ])
     if (drvs) _drivers = drvs
     if (vehs) _vehicles = vehs
@@ -6131,7 +6093,7 @@ async function doSaveTemplate() {
 
   const advanceDays = parseInt(document.getElementById('tmplAdvanceDays')?.value||'3')
 
-  const { error } = await SB.from('trip_templates').insert({
+  const { error } = await SB.from('vts_trip_templates').insert({
     name,
     department:          document.getElementById('tmplDept')?.value||null,
     vehicle_type:        document.getElementById('tmplType')?.value||'regular',
@@ -6390,7 +6352,7 @@ async function submitNewTicket() {
     // Create booking group for multiple vehicles
     let groupId = null
     if (isMultiple) {
-      const { data: grp } = await SB.from('booking_groups').insert({
+      const { data: grp } = await SB.from('vts_booking_groups').insert({
         label: `${dept} — ${purpose}`,
         requester_id: currentProfile?.id,
         requester_name: req,
@@ -6417,12 +6379,12 @@ async function submitNewTicket() {
     }
     // Reset template flag after use
     _appliedTemplateAutoApprove = false
-    const { data: trip, error } = await SB.from('trips').insert([payload]).select().single()
+    const { data: trip, error } = await SB.from('vts_trips').insert([payload]).select().single()
     if (error) throw error
 
     // Save passenger manifest
     if (passengers.length > 0) {
-      await SB.from('trip_passengers').insert(passengers.map(p => ({ trip_id: trip.id, ...p })))
+      await SB.from('vts_trip_passengers').insert(passengers.map(p => ({ trip_id: trip.id, ...p })))
     }
 
     // Save additional vehicle slots (bulk booking)
@@ -6433,7 +6395,7 @@ async function submitNewTicket() {
         const slotDest = slot.querySelector('.slot-dest')?.value?.trim() || dest
         const slotPurp = slot.querySelector('.slot-purpose')?.value?.trim() || purpose
         const slotPax  = parseInt(slot.querySelector('.slot-pax')?.value)||1
-        await SB.from('trips').insert({
+        await SB.from('vts_trips').insert({
           requester_id: currentProfile?.id||null,
           requester_name: req, department: dept,
           vehicle_type_needed: slotType,
@@ -6449,7 +6411,7 @@ async function submitNewTicket() {
       }
       // Update group trip count
       if (groupId) {
-        await SB.from('booking_groups').update({ trip_count: slots.length + 1 }).eq('id', groupId)
+        await SB.from('vts_booking_groups').update({ trip_count: slots.length + 1 }).eq('id', groupId)
       }
     }
 
@@ -6458,7 +6420,7 @@ async function submitNewTicket() {
     const templateName = document.getElementById('ntTemplateName')?.value?.trim()
     let templateSaved = false
     if (saveTemplate && templateName) {
-      const { error: tmplErr } = await SB.from('trip_templates').insert({
+      const { error: tmplErr } = await SB.from('vts_trip_templates').insert({
         name: templateName, department: dept,
         vehicle_type: vtype, purpose, destination: dest, stops: stops,
         passengers: pax, priority: document.getElementById('ntPri')?.value||'normal',
@@ -6471,7 +6433,7 @@ async function submitNewTicket() {
       } else {
         templateSaved = true
         // Reload templates cache
-        const { data: freshTmpl } = await SB.from('trip_templates').select('*').eq('is_active', true).order('name')
+        const { data: freshTmpl } = await SB.from('vts_trip_templates').select('*').eq('is_active', true).order('name')
         _templates = freshTmpl || []
       }
     }
@@ -6556,9 +6518,9 @@ async function submitNewTicket() {
 // MAINTENANCE SCHEDULE
 // ════════════════════════════════════════════════
 async function renderMaintenance() {
-  const { data: vehicles } = await SB.from('vehicles').select('id,plate,type').order('plate')
-  const { data: schedules } = await SB.from('maintenance_schedule')
-    .select('*,vehicle:vehicles(plate,type)')
+  const { data: vehicles } = await SB.from('vts_vehicles').select('id,plate,type').order('plate')
+  const { data: schedules } = await SB.from('vts_maintenance_schedule')
+    .select('*,vehicle:vts_vehicles(plate,type)')
     .order('start_at', { ascending: false })
   const V = vehicles || []
   const S = schedules || []
@@ -6651,7 +6613,7 @@ async function renderMaintenance() {
 }
 
 function openAddMaintModal() {
-  SB.from('vehicles').select('id,plate,type').order('plate').then(({ data: V }) => {
+  SB.from('vts_vehicles').select('id,plate,type').order('plate').then(({ data: V }) => {
     openMO('Schedule Maintenance',
       `<div class="fg"><label class="fl">Vehicle *</label>
          <select class="fs" id="mVeh">
@@ -6690,7 +6652,7 @@ async function doAddMaint() {
   if (!veh || !title || !start || !end) { alert('Please fill in all required fields.'); return }
   if (new Date(end) <= new Date(start)) { alert('End time must be after start time.'); return }
   const btn = document.getElementById('mBtn'); btn.disabled=true; btn.textContent='Saving...'
-  const { error } = await SB.from('maintenance_schedule').insert({
+  const { error } = await SB.from('vts_maintenance_schedule').insert({
     vehicle_id: veh,
     title,
     maint_type: document.getElementById('mType')?.value||'PMS',
@@ -6707,19 +6669,19 @@ async function doAddMaint() {
 
 async function markMaintDone(id) {
   if (!confirm('Mark this maintenance as done?')) return
-  await SB.from('maintenance_schedule').update({ status: 'done' }).eq('id', id)
+  await SB.from('vts_maintenance_schedule').update({ status: 'done' }).eq('id', id)
   renderMaintenance()
 }
 async function cancelMaint(id) {
   if (!confirm('Cancel this maintenance schedule?')) return
-  await SB.from('maintenance_schedule').update({ status: 'cancelled' }).eq('id', id)
+  await SB.from('vts_maintenance_schedule').update({ status: 'cancelled' }).eq('id', id)
   renderMaintenance()
 }
 
 // TRIP TEMPLATES PAGE
 // ════════════════════════════════════════════════
 async function renderTemplates() {
-  const { data } = await SB.from('trip_templates').select('*').eq('is_active', true).order('name')
+  const { data } = await SB.from('vts_trip_templates').select('*').eq('is_active', true).order('name')
   const T = data || []
   const isAdmin = ['admin','approver_admin'].includes(currentProfile?.role)
 
@@ -6761,7 +6723,7 @@ async function deleteTemplate(id, name, btnEl) {
   if (!confirm(`Delete template "${name}"?\n\nExisting tickets generated from this template will not be affected. Future auto-generation will stop.`)) return
   await guardBtn(btnEl, async () => {
     // Soft delete — set is_active=false; preserves template_id on generated trips
-    await SB.from('trip_templates').update({ is_active: false, is_recurring: false }).eq('id', id)
+    await SB.from('vts_trip_templates').update({ is_active: false, is_recurring: false }).eq('id', id)
     renderTemplates()
   }, '…')
 }
@@ -6800,7 +6762,7 @@ function previewRecurring(id) {
 const VEHICLE_TYPES = ['Service Van','Sedan','Pickup Truck','Service Bus','Utility Van','SUV','Ambulance','BLS Ambulance','Motorcycle']
 
 async function renderVehicles() {
-  const { data } = await SB.from('vehicles').select('*').order('plate')
+  const { data } = await SB.from('vts_vehicles').select('*').order('plate')
   const V = data||[]
   const isAdmin = currentProfile?.role === 'admin'
   document.getElementById('CONTENT').innerHTML = `
@@ -6846,7 +6808,7 @@ async function doAddVehicle() {
   const plate = document.getElementById('vPlate')?.value?.trim().toUpperCase()
   if (!plate) { alert('Plate number required.'); return }
   const btn = document.getElementById('addVBtn'); btn.disabled=true; btn.textContent='Saving...'
-  const { error } = await SB.from('vehicles').insert([{ plate, name:document.getElementById('vName').value, type:document.getElementById('vType').value, capacity:parseInt(document.getElementById('vCap').value)||4, fuel:document.getElementById('vFuel').value, odometer:parseInt(document.getElementById('vOdo').value)||0, status:'available' }])
+  const { error } = await SB.from('vts_vehicles').insert([{ plate, name:document.getElementById('vName').value, type:document.getElementById('vType').value, capacity:parseInt(document.getElementById('vCap').value)||4, fuel:document.getElementById('vFuel').value, odometer:parseInt(document.getElementById('vOdo').value)||0, status:'available' }])
   if (error) { alert(error.message); btn.disabled=false; btn.textContent='Add Vehicle'; return }
   closeMO(); renderVehicles()
 }
@@ -6869,7 +6831,7 @@ async function doEditVehicle(id) {
   const plate = document.getElementById('evPlate')?.value?.trim().toUpperCase()
   if (!plate) { alert('Plate number required.'); return }
   const btn = document.getElementById('editVBtn'); btn.disabled=true; btn.textContent='Saving...'
-  const { error } = await SB.from('vehicles').update({ plate, name:document.getElementById('evName').value, type:document.getElementById('evType').value, capacity:parseInt(document.getElementById('evCap').value)||4, fuel:document.getElementById('evFuel').value, odometer:parseInt(document.getElementById('evOdo').value)||0 }).eq('id', id)
+  const { error } = await SB.from('vts_vehicles').update({ plate, name:document.getElementById('evName').value, type:document.getElementById('evType').value, capacity:parseInt(document.getElementById('evCap').value)||4, fuel:document.getElementById('evFuel').value, odometer:parseInt(document.getElementById('evOdo').value)||0 }).eq('id', id)
   if (error) { alert(error.message); btn.disabled=false; btn.textContent='Save Changes'; return }
   closeMO(); renderVehicles()
 }
@@ -6878,7 +6840,7 @@ async function doEditVehicle(id) {
 // DRIVERS
 // ════════════════════════════════════════════════
 async function renderDrivers() {
-  const { data } = await SB.from('drivers').select('*,user:users(username,department)').order('full_name')
+  const { data } = await SB.from('vts_drivers').select('*,user:users!vts_drivers_user_id_fkey(username:email,full_name)').order('full_name')
   const D = data||[]
   document.getElementById('CONTENT').innerHTML = `
   <div class="card card-np" style="overflow:hidden">
@@ -6949,7 +6911,7 @@ async function doAddReliever(targetSelectId) {
   const phone      = document.getElementById('rlvPhone')?.value.trim() || null
   const licNo      = document.getElementById('rlvLic')?.value.trim() || null
 
-  const { data, error } = await SB.from('drivers').insert({
+  const { data, error } = await SB.from('vts_drivers').insert({
     full_name:   name,
     driver_type: driverType,
     phone:       phone,
@@ -6971,7 +6933,7 @@ async function doAddReliever(targetSelectId) {
   }
 
   // Refresh _drivers cache
-  const { data: drivers } = await SB.from('drivers').select('*').order('full_name')
+  const { data: drivers } = await SB.from('vts_drivers').select('*').order('full_name')
   _drivers = drivers || []
 
   await addAudit(null, null, '👤 Reliever Driver Added', `${name} added as reliever driver by ${currentProfile?.full_name}`)
@@ -6982,15 +6944,15 @@ async function doAddReliever(targetSelectId) {
 async function removeReliever(id, name, btnEl) {
   if (!confirm(`Remove reliever driver "${name}"?\n\nThis will permanently delete their profile. Any trips they were assigned to will retain their name for records.`)) return
   await guardBtn(btnEl, async () => {
-    await SB.from('drivers').delete().eq('id', id).eq('is_reliever', true)
+    await SB.from('vts_drivers').delete().eq('id', id).eq('is_reliever', true)
     renderDrivers()
   }, 'Removing…')
 }
 
 async function openAddDriver() {
   // Load users with driver role that don't have a driver record yet
-  const { data: allUsers } = await SB.from('users').select('id,full_name,username,department').eq('role','driver').eq('status','active').order('full_name')
-  const { data: linked }   = await SB.from('drivers').select('user_id').not('user_id','is',null)
+  const { data: allUsers } = await SB.from('users').select('id,full_name,username:email').eq('vts_role','driver').eq('is_active',true).order('full_name')
+  const { data: linked }   = await SB.from('vts_drivers').select('user_id').not('user_id','is',null)
   const linkedIds = new Set((linked||[]).map(d=>d.user_id))
   const unlinked  = (allUsers||[]).filter(u => !linkedIds.has(u.id))
 
@@ -7041,7 +7003,7 @@ async function doAddDriver() {
   if (!userId) { alert('Select a driver account.'); return }
   const { data: u } = await SB.from('users').select('full_name').eq('id',userId).single()
   const btn = document.getElementById('addDBtn'); btn.disabled=true; btn.textContent='Creating...'
-  const { error } = await SB.from('drivers').insert([{
+  const { error } = await SB.from('vts_drivers').insert([{
     user_id:      userId,
     full_name:    u?.full_name||'',
     driver_type:  document.getElementById('dDriverType').value||'regular',
@@ -7062,7 +7024,7 @@ async function doAddDriver() {
 // ════════════════════════════════════════════════
 async function openEditDriver(driverId) {
   // Fetch fresh — avoids JSON stringify issues with nested user join
-  const { data: d } = await SB.from('drivers').select('*,user:users(username,full_name,department)').eq('id', driverId).single()
+  const { data: d } = await SB.from('vts_drivers').select('*,user:users!vts_drivers_user_id_fkey(username:email,full_name)').eq('id', driverId).single()
   if (!d) { alert('Driver not found.'); return }
 
   openMO(`Edit Driver — ${d.full_name}`,
@@ -7122,7 +7084,7 @@ async function doEditDriver(id) {
   const lic  = document.getElementById('edLic')?.value?.trim()
   if (!name||!lic) { alert('Name and license required.'); return }
   const btn = document.getElementById('edDBtn'); btn.disabled=true; btn.textContent='Saving...'
-  const { error } = await SB.from('drivers').update({
+  const { error } = await SB.from('vts_drivers').update({
     full_name:    name,
     license_no:   lic,
     license_type: document.getElementById('edLicType').value,
@@ -7139,7 +7101,7 @@ async function doEditDriver(id) {
 async function doDeleteDriver(id, name, btnEl) {
   if (!confirm(`Delete driver "${name}"? This cannot be undone.`)) return
   await guardBtn(btnEl, async () => {
-    const { error } = await SB.from('drivers').delete().eq('id', id)
+    const { error } = await SB.from('vts_drivers').delete().eq('id', id)
     if (error) { alert(error.message); throw error }
     closeMO(); renderDrivers()
   }, 'Deleting…')
@@ -7150,7 +7112,7 @@ async function doDeleteDriver(id, name, btnEl) {
 // ════════════════════════════════════════════════
 function deptCard(d, i) {
   const c = DEPT_COLORS[i % DEPT_COLORS.length]
-  const canEdit = ['admin'].includes(currentProfile?.role)
+  const canEdit = false  // Departments are shared — manage them in TDMH Core
   return `<div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px;border-top:3px solid ${c};position:relative">
     <div style="font-size:10px;font-weight:700;color:${c};margin-bottom:3px">${d.code||'—'}</div>
     <div style="font-size:12.5px;font-weight:700;margin-bottom:4px">${d.name}</div>
@@ -7166,9 +7128,9 @@ function deptCard(d, i) {
 
 async function renderDepts() {
   document.getElementById('CONTENT').innerHTML = `<div style="color:var(--text3);padding:40px;text-align:center;font-size:13px">${hourglass()}<div style="margin-top:10px">Loading...</div></div>`
-  const { data } = await SB.from('departments').select('*').order('name')
-  const depts = data || []
-  const canEdit = ['admin'].includes(currentProfile?.role)
+  if (!_departments.length) await loadDepartments()
+  const depts = _departments
+  const canEdit = false  // Departments are shared — manage them in TDMH Core
   document.getElementById('CONTENT').innerHTML = `
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <input class="fi" id="deptSearch" placeholder="Search departments..." style="width:220px;font-size:12px;padding:7px 11px" oninput="filterDeptsUI(this.value)">
@@ -7264,7 +7226,7 @@ async function deleteDept(id, name) {
 // GPS
 // ════════════════════════════════════════════════
 async function renderGPS() {
-  const { data } = await SB.from('trips').select('ticket_no,status,destination,stops,driver_name,vehicle:vehicles(plate)').in('status',['assigned','on-trip'])
+  const { data } = await SB.from('vts_trips').select('ticket_no,status,destination,stops,driver_name,vehicle:vts_vehicles(plate)').in('status',['assigned','on-trip'])
   const active = data||[]
   document.getElementById('CONTENT').innerHTML = `
   <div class="info info-blue" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
@@ -7356,16 +7318,16 @@ async function renderReportContent() {
   const now = new Date()
 
   // ── Fetch everything in date range ─────────────────────
-  let q = SB.from('trips').select(`
+  let q = SB.from('vts_trips').select(`
     *,
-    vehicle:vehicles(plate,type,name,fuel,capacity),
-    approver:users!trips_approver_id_fkey(full_name,role),
-    assigned_by_user:users!trips_assigned_by_fkey(full_name),
-    guard_out_user:users!trips_guard_out_id_fkey(full_name),
-    guard_in_user:users!trips_guard_in_id_fkey(full_name),
-    rejected_by_user:users!trips_rejected_by_fkey(full_name),
-    driver:drivers!trips_driver_id_fkey(full_name,license_no,license_type,phone,shift),
-    passengers_list:trip_passengers(full_name,department,id_type,id_number,contact_no)
+    vehicle:vts_vehicles(plate,type,name,fuel,capacity),
+    approver:users!vts_trips_approver_id_fkey(full_name,role),
+    assigned_by_user:users!vts_trips_assigned_by_fkey(full_name),
+    guard_out_user:users!vts_trips_guard_out_id_fkey(full_name),
+    guard_in_user:users!vts_trips_guard_in_id_fkey(full_name),
+    rejected_by_user:users!vts_trips_rejected_by_fkey(full_name),
+    driver:vts_drivers!vts_trips_driver_id_fkey(full_name,license_no,license_type,phone,shift),
+    passengers_list:vts_trip_passengers(full_name,department,id_type,id_number,contact_no)
   `).order('created_at',{ascending:false})
   if (_rptFrom) q = q.gte('created_at', _rptFrom + 'T00:00:00')
   if (_rptTo)   q = q.lte('created_at', _rptTo   + 'T23:59:59')
@@ -7521,7 +7483,7 @@ async function renderReportContent() {
     const smsFrom = _rptFrom ? _rptFrom + 'T00:00:00+08:00' : new Date(Date.now() - 30*86400000).toISOString()
     const smsTo   = _rptTo   ? _rptTo   + 'T23:59:59+08:00' : new Date().toISOString()
 
-    const { data: smsLogs } = await SB.from('sms_logs')
+    const { data: smsLogs } = await SB.from('vts_sms_logs')
       .select('*')
       .gte('sent_at', smsFrom)
       .lte('sent_at', smsTo)
@@ -7884,7 +7846,7 @@ async function renderReportContent() {
   </table></div>`
 
   // ── CONVOY REPORT TAB ────────────────────────────────────
-  const { data: trip_pools } = await SB.from('trip_pools').select('*').order('created_at',{ascending:false})
+  const { data: trip_pools } = await SB.from('vts_trip_pools').select('*').order('created_at',{ascending:false})
   const convoyTrips = T.filter(t => t.pool_id)
   const poolHTML = `
   <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px">
@@ -8192,7 +8154,7 @@ async function doGeneratePrintReport() {
   const to     = document.getElementById('prTo')?.value     || ''
   const dept   = document.getElementById('prDept')?.value?.trim() || ''
 
-  let q = SB.from('trips').select('id,ticket_no,created_at,department,purpose,destination,stops,priority,vehicle_type_needed,status,requester_name,approval_remarks,approved_at,driver_name,vehicle_name,vehicle_plate,gate_out_at,gate_in_at,departure_at,odometer_out,odometer_in,distance_km,fuel_out,fuel_in,condition_out,condition_in,fuel_consumed_liters,fuel_cost,trip_duration_minutes,guard_out_remarks,guard_in_remarks').order('departure_at',{ascending:true})
+  let q = SB.from('vts_trips').select('id,ticket_no,created_at,department,purpose,destination,stops,priority,vehicle_type_needed,status,requester_name,approval_remarks,approved_at,driver_name,vehicle_name,vehicle_plate,gate_out_at,gate_in_at,departure_at,odometer_out,odometer_in,distance_km,fuel_out,fuel_in,condition_out,condition_in,fuel_consumed_liters,fuel_cost,trip_duration_minutes,guard_out_remarks,guard_in_remarks').order('departure_at',{ascending:true})
 
   if (vtype)  q = q.eq('vehicle_type_needed', vtype)
   if (status) q = q.eq('status', status)
@@ -8249,7 +8211,7 @@ function filterRawReport(q) { filterFullAuditTable(q) }
 // AUDIT
 // ════════════════════════════════════════════════
 async function renderAudit() {
-  const { data } = await SB.from('audit_logs').select('*').order('created_at',{ascending:false}).limit(200)
+  const { data } = await SB.from('vts_audit_logs').select('*').order('created_at',{ascending:false}).limit(200)
   const L = data||[]
   document.getElementById('CONTENT').innerHTML = `
   <div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">
@@ -8278,238 +8240,69 @@ function filterAudit(q) {
 }
 
 // ════════════════════════════════════════════════
-// ACCOUNTS
+// ACCOUNTS — read-only. Accounts & VTS roles are managed in
+// TDMH Core → User Management (users.vts_role).
 // ════════════════════════════════════════════════
+const CORE_USER_MGMT_URL = 'https://tdmhcore.io/'
+
 async function renderAccounts() {
-  if (currentProfile?.role === 'super_approver') { goTo('dashboard'); return }
-  const { data } = await SB.from('users').select('*').order('role,full_name')
-  window._allAccounts = data || []
+  if (currentProfile?.role !== 'admin') { goTo('dashboard'); return }
+  document.getElementById('CONTENT').innerHTML = `<div style="color:var(--text3);padding:40px;text-align:center;font-size:13px">${hourglass()}<div style="margin-top:10px">Loading...</div></div>`
+  const { data } = await SB.from('users').select('id,full_name,email,employee_no,phone,dept_id,vts_role,is_active').eq('is_active', true).order('full_name')
+  window._allAccounts = (data || []).map(u => ({ ...u, role: u.vts_role || 'requester',
+    department: (_departments.find(d => d.id === u.dept_id) || {}).name || '' }))
   renderAccountsTable()
 }
 
 function renderAccountsTable() {
   const U = window._allAccounts || []
-  const activeRole = window._acctRoleFilter || 'all'
-  const searchQ    = (window._acctSearch || '').toLowerCase()
-
+  const activeRole = window._acctRoleFilter || 'staff'
+  const searchQ = (window._acctSearch || '').toLowerCase()
   const roleCounts = {}
   U.forEach(u => { roleCounts[u.role] = (roleCounts[u.role]||0)+1 })
-
+  const staffCount = U.filter(u => u.role !== 'requester').length
   const filtered = U.filter(u => {
-    const matchRole = activeRole === 'all' || u.role === activeRole
-    const matchSearch = !searchQ || [u.full_name,u.username,u.department,u.email,u.phone]
-      .some(v => (v||'').toLowerCase().includes(searchQ))
+    const matchRole = activeRole === 'all' || (activeRole === 'staff' ? u.role !== 'requester' : u.role === activeRole)
+    const matchSearch = !searchQ || [u.full_name,u.email,u.employee_no,u.department,u.phone].some(v => (v||'').toLowerCase().includes(searchQ))
     return matchRole && matchSearch
   })
-
-  const pillStyle = (role) => {
-    const isActive = activeRole === role
-    const c = role === 'all' ? '#475569' : (ROLE_COLORS[role]||'#475569')
-    return `cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11.5px;font-weight:700;border:1.5px solid ${isActive?c:c+'44'};background:${isActive?c+'18':'transparent'};color:${isActive?c:c+'99'};transition:all .15s;white-space:nowrap`
+  const pill = (key,label,count,color) => {
+    const on = activeRole === key, c = color || '#475569'
+    return `<button style="cursor:pointer;padding:5px 14px;border-radius:20px;font-size:11.5px;font-weight:700;border:1.5px solid ${on?c:c+'44'};background:${on?c+'18':'transparent'};color:${on?c:c+'99'};white-space:nowrap" onclick="window._acctRoleFilter='${key}';renderAccountsTable()">${label} <span style="opacity:.6">${count}</span></button>`
   }
-
-  const tbodyHTML = filtered.length === 0
-    ? `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text3)">No accounts match the current filter.</td></tr>`
-    : filtered.map(u => {
-        const c = ROLE_COLORS[u.role]||'#64748b'
-        return `<tr>
-          <td><div style="font-weight:600;font-size:13px">${u.full_name||'—'}</div></td>
-          <td><span style="font-family:monospace;font-size:12px;background:var(--bg);padding:2px 7px;border-radius:5px">${u.username||'—'}</span></td>
-          <td><span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700">${ROLE_LABELS[u.role]||u.role}</span></td>
-          <td style="font-size:12px;color:var(--text2)">${u.department||'—'}</td>
-          <td style="font-size:12px">${u.phone||'—'}</td>
-          <td style="font-size:12px;color:var(--text2)">${u.email||'—'}</td>
-          <td><span style="font-size:11px;font-weight:700;color:${u.status==='active'?'var(--green)':'var(--red)'}">${u.status==='active'?'Active':'Inactive'}</span></td>
-          <td>
-            <button class="tbl-act tbl-act-pri" onclick="openEditAccount('${u.id}')">Edit</button>
-            <button class="tbl-act tbl-act-ghost" onclick="openResetPw('${u.id}')">Reset PW</button>
-            <button class="tbl-act tbl-act-red" onclick="toggleAccountStatus('${u.id}','${u.status}','${(u.full_name||'').replace(/'/g,"\\'")}')">
-              ${u.status==='active'?'Deactivate':'Activate'}
-            </button>
-          </td>
-        </tr>`
-      }).join('')
-
-  // If page already rendered — just update tbody and counts (no focus loss)
-  const existingTbody = document.getElementById('_acctTbody')
-  if (existingTbody) {
-    existingTbody.innerHTML = tbodyHTML
-    // Update count label
-    const countEl = document.getElementById('_acctCount')
-    if (countEl) countEl.textContent = `${U.length} total · ${filtered.length} shown`
-    // Update filter pills
-    const pillsEl = document.getElementById('_acctPills')
-    if (pillsEl) pillsEl.innerHTML = `
-      <span style="font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap">Filter by role:</span>
-      <button style="${pillStyle('all')}" onclick="window._acctRoleFilter='all';renderAccountsTable()">
-        All <span style="opacity:.6">${U.length}</span>
-      </button>
-      ${Object.entries(ROLE_LABELS).map(([role,label]) => roleCounts[role]
-        ? `<button style="${pillStyle(role)}" onclick="window._acctRoleFilter='${role}';renderAccountsTable()">
-             ${label} <span style="opacity:.6">${roleCounts[role]||0}</span>
-           </button>`
-        : ''
-      ).join('')}
-    `
-    return
-  }
-
-  // First render — build full page
+  const rows = filtered.length === 0
+    ? `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text3)">No accounts match the current filter.</td></tr>`
+    : filtered.map(u => { const c = ROLE_COLORS[u.role]||'#64748b'; return `<tr>
+        <td><div style="font-weight:600;font-size:13px">${u.full_name||'—'}</div>${u.employee_no?`<div style="font-size:10.5px;color:var(--text3)">#${u.employee_no}</div>`:''}</td>
+        <td style="font-size:12px;color:var(--text2)">${u.email||'—'}</td>
+        <td><span style="background:${c}18;color:${c};border:1px solid ${c}44;border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700">${ROLE_LABELS[u.role]||u.role}</span></td>
+        <td style="font-size:12px;color:var(--text2)">${u.department||'—'}</td>
+        <td style="font-size:12px">${u.phone||'—'}</td></tr>` }).join('')
   document.getElementById('CONTENT').innerHTML = `
-  <div class="card card-np" style="overflow:hidden;margin-bottom:14px">
-    <div class="card-hd" style="padding:14px 16px 12px;flex-wrap:wrap;gap:10px">
-      <div class="card-title">User Accounts <span id="_acctCount" style="font-size:11px;color:var(--text3);font-weight:400">${U.length} total · ${filtered.length} shown</span></div>
-      <button class="btn btn-pri btn-sm" onclick="openCreateAccount()">+ Create Account</button>
-    </div>
-
-    <div style="padding:0 16px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
-      <input class="fi" id="acctSearch" placeholder="🔍 Search name, username, dept..."
-        style="font-size:12px;padding:7px 12px;width:240px;flex-shrink:0"
-        value="${window._acctSearch||''}"
-        oninput="window._acctSearch=this.value;renderAccountsTable()">
-
-      <div id="_acctPills" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap">Filter by role:</span>
-        <button style="${pillStyle('all')}" onclick="window._acctRoleFilter='all';renderAccountsTable()">
-          All <span style="opacity:.6">${U.length}</span>
-        </button>
-        ${Object.entries(ROLE_LABELS).map(([role,label]) => roleCounts[role]
-          ? `<button style="${pillStyle(role)}" onclick="window._acctRoleFilter='${role}';renderAccountsTable()">
-               ${label} <span style="opacity:.6">${roleCounts[role]||0}</span>
-             </button>`
-          : ''
-        ).join('')}
+  <div class="info info-blue" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div><strong>Accounts are managed in TDMH Core.</strong><br><span style="font-size:11px;opacity:.85">Create users, reset passwords, and set the <strong>VTS Role</strong> in TDMH Core → User Management. Users with no VTS role are Department Users (requesters).</span></div>
+    <a class="btn btn-pri btn-sm" href="${CORE_USER_MGMT_URL}" target="_blank" style="text-decoration:none">Open TDMH Core ↗</a>
+  </div>
+  <div class="card card-np" style="overflow:hidden">
+    <div style="padding:14px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <input class="fi" id="acctSearch" placeholder="🔍 Search name, email, dept..." style="font-size:12px;padding:7px 12px;width:240px" value="${window._acctSearch||''}"
+        oninput="window._acctSearch=this.value;renderAccountsTable();setTimeout(()=>{const e=document.getElementById('acctSearch');if(e){e.focus();e.setSelectionRange(e.value.length,e.value.length)}},0)">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${pill('staff','VTS Staff',staffCount)}
+        ${Object.entries(ROLE_LABELS).filter(([r]) => roleCounts[r]).map(([r,l]) => pill(r,l,roleCounts[r],ROLE_COLORS[r])).join('')}
+        ${pill('all','All',U.length)}
       </div>
     </div>
-
-    <div style="overflow-x:auto">
-    <table class="tbl"><thead><tr>
-      <th>Full Name</th><th>Username</th><th>Role</th><th>Department</th>
-      <th>Phone</th><th>Email</th><th>Status</th><th>Actions</th>
-    </tr></thead>
-    <tbody id="_acctTbody">${tbodyHTML}</tbody>
-    </table>
-    </div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Full Name</th><th>Email</th><th>VTS Role</th><th>Department</th><th>Phone</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
   </div>`
-}
-
-function openCreateAccount() {
-  openMO('Create Account',
-    `<div class="fr">
-       <div class="fg"><label class="fl">Full Name *</label><input class="fi" id="caName" placeholder="Full name"></div>
-       <div class="fg"><label class="fl">Username *</label><input class="fi" id="caUsername" placeholder="e.g. jdelacruz" style="text-transform:lowercase"></div>
-       <div class="fg"><label class="fl">Role *</label><select class="fs" id="caRole">${Object.entries(ROLE_LABELS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
-       <div class="fg"><label class="fl">Department</label><select class="fs" id="caDept">${deptOptions()}</select></div>
-     </div>
-     <div class="fr">
-       <div class="fg"><label class="fl">Phone (for SMS)</label><input class="fi" id="caPhone" placeholder="09XXXXXXXXX"></div>
-       <div class="fg"><label class="fl">Email (for Email notif.)</label><input class="fi" type="email" id="caEmailField" placeholder="user@hospital.com"></div>
-     </div>
-     <div class="fg"><label class="fl">Initial Password *</label><input class="fi" type="password" id="caPw" placeholder="Set initial password"></div>`,
-    `<button class="btn btn-ghost" onclick="closeMO()">Cancel</button>
-     <button class="btn btn-pri" id="caBn" onclick="doCreateAccount()">Create Account</button>`
-  , { confirmClose: true })
-}
-async function doCreateAccount() {
-  const name     = document.getElementById('caName')?.value?.trim()
-  const username = document.getElementById('caUsername')?.value?.trim().toLowerCase()
-  const pw       = document.getElementById('caPw')?.value
-  const role     = document.getElementById('caRole')?.value
-  const dept     = document.getElementById('caDept')?.value
-  const phone    = document.getElementById('caPhone')?.value||''
-  const email    = document.getElementById('caEmailField')?.value?.trim()||null
-  if (!name||!username||!pw) { alert('Name, username, and password required.'); return }
-  const btn = document.getElementById('caBn'); btn.disabled=true; btn.textContent='Creating...'
-  try {
-    const { error } = await SB.from('users').insert([{
-      username, password: pw, full_name: name,
-      role, department: dept, phone, email, status: 'active'
-    }])
-    if (error) throw error
-    closeMO(); renderAccounts()
-    alert(`Account created!\nUsername: ${username}\nPassword: ${pw}`)
-  } catch(e) { alert(e.message); btn.disabled=false; btn.textContent='Create Account' }
-}
-async function openEditAccount(id) {
-  // Fetch fresh user data by ID — no escaping issues, always up to date
-  const u = (window._allAccounts||[]).find(x => x.id === id)
-  if (!u) {
-    // Fallback: fetch from DB
-    const { data } = await SB.from('users').select('*').eq('id', id).single()
-    if (!data) { alert('User not found.'); return }
-    return _openEditAccountModal(data)
-  }
-  _openEditAccountModal(u)
-}
-
-function _openEditAccountModal(u) {
-  openMO(`Edit — ${u.full_name||'User'}`,
-    `<div class="fr">
-       <div class="fg"><label class="fl">Full Name</label><input class="fi" id="eaName" value="${(u.full_name||'').replace(/"/g,'&quot;')}"></div>
-       <div class="fg"><label class="fl">Username</label><input class="fi" id="eaUsername" value="${(u.username||'').replace(/"/g,'&quot;')}" style="text-transform:lowercase"></div>
-       <div class="fg"><label class="fl">Role</label><select class="fs" id="eaRole">${Object.entries(ROLE_LABELS).map(([k,v])=>`<option value="${k}"${u.role===k?' selected':''}>${v}</option>`).join('')}</select></div>
-       <div class="fg"><label class="fl">Department</label><select class="fs" id="eaDept">${deptOptions(u.department)}</select></div>
-     </div>
-     <div class="fr">
-       <div class="fg"><label class="fl">Phone (for SMS)</label><input class="fi" id="eaPhone" value="${(u.phone||'').replace(/"/g,'&quot;')}" placeholder="09XXXXXXXXX"></div>
-       <div class="fg"><label class="fl">Email (for notif.)</label><input class="fi" type="email" id="eaEmail" value="${(u.email||'').replace(/"/g,'&quot;')}" placeholder="user@hospital.com"></div>
-     </div>`,
-    `<button class="btn btn-ghost" onclick="closeMO()">Cancel</button>
-     <button class="btn btn-pri" id="eaBn" onclick="doEditAccount('${u.id}')">Save Changes</button>`,
-    { confirmClose: true }
-  )
-}
-async function doEditAccount(id) {
-  const btn = document.getElementById('eaBn'); btn.disabled=true; btn.textContent='Saving...'
-  const { error } = await SB.from('users').update({
-    full_name:  document.getElementById('eaName').value,
-    username:   document.getElementById('eaUsername').value.toLowerCase(),
-    role:       document.getElementById('eaRole').value,
-    department: document.getElementById('eaDept').value,
-    phone:      document.getElementById('eaPhone').value||null,
-    email:      document.getElementById('eaEmail').value||null
-  }).eq('id',id)
-  if (error) { alert(error.message); btn.disabled=false; btn.textContent='Save Changes'; return }
-  if (currentProfile?.id === id) {
-    currentProfile.phone = document.getElementById('eaPhone').value||null
-    currentProfile.email = document.getElementById('eaEmail').value||null
-    localStorage.setItem('vts_user', JSON.stringify(currentProfile))
-  }
-  closeMO(); renderAccounts()
-}
-function openResetPw(id) {
-  const u = (window._allAccounts||[]).find(x => x.id === id)
-  const name = u?.full_name || 'User'
-  const username = u?.username || ''
-  openMO(`Reset Password — ${name}`,
-    `<div class="fg"><label class="fl">New Password *</label><input class="fi" type="password" id="rp1" placeholder="New password"></div>
-     <div class="fg"><label class="fl">Confirm Password *</label><input class="fi" type="password" id="rp2" placeholder="Confirm password"></div>`,
-    `<button class="btn btn-ghost" onclick="closeMO()">Cancel</button>
-     <button class="btn btn-pri" id="rpBn" onclick="doResetPw('${id}','${username}')">Reset Password</button>`
-  )
-}
-async function doResetPw(id, username) {
-  const p1 = document.getElementById('rp1')?.value
-  const p2 = document.getElementById('rp2')?.value
-  if (!p1||p1!==p2) { alert('Passwords must match.'); return }
-  if (p1.length < 3) { alert('Password must be at least 3 characters.'); return }
-  const btn = document.getElementById('rpBn'); btn.disabled=true; btn.textContent='Resetting...'
-  const { error } = await SB.from('users').update({ password: p1 }).eq('id', id)
-  if (error) { alert(error.message); btn.disabled=false; btn.textContent='Reset Password'; return }
-  alert(`Password for "${username}" updated successfully.`)
-  closeMO()
-}
-async function toggleUser(id, status) {
-  const newStatus = status==='active'?'inactive':'active'
-  await SB.from('users').update({ status:newStatus }).eq('id',id)
-  renderAccounts()
 }
 
 // ════════════════════════════════════════════════
 // DRIVER APP
 // ════════════════════════════════════════════════
 async function renderDriverApp() {
-  const { data } = await SB.from('trips').select('ticket_no,status,purpose,destination,stops,departure_at').in('status',['assigned','on-trip']).limit(3)
+  const { data } = await SB.from('vts_trips').select('ticket_no,status,purpose,destination,stops,departure_at').in('status',['assigned','on-trip']).limit(3)
   const assigned = data||[]
   document.getElementById('CONTENT').innerHTML = `
   <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
@@ -8614,14 +8407,7 @@ function toggleFAQ(i) {
   openFAQ = isOpen?null:i
 }
 
-// ── INIT — check existing session from localStorage ──────────
-;(async () => {
-  if (loadSession() && currentProfile) {
-    showApp()
-  } else {
-    showLogin()
-  }
-})()
+// ── INIT — handled by the DOMContentLoaded listener (Supabase Auth session restore) ──
 </script>
 </body>
 </html>
