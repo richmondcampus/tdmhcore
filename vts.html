@@ -239,6 +239,18 @@ body.dark .b-overdue{background:rgba(225,29,72,.15);color:#fb7185;border-color:r
 /* ── GPS dot ── */
 .ping{width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;position:relative}
 .gps-grid{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}
+.gps-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.gps-live{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.25);font-size:12px;font-weight:600;color:var(--green)}
+.gps-live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.6);animation:gpsPulse 1.6s infinite}
+@keyframes gpsPulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.55)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+.gps-live-bar{width:54px;height:4px;border-radius:4px;background:rgba(22,163,74,.18);overflow:hidden}
+.gps-live-bar i{display:block;height:100%;width:0;background:var(--green);transition:width 1s linear}
+.gps-refresh{display:inline-flex;align-items:center;gap:6px;font-weight:700;padding-left:14px;padding-right:14px}
+.gps-refresh .gps-spin{display:inline-block;font-size:14px;line-height:1}
+.gps-refresh.loading .gps-spin{animation:gpsSpin .8s linear infinite}
+.gps-refresh.loading{opacity:.75;cursor:wait}
+@keyframes gpsSpin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.gps-live-dot,.gps-refresh.loading .gps-spin{animation:none}}
 .gps-map{height:clamp(420px,calc(100vh - 200px),900px);width:100%;background:var(--bg)}
 .gps-legend{position:absolute;left:10px;bottom:10px;z-index:500;display:flex;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:6px 10px;font-size:11px;color:var(--text2)}
 .gps-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
@@ -7246,11 +7258,12 @@ const GPS_HOME = { lat: 14.5735, lng: 121.1252, radiusM: 250, label: 'TDMH' }   
 const GPS_REFRESH_MS = 30000
 const GPS_COLORS = { Move: '#16a34a', Stop: '#2563eb', Offline: '#94a3b8' }
 const GPS_LABEL = { Move: 'Umaandar', Stop: 'Nakahinto', Offline: 'Offline' }
-let GPS = { map: null, markers: {}, data: [], timer: null, selected: null, home: null }
+let GPS = { map: null, markers: {}, data: [], timer: null, selected: null, home: null, next: 0, loading: false }
 
 function gpsLeave() {
   if (GPS.timer) { clearInterval(GPS.timer); GPS.timer = null }
   if (GPS.map) { GPS.map.remove(); GPS.map = null; GPS.markers = {} }
+  GPS.loading = false
 }
 function gpsDistM(a, b) {
   const R = 6371000, r = x => x * Math.PI / 180
@@ -7291,16 +7304,16 @@ function gpsAnalyse(d) {
 async function renderGPS() {
   gpsLeave()
   const C = document.getElementById('CONTENT')
-  const { data: cfg } = await SB.from('vts_settings').select('value').eq('key', 'gps_monitor_url').maybeSingle()
-  window._gpsUrl = cfg?.value || ''
-  const isAdmin = currentProfile?.role === 'admin'
   C.innerHTML = `
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2)"><span class="ping"></span> Live mula sa AKSH GPS <span id="gpsStamp" style="color:var(--text3)"></span></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${window._gpsUrl ? `<a class="btn btn-ghost btn-sm" href="${gpsEsc(window._gpsUrl)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Buksan sa AKSH ↗</a>` : ''}
-      ${isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="openAKSH()">AKSH link</button>` : ''}
-      <button class="btn btn-ghost btn-sm" onclick="gpsRefresh(true)">↻ Refresh</button>
+  <div class="gps-head">
+    <div style="font-size:13px;color:var(--text2)">Live mula sa AKSH GPS <span id="gpsStamp" style="color:var(--text3)"></span></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="gps-live" title="Kusang kumukuha ng bagong lokasyon kada 30 segundo">
+        <span class="gps-live-dot"></span><span id="gpsCountdown">Auto-refresh sa 30s</span>
+        <span class="gps-live-bar"><i id="gpsBar"></i></span>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="gpsFitAll()">⤢ Ipakita lahat</button>
+      <button class="btn btn-pri btn-sm gps-refresh" id="gpsRefreshBtn" onclick="gpsRefresh(true)"><span class="gps-spin">↻</span> I-refresh ngayon</button>
     </div>
   </div>
   <div class="gps-grid">
@@ -7319,13 +7332,29 @@ async function renderGPS() {
   GPS.home = L.circle([GPS_HOME.lat, GPS_HOME.lng], { radius: GPS_HOME.radiusM, color: '#7c3aed', weight: 1.5, fillOpacity: .08 })
     .addTo(GPS.map).bindTooltip('🏥 TDMH', { permanent: true, direction: 'top', className: 'gps-home-tip' })
   await gpsRefresh(false, true)
-  GPS.timer = setInterval(() => { if (currentPage === 'gps' && !document.hidden) gpsRefresh(false) }, GPS_REFRESH_MS)
+  GPS.timer = setInterval(gpsTick, 1000)
 }
 
+function gpsTick() {
+  if (currentPage !== 'gps' || !GPS.map) return
+  if (document.hidden || GPS.loading) return
+  const left = Math.max(0, Math.ceil((GPS.next - Date.now()) / 1000))
+  const cd = document.getElementById('gpsCountdown'), bar = document.getElementById('gpsBar')
+  if (cd) cd.textContent = left > 0 ? `Auto-refresh sa ${left}s` : 'Nire-refresh...'
+  if (bar) bar.style.width = (100 - left / (GPS_REFRESH_MS / 1000) * 100) + '%'
+  if (left <= 0) gpsRefresh(false)
+}
 async function gpsRefresh(manual, fit) {
-  const sum = document.getElementById('gpsSummary'); if (!sum || !GPS.map) return
-  if (manual) sum.textContent = 'Nire-refresh...'
-  const { data, error } = await SB.functions.invoke('vts-gps', { body: {} })
+  const sum = document.getElementById('gpsSummary'); if (!sum || !GPS.map || GPS.loading) return
+  GPS.loading = true
+  const btn = document.getElementById('gpsRefreshBtn'), cd = document.getElementById('gpsCountdown')
+  if (btn) { btn.classList.add('loading'); btn.disabled = true }
+  if (cd) cd.textContent = 'Nire-refresh...'
+  const res = await SB.functions.invoke('vts-gps', { body: {} }).catch(e => ({ error: e }))
+  GPS.loading = false
+  GPS.next = Date.now() + GPS_REFRESH_MS
+  if (btn) { btn.classList.remove('loading'); btn.disabled = false }
+  const { data, error } = res
   if (error || data?.error) {
     sum.innerHTML = `<span style="color:var(--red)">Hindi makuha ang GPS ngayon.</span> <span style="font-weight:500;color:var(--text3);font-size:12px">${gpsEsc(data?.error || error?.message || '')}</span>`
     return
@@ -7366,10 +7395,14 @@ function gpsDrawMarkers(fit) {
     else GPS.markers[d.device_id] = L.marker([d.lat, d.lng], { icon: gpsIcon(d), riseOnHover: true }).addTo(GPS.map).bindPopup(gpsPopup(d))
   })
   Object.keys(GPS.markers).forEach(id => { if (!seen.has(Number(id))) { GPS.markers[id].remove(); delete GPS.markers[id] } })
-  if (fit) {
-    const pts = GPS.data.filter(d => d.has && d.gps_status !== 'Offline').map(d => [d.lat, d.lng]).concat([[GPS_HOME.lat, GPS_HOME.lng]])
-    if (pts.length > 1) GPS.map.fitBounds(pts, { padding: [40, 40], maxZoom: 15 })
-  }
+  if (fit) setTimeout(gpsFitAll, 60)
+}
+function gpsFitAll() {
+  if (!GPS.map) return
+  GPS.map.invalidateSize()
+  const pts = GPS.data.filter(d => d.has && d.gps_status !== 'Offline').map(d => [d.lat, d.lng]).concat([[GPS_HOME.lat, GPS_HOME.lng]])
+  if (pts.length > 1) GPS.map.fitBounds(pts, { paddingTopLeft: [40, 50], paddingBottomRight: [130, 50], maxZoom: 15 })
+  else GPS.map.setView([GPS_HOME.lat, GPS_HOME.lng], 14)
 }
 function gpsDrawList() {
   const out = GPS.data.filter(d => d.has && !d.atHome && d.gps_status !== 'Offline').length
@@ -7406,26 +7439,6 @@ async function gpsAddress(id) {
   el.textContent = 'Hinahanap ang address...'
   const { data, error } = await SB.functions.invoke('vts-gps', { body: { action: 'address', lat: d.lat, lng: d.lng } })
   el.textContent = (!error && data?.address) ? '📍 ' + data.address : 'Hindi makuha ang address.'
-}
-
-function openAKSH() {
-  if (currentProfile?.role !== 'admin') return
-  openMO('AKSH GPS Link',
-    `<div class="info info-amber">Shortcut lang ito para sa "Buksan sa AKSH" button. Ang live map ay gumagamit ng AKSH login na naka-save sa Supabase secrets. Nakatago ang link sa database at makikita lang ng admin, super approver, at guards.</div>
-     <div class="fg"><label class="fl">AKSH monitor link</label>
-       <input class="fi" id="akUrl" placeholder="https://en.aika168.com/Monitor.aspx?..." value="${gpsEsc(window._gpsUrl || '')}"></div>`,
-    `<button class="btn btn-ghost" onclick="closeMO()">Cancel</button>
-     <button class="btn btn-pri" id="akSave" onclick="saveAKSH()">Save</button>`)
-}
-
-async function saveAKSH() {
-  const v = (document.getElementById('akUrl')?.value || '').trim()
-  if (!/^https:\/\//i.test(v)) { alert('Kailangang https:// na link.'); return }
-  const btn = document.getElementById('akSave'); btn.disabled = true; btn.textContent = 'Saving...'
-  const { error } = await SB.from('vts_settings').upsert({ key: 'gps_monitor_url', value: v, updated_by: currentProfile.id, updated_at: new Date().toISOString() })
-  if (error) { alert(error.message); btn.disabled = false; btn.textContent = 'Save'; return }
-  closeMO(true)
-  renderGPS()
 }
 
 // ════════════════════════════════════════════════
