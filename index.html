@@ -502,6 +502,9 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
         <div class="nav-item nav-system" onclick="goSystem('csr')" id="navsys_csr" style="display:none;"><span class="nav-icon">📋</span>CSR / Supply<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('inventory')" id="navsys_inventory" style="display:none;"><span class="nav-icon">🏷️</span>Inventory<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('vts')" id="navsys_vts" style="display:none;"><span class="nav-icon">🚗</span>Vehicle Ticketing<span class="nav-ext">↗</span></div>
+        <div class="nav-item nav-system" onclick="goSystem('opd')" id="navsys_opd" style="display:none;"><span class="nav-icon">🩺</span>OPD Records<span class="nav-ext">↗</span></div>
+        <div class="nav-item nav-system" onclick="goSystem('admitting')" id="navsys_admitting" style="display:none;"><span class="nav-icon">🛏️</span>Admitting<span class="nav-ext">↗</span></div>
+        <div class="nav-item nav-system" onclick="goSystem('ecg')" id="navsys_ecg" style="display:none;"><span class="nav-icon">🫀</span>ECG Forms<span class="nav-ext">↗</span></div>
         <div class="nav-item nav-system" onclick="goSystem('scan')" id="navsys_scan" style="display:none;"><span class="nav-icon">📱</span>Asset Scan<span class="nav-ext">↗</span></div>
 
       </nav>
@@ -561,7 +564,18 @@ const SB = supabase.createClient(SUPA_URL, SUPA_KEY)
 const SYSTEMS = {
   csr:'https://tdmhcore.io/csr', maintenance:'https://tdmhcore.io/maintenance',
   it:'https://tdmhcore.io/helpdesk', inventory:'https://tdmhcore.io/inventory', scan:'https://tdmhcore.io/scan',
-  medequip:'https://tdmhcore.io/medequip', vts:'https://tdmhcore.io/vts'
+  medequip:'https://tdmhcore.io/medequip', vts:'https://tdmhcore.io/vts',
+  opd:'https://tdmhcore.io/opd-records', admitting:'https://tdmhcore.io/admitting', ecg:'https://tdmhcore.io/ecg-forms'
+}
+// Systems on tdmhcore.io that keep their own sign-in (OPD Records, Admitting) are listed for
+// these departments and for Core admins. ECG Forms follows users.ecg_role.
+const OPD_DEPTS = ['OPD','HMO OPD','Medical Records']
+const ADMITTING_DEPTS = ['Admitting']
+function deptNameOf(u){ const d=(S.departments||[]).find(x=>x.id===u.dept_id); return d ? d.dept_name : '' }
+function isCoreAdmin(u){ return u.csr_role==='admin'||u.maintenance_role==='admin'||u.it_role==='admin'||u.inventory_role==='admin' }
+function linkedAccess(u){
+  const dn = deptNameOf(u), adm = isCoreAdmin(u)
+  return { opd: adm || OPD_DEPTS.includes(dn), admitting: adm || ADMITTING_DEPTS.includes(dn), ecg: !!u.ecg_role }
 }
 
 let S = { user:null, page:'my_work', departments:[], users:[], charts:{} }
@@ -592,6 +606,7 @@ function storeAuthSession(authData, profile){
     dept_id:profile.dept_id, phone:profile.phone, email:profile.email,
     csr_role:profile.csr_role, maintenance_role:profile.maintenance_role,
     it_role:profile.it_role, inventory_role:profile.inventory_role, vts_role:profile.vts_role,
+    ecg_role:profile.ecg_role,
     access_token:authData.session?.access_token,
     refresh_token:authData.session?.refresh_token
   }
@@ -729,6 +744,12 @@ async function bootApp(session){
   ])
   S.departments=depts||[]
   S.users=users||[]
+  // OPD Records / Admitting / ECG Forms links need the department list, so they are shown here
+  const linked=linkedAccess(session)
+  Object.keys(linked).forEach(k=>{
+    const el=document.getElementById('navsys_'+k)
+    if(el){ el.style.display=linked[k]?'':'none'; if(linked[k]&&sysHdr) sysHdr.style.display='' }
+  })
   loadHubBadges()
   showPage('my_work')
 }
@@ -760,7 +781,10 @@ const HX_SYS = {
   it:          { name:'IT Helpdesk',       icon:'🖥️', tint:'var(--accent)', tintA:'var(--accent-a)' },
   inventory:   { name:'Inventory',         icon:'🏷️', tint:'var(--violet)', tintA:'var(--violet-a)' },
   medequip:    { name:'Medical Equipment', icon:'🏥', tint:'var(--red)',    tintA:'var(--red-a)' },
-  vts:         { name:'Vehicle Ticketing', icon:'🚗', tint:'var(--accent)', tintA:'var(--accent-a)' }
+  vts:         { name:'Vehicle Ticketing', icon:'🚗', tint:'var(--accent)', tintA:'var(--accent-a)' },
+  opd:         { name:'OPD Records',       icon:'🩺', tint:'var(--green)',  tintA:'var(--green-a)' },
+  admitting:   { name:'Admitting',         icon:'🛏️', tint:'var(--violet)', tintA:'var(--violet-a)' },
+  ecg:         { name:'ECG Forms',         icon:'🫀', tint:'var(--red)',    tintA:'var(--red-a)' }
 }
 let HX = { items: [], filter: 'all' }
 
@@ -771,7 +795,8 @@ function hxAccess(u){
     it: !!u.it_role,
     inventory: !!u.inventory_role,
     medequip: ['gsd','admin'].includes(u.maintenance_role),
-    vts: true
+    vts: true,
+    ...linkedAccess(u)
   }
 }
 function hxGreeting(){
@@ -871,6 +896,7 @@ async function renderMyWork(){
     csr: approvals.length ? approvals.length+' para sa approval mo' : 'bukas na request mo',
     maintenance: 'bukas na ticket mo', it: 'bukas na ticket mo',
     inventory: 'Assets at stock', medequip: 'Biomedical equipment',
+    opd: 'Mga record ng pasyente', admitting: 'Census ng inpatient', ecg: 'ECG Report forms',
     vts: vtsPending ? vtsPending+' naghihintay ng approval' : 'aktibong biyahe mo'
   }
   const sysCount = { csr: counts.csr + approvals.length, maintenance:counts.maintenance, it:counts.it, vts: counts.vts + vtsPending }
