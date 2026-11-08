@@ -1598,9 +1598,10 @@ const ROLE_OPTS = {
   maintenance: ['requester','technician','supervisor','gsd','admin'],
   it: ['requester','technician','supervisor','admin'],
   inventory: ['viewer','encoder','admin'],
-  vts: ['requester','driver','guard','approver_admin','approver_amb','super_approver','owner','admin']
+  vts: ['requester','driver','guard','approver_admin','approver_amb','super_approver','owner','admin'],
+  ecg: ['user','admin']
 }
-const ROLE_LABELS = { csr:'CSR', maintenance:'Maintenance', it:'IT', inventory:'Inventory', vts:'VTS' }
+const ROLE_LABELS = { csr:'CSR', maintenance:'Maintenance', it:'IT', inventory:'Inventory', vts:'VTS', ecg:'ECG Forms' }
 
 async function callUserFn(payload){
   const { data:{ session } } = await SB.auth.getSession()
@@ -1619,7 +1620,7 @@ async function renderUserMgmt(){
   const content = document.getElementById('mainContent')
   content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading users...</p></div>'
   const { data, error } = await SB.from('users')
-    .select('id,employee_no,full_name,email,phone,dept_id,position,csr_role,maintenance_role,it_role,inventory_role,vts_role,is_active,sms_csr,sms_maintenance,sms_it')
+    .select('id,employee_no,full_name,email,phone,dept_id,position,csr_role,maintenance_role,it_role,inventory_role,vts_role,ecg_role,is_active,sms_csr,sms_maintenance,sms_it')
     .order('full_name')
   if(error){ content.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Error</h3><p>'+esc(error.message)+'</p></div>'; return }
   UM.users = data || []
@@ -1637,7 +1638,7 @@ function drawUserMgmt(){
   if(UM.statusFilter==='active') list = list.filter(u=>u.is_active)
   else if(UM.statusFilter==='inactive') list = list.filter(u=>!u.is_active)
   if(UM.roleFilter){
-    list = list.filter(u => u.csr_role===UM.roleFilter||u.maintenance_role===UM.roleFilter||u.it_role===UM.roleFilter||u.inventory_role===UM.roleFilter||u.vts_role===UM.roleFilter)
+    list = list.filter(u => u.csr_role===UM.roleFilter||u.maintenance_role===UM.roleFilter||u.it_role===UM.roleFilter||u.inventory_role===UM.roleFilter||u.vts_role===UM.roleFilter||u.ecg_role===UM.roleFilter)
   }
   if(UM.filter){
     const q = UM.filter.toLowerCase()
@@ -1672,7 +1673,7 @@ function drawUserMgmt(){
     list.forEach(u=>{
       const dept = S.departments.find(d=>d.id===u.dept_id)
       const roleChips = []
-      ;['csr','maintenance','it','inventory','vts'].forEach(sys=>{
+      ;['csr','maintenance','it','inventory','vts','ecg'].forEach(sys=>{
         const r = u[sys+'_role'] || (sys==='vts' ? 'requester' : null)  // VTS: no role = requester
         if(r) roleChips.push('<span style="font-size:10px;padding:2px 6px;border-radius:6px;background:var(--surf3);color:var(--txt2);white-space:nowrap;">'+ROLE_LABELS[sys]+': '+r+'</span>')
       })
@@ -1709,6 +1710,7 @@ function roleSelect(sys, current){
   })
   h += '</select>'
   if (sys==='vts') h += '<div style="font-size:10px;color:var(--txt3);margin-top:3px;">Blank = <strong>requester</strong> (lahat ng Core user ay pwedeng mag-request ng sasakyan). Driver/guard/approver lang ang kailangang i-set.</div>'
+  if (sys==='ecg') h += '<div style="font-size:10px;color:var(--txt3);margin-top:3px;">Access sa ECG Form Generator (tdmhcore.io/ecg-forms). Blank = walang access.</div>'
   if (sys==='maintenance') h += '<div style="font-size:10px;color:var(--txt3);margin-top:3px;">Piliin <strong>gsd</strong> para sa Medical Equipment access (GSD/Biomedical). Ang technician/supervisor ay para sa facility maintenance.</div>'
   h += '</div>'
   return h
@@ -1786,7 +1788,7 @@ function openUserForm(userId){
   html += '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.5px;margin:8px 0 6px;">System Roles</div>'
   html += '<div class="field-row">'+roleSelect('csr', u?.csr_role)+roleSelect('maintenance', u?.maintenance_role)+'</div>'
   html += '<div class="field-row">'+roleSelect('it', u?.it_role)+roleSelect('inventory', u?.inventory_role)+'</div>'
-  html += '<div class="field-row">'+roleSelect('vts', u?.vts_role)+'<div></div></div>'
+  html += '<div class="field-row">'+roleSelect('vts', u?.vts_role)+roleSelect('ecg', u?.ecg_role)+'</div>'
 
   // Department Head assignment — shown only when CSR role = dept_head (supports MULTIPLE depts)
   const isDeptHead = u?.csr_role === 'dept_head'
@@ -2244,6 +2246,12 @@ async function saveUser(userId){
           vts_role: payload.vts_role
         }).eq('id', targetUserId)
       } catch(_) {}
+      // ECG Form Generator access — saved separately so a failure is reported, not swallowed
+      const ecgSel = document.getElementById('uf_ecg')
+      if(ecgSel){
+        const { error: ecgErr } = await SB.from('users').update({ ecg_role: ecgSel.value || null }).eq('id', targetUserId)
+        if(ecgErr) throw new Error('Na-save ang user pero hindi ang ECG access: ' + ecgErr.message)
+      }
       const selected = payload.csr_role === 'dept_head'
         ? Array.from(document.querySelectorAll('.uf_head_dept:checked')).map(c=>c.value)
         : []   // role changed away from dept_head → clear all assignments
