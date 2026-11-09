@@ -240,12 +240,15 @@
  * Live ECG trace — turns every <svg class="cx-trace"> / <svg class="tx-login-trace"> (with a <polyline>)
  * into a patient-monitor sweep: the line is redrawn left→right with a bright head dot, older beats fade,
  * and a short gap erases just ahead of the head. One sweep = 6 beats in 5 s (≈72 bpm).
- * Respects prefers-reduced-motion (the trace stays still) and stops by itself when the SVG leaves the page.
+ * It is small and decorative, so it runs everywhere; computers set to "reduce motion" get a calmer 8-second sweep.
+ * Stops by itself when the SVG leaves the page; the browser pauses it while the tab is hidden.
  *   TDMHEcg.scan(root)   wire any new traces (runs automatically on page changes)
  */
 (function () {
   var NS = 'http://www.w3.org/2000/svg', W = 1200, H = 120, PERIOD = 5000, GAP = 36, seq = 0;
-  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var mqReduce = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  function calm() { return !!(mqReduce && mqReduce.matches); }
+  var announced = false;
 
   function el(tag, attrs) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
   function parse(s) { return String(s || '').trim().split(/\s+/).map(function (p) { var a = p.split(','); return [+a[0], +a[1]]; }); }
@@ -258,7 +261,7 @@
   }
 
   function wire(svg) {
-    if (svg.__ecg || reduce) return;
+    if (svg.__ecg) return;
     var line = svg.querySelector('polyline'); if (!line) return;
     var P = parse(line.getAttribute('points')); if (P.length < 2) return;
     svg.__ecg = true;
@@ -287,9 +290,11 @@
     svg.appendChild(glow); svg.appendChild(dot);
 
     var t0 = performance.now();
+    if (!announced) { announced = true; try { console.info('[TDMH ECG] live' + (calm() ? ' (calm: reduce-motion is on)' : '')); } catch (e) {} }
     function frame(now) {
       if (!svg.isConnected) return;                          // page re-rendered: this loop ends
-      var x = ((now - t0) % PERIOD) / PERIOD * W, y = yAt(P, x);
+      var period = calm() ? PERIOD * 1.6 : PERIOD;           // 8 s instead of 5 s when the computer asks for less motion
+      var x = ((now - t0) % period) / period * W, y = yAt(P, x);
       sweep.setAttribute('x', x - W);
       var b = svg.getBoundingClientRect(), sx = (b.width || W) / W, sy = (b.height || H) / H;
       dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('rx', 3.2 / sx); dot.setAttribute('ry', 3.2 / sy);
