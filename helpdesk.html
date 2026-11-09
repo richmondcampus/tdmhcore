@@ -3296,8 +3296,25 @@ async function submitITPartsRequest() {
     const purpose = 'IT ' + typeLabel + ' request for Ticket ' + ticketId + ' — "' + (t?.subject || '') + '"' +
       (t?.asset_no ? ' [Asset: ' + t.asset_no + ']' : '') + (notes ? ' — ' + notes : '')
 
-    // Create CSR request linked to this IT ticket
-    const { data: req, error } = await SB.from('requests').insert({
+    // Replacement => DERP (Defective Equipment Replacement Process); Parts => purchase.
+    const isReplacement = _partsReqType === 'replacement'
+    const reqPayload = isReplacement ? {
+      request_no: requestNo,
+      request_type: 'derp',
+      derp_category: 'it',
+      dept_id: t?.dept_id || null,
+      requested_by: t?.requester_id || S.user.id,
+      urgency,
+      purpose,
+      status: 'pending_evaluation',  // needs repair-vs-replace evaluation first
+      source_system: 'it',
+      source_ref_id: null,
+      source_ref_text: ticketId,
+      asset_id: t?.asset_id || null,
+      derp_evaluator_id: S.user.id,
+      derp_evaluation_date: new Date().toISOString(),
+      derp_evaluation_notes: notes || null
+    } : {
       request_no: requestNo,
       request_type: 'purchase',
       dept_id: t?.dept_id || null,
@@ -3310,19 +3327,23 @@ async function submitITPartsRequest() {
       source_ref_id: null,
       source_ref_text: ticketId,
       asset_id: t?.asset_id || null
-    }).select().single()
+    }
+    const { data: req, error } = await SB.from('requests').insert(reqPayload).select().single()
     if (error) throw error
 
-    // Audit: log that dept-head (level 1) was auto-skipped for internal IT requests
-    await SB.from('approvals').insert({
-      request_id: req.id,
-      approver_id: S.user.id,
-      approver_role: 'dept_head',
-      level: 1,
-      decision: 'approved',
-      remarks: 'Auto-skipped — internal IT ' + typeLabel + ' request (Ticket ' + ticketId + '). Routed directly to Supply Officer.',
-      decided_at: new Date().toISOString()
-    })
+    // Audit: log that dept-head (level 1) was auto-skipped — ONLY for purchase (parts).
+    // DERP (replacement) uses the evaluation flow, not approval levels.
+    if (!isReplacement) {
+      await SB.from('approvals').insert({
+        request_id: req.id,
+        approver_id: S.user.id,
+        approver_role: 'dept_head',
+        level: 1,
+        decision: 'approved',
+        remarks: 'Auto-skipped — internal IT ' + typeLabel + ' request (Ticket ' + ticketId + '). Routed directly to Supply Officer.',
+        decided_at: new Date().toISOString()
+      })
+    }
 
     // Insert request items — replacement => it_hardware (asset), parts => consumable-ish
     const itemCategory = _partsReqType === 'replacement' ? 'it_hardware' : 'maintenance_material'
@@ -3335,11 +3356,30 @@ async function submitITPartsRequest() {
       category: itemCategory
     })))
 
+    // For a REPLACEMENT (DERP): put the ticket ON HOLD + link it to the DERP, so it no
+    // longer shows as plainly "open" while the replacement is being evaluated/processed.
+    if (isReplacement) {
+      try {
+        const { data: curT } = await SB.from('it_tickets').select('status').eq('id', ticketId).single()
+        if (curT && curT.status !== 'on_hold') {
+          await SB.from('it_tickets').update({
+            status: 'on_hold',
+            status_before_hold: curT.status,
+            hold_reason: 'Replacement filed (DERP ' + requestNo + ')',
+            hold_started_at: new Date().toISOString(),
+            source_ref_id: req.id,
+            updated_at: new Date().toISOString()
+          }).eq('id', ticketId)
+        }
+      } catch(_) {}
+    }
+
     // Note on the ticket (internal reply)
     await SB.from('it_ticket_replies').insert({
       ticket_id: ticketId, author_id: S.user.id,
       body: '🔧 ' + typeLabel + ' request submitted to CSR (' + requestNo + '): ' +
-        items.map(i => (i.qty||1) + ' ' + (i.unit||'pcs') + ' ' + i.name).join(', '),
+        items.map(i => (i.qty||1) + ' ' + (i.unit||'pcs') + ' ' + i.name).join(', ') +
+        (isReplacement ? ' — Ticket ON HOLD habang nasa DERP evaluation.' : ''),
       is_internal: true
     })
 
