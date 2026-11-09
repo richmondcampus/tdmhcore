@@ -262,6 +262,25 @@ body.dark .b-overdue{background:rgba(225,29,72,.15);color:#fb7185;border-color:r
 .gps-home-tip{font-weight:700;font-size:11px}
 .gps-card{display:block;width:100%;text-align:left;font-family:inherit;color:var(--text);background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;cursor:pointer}
 .gps-card:hover{background:var(--bg)}
+.gps-hist-btn{font:700 10.5px/1 inherit;font-family:inherit;color:var(--accent,#2563eb);background:transparent;border:1px solid var(--border);border-radius:999px;padding:4px 9px;cursor:pointer}
+.gps-hist-btn:hover{background:var(--bg)}
+.gps-hist{display:flex;flex-direction:column;gap:10px}
+.gps-hist-range{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.gps-hist-range input{width:auto;padding:5px 8px;font-size:12px}
+.gps-chip{font:600 11.5px/1 inherit;font-family:inherit;padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:var(--card);color:var(--text2);cursor:pointer}
+.gps-chip.on{background:var(--text);color:var(--card);border-color:var(--text)}
+.gps-hist-note{font-size:12.5px;color:var(--text3);padding:12px;background:var(--card);border:1px solid var(--border);border-radius:12px}
+.gps-hist-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.gps-hist-stats div{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:9px 6px;text-align:center}
+.gps-hist-stats b{display:block;font-size:16px;font-weight:800;line-height:1.1}
+.gps-hist-stats span{font-size:10.5px;color:var(--text3)}
+.gps-play{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.gps-readout{font-size:12px;color:var(--text2);margin-top:4px}
+.gps-hist-sec{font-size:12px;font-weight:800;margin-top:4px}
+.gps-trip{display:block;width:100%;text-align:left;font-family:inherit;font-size:12px;color:var(--text);background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;cursor:pointer}
+.gps-trip span{display:block;font-size:11px;color:var(--text3);margin-top:2px}
+.gps-trip.on{border-color:#16a34a;background:rgba(22,163,74,.06)}
+.gps-trip:hover{background:var(--bg)}
 @media(max-width:860px){.gps-grid{grid-template-columns:1fr}}
 .ping::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--green);animation:pinga 1.6s ease-out infinite}
 @keyframes pinga{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(2.3)}}
@@ -7258,9 +7277,11 @@ const GPS_HOME = { lat: 14.5735, lng: 121.1252, radiusM: 250, label: 'TDMH' }   
 const GPS_REFRESH_MS = 30000
 const GPS_COLORS = { Move: '#16a34a', Stop: '#2563eb', Offline: '#94a3b8' }
 const GPS_LABEL = { Move: 'Umaandar', Stop: 'Nakahinto', Offline: 'Offline' }
-let GPS = { map: null, markers: {}, data: [], timer: null, selected: null, home: null, next: 0, loading: false }
+let GPS = { map: null, markers: {}, data: [], timer: null, selected: null, home: null, next: 0, loading: false, mode: 'live', hist: null, liveLayer: null }
 
 function gpsLeave() {
+  if (GPS.hist) { gpsHistStop(); GPS.hist = null }
+  GPS.mode = 'live'
   if (GPS.timer) { clearInterval(GPS.timer); GPS.timer = null }
   if (GPS.map) { GPS.map.remove(); GPS.map = null; GPS.markers = {} }
   GPS.loading = false
@@ -7322,8 +7343,11 @@ async function renderGPS() {
       <div class="gps-legend">${['Move','Stop','Offline'].map(s => `<span><i style="background:${GPS_COLORS[s]}"></i>${GPS_LABEL[s]}</span>`).join('')}</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
-      <div id="gpsSummary" style="font-size:13px;font-weight:700">Kinukuha ang lokasyon...</div>
-      <div id="gpsList" style="display:flex;flex-direction:column;gap:8px"></div>
+      <div id="gpsLive" style="display:flex;flex-direction:column;gap:8px">
+        <div id="gpsSummary" style="font-size:13px;font-weight:700">Kinukuha ang lokasyon...</div>
+        <div id="gpsList" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+      <div id="gpsHist" class="gps-hist" style="display:none"></div>
     </div>
   </div>`
   try { await gpsLoadLeaflet() } catch (e) { document.getElementById('gpsSummary').textContent = e.message; return }
@@ -7331,12 +7355,13 @@ async function renderGPS() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(GPS.map)
   GPS.home = L.circle([GPS_HOME.lat, GPS_HOME.lng], { radius: GPS_HOME.radiusM, color: '#7c3aed', weight: 1.5, fillOpacity: .08 })
     .addTo(GPS.map).bindTooltip('🏥 TDMH', { permanent: true, direction: 'top', className: 'gps-home-tip' })
+  GPS.liveLayer = L.layerGroup().addTo(GPS.map)
   await gpsRefresh(false, true)
   GPS.timer = setInterval(gpsTick, 1000)
 }
 
 function gpsTick() {
-  if (currentPage !== 'gps' || !GPS.map) return
+  if (currentPage !== 'gps' || !GPS.map || GPS.mode === 'history') return
   if (document.hidden || GPS.loading) return
   const left = Math.max(0, Math.ceil((GPS.next - Date.now()) / 1000))
   const cd = document.getElementById('gpsCountdown'), bar = document.getElementById('gpsBar')
@@ -7384,6 +7409,7 @@ function gpsPopup(d) {
     ${t ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:12px"><b>${gpsEsc(t.ticket_no)}</b>: ${gpsEsc(t.driver_name || '—')} papuntang <b>${gpsEsc(t.destination || '—')}</b><br><span style="color:#64748b">Gate-out ${fmtMins((Date.now() - new Date(t.gate_out_at)) / 60000)} na ang nakalipas</span></div>` : ''}
     ${d.flag && d.flag.lvl !== 'mute' ? `<div style="margin-top:8px;font-size:11.5px;font-weight:700;color:${d.flag.lvl === 'bad' ? '#dc2626' : '#d97706'}">${gpsEsc(d.flag.txt)}</div>` : ''}
     <div id="gpsAddr_${d.device_id}" style="margin-top:8px;font-size:11.5px"><a href="javascript:void(0)" onclick="gpsAddress(${d.device_id})">📍 Ano ang address dito?</a></div>
+    <button class="btn btn-pri btn-sm" style="margin-top:8px;width:100%" onclick="gpsHistOpen(${d.device_id})">🕘 Kasaysayan ng biyahe</button>
   </div>`
 }
 function gpsDrawMarkers(fit) {
@@ -7392,7 +7418,7 @@ function gpsDrawMarkers(fit) {
     seen.add(d.device_id)
     const m = GPS.markers[d.device_id]
     if (m) { m.setLatLng([d.lat, d.lng]); m.setIcon(gpsIcon(d)); m.setPopupContent(gpsPopup(d)) }
-    else GPS.markers[d.device_id] = L.marker([d.lat, d.lng], { icon: gpsIcon(d), riseOnHover: true }).addTo(GPS.map).bindPopup(gpsPopup(d))
+    else GPS.markers[d.device_id] = L.marker([d.lat, d.lng], { icon: gpsIcon(d), riseOnHover: true }).addTo(GPS.liveLayer).bindPopup(gpsPopup(d))
   })
   Object.keys(GPS.markers).forEach(id => { if (!seen.has(Number(id))) { GPS.markers[id].remove(); delete GPS.markers[id] } })
   if (fit) setTimeout(gpsFitAll, 60)
@@ -7414,7 +7440,7 @@ function gpsDrawList() {
     const c = GPS_COLORS[d.gps_status]
     const border = d.flag?.lvl === 'bad' ? 'var(--red)' : d.flag?.lvl === 'warn' ? 'var(--amber)' : 'var(--border)'
     const where = d.atHome ? 'Nasa TDMH' : d.dist != null ? (d.dist / 1000).toFixed(1) + ' km mula TDMH' : 'Walang lokasyon'
-    return `<button class="gps-card" style="border-color:${border}" onclick="gpsFocus(${d.device_id})">
+    return `<div class="gps-card" role="button" tabindex="0" style="border-color:${border}" onclick="gpsFocus(${d.device_id})" onkeydown="if(event.key==='Enter')gpsFocus(${d.device_id})">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span style="font-size:12.5px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${gpsEsc(gpsShort(d))} <span style="font-weight:600;color:var(--text3)">${gpsEsc(d.plate || '')}</span></span>
         <span style="font-size:10.5px;font-weight:700;color:${c}">● ${GPS_LABEL[d.gps_status]}${d.gps_status === 'Move' ? ' ' + Math.round(d.speed) + ' km/h' : ''}</span>
@@ -7422,8 +7448,11 @@ function gpsDrawList() {
       <div style="font-size:11.5px;color:var(--text2);margin-top:1px">${where}</div>
       ${d.trip ? `<div style="font-size:11.5px;margin-top:5px">${gpsEsc(d.trip.driver_name || '—')} papuntang <b>${gpsEsc(d.trip.destination || '—')}</b> <span style="color:var(--text3)">(${gpsEsc(d.trip.ticket_no)})</span></div>` : ''}
       ${d.flag ? `<div style="font-size:10.5px;margin-top:5px;font-weight:600;color:${d.flag.lvl === 'bad' ? 'var(--red)' : d.flag.lvl === 'warn' ? 'var(--amber)' : 'var(--text3)'}">${gpsEsc(d.flag.txt)}</div>` : ''}
-      <div style="font-size:10px;color:var(--text3);margin-top:4px">Huling ulat ${gpsAgo(d.last_at)}</div>
-    </button>`
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px">
+        <span style="font-size:10px;color:var(--text3)">Huling ulat ${gpsAgo(d.last_at)}</span>
+        <button class="gps-hist-btn" onclick="event.stopPropagation();gpsHistOpen(${d.device_id})">🕘 History</button>
+      </div>
+    </div>`
   }).join('')
 }
 function gpsFocus(id) {
@@ -7439,6 +7468,198 @@ async function gpsAddress(id) {
   el.textContent = 'Hinahanap ang address...'
   const { data, error } = await SB.functions.invoke('vts-gps', { body: { action: 'address', lat: d.lat, lng: d.lng } })
   el.textContent = (!error && data?.address) ? '📍 ' + data.address : 'Hindi makuha ang address.'
+}
+
+// ── Tracking history (route, stops, playback) ─────────────────────────────
+const GPS_STOP_MIN = 5            // minutes standing still before it counts as a stop
+const GPS_STOP_RADIUS = 200       // metres
+const GPS_SPEEDS = [[60, '1 min/s'], [300, '5 min/s'], [900, '15 min/s']]
+const gpsTimePH = iso => iso ? new Date(iso).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' }) : '—'
+const gpsDatePH = d => new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10)          // 'YYYY-MM-DD' in Manila
+const gpsDurTxt = ms => { const m = Math.round(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' oras' + (m % 60 ? ' ' + (m % 60) + ' min' : '') }
+
+function gpsHistAnalyse(pts) {
+  let dist = 0, moving = 0, max = 0
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], dt = (Date.parse(b.t) - Date.parse(a.t)) / 1000
+    const m = gpsDistM(a, b)
+    if (dt > 0 && m < 5000 && m / dt * 3.6 < 200) {          // ignore GPS jumps
+      dist += m
+      if ((a.s >= 3 || m / dt * 3.6 >= 3) && dt < 600) moving += dt
+    }
+    if (b.s < 200) max = Math.max(max, b.s)
+  }
+  const stops = []
+  for (let i = 0; i < pts.length;) {
+    if (pts[i].s < 3) {
+      let j = i
+      while (j + 1 < pts.length && pts[j + 1].s < 3 && gpsDistM(pts[i], pts[j + 1]) < GPS_STOP_RADIUS) j++
+      const endT = j + 1 < pts.length ? pts[j + 1].t : pts[j].t
+      const dur = Date.parse(endT) - Date.parse(pts[i].t)
+      if (dur >= GPS_STOP_MIN * 60000) stops.push({ lat: pts[i].lat, lng: pts[i].lng, from: pts[i].t, to: endT, dur,
+        atHome: gpsDistM(GPS_HOME, pts[i]) <= GPS_HOME.radiusM })
+      i = j + 1
+    } else i++
+  }
+  return { dist, moving, max, stops }
+}
+
+async function gpsHistOpen(deviceId) {
+  const d = GPS.data.find(x => x.device_id === deviceId); if (!d || !GPS.map) return
+  GPS.map.closePopup()
+  GPS.mode = 'history'
+  GPS.hist = { d, deviceId, date: gpsDatePH(new Date()), all: [], pts: [], trips: [], tripSel: null, layer: L.layerGroup().addTo(GPS.map),
+               idx: 0, clock: 0, playing: false, speed: 300, timer: null }
+  GPS.map.removeLayer(GPS.liveLayer)
+  document.getElementById('gpsLive').style.display = 'none'
+  document.getElementById('gpsHist').style.display = ''
+  await gpsHistLoad()
+}
+function gpsHistClose() {
+  gpsHistStop()
+  if (GPS.hist?.layer) GPS.map?.removeLayer(GPS.hist.layer)
+  GPS.hist = null; GPS.mode = 'live'
+  if (GPS.map) GPS.liveLayer.addTo(GPS.map)
+  document.getElementById('gpsHist').style.display = 'none'
+  document.getElementById('gpsLive').style.display = ''
+  GPS.next = Date.now()                                      // refresh live positions right away
+  setTimeout(gpsFitAll, 60)
+}
+async function gpsHistLoad(range) {
+  const H = GPS.hist; if (!H) return
+  gpsHistStop()
+  let from, to
+  if (range === 'last3') { to = new Date(); from = new Date(Date.now() - 3 * 3600000); H.date = gpsDatePH(to) }
+  else { from = new Date(H.date + 'T00:00:00+08:00'); to = new Date(H.date + 'T23:59:59+08:00') }
+  H.range = range || 'day'; H.tripSel = null
+  gpsHistPanel('loading')
+  const { data, error } = await SB.functions.invoke('vts-gps', { body: { action: 'history', device_id: H.deviceId, from: from.toISOString(), to: to.toISOString() } })
+    .catch(e => ({ error: e }))
+  if (GPS.hist !== H) return                                  // user left history mode meanwhile
+  if (error || data?.error) { gpsHistPanel('error', data?.error || error?.message); return }
+  H.all = data.points || []; H.trips = data.trips || []
+  gpsHistSelect(null)
+}
+// Show the whole window, or just one VTS trip (gate-out → gate-in)
+function gpsHistSelect(i) {
+  const H = GPS.hist; if (!H) return
+  gpsHistStop()
+  H.tripSel = i
+  if (i == null) H.pts = H.all
+  else {
+    const t = H.trips[i], a = Date.parse(t.gate_out_at), b = t.gate_in_at ? Date.parse(t.gate_in_at) : Date.now()
+    H.pts = H.all.filter(p => { const x = Date.parse(p.t); return x >= a - 60000 && x <= b + 60000 })
+  }
+  H.stats = gpsHistAnalyse(H.pts)
+  H.idx = 0; H.clock = H.pts.length ? Date.parse(H.pts[0].t) : 0
+  gpsHistDraw()
+  gpsHistPanel('ready')
+}
+function gpsHistDraw() {
+  const H = GPS.hist; H.layer.clearLayers()
+  if (H.tripSel != null && H.all.length > 1)                  // faint full-day route behind the selected trip
+    L.polyline(H.all.map(p => [p.lat, p.lng]), { color: '#94a3b8', weight: 3, opacity: .5 }).addTo(H.layer)
+  if (!H.pts.length) { gpsFitAll(); return }
+  const line = L.polyline(H.pts.map(p => [p.lat, p.lng]), { color: H.tripSel != null ? '#16a34a' : '#2563eb', weight: 4, opacity: .9 }).addTo(H.layer)
+  const first = H.pts[0], last = H.pts[H.pts.length - 1]
+  L.circleMarker([first.lat, first.lng], { radius: 7, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1 }).addTo(H.layer)
+    .bindTooltip('Simula ' + gpsTimePH(first.t), { direction: 'top' })
+  L.circleMarker([last.lat, last.lng], { radius: 7, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 1 }).addTo(H.layer)
+    .bindTooltip('Dulo ' + gpsTimePH(last.t), { direction: 'top' })
+  H.stats.stops.forEach((s, n) => L.circleMarker([s.lat, s.lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#d97706', fillOpacity: 1 }).addTo(H.layer)
+    .bindTooltip(`Hinto ${n + 1}: ${gpsDurTxt(s.dur)} (${gpsTimePH(s.from)}–${gpsTimePH(s.to)})${s.atHome ? ', nasa TDMH' : ''}`, { direction: 'top' }))
+  H.cursor = L.marker([first.lat, first.lng], { icon: L.divIcon({ className: 'gps-pin', iconSize: [0, 0],
+    html: `<div class="gps-dot" style="background:#0f172a"></div>` }), zIndexOffset: 1000 }).addTo(H.layer)
+  GPS.map.invalidateSize()
+  GPS.map.fitBounds(line.getBounds(), { padding: [40, 40], maxZoom: 16 })
+}
+function gpsHistPanel(state, msg) {
+  const H = GPS.hist, el = document.getElementById('gpsHist'); if (!H || !el) return
+  const d = H.d
+  const head = `
+    <button class="btn btn-ghost btn-sm" onclick="gpsHistClose()">← Bumalik sa live</button>
+    <div style="margin-top:10px"><div style="font-size:15px;font-weight:800">${gpsEsc(d.vehicle_name || d.gps_name)}</div>
+      <div style="font-size:12px;color:var(--text3);font-weight:600">${gpsEsc(d.plate || '')} · Kasaysayan ng biyahe</div></div>
+    <div class="gps-hist-range">
+      <input type="date" class="fi" value="${H.date}" max="${gpsDatePH(new Date())}" onchange="GPS.hist.date=this.value;gpsHistLoad()">
+      <button class="gps-chip ${H.range === 'day' && H.date === gpsDatePH(new Date()) ? 'on' : ''}" onclick="GPS.hist.date=gpsDatePH(new Date());gpsHistLoad()">Ngayon</button>
+      <button class="gps-chip ${H.range === 'day' && H.date === gpsDatePH(new Date(Date.now() - 86400000)) ? 'on' : ''}" onclick="GPS.hist.date=gpsDatePH(new Date(Date.now()-86400000));gpsHistLoad()">Kahapon</button>
+      <button class="gps-chip ${H.range === 'last3' ? 'on' : ''}" onclick="gpsHistLoad('last3')">Huling 3 oras</button>
+    </div>`
+  if (state === 'loading') { el.innerHTML = head + `<div class="gps-hist-note">Kinukuha ang dinaanan...</div>`; return }
+  if (state === 'error') { el.innerHTML = head + `<div class="gps-hist-note" style="color:var(--red)">Hindi makuha ang history. ${gpsEsc(msg || '')}</div>`; return }
+  const S = H.stats
+  const trips = H.trips.length ? `<div class="gps-hist-sec">Mga trip sa VTS</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button class="gps-trip ${H.tripSel == null ? 'on' : ''}" onclick="gpsHistSelect(null)"><b>Buong ${H.range === 'last3' ? 'huling 3 oras' : 'araw'}</b></button>
+      ${H.trips.map((t, i) => `<button class="gps-trip ${H.tripSel === i ? 'on' : ''}" onclick="gpsHistSelect(${i})">
+        <b>${gpsEsc(t.ticket_no)}</b> papuntang ${gpsEsc(t.destination || '—')}
+        <span>${gpsEsc(t.driver_name || '—')} · ${gpsTimePH(t.gate_out_at)}–${t.gate_in_at ? gpsTimePH(t.gate_in_at) : 'nasa labas pa'}</span></button>`).join('')}
+    </div>` : ''
+  if (!H.pts.length) {
+    el.innerHTML = head + trips + `<div class="gps-hist-note">Walang naitalang galaw sa panahong ito.</div>`
+    return
+  }
+  const t0 = Date.parse(H.pts[0].t), t1 = Date.parse(H.pts[H.pts.length - 1].t)
+  el.innerHTML = head + `
+    <div class="gps-hist-stats">
+      <div><b>${(S.dist / 1000).toFixed(1)}</b><span>km</span></div>
+      <div><b>${gpsDurTxt(S.moving * 1000)}</b><span>umaandar</span></div>
+      <div><b>${Math.round(S.max)}</b><span>km/h max</span></div>
+      <div><b>${S.stops.length}</b><span>hinto</span></div>
+    </div>
+    <div class="gps-play">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn btn-pri btn-sm" id="gpsPlayBtn" onclick="gpsHistToggle()">▶ I-play</button>
+        <select class="fi" style="width:auto;padding:5px 8px;font-size:12px" onchange="GPS.hist.speed=+this.value">
+          ${GPS_SPEEDS.map(([v, l]) => `<option value="${v}" ${v === H.speed ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      </div>
+      <input type="range" id="gpsSlider" min="${t0}" max="${t1}" value="${H.clock}" step="1000" oninput="gpsHistSeek(+this.value)" style="width:100%;margin-top:8px">
+      <div id="gpsReadout" class="gps-readout"></div>
+    </div>
+    ${trips}
+    ${S.stops.length ? `<div class="gps-hist-sec">Mga hinto (${GPS_STOP_MIN} min pataas)</div>
+      ${S.stops.map((s, n) => `<button class="gps-trip" onclick="gpsHistSeek(${Date.parse(s.from)});GPS.map.setView([${s.lat},${s.lng}],16)">
+        <b>Hinto ${n + 1}: ${gpsDurTxt(s.dur)}</b><span>${gpsTimePH(s.from)}–${gpsTimePH(s.to)}${s.atHome ? ' · nasa TDMH' : ''}</span></button>`).join('')}` : ''}`
+  gpsHistSeek(H.clock)
+}
+// Position at a moment in time (interpolated between the two surrounding points)
+function gpsHistSeek(ms) {
+  const H = GPS.hist; if (!H || !H.pts.length || !H.cursor) return
+  const P = H.pts
+  H.clock = Math.min(Math.max(ms, Date.parse(P[0].t)), Date.parse(P[P.length - 1].t))
+  let i = H.idx
+  if (i >= P.length || Date.parse(P[i].t) > H.clock) i = 0
+  while (i + 1 < P.length && Date.parse(P[i + 1].t) <= H.clock) i++
+  H.idx = i
+  const a = P[i], b = P[Math.min(i + 1, P.length - 1)]
+  const ta = Date.parse(a.t), tb = Date.parse(b.t), f = tb > ta ? (H.clock - ta) / (tb - ta) : 0
+  const lat = a.lat + (b.lat - a.lat) * f, lng = a.lng + (b.lng - a.lng) * f
+  H.cursor.setLatLng([lat, lng])
+  const sl = document.getElementById('gpsSlider'); if (sl) sl.value = H.clock
+  const stopped = H.stats.stops.find(s => H.clock >= Date.parse(s.from) && H.clock <= Date.parse(s.to))
+  const ro = document.getElementById('gpsReadout')
+  if (ro) ro.innerHTML = `<b>${new Date(H.clock).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Manila' })}</b>
+    · ${stopped ? `<span style="color:var(--amber);font-weight:700">nakahinto (${gpsDurTxt(Date.parse(stopped.to) - Date.parse(stopped.from))})</span>` : Math.round(a.s) + ' km/h'}`
+  if (H.playing && !GPS.map.getBounds().pad(-0.15).contains([lat, lng])) GPS.map.panTo([lat, lng], { animate: true })
+}
+function gpsHistToggle() {
+  const H = GPS.hist; if (!H || !H.pts.length) return
+  if (H.playing) { gpsHistStop(); return }
+  if (H.clock >= Date.parse(H.pts[H.pts.length - 1].t)) H.clock = Date.parse(H.pts[0].t)
+  H.playing = true
+  const b = document.getElementById('gpsPlayBtn'); if (b) b.textContent = '⏸ I-pause'
+  H.timer = setInterval(() => {
+    if (!GPS.hist) return
+    const end = Date.parse(H.pts[H.pts.length - 1].t)
+    gpsHistSeek(H.clock + 100 * H.speed)                      // 100 ms of real time per tick
+    if (H.clock >= end) gpsHistStop()
+  }, 100)
+}
+function gpsHistStop() {
+  const H = GPS.hist; if (!H) return
+  clearInterval(H.timer); H.timer = null; H.playing = false
+  const b = document.getElementById('gpsPlayBtn'); if (b) b.textContent = '▶ I-play'
 }
 
 // ════════════════════════════════════════════════
