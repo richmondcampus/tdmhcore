@@ -100,9 +100,10 @@ h1,h2,h3,h4,.topbar-title,.hx-greet,.hx-tile-hd h3,.modal-header h3,.page-header
 /* ── Sidebar: binder index ─────────────────────────────────────── */
 .sidebar{ background:var(--surf1); border-right:1px solid var(--bdr2); }
 .sidebar-logo{ border-bottom:0; }
-.sidebar-logo img{ animation:none!important; background:#FFFFFF; padding:8px 10px; border:1px solid var(--bdr); box-sizing:content-box; }
-.sidebar-logo-text h2{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:11px!important; letter-spacing:.1em!important; text-transform:uppercase; font-stretch:100%; }
-.sidebar-logo-text p{ font-family:'IBM Plex Mono',ui-monospace,monospace; font-size:10px!important; letter-spacing:.08em; text-transform:uppercase; color:var(--txt3); }
+.sidebar-logo img{ animation:none!important; background:none; padding:0; border:0; }
+html[data-theme="dark"] .sidebar-logo img{ background:#FFFFFF; padding:8px 10px; border-radius:10px; box-sizing:content-box; }
+.sidebar-logo-text h2{ font-family:'Archivo',system-ui,sans-serif; font-size:16px!important; font-weight:700; letter-spacing:-0.01em!important; text-transform:none; font-stretch:100%; line-height:1.15; }
+.sidebar-logo-text p{ font-family:'IBM Plex Sans',system-ui,sans-serif; font-size:12px!important; letter-spacing:0; text-transform:none; color:var(--txt3); margin-top:1px; }
 .sidebar-nav{ counter-reset:tx-sec; padding:8px 10px; }
 .nav-section{ counter-increment:tx-sec; font-family:'IBM Plex Mono',ui-monospace,monospace; font-weight:500; font-size:10.5px; letter-spacing:.1em; color:var(--txt3); padding:16px 12px 6px; }
 .nav-section::before{ content:counter(tx-sec,decimal-leading-zero) " · "; }
@@ -204,7 +205,8 @@ tr:hover td{ background:var(--surf2); }
                    linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px);
   background-size:40px 40px,40px 40px,8px 8px,8px 8px; }
 .login-card{ position:relative; z-index:1; border:1.5px solid var(--ink); box-shadow:8px 8px 0 var(--ink); }
-.login-logo img{ background:#FFFFFF; padding:8px 10px; border:1px solid var(--bdr); }
+.login-logo img{ background:none; padding:0; border:0; }
+html[data-theme="dark"] .login-logo img{ background:#FFFFFF; padding:8px 10px; border-radius:10px; }
 .login-card h2{ font-family:'Archivo',sans-serif; font-stretch:80%; font-size:30px!important; letter-spacing:-0.01em; }
 .tx-login-trace{ position:absolute; left:0; right:0; top:50%; height:120px; transform:translateY(-50%); width:100%; color:var(--accent); opacity:.55; pointer-events:none; }
 
