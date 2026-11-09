@@ -235,3 +235,83 @@
   };
   window.TDMHIcons = { svg: icon, hydrate: hydrate, names: Object.keys(P) };
 })();
+
+/*
+ * Live ECG trace — turns every <svg class="cx-trace"> / <svg class="tx-login-trace"> (with a <polyline>)
+ * into a patient-monitor sweep: the line is redrawn left→right with a bright head dot, older beats fade,
+ * and a short gap erases just ahead of the head. One sweep = 6 beats in 5 s (≈72 bpm).
+ * Respects prefers-reduced-motion (the trace stays still) and stops by itself when the SVG leaves the page.
+ *   TDMHEcg.scan(root)   wire any new traces (runs automatically on page changes)
+ */
+(function () {
+  var NS = 'http://www.w3.org/2000/svg', W = 1200, H = 120, PERIOD = 5000, GAP = 36, seq = 0;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function el(tag, attrs) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function parse(s) { return String(s || '').trim().split(/\s+/).map(function (p) { var a = p.split(','); return [+a[0], +a[1]]; }); }
+  function yAt(P, x) {
+    for (var i = 1; i < P.length; i++) if (P[i][0] >= x) {
+      var a = P[i - 1], b = P[i], f = b[0] === a[0] ? 0 : (x - a[0]) / (b[0] - a[0]);
+      return a[1] + (b[1] - a[1]) * f;
+    }
+    return P[P.length - 1][1];
+  }
+
+  function wire(svg) {
+    if (svg.__ecg || reduce) return;
+    var line = svg.querySelector('polyline'); if (!line) return;
+    var P = parse(line.getAttribute('points')); if (P.length < 2) return;
+    svg.__ecg = true;
+    var id = 'tdmhEcg' + (++seq);
+
+    // Mask brightness repeats every W units relative to the head: bright at the head, an erased gap just ahead,
+    // then the previous sweep fading from dim (oldest) back up to bright (newest, just behind the head).
+    var g = GAP / (2 * W), r = 0.008;
+    var grad = el('linearGradient', { id: id + 'g', x1: '0', x2: '1', y1: '0', y2: '0' });
+    [[0, 1], [g, 0], [g + r, 0.14], [0.5, 1], [0.5 + g, 0], [0.5 + g + r, 0.14], [1, 1]].forEach(function (s) {
+      grad.appendChild(el('stop', { offset: s[0], 'stop-color': '#fff', 'stop-opacity': s[1] }));
+    });
+    var sweep = el('rect', { x: -W, y: -20, width: 2 * W, height: H + 40, fill: 'url(#' + id + 'g)' });
+    var mask = el('mask', { id: id, maskUnits: 'userSpaceOnUse', x: 0, y: -20, width: W, height: H + 40 });
+    mask.appendChild(sweep);
+    var defs = el('defs', {}); defs.appendChild(grad); defs.appendChild(mask);
+    svg.insertBefore(defs, svg.firstChild);
+
+    line.classList.remove('tx-trace');                       // replace the one-off draw-in with the live sweep
+    line.style.strokeDasharray = 'none'; line.style.animation = 'none';
+    line.setAttribute('mask', 'url(#' + id + ')');
+
+    // Head: a dot plus a soft glow. preserveAspectRatio="none" stretches the SVG, so radii are corrected per frame.
+    var glow = el('ellipse', { fill: 'currentColor', opacity: '0.22' });
+    var dot = el('ellipse', { fill: 'currentColor' });
+    svg.appendChild(glow); svg.appendChild(dot);
+
+    var t0 = performance.now();
+    function frame(now) {
+      if (!svg.isConnected) return;                          // page re-rendered: this loop ends
+      var x = ((now - t0) % PERIOD) / PERIOD * W, y = yAt(P, x);
+      sweep.setAttribute('x', x - W);
+      var b = svg.getBoundingClientRect(), sx = (b.width || W) / W, sy = (b.height || H) / H;
+      dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('rx', 3.2 / sx); dot.setAttribute('ry', 3.2 / sy);
+      glow.setAttribute('cx', x); glow.setAttribute('cy', y); glow.setAttribute('rx', 8 / sx); glow.setAttribute('ry', 8 / sy);
+      requestAnimationFrame(frame);                          // the browser pauses this while the tab is hidden
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function scan(root) {
+    var list = (root || document).querySelectorAll('svg.cx-trace, svg.tx-login-trace');
+    for (var i = 0; i < list.length; i++) wire(list[i]);
+  }
+  window.TDMHEcg = { scan: scan };
+
+  function start() {
+    scan(document);
+    var pending = false;
+    new MutationObserver(function () {
+      if (pending) return; pending = true;
+      requestAnimationFrame(function () { pending = false; scan(document); });
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
