@@ -280,6 +280,8 @@
     var defs = el('defs', {}); defs.appendChild(grad); defs.appendChild(mask);
     svg.insertBefore(defs, svg.firstChild);
 
+    var blips = svg.querySelectorAll('.tx-blip');            // the old blinking end-dot: the moving head replaces it
+    for (var k = 0; k < blips.length; k++) blips[k].remove();
     line.classList.remove('tx-trace');                       // replace the one-off draw-in with the live sweep
     line.style.strokeDasharray = 'none'; line.style.animation = 'none';
     line.setAttribute('mask', 'url(#' + id + ')');
