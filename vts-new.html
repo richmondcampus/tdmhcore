@@ -721,6 +721,60 @@ div[style*="display:flex"] > .fs, .fs[style*="min-width"]{width:auto}
   .tpl-grid{grid-template-columns:1fr}
   .vts-flow li{font-size:12px}
 }
+
+/* Keep Leaflet's own z-indexes (400-1000) inside the map so the mobile menu (z 200) always covers it */
+.gps-grid{isolation:isolate}
+.gps-map{position:relative;z-index:0}
+
+/* ── Phase 5: global polish ── */
+/* GPS clusters */
+.gps-cl{position:absolute;left:-15px;top:-15px;width:30px;height:30px;border-radius:50%;background:var(--pri);color:var(--on-pri);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:800 12.5px var(--font);cursor:pointer}
+.gps-cl.warn{background:var(--amber);color:#fff}
+.gps-tag-cl{left:20px}
+.gps-cl-row{display:flex;align-items:baseline;gap:6px;padding:6px 0;border-top:1px solid #e2e8f0;color:inherit;text-decoration:none;font-size:12.5px}
+.gps-cl-row span{color:#64748b;font-size:11.5px}
+.gps-cl-row i{margin-left:auto;font-style:normal;font-size:11px;font-weight:700}
+/* One corner language everywhere: square (2px), round things stay round */
+#CONTENT [style*="border-radius:20px"],#CONTENT [style*="border-radius:14px"],#CONTENT [style*="border-radius:12px"],
+#CONTENT [style*="border-radius:10px"],#CONTENT [style*="border-radius:9px"],#CONTENT [style*="border-radius:8px"],#CONTENT [style*="border-radius:7px"],
+.mo [style*="border-radius:20px"],.mo [style*="border-radius:14px"],.mo [style*="border-radius:12px"],.mo [style*="border-radius:10px"],
+.mo [style*="border-radius:9px"],.mo [style*="border-radius:8px"],.mo [style*="border-radius:7px"]{border-radius:2px!important}
+/* Small uppercase labels speak mono, like Core */
+#CONTENT [style*="text-transform:uppercase"][style*="letter-spacing"],.mo [style*="text-transform:uppercase"][style*="letter-spacing"]{font-family:var(--mono)!important;font-weight:500!important;letter-spacing:.08em!important}
+/* Hard-coded light tints follow the theme (no glare in dark mode) */
+#CONTENT [style*="background:#fef2f2"],#CONTENT [style*="background:#fff1f2"],.mo [style*="background:#fef2f2"],.mo [style*="background:#fff1f2"]{background:var(--red-s)!important}
+#CONTENT [style*="background:#fef9eb"],#CONTENT [style*="background:#fef3c7"],#CONTENT [style*="background:#fefce8"],.mo [style*="background:#fef9eb"],.mo [style*="background:#fef3c7"]{background:var(--amber-s)!important}
+#CONTENT [style*="background:#f0fdf4"],#CONTENT [style*="background:#ecfdf5"],.mo [style*="background:#f0fdf4"],.mo [style*="background:#ecfdf5"]{background:var(--green-s)!important}
+#CONTENT [style*="background:#fdf4ff"],#CONTENT [style*="background:#f5f3ff"],.mo [style*="background:#fdf4ff"],.mo [style*="background:#f5f3ff"]{background:var(--purple-s)!important}
+#CONTENT [style*="background:#eff6ff"],.mo [style*="background:#eff6ff"]{background:var(--pri-s)!important}
+body.dark #CONTENT [style*="background:#fff;"],body.dark .mo [style*="background:#fff;"]{background:var(--card)!important}
+/* Page change: a short, quiet fade-up of the first few blocks */
+#CONTENT > *{animation:vts-in .28s cubic-bezier(.2,.7,.3,1) both}
+#CONTENT > *:nth-child(2){animation-delay:.04s} #CONTENT > *:nth-child(3){animation-delay:.08s} #CONTENT > *:nth-child(n+4){animation-delay:.12s}
+@keyframes vts-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* Modals */
+.mo-hd{padding:16px 20px 14px;border-bottom:1px solid var(--border2)}
+.mo-title{font-size:18px;font-weight:700}
+.mo-body{padding:18px 20px}
+.mo-foot{background:var(--surf2);border-top:1px solid var(--border2);padding:12px 20px}
+.mo-overlay{background:rgba(13,15,30,.55);backdrop-filter:blur(2px)}
+/* Mobile bottom nav + More sheet */
+.bot-nav{border-top:1px solid var(--border2)}
+.bot-nav-item .bni svg{width:22px;height:22px}
+.bot-nav-item.active{color:var(--pri);box-shadow:inset 0 3px 0 var(--pri)}
+.bot-nav-item span:not(.bni):not(.bot-nav-badge){font-family:var(--font);font-size:10px;font-weight:600}
+.bot-nav-badge{border-radius:2px}
+.bot-nav-more{border-top:1.5px solid var(--ink)}
+.more-item{border-radius:2px;border-color:var(--border2);background:var(--card)}
+.more-item .mi-ic svg{width:22px;height:22px}
+/* Keyboard focus that is easy to see */
+:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.vh-cell:focus-visible,.vt-card:focus-visible,.tpl-chip:focus-visible{outline-offset:-2px}
+/* Quiet scrollbars */
+*{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:var(--border2);border:3px solid transparent;background-clip:padding-box}
+::selection{background:var(--pri-s)}
+@media (prefers-reduced-motion:reduce){#CONTENT > *{animation:none}}
 </style>
 </head>
 <body>
@@ -1352,6 +1406,22 @@ function navIcon(n) {
   return d ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="' + d + '"/></svg>' : n.ic
 }
 
+// Count the hero numbers up once when a strip appears (skipped for "reduce motion")
+function vtsCountUp(root) {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  root.querySelectorAll('.vh-n:not([data-counted])').forEach(el => {
+    el.setAttribute('data-counted', '1')
+    const target = parseInt(el.textContent, 10)
+    if (!isFinite(target) || target <= 0 || String(target) !== el.textContent.trim()) return
+    const t0 = performance.now(), dur = 650
+    const step = now => { const p = Math.min(1, (now - t0) / dur); el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step) }
+    el.textContent = '0'; requestAnimationFrame(step)
+  })
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const c = document.getElementById('CONTENT'); if (!c) return
+  new MutationObserver(() => vtsCountUp(c)).observe(c, { childList: true })
+})
 function vtsGreeting() {
   const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
   return h < 12 ? 'MAGANDANG UMAGA' : h < 13 ? 'MAGANDANG TANGHALI' : h < 18 ? 'MAGANDANG HAPON' : 'MAGANDANG GABI'
@@ -1467,7 +1537,7 @@ function buildBottomNav(role) {
   if (!inner) return
   inner.innerHTML = items.map(it => `
     <button class="bot-nav-item ${it.id===currentPage||it.id==='more'&&_moreOpen?'active':''}" onclick="${it.id==='more'?'toggleMoreMenu()':'goTo(\''+it.id+'\')'}">
-      <span class="bni">${it.ic}</span>
+      <span class="bni">${it.id === 'more' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01"/></svg>' : navIcon({ id: it.id, ic: it.ic })}</span>
       <span>${it.lbl}</span>
       ${it.badge ? `<span class="bot-nav-badge" id="botBadge"></span>` : ''}
     </button>`).join('')
@@ -1479,7 +1549,7 @@ function buildBottomNav(role) {
   if (moreEl) {
     moreEl.innerHTML = moreItems.map(n => `
       <div class="more-item ${n.id===currentPage?'active':''}" onclick="goTo('${n.id}');closeMoreMenu()">
-        <span class="mi-ic">${n.ic}</span>
+        <span class="mi-ic">${navIcon(n)}</span>
         <span>${n.label}</span>
       </div>`).join('')
   }
@@ -1648,7 +1718,7 @@ async function renderDashboard() {
 
   // Pre-build HTML sections to avoid nested template literal issues
   const todayGateOutsHTML = todayGateOuts.length > 0
-    ? '<div style="background:linear-gradient(135deg,#0d9488,#0891b2);border-radius:14px;padding:16px 18px;margin-bottom:16px;color:#fff">'
+    ? '<div style="background:#0F4C4C;border:1.5px solid #0F6E6E;padding:16px 18px;margin-bottom:16px;color:#fff">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
       + '<div style="font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px">🚦 <span>Gate-Out Due Soon (' + todayGateOuts.length + ')</span></div>'
       + '<button onclick="goTo(\'tickets\')" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">View All</button>'
@@ -2382,7 +2452,7 @@ function buildGuardKanban(tickets) {
       const late = dep && dep < now
       const isToday = dep && dep <= todayEnd
       const depts = t._poolTickets.map(x=>x.department).join(' · ')
-      return `<div style="background:linear-gradient(135deg,#fdf4ff,#f5f3ff);border:2px solid #c4b5fd;border-radius:14px;padding:14px;margin-bottom:10px">
+      return `<div style="background:var(--purple-s);border:1.5px solid var(--purple);border-radius:14px;padding:14px;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
           <span style="font-size:15px">🚌</span>
           <span style="font-size:13px;font-weight:900;color:#6b21a8">CONVOY</span>
@@ -2451,7 +2521,7 @@ function buildGuardKanban(tickets) {
     // ── Convoy on-trip card ──────────────────────
     if (t._isPool) {
       const depts = t._poolTickets.map(x=>x.department).join(' · ')
-      return `<div style="background:linear-gradient(135deg,#fdf4ff,#f5f3ff);border:2px solid #a78bfa;border-radius:14px;padding:14px;margin-bottom:10px">
+      return `<div style="background:var(--purple-s);border:1.5px solid var(--purple);border-radius:14px;padding:14px;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
           <span style="width:8px;height:8px;border-radius:50%;background:#7c3aed;display:inline-block;animation:pulse-overdue 1.5s infinite"></span>
           <span style="font-size:13px;font-weight:900;color:#6b21a8">🚌 POOLED TRIP — ON TRIP</span>
@@ -7686,7 +7756,46 @@ function gpsDrawMarkers(fit) {
     else GPS.markers[d.device_id] = L.marker([d.lat, d.lng], { icon: gpsIcon(d), riseOnHover: true }).addTo(GPS.liveLayer).bindPopup(gpsPopup(d))
   })
   Object.keys(GPS.markers).forEach(id => { if (!seen.has(Number(id))) { GPS.markers[id].remove(); delete GPS.markers[id] } })
+  gpsCluster()
   if (fit) setTimeout(gpsFitAll, 60)
+}
+// Markers whose labels would overlap on screen are shown as one numbered bubble; recomputed on every zoom.
+function gpsCluster() {
+  if (!GPS.map || !GPS.liveLayer) return
+  if (!GPS.clusterLayer) { GPS.clusterLayer = L.layerGroup().addTo(GPS.liveLayer); GPS.map.on('zoomend', gpsCluster) }
+  GPS.clusterLayer.clearLayers()
+  const groups = []
+  GPS.data.filter(d => d.has && GPS.markers[d.device_id]).forEach(d => {
+    const p = GPS.map.latLngToContainerPoint([d.lat, d.lng])
+    const g = groups.find(g => Math.abs(g.p.x - p.x) < 120 && Math.abs(g.p.y - p.y) < 36)
+    if (g) g.ds.push(d); else groups.push({ p, ds: [d] })
+  })
+  groups.forEach(g => {
+    const solo = g.ds.length === 1
+    g.ds.forEach(d => {
+      const m = GPS.markers[d.device_id]
+      if (solo && !GPS.liveLayer.hasLayer(m)) m.addTo(GPS.liveLayer)
+      if (!solo && GPS.liveLayer.hasLayer(m)) GPS.liveLayer.removeLayer(m)
+    })
+    if (solo) return
+    const ds = g.ds
+    const lat = ds.reduce((a, d) => a + d.lat, 0) / ds.length, lng = ds.reduce((a, d) => a + d.lng, 0) / ds.length
+    const moving = ds.filter(d => d.gps_status === 'Move').length
+    const flagged = ds.some(d => d.flag && d.flag.lvl !== 'mute')
+    const title = ds.every(d => d.atHome) ? 'Nasa TDMH' : ds.length + ' sasakyan'
+    const icon = L.divIcon({ className: 'gps-pin', iconSize: [0, 0],
+      html: `<div class="gps-cl${flagged ? ' warn' : ''}"><b>${ds.length}</b></div><div class="gps-tag gps-tag-cl"><span>${title}</span><small>${moving ? moving + ' umaandar' : 'nakahinto lahat'}</small></div>` })
+    const cm = L.marker([lat, lng], { icon, zIndexOffset: 600, keyboard: true, title: ds.length + ' sasakyan' }).addTo(GPS.clusterLayer)
+    cm.on('click', () => {
+      const b = L.latLngBounds(ds.map(d => [d.lat, d.lng]))
+      const tight = GPS.map.getZoom() >= 17 || b.getNorthEast().distanceTo(b.getSouthWest()) < 40
+      if (!tight) { GPS.map.fitBounds(b, { padding: [70, 70], maxZoom: 18 }); return }
+      L.popup({ minWidth: 220 }).setLatLng([lat, lng]).setContent(
+        `<div style="font-weight:800;font-size:14px;margin-bottom:6px">${ds.length} sasakyan dito</div>` +
+        ds.map(d => `<a href="javascript:void(0)" class="gps-cl-row" onclick="gpsFocus(${d.device_id})"><b>${gpsEsc(gpsShort(d))}</b> <span>${gpsEsc(d.plate || '')}</span><i style="color:${GPS_COLORS[d.gps_status]}">● ${GPS_LABEL[d.gps_status]}</i></a>`).join('')
+      ).openOn(GPS.map)
+    })
+  })
 }
 function gpsFitAll() {
   if (!GPS.map) return
@@ -7724,7 +7833,10 @@ function gpsFocus(id) {
   const d = GPS.data.find(x => x.device_id === id), m = GPS.markers[id]
   if (!d || !m || !GPS.map) return
   GPS.map.flyTo([d.lat, d.lng], Math.max(GPS.map.getZoom(), 15), { duration: .6 })
-  setTimeout(() => m.openPopup(), 650)
+  setTimeout(() => {
+    if (GPS.liveLayer.hasLayer(m)) m.openPopup()
+    else L.popup({ offset: [0, -6] }).setLatLng([d.lat, d.lng]).setContent(gpsPopup(d)).openOn(GPS.map)
+  }, 650)
   if (window.innerWidth < 860) document.getElementById('gpsMap')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 async function gpsAddress(id) {
@@ -8539,7 +8651,7 @@ async function renderReportContent() {
   // ── MAIN LAYOUT ────────────────────────────────────────
   document.getElementById('CONTENT').innerHTML = `
   <!-- Branded Header -->
-  <div style="background:linear-gradient(135deg,#0c2340,#1a3a6e);border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+  <div style="background:#14163A;border:1.5px solid #2B22AE;border-radius:14px;padding:18px 22px;color:#fff;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
     <div>
       <div style="font-size:11px;font-weight:700;letter-spacing:2px;color:#c9a84c;text-transform:uppercase;margin-bottom:4px">Taytay Doctors Multispecialty Hospital</div>
       <div style="font-size:20px;font-weight:900;letter-spacing:-.3px">Vehicle Ticketing System — Reports</div>
