@@ -447,7 +447,7 @@ h1,h2,h3,.topbar-title,.card-title,.stat-val,.mo-title,.sb-brand{font-family:var
 .sb-head{padding:18px 16px 12px;border-bottom:0}
 .sb-logo{flex-direction:column;align-items:flex-start;gap:10px}
 .sb-logo-img{width:176px;height:auto;display:block}
-body.dark .sb-logo-img{background:#FFFFFF;padding:7px 9px;border-radius:8px;box-sizing:content-box;width:158px}
+body.dark .sb-logo-img{background-color:#FFFFFF;padding:7px 9px;border-radius:8px;box-sizing:content-box;width:158px}
 .sb-brand{color:var(--text);font-size:16px;font-weight:700;line-height:1.15}
 .sb-sub{color:var(--text3);font-size:12px;margin-top:1px}
 .sb-user-pill{margin:12px -16px 0;padding:10px 16px;background:transparent;border:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);border-radius:0}
@@ -509,7 +509,7 @@ body.dark .sb-logo-img{background:#FFFFFF;padding:7px 9px;border-radius:8px;box-
 .login-page{position:relative;overflow:hidden}
 .login-card{position:relative;z-index:1;border:1.5px solid var(--ink);box-shadow:var(--shadow2)}
 .login-logo{width:220px;height:auto;display:block;margin-bottom:18px}
-body.dark .login-logo{background:#FFFFFF;padding:8px 10px;border-radius:8px;box-sizing:content-box;width:200px}
+body.dark .login-logo{background-color:#FFFFFF;padding:8px 10px;border-radius:8px;box-sizing:content-box;width:200px}
 .login-kicker{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--text3)}
 .login-route{position:absolute;left:0;right:0;top:50%;width:100%;height:auto;transform:translateY(-50%);color:var(--pri);opacity:.55;pointer-events:none}
 
@@ -691,6 +691,36 @@ body.dark .prio-emergency{color:#0D0F1E}
 #ntEmergencyCard{border-radius:2px!important}
 #ntEmergencyChk{border-radius:2px!important}
 #ntEmergencyBadge{border-radius:2px!important;font-family:var(--mono);letter-spacing:.06em}
+
+/* ── Phase 4: filters, dark logo, phone layout ── */
+div[style*="display:flex"] > .fs, .fs[style*="min-width"]{width:auto}
+@media (max-width:768px){
+  .topbar{height:56px}
+  .topbar-title{font-size:15px}
+  .topbar-title::before{display:none}
+  .sb-logo-img{width:150px}
+  body.dark .sb-logo-img{width:136px}
+  .vh-strip{margin-bottom:14px}
+  .vh-bar{padding:10px 14px;font-size:10.5px}
+  .vh-main{padding:18px 14px 0}
+  .vh-sub{font-size:13.5px}
+  .vh-read{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vh-cell{padding:12px 14px 13px;border-bottom:1px solid var(--border2)}
+  .vh-cell:nth-child(2n){border-right:0}
+  .vh-n{font-size:38px}
+  .vt-card:hover{transform:none;box-shadow:none}
+  .tbl-act{min-height:44px;padding:0 14px}
+  .vg-time b{font-size:28px}
+  .vg-main{padding:12px}
+  .tpl-grid{grid-template-columns:1fr 1fr}
+  .vts-flow li + li::before{width:10px;margin:0 5px}
+  .mo{border-radius:2px 2px 0 0}
+  .mob-card{border-color:var(--border2)}
+}
+@media (max-width:420px){
+  .tpl-grid{grid-template-columns:1fr}
+  .vts-flow li{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -996,9 +1026,9 @@ const badge = s => { const m = STATUS_MAP[s]||{cls:'b-pending',lbl:s}; return `<
 const typeBadge = t => t==='ambulance' ? `<span class="badge b-amb">AMBULANCE</span>` : t==='motorcycle' ? `<span class="badge b-moto">MOTORCYCLE</span>` : `<span class="badge b-reg">REGULAR</span>`
 const typeTag = t => t==='ambulance' ? `<span class="vtype amb">AMBULANCE</span>` : t==='motorcycle' ? `<span class="vtype moto">MOTORCYCLE</span>` : `<span class="vtype">REGULAR</span>`
 const driverTypeBadge = dt => {
-  if (dt==='ambulance') return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#fef2f2;color:#dc2626;border:1px solid #fecdd3">🚑 Ambulance</span>'
-  if (dt==='both')      return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe">⚡ All Types</span>'
-  return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe">🚙 Regular</span>'
+  if (dt==='ambulance') return '<span class="vtype amb">AMBULANCE</span>'
+  if (dt==='both')      return '<span class="vtype" style="color:var(--purple)">ALL TYPES</span>'
+  return '<span class="vtype">REGULAR</span>'
 }
 const priorityBadge = p => {
   const lbl = { emergency:'EMERGENCY', urgent:'URGENT', normal:'Normal', low:'Low' }
