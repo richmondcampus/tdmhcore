@@ -638,6 +638,59 @@ body.dark .vg-btn--soon,body.dark .vg-btn--late,body.dark .vg-btn--in{color:#0D0
 .vd-stop i{width:20px;height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font:600 10px var(--mono);font-style:normal;border:1.5px solid var(--pri);color:var(--pri)}
 .vd-stop:first-of-type i{border-color:var(--green);color:var(--green)}
 .vd-card .vt-acts .btn{flex:1;justify-content:center;min-height:44px}
+
+/* ── Phase 3: table actions, tags, form callouts, templates ── */
+#CONTENT table th{font-family:var(--mono)!important;font-weight:500!important;letter-spacing:.08em!important;color:var(--text3)!important}
+#CONTENT table thead tr{background:var(--surf2)!important;border-bottom:1px solid var(--border2)!important}
+#CONTENT table tbody tr{border-bottom:1px solid var(--border)!important}
+/* Row actions: one primary, quiet secondaries, destructive as text */
+.tbl-act{min-height:32px;padding:0 12px;border-radius:2px!important;font:600 12px var(--font);letter-spacing:0;border:1.5px solid var(--border2)!important;background:var(--card)!important;color:var(--text)!important;gap:6px;transition:transform .15s,box-shadow .15s,background .15s}
+.tbl-act:hover{background:var(--hover)!important;color:var(--text)!important}
+.tbl-act-green,.tbl-act-blue,.tbl-act-teal,.tbl-act-purple{background:var(--pri)!important;color:var(--on-pri)!important;border-color:var(--ink)!important}
+.tbl-act-green:hover,.tbl-act-blue:hover,.tbl-act-teal:hover,.tbl-act-purple:hover{background:var(--pri)!important;color:var(--on-pri)!important;transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--ink)}
+.tbl-act-red{color:var(--red)!important;border-color:var(--red)!important}
+.tbl-act-red:hover{background:var(--red-s)!important;color:var(--red)!important}
+.tbl-act-amber{background:transparent!important;border-color:transparent!important;color:var(--red)!important;padding:0 8px}
+.tbl-act-amber:hover{background:transparent!important;color:var(--red)!important;text-decoration:underline}
+.tbl-act-ghost{color:var(--text2)!important}
+/* Priority + vehicle type: compact mono tags */
+.prio{display:inline-flex;align-items:center;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;padding:1px 6px;border-radius:2px;white-space:nowrap}
+.prio-emergency{background:var(--red);color:#fff}
+body.dark .prio-emergency{color:#0D0F1E}
+.prio-urgent{border:1.5px solid var(--amber);color:var(--amber)}
+.prio-normal,.prio-low{color:var(--text3);padding-left:0}
+.vtype{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--text3);white-space:nowrap}
+.vtype.amb{color:var(--red)} .vtype.moto{color:var(--amber)}
+.tk-meta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap}
+.stop-more{font-family:var(--mono);font-size:9.5px;padding:0 4px;border:1px solid var(--border2);border-radius:2px;color:var(--text2);margin-left:4px}
+/* Callouts */
+.info{border-radius:2px;border-width:1.5px;font-size:12.5px;line-height:1.5}
+.info-blue{background:var(--pri-s);border-color:var(--pri);color:var(--text)}
+.info-red{background:var(--red-s);border-color:var(--red);color:var(--text)}
+.info-green{background:var(--green-s);border-color:var(--green);color:var(--text)}
+.info-amber{background:var(--amber-s);border-color:var(--amber);color:var(--text)}
+.chip{border-radius:2px;font-family:var(--mono);letter-spacing:.04em}
+/* Request flow stepper */
+.vts-flow{border:1px solid var(--border2);background:var(--card);padding:12px 16px;margin-bottom:16px}
+.vts-flow ol{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 0}
+.vts-flow li{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--text)}
+.vts-flow li + li::before{content:"";width:22px;height:1.5px;background:var(--border2);margin:0 8px}
+.vts-flow li i{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font:600 10px var(--mono);font-style:normal;border:1.5px solid var(--pri);color:var(--pri)}
+.vts-flow p{margin:10px 0 0;font-size:12.5px;color:var(--text2)}
+/* Saved templates */
+.tpl-box{border:1px solid var(--border2);background:var(--card);padding:14px 16px;margin-bottom:16px}
+.tpl-sub{font-size:12.5px;color:var(--text2);margin:2px 0 12px}
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.tpl-chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:9px 12px;border:1.5px solid var(--border2);border-radius:2px;background:var(--card);color:var(--text);font-family:var(--font);cursor:pointer;min-height:44px;transition:transform .15s,box-shadow .15s,border-color .15s}
+.tpl-chip:hover{border-color:var(--ink);transform:translate(-2px,-2px);box-shadow:3px 3px 0 var(--ink)}
+.tpl-chip b{font-size:13px;font-weight:600;line-height:1.25}
+.tpl-chip span{font-size:11.5px;color:var(--text3);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tpl-chip .vtype{font-size:9.5px}
+.tpl-more{border-style:dashed;justify-content:center;color:var(--text2)}
+/* Vehicle type + emergency */
+#ntEmergencyCard{border-radius:2px!important}
+#ntEmergencyChk{border-radius:2px!important}
+#ntEmergencyBadge{border-radius:2px!important;font-family:var(--mono);letter-spacing:.06em}
 </style>
 </head>
 <body>
@@ -940,21 +993,17 @@ function deptOptions(selected='') {
 // ════════════════════════════════════════════════
 const ini = n => (n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()
 const badge = s => { const m = STATUS_MAP[s]||{cls:'b-pending',lbl:s}; return `<span class="badge ${m.cls}">${m.lbl}</span>` }
-const typeBadge = t => t==='ambulance' ? `<span class="badge b-amb">🚑 Ambulance</span>` : t==='motorcycle' ? `<span class="badge b-moto">🏍 Motorcycle</span>` : `<span class="badge b-reg">🚙 Regular</span>`
+const typeBadge = t => t==='ambulance' ? `<span class="badge b-amb">AMBULANCE</span>` : t==='motorcycle' ? `<span class="badge b-moto">MOTORCYCLE</span>` : `<span class="badge b-reg">REGULAR</span>`
+const typeTag = t => t==='ambulance' ? `<span class="vtype amb">AMBULANCE</span>` : t==='motorcycle' ? `<span class="vtype moto">MOTORCYCLE</span>` : `<span class="vtype">REGULAR</span>`
 const driverTypeBadge = dt => {
   if (dt==='ambulance') return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#fef2f2;color:#dc2626;border:1px solid #fecdd3">🚑 Ambulance</span>'
   if (dt==='both')      return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe">⚡ All Types</span>'
   return '<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe">🚙 Regular</span>'
 }
 const priorityBadge = p => {
-  const map = {
-    emergency: { bg:'#fef2f2', color:'#dc2626', border:'#fecdd3', icon:'🚨', lbl:'Emergency' },
-    urgent:    { bg:'#fef3c7', color:'#d97706', border:'#fde68a', icon:'⚡', lbl:'Urgent'    },
-    normal:    { bg:'#eff6ff', color:'#2563eb', border:'#bfdbfe', icon:'📋', lbl:'Normal'    },
-    low:       { bg:'#f0fdf4', color:'#16a34a', border:'#bbf7d0', icon:'🕐', lbl:'Low'       },
-  }
-  const m = map[p] || map.normal
-  return `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700;background:${m.bg};color:${m.color};border:1px solid ${m.border}">${m.icon} ${m.lbl}</span>`
+  const lbl = { emergency:'EMERGENCY', urgent:'URGENT', normal:'Normal', low:'Low' }
+  const k = lbl[p] ? p : 'normal'
+  return `<span class="prio prio-${k}">${lbl[k]}</span>`
 }
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '—'
 const fmtDT = d => d ? new Date(d).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'
@@ -1577,7 +1626,7 @@ async function renderDashboard() {
       + todayGateOuts.map(t =>
           '<div style="background:rgba(255,255,255,.15);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer" onclick="openViewModal(\'' + t.id + '\')">'
           + '<div>'
-          + '<div style="font-size:12px;font-weight:700;font-family:monospace;margin-bottom:3px">' + (t.ticket_no||'—') + '</div>'
+          + '<div style="font-size:12px;font-weight:700;font-family:var(--mono,monospace);margin-bottom:3px">' + (t.ticket_no||'—') + '</div>'
           + '<div style="font-size:11.5px;opacity:.9">' + (t.driver_name||'—') + ' · ' + (t.vehicle_plate||'—') + '</div>'
           + '<div style="font-size:11px;opacity:.75">' + (t.department||'') + ' → ' + (t.destination||'—') + '</div>'
           + '</div>'
@@ -1612,7 +1661,7 @@ async function renderDashboard() {
             + '<div style="font-size:16px;font-weight:800;line-height:1">' + dep.getDate() + '</div>'
             + '<div style="font-size:9px;font-weight:600;opacity:.9">' + mon + '</div></div>'
             + '<div style="flex:1;min-width:0">'
-            + '<div style="font-size:11.5px;font-weight:700;font-family:monospace;color:var(--pri)">' + (t.ticket_no||'—') + '</div>'
+            + '<div style="font-size:11.5px;font-weight:700;font-family:var(--mono,monospace);color:var(--pri)">' + (t.ticket_no||'—') + '</div>'
             + '<div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (t.department||'') + ' — ' + (t.purpose||'—') + '</div>'
             + '<div style="font-size:11px;color:var(--text3)">' + (t.driver_name||'No driver') + ' · ' + (t.vehicle_plate||'No vehicle') + '</div>'
             + '</div>'
@@ -2179,7 +2228,7 @@ function renderTicketsTable() {
         (role==='approver_admin' && t.vehicle_type_needed!=='ambulance') ||
         (role==='approver_amb'   && t.vehicle_type_needed==='ambulance')
       ))
-        acts.push(`<button class="tbl-act" style="background:var(--purple-s);color:var(--purple);border:1px solid rgba(124,58,237,.2)" onclick="event.stopPropagation();openReassignModal('${t.id}','${t.ticket_no}','${t.vehicle_type_needed}','${(t.driver_name||'').replace(/'/g,"\\'")}','${t.driver_id||''}','${(t.vehicle_name||t.vehicle_plate||'').replace(/'/g,"\\'")}','${t.vehicle_id||''}')">↻ Reassign</button>`)
+        acts.push(`<button class="tbl-act" onclick="event.stopPropagation();openReassignModal('${t.id}','${t.ticket_no}','${t.vehicle_type_needed}','${(t.driver_name||'').replace(/'/g,"\\'")}','${t.driver_id||''}','${(t.vehicle_name||t.vehicle_plate||'').replace(/'/g,"\\'")}','${t.vehicle_id||''}')">↻ Reassign</button>`)
       if (role==='guard' && t.status==='assigned') {
         const depDate = t.departure_at ? new Date(t.departure_at) : null
         const now = new Date()
@@ -2195,7 +2244,7 @@ function renderTicketsTable() {
               const depMid = new Date(depPH.getFullYear(),depPH.getMonth(),depPH.getDate())
               return Math.round((depMid - nowMid) / (1000*60*60*24))
             })()
-          acts.push(`<span style="font-size:11px;color:var(--text3);padding:5px 10px;border:1px solid var(--border);border-radius:20px;white-space:nowrap">📅 ${daysAway === 1 ? 'Tomorrow' : 'In ' + daysAway + ' days'}</span>`)
+          acts.push(`<span class="vtype" style="padding:0 6px">${daysAway === 1 ? 'BUKAS' : 'SA ' + daysAway + ' ARAW'}</span>`)
         }
       }
       if (role==='guard' && t.status==='on-trip')
@@ -2208,17 +2257,17 @@ function renderTicketsTable() {
       if (['admin','super_approver','approver_admin','approver_amb'].includes(role) && ['approved','assigned'].includes(t.status) && !t.pool_id) {
         const dk = t.departure_at ? new Date(t.departure_at).toLocaleDateString('en-PH',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'Asia/Manila'}) : ''
         if (dk && (poolableDateCounts[dk]||0) >= 2)
-          acts.push(`<button class="tbl-act" style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;white-space:nowrap" onclick="event.stopPropagation();openPoolModal()">🚌 Pool Trip</button>`)
+          acts.push(`<button class="tbl-act" onclick="event.stopPropagation();openPoolModal()">Pool trip</button>`)
       }
       // Convoy badge on tickets already in a trip pool
       if (t.pool_id)
-        acts.push(`<button class="tbl-act" style="background:#fdf4ff;color:#6b21a8;border:1px solid #e9d5ff;white-space:nowrap" onclick="event.stopPropagation();showPoolDetails('${t.pool_id}')">🚌 Pooled Trip</button>`)
+        acts.push(`<button class="tbl-act" onclick="event.stopPropagation();showPoolDetails('${t.pool_id}')">Pooled trip</button>`)
       const isPending = t.status==='pending-approval'
       const rowBg = isPending ? 'background:var(--amber-s)' : ''
       return `<tr onclick="openViewModal('${t.id}')" style="border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;${rowBg}" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${isPending?'var(--amber-s)':''}'">
         <td style="padding:10px 12px;white-space:nowrap">
-          <div style="font-size:11px;font-weight:700;color:var(--pri);font-family:monospace;letter-spacing:.3px">${t.ticket_no||'—'}</div>
-          <div style="margin-top:3px">${priorityBadge(t.priority)}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--pri);font-family:var(--mono,monospace);letter-spacing:.3px">${t.ticket_no||'—'}</div>
+          <div class="tk-meta">${priorityBadge(t.priority)}${typeTag(t.vehicle_type_needed)}</div>
           ${t.booking_group_id ? `<div style="font-size:9.5px;color:var(--purple,#7c3aed);margin-top:2px">🔗 BULK</div>` : ''}
         </td>
         <td style="padding:10px 12px">
@@ -2229,7 +2278,7 @@ function renderTicketsTable() {
           ${(() => {
             const s = t.stops && Array.isArray(t.stops) && t.stops.length > 0 ? t.stops : (t.destination ? [t.destination] : [])
             if (s.length === 0) return ''
-            const label = s.length > 1 ? `→ ${s[0]} <span style="background:var(--pri-s);color:var(--pri);font-size:9px;font-weight:700;padding:1px 5px;border-radius:20px">+${s.length-1}</span>` : `→ ${s[0]}`
+            const label = s.length > 1 ? `→ ${s[0]}<span class="stop-more">+${s.length-1}</span>` : `→ ${s[0]}`
             return `<div style="font-size:10.5px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>`
           })()}
         </td>
@@ -2238,7 +2287,6 @@ function renderTicketsTable() {
         </td>
         <td style="padding:10px 12px;white-space:nowrap">
           ${badge(t.status)}
-          <div style="margin-top:3px">${typeBadge(t.vehicle_type_needed)}</div>
           ${isOverdue(t)?`<div style="margin-top:3px"><span class="badge b-overdue" style="font-size:9px;padding:2px 6px">⚠ ${overdueDuration(t)}</span></div>`:''}
         </td>
         <td style="padding:10px 12px">
@@ -2309,7 +2357,7 @@ function buildGuardKanban(tickets) {
           <span style="font-size:15px">🚌</span>
           <span style="font-size:13px;font-weight:900;color:#6b21a8">CONVOY</span>
           <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:#7c3aed;color:#fff">${t._poolCount} tickets</span>
-          <span style="margin-left:auto;font-size:20px;font-weight:900;font-family:monospace;color:${late?'#dc2626':'#6b21a8'}">${depStr}</span>
+          <span style="margin-left:auto;font-size:20px;font-weight:900;font-family:var(--mono,monospace);color:${late?'#dc2626':'#6b21a8'}">${depStr}</span>
         </div>
         <div style="font-size:11px;color:#6b21a8;font-weight:600;margin-bottom:8px;line-height:1.4">${depts}</div>
         <div style="background:rgba(124,58,237,.08);border-radius:8px;padding:8px;margin-bottom:10px">
@@ -2319,7 +2367,7 @@ function buildGuardKanban(tickets) {
           </div>
           <div style="display:flex;justify-content:space-between">
             <span style="font-size:11px;color:var(--text3)">🚗 Vehicle</span>
-            <span style="font-size:11.5px;font-weight:700;font-family:monospace">${t.vehicle_plate||'—'}</span>
+            <span style="font-size:11.5px;font-weight:700;font-family:var(--mono,monospace)">${t.vehicle_plate||'—'}</span>
           </div>
         </div>
         <div style="display:flex;gap:8px">
@@ -2339,12 +2387,12 @@ function buildGuardKanban(tickets) {
     return `<div style="background:${late?'#fef2f2':'var(--card)'};border:2px solid ${late?'#fecdd3':'var(--border)'};border-radius:14px;padding:14px;margin-bottom:10px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
         <div style="flex:1;cursor:pointer" onclick="openViewModal('${t.id}')">
-          <div style="font-size:14px;font-weight:900;font-family:monospace;color:var(--pri);letter-spacing:.5px">${t.ticket_no||'—'}</div>
+          <div style="font-size:14px;font-weight:900;font-family:var(--mono,monospace);color:var(--pri);letter-spacing:.5px">${t.ticket_no||'—'}</div>
           <div style="font-size:12.5px;font-weight:700;margin-top:3px">${t.department||'—'}</div>
           <div style="font-size:11.5px;color:var(--text2);margin-top:2px">→ ${t.destination||'—'}</div>
         </div>
         <div style="text-align:right;flex-shrink:0;cursor:pointer" onclick="openViewModal('${t.id}')">
-          <div style="font-size:22px;font-weight:900;color:${late?'#dc2626':'var(--text1)'};font-family:monospace">${depStr}</div>
+          <div style="font-size:22px;font-weight:900;color:${late?'#dc2626':'var(--text1)'};font-family:var(--mono,monospace)">${depStr}</div>
           ${late?'<div style="font-size:10px;font-weight:800;color:#dc2626">OVERDUE</div>':''}
         </div>
       </div>
@@ -2357,7 +2405,7 @@ function buildGuardKanban(tickets) {
           <span style="font-size:11.5px;color:var(--text3)">🚗 Vehicle</span>
           <div style="text-align:right">
             <div style="font-size:11px;color:var(--text2)">${t.vehicle_name||''}</div>
-            <div style="font-size:12px;font-weight:800;font-family:monospace;color:var(--pri)">${t.vehicle?.plate||t.vehicle_plate||'—'}</div>
+            <div style="font-size:12px;font-weight:800;font-family:var(--mono,monospace);color:var(--pri)">${t.vehicle?.plate||t.vehicle_plate||'—'}</div>
           </div>
         </div>
       </div>
@@ -2387,7 +2435,7 @@ function buildGuardKanban(tickets) {
           </div>
           <div style="display:flex;justify-content:space-between">
             <span style="font-size:11px;color:var(--text3)">🚗 Vehicle</span>
-            <span style="font-size:11.5px;font-weight:700;font-family:monospace">${t.vehicle_plate||'—'}</span>
+            <span style="font-size:11.5px;font-weight:700;font-family:var(--mono,monospace)">${t.vehicle_plate||'—'}</span>
           </div>
         </div>
         <div style="display:flex;gap:8px">
@@ -2403,13 +2451,13 @@ function buildGuardKanban(tickets) {
     return `<div style="background:${late?'#fdf4ff':'var(--card)'};border:2px solid ${late?'#e9d5ff':'var(--border)'};border-radius:14px;padding:14px;margin-bottom:10px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px;cursor:pointer" onclick="openViewModal('${t.id}')">
         <div>
-          <div style="font-size:14px;font-weight:900;font-family:monospace;color:#7c3aed">${t.ticket_no||'—'}</div>
+          <div style="font-size:14px;font-weight:900;font-family:var(--mono,monospace);color:#7c3aed">${t.ticket_no||'—'}</div>
           <div style="font-size:12.5px;font-weight:700;margin-top:3px">${t.department||'—'}</div>
           <div style="font-size:11.5px;color:var(--text2);margin-top:2px">→ ${t.destination||'—'}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:11px;color:var(--text3)">Expected</div>
-          <div style="font-size:18px;font-weight:900;color:${late?'#dc2626':'#7c3aed'};font-family:monospace">${expStr}</div>
+          <div style="font-size:18px;font-weight:900;color:${late?'#dc2626':'#7c3aed'};font-family:var(--mono,monospace)">${expStr}</div>
           ${late?'<div style="font-size:10px;font-weight:800;color:#dc2626">OVERDUE</div>':''}
         </div>
       </div>
@@ -2422,7 +2470,7 @@ function buildGuardKanban(tickets) {
           <span style="font-size:11.5px;color:var(--text3)">🚗 Vehicle</span>
           <div style="text-align:right">
             <div style="font-size:11px;color:var(--text2)">${t.vehicle_name||''}</div>
-            <div style="font-size:12px;font-weight:800;font-family:monospace;color:#7c3aed">${t.vehicle?.plate||t.vehicle_plate||'—'}</div>
+            <div style="font-size:12px;font-weight:800;font-family:var(--mono,monospace);color:#7c3aed">${t.vehicle?.plate||t.vehicle_plate||'—'}</div>
           </div>
         </div>
       </div>
@@ -2448,7 +2496,7 @@ function buildGuardKanban(tickets) {
     (gateOutNow.length === 0 && gateOutSoon.length === 0 && onTrip.length === 0 && gateOutToday.length === 0 && scheduled.length === 0
       ? '<div style="text-align:center;padding:48px 24px;color:var(--text3)"><div style="font-size:40px;margin-bottom:12px">✅</div><div style="font-size:15px;font-weight:700">All clear at the gate</div><div style="font-size:13px;margin-top:6px">No active gate operations</div></div>'
       : '') +
-    (others.length > 0 ? `<details style="margin-top:10px"><summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:10px">Other Tickets (${others.length})</summary><div style="margin-top:8px">${others.map(t => `<div onclick="openViewModal('${t.id}')" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:700;font-family:monospace">${t.ticket_no}</div><div style="font-size:11.5px;color:var(--text2)">${t.department} — ${t.purpose||'—'}</div></div>${badge(t.status)}</div>`).join('')}</div></details>` : '')
+    (others.length > 0 ? `<details style="margin-top:10px"><summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:10px">Other Tickets (${others.length})</summary><div style="margin-top:8px">${others.map(t => `<div onclick="openViewModal('${t.id}')" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:12px;font-weight:700;font-family:var(--mono,monospace)">${t.ticket_no}</div><div style="font-size:11.5px;color:var(--text2)">${t.department} — ${t.purpose||'—'}</div></div>${badge(t.status)}</div>`).join('')}</div></details>` : '')
   )
 }
 
@@ -2518,7 +2566,7 @@ function buildMobCards(filtered, role) {
       <!-- Header: Ticket No + Status -->
       <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 13px 0">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-          <span style="font-size:12px;font-weight:800;font-family:monospace;color:var(--pri);letter-spacing:.3px">${t.ticket_no||'—'}</span>
+          <span style="font-size:12px;font-weight:800;font-family:var(--mono,monospace);color:var(--pri);letter-spacing:.3px">${t.ticket_no||'—'}</span>
           ${t.priority && t.priority !== 'normal' ? priorityBadge(t.priority) : ''}
           ${t.pool_id ? `<span style="background:#fdf4ff;color:#6b21a8;border:1px solid #e9d5ff;border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700">🚌 Pooled</span>` : ''}
         </div>
@@ -3048,7 +3096,7 @@ async function openApproveModal(id, ticketNo, vtype) {
     ${suggestedPools.map(t => `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <div style="font-size:12px">
-        <span style="font-family:monospace;font-weight:700;color:var(--pri)">${t.ticket_no}</span>
+        <span style="font-family:var(--mono,monospace);font-weight:700;color:var(--pri)">${t.ticket_no}</span>
         <span style="color:var(--text2);margin-left:6px">${t.department} → ${t.destination||'—'}</span>
         <span style="color:var(--text3);margin-left:6px">${new Date(t.departure_at).toLocaleString('en-PH',{hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Asia/Manila'})}</span>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">👤 ${t.driver_name||'—'} · 🚗 ${t.vehicle_plate||'—'}</div>
@@ -3952,7 +4000,7 @@ async function openPoolModal() {
         <input type="checkbox" class="pool-ticket-cb" value="${t.id}" data-dep="${t.departure_at||''}" style="width:16px;height:16px;accent-color:var(--pri);flex-shrink:0" onchange="updatePoolSelection()">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span style="font-family:monospace;font-weight:700;font-size:12px;color:var(--pri)">${t.ticket_no}</span>
+            <span style="font-family:var(--mono,monospace);font-weight:700;font-size:12px;color:var(--pri)">${t.ticket_no}</span>
             ${priorityBadge(t.priority)} ${badge(t.status)}
           </div>
           <div style="font-size:12.5px;font-weight:600;margin-top:2px">${t.department}</div>
@@ -4406,7 +4454,7 @@ async function showPoolDetails(poolId) {
     `<div style="background:var(--bg);border-radius:10px;padding:13px 15px;margin-bottom:13px">
        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
          <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Driver</div><div style="font-size:13px;font-weight:700">${c.driver_name||'—'}</div></div>
-         <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Vehicle</div><div style="font-size:13px;font-weight:700;font-family:monospace">${c.vehicle_plate||'—'}</div><div style="font-size:10px;color:var(--text3)">${c.vehicle_name||''}</div></div>
+         <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Vehicle</div><div style="font-size:13px;font-weight:700;font-family:var(--mono,monospace)">${c.vehicle_plate||'—'}</div><div style="font-size:10px;color:var(--text3)">${c.vehicle_name||''}</div></div>
          <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Departure</div><div style="font-size:12px;font-weight:700">${fmtDT(c.departure_at)}</div></div>
          <div><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">Status</div><div style="font-size:12px;font-weight:700">${c.gate_out_at?c.gate_in_at?'Completed':'On Trip':'Assigned'}</div></div>
        </div>
@@ -4414,7 +4462,7 @@ async function showPoolDetails(poolId) {
      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:8px">Tickets in this Convoy (${(trips||[]).length})</div>
      <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden">
        ${(trips||[]).map((t,i) => `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;${i<trips.length-1?'border-bottom:1px solid var(--border)':''}">
-         <span style="font-family:monospace;font-weight:700;color:var(--pri);font-size:11.5px">${t.ticket_no}</span>
+         <span style="font-family:var(--mono,monospace);font-weight:700;color:var(--pri);font-size:11.5px">${t.ticket_no}</span>
          <div style="flex:1"><div style="font-size:12px;font-weight:600">${t.department}</div><div style="font-size:10.5px;color:var(--text3)">→ ${t.destination||'—'}</div></div>
          ${badge(t.status)}
        </div>`).join('')}
@@ -5227,11 +5275,11 @@ async function renderDriverDashboard() {
       <thead><tr><th>Ticket</th><th>Department</th><th>Destination</th><th>Date</th><th>Vehicle</th><th>Rating</th></tr></thead>
       <tbody>
         ${history.map(t => `<tr style="cursor:pointer" onclick="openViewModal('${t.id}')" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
-          <td style="font-family:monospace;font-weight:700;color:var(--pri)">${t.ticket_no}</td>
+          <td style="font-family:var(--mono,monospace);font-weight:700;color:var(--pri)">${t.ticket_no}</td>
           <td style="font-weight:600">${t.department||'—'}</td>
           <td style="color:var(--text2)">${t.destination||'—'}</td>
           <td style="color:var(--text3)">${fmtDate(t.departure_at)}</td>
-          <td style="font-family:monospace;font-size:11px">${t.vehicle_plate||'—'}</td>
+          <td style="font-family:var(--mono,monospace);font-size:11px">${t.vehicle_plate||'—'}</td>
           <td style="text-align:center">${t.rating ? '⭐'.repeat(t.rating) : '<span style="color:var(--text3);font-size:10px">—</span>'}</td>
         </tr>`).join('')}
       </tbody>
@@ -5354,7 +5402,7 @@ async function renderOwnerDashboard() {
           const col = v.status==='available'?'var(--green)':v.status==='on-trip'?'var(--purple)':'var(--red)'
           const bg  = v.status==='available'?'var(--green-s)':v.status==='on-trip'?'rgba(124,58,237,.08)':'var(--red-s)'
           return '<div style="background:'+bg+';border:1.5px solid '+col+';border-radius:10px;padding:11px 13px">'
-            + '<div style="font-size:13px;font-weight:900;font-family:monospace;color:'+col+'">'+v.plate+'</div>'
+            + '<div style="font-size:13px;font-weight:900;font-family:var(--mono,monospace);color:'+col+'">'+v.plate+'</div>'
             + '<div style="font-size:11px;color:var(--text2);margin:2px 0">'+( v.name||v.type||'—')+'</div>'
             + '<span style="font-size:10px;font-weight:700;color:'+col+'">● '+(v.status==='available'?'Available':v.status==='on-trip'?'On Trip':'Maintenance')+'</span>'
             + '</div>'
@@ -5473,7 +5521,7 @@ async function renderOwnerDashboard() {
         + '<div style="width:42px;height:42px;background:'+urgBg+';border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">'
         + '<div style="font-size:16px;font-weight:900;color:'+urgColor+';line-height:1">'+dep.getDate()+'</div>'
         + '<div style="font-size:9px;font-weight:700;color:'+urgColor+';opacity:.8">'+dep.toLocaleString('en-PH',{month:'short'}).toUpperCase()+'</div></div>'
-        + '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;font-family:monospace;color:var(--pri)">'+t.ticket_no+'</div>'
+        + '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;font-family:var(--mono,monospace);color:var(--pri)">'+t.ticket_no+'</div>'
         + '<div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.department+' — '+(t.purpose||'—')+'</div>'
         + '<div style="font-size:11px;color:var(--text3)">→ '+(t.destination||'—')+' · '+(t.driver_name||'No driver')+'</div></div>'
         + '<div style="text-align:right;flex-shrink:0">'
@@ -5493,11 +5541,11 @@ async function renderOwnerDashboard() {
       ${onTrip.map(t => {
         const late = t.expected_return_at && new Date(t.expected_return_at) < now
         return '<tr>'
-          + '<td style="font-weight:700;font-family:monospace;color:var(--pri)">'+t.ticket_no+'</td>'
+          + '<td style="font-weight:700;font-family:var(--mono,monospace);color:var(--pri)">'+t.ticket_no+'</td>'
           + '<td style="font-weight:600">'+( t.department||'—')+'</td>'
           + '<td style="color:var(--text2)">'+( t.destination||'—')+'</td>'
           + '<td>'+(t.driver_name||'—')+'</td>'
-          + '<td style="font-family:monospace;font-weight:700">'+(t.vehicle_plate||'—')+'</td>'
+          + '<td style="font-family:var(--mono,monospace);font-weight:700">'+(t.vehicle_plate||'—')+'</td>'
           + '<td style="white-space:nowrap;color:var(--text2)">'+fmtDT(t.gate_out_at)+'</td>'
           + '<td style="white-space:nowrap;color:'+(late?'var(--red)':'var(--text2)')+'">'+fmtDate(t.expected_return_at)+(late?' ⚠':'')+'</td>'
           + '</tr>'
@@ -5518,7 +5566,7 @@ async function renderOwnerDashboard() {
         + '<td style="white-space:nowrap;color:var(--text3);font-size:11px">'+fmtDT(l.created_at)+'</td>'
         + '<td style="font-weight:600">'+(l.user_name||'—')+'</td>'
         + '<td>'+(l.action||'—')+'</td>'
-        + '<td style="font-family:monospace;font-size:11.5px;color:var(--pri)">'+(l.ticket_no||'—')+'</td>'
+        + '<td style="font-family:var(--mono,monospace);font-size:11.5px;color:var(--pri)">'+(l.ticket_no||'—')+'</td>'
         + '<td style="color:var(--text2);font-size:11px">'+(l.details||'')+'</td>'
         + '</tr>'
       ).join('')}
@@ -5611,7 +5659,7 @@ async function renderFleet() {
     ${myActive.map(t => {
       const isOnTrip = t.status === 'on-trip'
       return '<div style="background:var(--card);border:1px solid ' + (isOnTrip ? 'var(--green)' : 'var(--border)') + ';border-radius:12px;padding:13px 16px;display:flex;align-items:center;gap:12px">'
-        + '<div style="flex:1"><div style="font-size:12px;font-weight:700;font-family:monospace;color:var(--pri);margin-bottom:3px">' + t.ticket_no + '</div>'
+        + '<div style="flex:1"><div style="font-size:12px;font-weight:700;font-family:var(--mono,monospace);color:var(--pri);margin-bottom:3px">' + t.ticket_no + '</div>'
         + '<div style="font-size:12.5px;font-weight:600">' + (t.purpose||'—') + '</div>'
         + '<div style="font-size:11.5px;color:var(--text2)">→ ' + (t.destination||'—') + '</div>'
         + (t.driver_name ? '<div style="font-size:11px;color:var(--text3);margin-top:3px">👤 ' + t.driver_name + (t.vehicle_plate ? ' · 🚗 ' + t.vehicle_plate : '') + '</div>' : '')
@@ -5635,10 +5683,10 @@ async function renderFleet() {
     <tbody>
     ${(allActive||[]).map((t,i) =>
       '<tr style="border-bottom:1px solid var(--border)">'
-      + '<td style="padding:12px 16px;font-size:11.5px;font-weight:700;font-family:monospace;color:var(--pri)">' + (t.ticket_no||'—') + '</td>'
+      + '<td style="padding:12px 16px;font-size:11.5px;font-weight:700;font-family:var(--mono,monospace);color:var(--pri)">' + (t.ticket_no||'—') + '</td>'
       + '<td style="padding:12px 16px;font-size:12px;font-weight:600">' + (t.department||'—') + '</td>'
       + '<td style="padding:12px 16px;font-size:11.5px;color:var(--text2)">' + (t.destination||'—') + '</td>'
-      + '<td style="padding:12px 16px;font-size:11px">' + (t.driver_name||'—') + (t.vehicle_plate ? '<br><span style="color:var(--text3);font-family:monospace">' + t.vehicle_plate + '</span>' : '') + '</td>'
+      + '<td style="padding:12px 16px;font-size:11px">' + (t.driver_name||'—') + (t.vehicle_plate ? '<br><span style="color:var(--text3);font-family:var(--mono,monospace)">' + t.vehicle_plate + '</span>' : '') + '</td>'
       + '<td style="padding:12px 16px;font-size:11.5px;white-space:nowrap">' + fmtDate(t.departure_at) + '</td>'
       + '<td style="padding:12px 16px">' + badge(t.status) + '</td>'
       + '</tr>'
@@ -5670,7 +5718,7 @@ async function renderFleet() {
           })()
       const urgency = daysAway <= 1 ? 'var(--red)' : daysAway <= 3 ? 'var(--amber)' : 'var(--text2)'
       return '<tr style="border-bottom:1px solid var(--border)">'
-        + '<td style="padding:12px 16px;font-size:11.5px;font-weight:700;font-family:monospace;color:var(--pri)">' + (t.ticket_no||'—') + '</td>'
+        + '<td style="padding:12px 16px;font-size:11.5px;font-weight:700;font-family:var(--mono,monospace);color:var(--pri)">' + (t.ticket_no||'—') + '</td>'
         + '<td style="padding:12px 16px;font-size:12px;font-weight:600">' + (t.department||'—') + '</td>'
         + '<td style="padding:12px 16px;font-size:11.5px;color:var(--text2)">' + (t.destination||'—') + '</td>'
         + '<td style="padding:12px 16px;font-size:11.5px;white-space:nowrap"><div>' + fmtDate(t.departure_at) + '</div>'
@@ -5688,7 +5736,7 @@ async function renderFleet() {
     : '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:20px">'
       + availVehicles.map(v =>
           '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px">'
-          + '<div style="font-size:13px;font-weight:800;font-family:monospace;margin-bottom:4px">' + v.plate + '</div>'
+          + '<div style="font-size:13px;font-weight:800;font-family:var(--mono,monospace);margin-bottom:4px">' + v.plate + '</div>'
           + '<div style="font-size:11.5px;color:var(--text2);margin-bottom:6px">' + (v.type||'—') + '</div>'
           + '<div style="display:flex;align-items:center;justify-content:space-between">'
           + '<span style="font-size:11px;color:var(--text3)">👥 ' + (v.capacity||4) + ' pax</span>'
@@ -5742,34 +5790,25 @@ async function renderNewTicket() {
        <div style="font-size:10px;color:var(--text3);margin-top:4px">Your department is automatically set</div>`
 
   const tmplBar = _templates.length > 0 ? `
-    <div style="background:var(--pri-s);border:1px solid rgba(var(--pri-rgb,14,165,233),.2);border-radius:12px;padding:13px 15px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <span style="font-size:16px">📋</span>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:var(--pri)">Your saved templates — click to auto-fill the form</div>
-          <div style="font-size:10.5px;color:var(--text3);margin-top:1px">Select a template to instantly fill in destination, purpose, and vehicle type</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${_templates.slice(0,6).map(t => `
-          <button type="button" onclick="applyTemplate('${t.id}')"
-            style="padding:7px 14px;border:1.5px solid var(--pri);border-radius:20px;background:#fff;font-size:12px;cursor:pointer;color:var(--pri);font-weight:600;transition:all .15s"
-            onmouseover="this.style.background='var(--pri)';this.style.color='#fff'"
-            onmouseout="this.style.background='#fff';this.style.color='var(--pri)'">
-            ${typeBadge(t.vehicle_type)} ${t.name}
-          </button>`).join('')}
-        ${_templates.length > 6 ? `<button type="button" onclick="openTemplatesModal()"
-          style="padding:7px 14px;border:1px dashed var(--border);border-radius:20px;background:transparent;font-size:11.5px;cursor:pointer;color:var(--text3)">
-          +${_templates.length - 6} more →
-        </button>` : ''}
+    <div class="tpl-box">
+      <div class="vk-col-h" style="color:var(--text3);margin:0">MGA TEMPLATE MO</div>
+      <div class="tpl-sub">Pumili ng template para awtomatikong mapunan ang destinasyon, layunin, at uri ng sasakyan.</div>
+      <div class="tpl-grid">
+        ${_templates.slice(0,6).map(t => {
+          const where = (Array.isArray(t.stops) && t.stops.length ? t.stops.join(' → ') : (t.destination || t.purpose || ''))
+          return `<button type="button" class="tpl-chip" onclick="applyTemplate('${t.id}')" title="${vtsEsc(where)}">
+            ${typeTag(t.vehicle_type)}<b>${vtsEsc(t.name)}</b>${where ? `<span>→ ${vtsEsc(where)}</span>` : ''}
+          </button>`}).join('')}
+        ${_templates.length > 6 ? `<button type="button" class="tpl-chip tpl-more" onclick="openTemplatesModal()"><b>+${_templates.length - 6} pa</b><span>Tingnan lahat</span></button>` : ''}
       </div>
     </div>` : ''
 
   document.getElementById('CONTENT').innerHTML = `
   <div style="max-width:600px">
-    <div class="info info-blue" style="margin-bottom:16px">
-      <strong>Approval Workflow:</strong> Requester → Approver → Assign Driver → Gate Out → Gate In<br>
-      <span style="font-size:11px;opacity:.85">Ambulance/EMS requests route exclusively to the <strong>Ambulance Approver</strong>.</span>
+    <div class="vts-flow">
+      <div class="vk-col-h" style="color:var(--text3);margin:0">DALOY NG REQUEST</div>
+      <ol><li><i>1</i>Request</li><li><i>2</i>Approval</li><li><i>3</i>Driver</li><li><i>4</i>Gate out</li><li><i>5</i>Gate in</li></ol>
+      <p>Ang ambulance o EMS ay diretso sa <strong>Ambulance Approver</strong>.</p>
     </div>
 
     ${tmplBar}
@@ -5801,9 +5840,9 @@ async function renderNewTicket() {
 
       <div class="fg"><label class="fl">Vehicle Type *</label>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <button type="button" class="btn" id="typeReg" style="justify-content:center;border:1px solid var(--pri);background:var(--pri-s);color:var(--pri);font-weight:600;font-size:11.5px" onclick="selectVtype('regular')">🚙 Regular</button>
-          <button type="button" class="btn" id="typeMoto" style="justify-content:center;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:600;font-size:11.5px" onclick="selectVtype('motorcycle')">🏍 Motorcycle</button>
-          <button type="button" class="btn" id="typeAmb" style="justify-content:center;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:600;font-size:11.5px" onclick="selectVtype('ambulance')">🚑 Ambulance</button>
+          <button type="button" class="btn" id="typeReg" style="justify-content:center;min-height:44px;border:1.5px solid var(--pri);background:var(--pri-s);color:var(--pri);font-weight:700;font-size:13px;box-shadow:inset 0 -3px 0 var(--pri)" onclick="selectVtype('regular')">Regular</button>
+          <button type="button" class="btn" id="typeMoto" style="justify-content:center;min-height:44px;border:1.5px solid var(--border2);background:var(--card);color:var(--text2);font-weight:600;font-size:13px" onclick="selectVtype('motorcycle')">Motorcycle</button>
+          <button type="button" class="btn" id="typeAmb" style="justify-content:center;min-height:44px;border:1.5px solid var(--border2);background:var(--card);color:var(--text2);font-weight:600;font-size:13px" onclick="selectVtype('ambulance')">Ambulance</button>
         </div>
         <input type="hidden" id="ntType" value="regular">
       </div>
@@ -5818,10 +5857,10 @@ async function renderNewTicket() {
             <div id="ntEmergencyChk" style="width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s;background:transparent"></div>
           </div>
           <div style="flex:1">
-            <div style="font-size:13px;font-weight:700;color:var(--red)">🚨 Emergency — bypass 48-hour rule</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px">Check this if the trip cannot wait for the regular 48-hour filing window. Approver will be alerted immediately.</div>
+            <div style="font-size:13.5px;font-weight:700;color:var(--red)">Emergency — hindi na kailangan ang 48-hour filing</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">I-check kung hindi na makapaghihintay ng 48 oras ang biyahe. Agad na aabisuhan ang approver.</div>
           </div>
-          <div id="ntEmergencyBadge" style="display:none;background:var(--red-s);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;flex-shrink:0">🚨 EMERGENCY</div>
+          <div id="ntEmergencyBadge" style="display:none;background:var(--red-s);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:2px;white-space:nowrap;flex-shrink:0">EMERGENCY</div>
         </div>
         <div id="ntEmergencyReasonWrap" style="display:none;margin-top:8px">
           <input class="fi" id="ntEmergencyReason" placeholder="Brief reason — e.g. patient transfer, critical supply, OR emergency...">
@@ -6372,8 +6411,8 @@ function selectVtype(t) {
   const isAmb  = t === 'ambulance'
   const isMoto = t === 'motorcycle'
   const styles = {
-    active:   (color, bg) => `justify-content:center;border:1px solid ${color};background:${bg};color:${color};font-weight:600;font-size:11.5px`,
-    inactive: () => `justify-content:center;border:1px solid var(--border);background:transparent;color:var(--text2);font-weight:600;font-size:11.5px`
+    active:   (color, bg) => `justify-content:center;min-height:44px;border:1.5px solid ${color};background:${bg};color:${color};font-weight:700;font-size:13px;box-shadow:inset 0 -3px 0 ${color}`,
+    inactive: () => `justify-content:center;min-height:44px;border:1.5px solid var(--border2);background:var(--card);color:var(--text2);font-weight:600;font-size:13px`
   }
   document.getElementById('typeReg').style.cssText  = (!isAmb && !isMoto) ? styles.active('var(--pri)','var(--pri-s)')  : styles.inactive()
   document.getElementById('typeMoto').style.cssText = isMoto  ? styles.active('var(--amber)','var(--amber-s)') : styles.inactive()
@@ -6806,7 +6845,7 @@ async function renderMaintenance() {
       const statusBg = isActive ? 'background:#fef3c7;color:#92400e' : 'background:var(--bg);color:var(--text2)'
       return `<tr style="border-bottom:1px solid var(--border)">
         <td style="padding:13px 16px">
-          <div style="font-size:12px;font-weight:700;font-family:monospace">${s.vehicle?.plate||'—'}</div>
+          <div style="font-size:12px;font-weight:700;font-family:var(--mono,monospace)">${s.vehicle?.plate||'—'}</div>
           <div style="font-size:10.5px;color:var(--text3)">${s.vehicle?.type||''}</div>
         </td>
         <td style="padding:13px 16px">
@@ -6840,7 +6879,7 @@ async function renderMaintenance() {
     <table style="width:100%;border-collapse:collapse">
       <tbody>
       ${past.slice(0,20).map(s => `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:11px 16px;font-size:11.5px;font-weight:700;font-family:monospace">${s.vehicle?.plate||'—'}</td>
+        <td style="padding:11px 16px;font-size:11.5px;font-weight:700;font-family:var(--mono,monospace)">${s.vehicle?.plate||'—'}</td>
         <td style="padding:11px 16px;font-size:11px;color:var(--text3)">${s.maint_type||'Other'} · ${s.title||''}</td>
         <td style="padding:11px 16px;font-size:11px;color:var(--text3)">${fmtDate(s.start_at)} → ${fmtDate(s.end_at)}</td>
         <td style="padding:11px 16px">
@@ -7102,7 +7141,7 @@ async function renderDrivers() {
           ${d.user&&d.user.department?`<div style="font-size:10px;color:var(--text3)">${d.user.department}</div>`:''}
         </div>
       </div></td>
-      <td>${d.user&&d.user.username?`<span style="font-family:monospace;font-size:11px;background:var(--bg);padding:2px 7px;border-radius:6px;color:var(--pri)">${d.user.username}</span>`:d.is_reliever?'<span style="color:var(--text3);font-size:10px">No account (reliever)</span>':'<span style="color:var(--red);font-size:10px;font-weight:600">⚠ No account</span>'}</td>
+      <td>${d.user&&d.user.username?`<span style="font-family:var(--mono,monospace);font-size:11px;background:var(--bg);padding:2px 7px;border-radius:6px;color:var(--pri)">${d.user.username}</span>`:d.is_reliever?'<span style="color:var(--text3);font-size:10px">No account (reliever)</span>':'<span style="color:var(--red);font-size:10px;font-weight:600">⚠ No account</span>'}</td>
       <td>${d.license_no?chip(d.license_no):'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
       <td style="font-size:11px">${d.license_type||'—'}</td>
       <td>${driverTypeBadge(d.driver_type||'regular')}</td>
@@ -7272,7 +7311,7 @@ async function openEditDriver(driverId) {
   openMO(`Edit Driver — ${d.full_name}`,
     `${d.user ? `<div style="background:var(--bg);border-radius:9px;padding:10px 13px;margin-bottom:12px;font-size:12px">
        <span style="color:var(--text3)">Login account:</span>
-       <span style="font-family:monospace;font-weight:700;color:var(--pri);margin-left:6px">@${d.user.username}</span>
+       <span style="font-family:var(--mono,monospace);font-weight:700;color:var(--pri);margin-left:6px">@${d.user.username}</span>
        <span style="color:var(--text3);margin-left:6px">· ${d.user.department||'—'}</span>
      </div>` : '<div class="info info-amber" style="margin-bottom:12px">⚠ No linked login account.</div>'}
      <div class="fr">
@@ -8317,7 +8356,7 @@ async function renderReportContent() {
     <tbody>
       ${Object.entries(byVehFuel).sort((a,b)=>b[1].fuel-a[1].fuel).map(([plate,d],i)=>`<tr style="border-bottom:1px solid var(--border);background:${i%2?'var(--bg)':''}">
         <td style="padding:10px 12px;font-weight:600">${d.name||'—'}</td>
-        <td style="padding:10px 12px;font-family:monospace;font-weight:700;color:var(--pri)">${plate}</td>
+        <td style="padding:10px 12px;font-family:var(--mono,monospace);font-weight:700;color:var(--pri)">${plate}</td>
         <td style="padding:10px 12px;text-align:center">${d.trips}</td>
         <td style="padding:10px 12px;text-align:right">${d.km?d.km.toLocaleString()+' km':'—'}</td>
         <td style="padding:10px 12px;text-align:right">${d.liters?d.liters.toFixed(1)+'L':'—'}</td>
@@ -8449,10 +8488,10 @@ async function renderReportContent() {
         const statusLabel = c.gate_in_at?'Completed':c.gate_out_at?'On Trip':'Assigned'
         const statusColor = c.gate_in_at?'var(--green)':c.gate_out_at?'var(--purple)':'var(--amber)'
         return `<tr style="border-bottom:1px solid var(--border);background:${i%2?'var(--bg)':''}">
-          <td style="padding:10px 12px;font-family:monospace;font-weight:700;color:#6b21a8">🚌 ${c.pool_no}</td>
+          <td style="padding:10px 12px;font-family:var(--mono,monospace);font-weight:700;color:#6b21a8">🚌 ${c.pool_no}</td>
           <td style="padding:10px 12px;color:var(--text2);white-space:nowrap">${fmtDate(c.created_at)}</td>
           <td style="padding:10px 12px;font-weight:600">${c.driver_name||'—'}</td>
-          <td style="padding:10px 12px;font-family:monospace">${c.vehicle_plate||'—'}</td>
+          <td style="padding:10px 12px;font-family:var(--mono,monospace)">${c.vehicle_plate||'—'}</td>
           <td style="padding:10px 12px;text-align:center;font-weight:800;color:#6b21a8">${cTrips.length}</td>
           <td style="padding:10px 12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${depts}">${depts||'—'}</td>
           <td style="padding:10px 12px;white-space:nowrap;color:var(--text2)">${fmtDT(c.departure_at)}</td>
@@ -8553,11 +8592,11 @@ function buildAuditRows(T) {
       <td style="padding:9px 10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)" title="${t.approval_remarks||''}">${t.approval_remarks||'—'}</td>
       <td style="padding:9px 10px;white-space:nowrap;color:var(--text2)">${fmtDT(t.approved_at)}</td>
       <td style="padding:9px 10px;font-weight:600;white-space:nowrap">${t.driver?.full_name||t.driver_name||'—'}</td>
-      <td style="padding:9px 10px;white-space:nowrap;font-family:monospace">${t.driver?.license_no||'—'}</td>
+      <td style="padding:9px 10px;white-space:nowrap;font-family:var(--mono,monospace)">${t.driver?.license_no||'—'}</td>
       <td style="padding:9px 10px;white-space:nowrap">${t.driver?.phone||'—'}</td>
       <td style="padding:9px 10px;white-space:nowrap">${t.driver?.shift||'—'}</td>
       <td style="padding:9px 10px;font-weight:600;white-space:nowrap">${t.vehicle?.name||t.vehicle_name||'—'}</td>
-      <td style="padding:9px 10px;font-family:monospace;font-weight:700;white-space:nowrap;color:var(--pri)">${t.vehicle?.plate||t.vehicle_plate||'—'}</td>
+      <td style="padding:9px 10px;font-family:var(--mono,monospace);font-weight:700;white-space:nowrap;color:var(--pri)">${t.vehicle?.plate||t.vehicle_plate||'—'}</td>
       <td style="padding:9px 10px;white-space:nowrap">${t.vehicle?.fuel||'—'}</td>
       <td style="padding:9px 10px;text-align:center">${t.vehicle?.capacity||'—'} pax</td>
       <td style="padding:9px 10px;white-space:nowrap;color:var(--text2)">${fmtDT(t.gate_out_at)}</td>
@@ -8766,7 +8805,7 @@ async function doGeneratePrintReport() {
     const pColor = t.priority==='emergency'?'#dc2626':t.priority==='urgent'?'#d97706':'#374151'
     const sColor = t.status==='completed'?'#16a34a':t.status==='cancelled'?'#dc2626':'#374151'
     const esc = (v) => (v==null||v==='')?'—':String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    return '<tr style="background:'+bg+';border-bottom:1px solid #e5e7eb"><td style="font-weight:700;color:#0C2340">'+esc(t.ticket_no)+'</td><td style="font-weight:600">'+esc(t.department)+'</td><td>'+esc(t.purpose)+'</td><td>'+esc(stops.join(' → '))+'</td><td style="color:'+pColor+';font-weight:700;text-transform:uppercase;font-size:6px">'+esc(t.priority)+'</td><td>'+esc(t.vehicle_type_needed)+'</td><td style="font-weight:700;color:'+sColor+'">'+esc(t.status)+'</td><td>'+esc(t.requester_name)+'</td><td>'+esc(t.driver_name)+'</td><td style="font-family:monospace">'+esc(t.vehicle_plate)+'</td><td>'+esc(t.vehicle_name)+'</td><td>'+fmtDt(t.gate_out_at)+'</td><td>'+fmtDt(t.gate_in_at)+'</td><td style="text-align:right">'+(t.distance_km!=null?t.distance_km+'km':'—')+'</td><td style="text-align:right">'+dur+'</td><td style="text-align:right">'+(t.fuel_consumed_liters!=null?parseFloat(t.fuel_consumed_liters).toFixed(1)+'L':'—')+'</td><td style="text-align:right;font-weight:700">'+(t.fuel_cost?'₱'+parseFloat(t.fuel_cost).toLocaleString('en-PH',{minimumFractionDigits:2}):'—')+'</td></tr>'
+    return '<tr style="background:'+bg+';border-bottom:1px solid #e5e7eb"><td style="font-weight:700;color:#0C2340">'+esc(t.ticket_no)+'</td><td style="font-weight:600">'+esc(t.department)+'</td><td>'+esc(t.purpose)+'</td><td>'+esc(stops.join(' → '))+'</td><td style="color:'+pColor+';font-weight:700;text-transform:uppercase;font-size:6px">'+esc(t.priority)+'</td><td>'+esc(t.vehicle_type_needed)+'</td><td style="font-weight:700;color:'+sColor+'">'+esc(t.status)+'</td><td>'+esc(t.requester_name)+'</td><td>'+esc(t.driver_name)+'</td><td style="font-family:var(--mono,monospace)">'+esc(t.vehicle_plate)+'</td><td>'+esc(t.vehicle_name)+'</td><td>'+fmtDt(t.gate_out_at)+'</td><td>'+fmtDt(t.gate_in_at)+'</td><td style="text-align:right">'+(t.distance_km!=null?t.distance_km+'km':'—')+'</td><td style="text-align:right">'+dur+'</td><td style="text-align:right">'+(t.fuel_consumed_liters!=null?parseFloat(t.fuel_consumed_liters).toFixed(1)+'L':'—')+'</td><td style="text-align:right;font-weight:700">'+(t.fuel_cost?'₱'+parseFloat(t.fuel_cost).toLocaleString('en-PH',{minimumFractionDigits:2}):'—')+'</td></tr>'
   }).join('')
 
   const printWin = window.open('','_blank','width=1400,height=900')
