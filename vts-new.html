@@ -7789,7 +7789,11 @@ async function gpsRefresh(manual, fit) {
   GPS.data = (data.devices || []).map(gpsAnalyse)
     .sort((a, b) => (b.flag?.lvl === 'bad') - (a.flag?.lvl === 'bad') || (!!b.trip) - (!!a.trip) || (a.atHome - b.atHome) || String(a.plate || a.gps_name).localeCompare(String(b.plate || b.gps_name)))
   const stamp = document.getElementById('gpsStamp')
-  if (stamp) stamp.textContent = '· na-update ' + new Date(data.fetched_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Manila' })
+  if (stamp) {
+    const t = new Date(data.fetched_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Manila' })
+    if (data.stale) { stamp.textContent = '· last update ' + gpsAgo(data.fetched_at) + ' · GPS server slow, showing last known positions'; stamp.style.color = 'var(--amber)' }
+    else { stamp.textContent = '· updated ' + t; stamp.style.color = '' }
+  }
   gpsDrawMarkers(fit)
   gpsDrawList()
 }
