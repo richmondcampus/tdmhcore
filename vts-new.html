@@ -867,7 +867,7 @@ body.dark .vt-card:hover,body.dark .tpl-chip:hover{box-shadow:0 10px 24px -12px 
 
     <!-- Login form -->
     <div id="loginForm">
-      <h2 style="font-family:var(--display);font-stretch:78%;font-size:32px;line-height:1.05;font-weight:700;margin:6px 0 22px">Saan tayo pupunta ngayon?</h2>
+      <h2 style="font-family:var(--display);font-stretch:78%;font-size:32px;line-height:1.05;font-weight:700;margin:6px 0 22px">Where are we headed today?</h2>
       <div class="fg"><label class="fl">Email or Employee No.</label><input class="fi" type="text" id="loginUsername" placeholder="you@taytaydoctorshospital.com" autocomplete="username"></div>
       <div class="fg"><label class="fl">Password</label><input class="fi" type="password" id="loginPw" placeholder="••••••••" autocomplete="current-password"></div>
       <div id="loginErr" style="display:none;background:var(--red-s);color:var(--red);padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;border:1px solid rgba(220,38,38,.2)"></div>
@@ -1452,11 +1452,11 @@ function vtsRouteSVG(cls, full) {
     + '<text x="40" y="54" text-anchor="middle" font-family="Public Sans, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--text2)">TDMH</text>'
     + '<circle class="vr-pulse vr-p-stop" cx="486.6" cy="90" r="6" style="fill:var(--amber)"/>'
     + '<circle cx="486.6" cy="90" r="5.5" style="fill:var(--card);stroke:var(--amber)" stroke-width="2"/>'
-    + '<text x="486.6" y="106" text-anchor="middle" font-family="Public Sans, system-ui, sans-serif" font-size="10" letter-spacing="1" style="fill:var(--amber)">HINTO</text>'
+    + '<text x="486.6" y="106" text-anchor="middle" font-family="Public Sans, system-ui, sans-serif" font-size="10" letter-spacing="1" style="fill:var(--amber)">STOP</text>'
     + '<circle class="vr-pulse vr-p-end" cx="1160" cy="90" r="7" style="fill:var(--green)"/>'
     + '<path d="M1160 92 c-6 -8 -9 -12 -9 -16 a9 9 0 0 1 18 0 c0 4 -3 8 -9 16 z" style="fill:var(--green)"/>'
     + '<circle cx="1160" cy="76" r="3.2" style="fill:var(--card)"/>'
-    + '<text x="1146" y="66" text-anchor="end" font-family="Public Sans, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--green)">DESTINASYON</text>'
+    + '<text x="1146" y="66" text-anchor="end" font-family="Public Sans, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--green)">DESTINATION</text>'
     + head + '</svg>'
 }
 
@@ -1501,7 +1501,7 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 function vtsGreeting() {
   const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Manila' }))
-  return h < 12 ? 'MAGANDANG UMAGA' : h < 13 ? 'MAGANDANG TANGHALI' : h < 18 ? 'MAGANDANG HAPON' : 'MAGANDANG GABI'
+  return h < 12 ? 'GOOD MORNING' : h < 18 ? 'GOOD AFTERNOON' : 'GOOD EVENING'
 }
 function vtsDur(ms) {
   const m = Math.max(0, Math.round(ms / 60000))
@@ -1512,10 +1512,10 @@ const vtsEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<
 // Hero strip: bar, headline, live route, readout cells — the VTS twin of Core's Home strip
 function vtsHero({ headline, sub, action, cells, bar }) {
   const now = new Date()
-  const dateStr = now.toLocaleDateString('fil-PH', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }).toUpperCase()
+  const dateStr = now.toLocaleDateString('en-PH', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Manila' }).toUpperCase()
   const timeStr = now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' })
   return '<section class="vh-strip vts-paper">'
-    + '<div class="vh-bar"><span>' + vtsGreeting() + ' · ' + (bar || 'MOTOR POOL NGAYONG ARAW') + '</span><span>' + vtsEsc(dateStr) + ' · ' + vtsEsc(timeStr) + '</span></div>'
+    + '<div class="vh-bar"><span>' + vtsGreeting() + ' · ' + (bar || 'MOTOR POOL TODAY') + '</span><span>' + vtsEsc(dateStr) + ' · ' + vtsEsc(timeStr) + '</span></div>'
     + '<div class="vh-main"><div><h1 class="vh-head">' + headline + '</h1><p class="vh-sub">' + sub + '</p></div>' + (action || '') + '</div>'
     + vtsRouteSVG('vh-route', true)
     + '<div class="vh-read">' + cells.map(c =>
@@ -1531,7 +1531,7 @@ function vtsMiniRoute(t) {
   const exp = t.expected_return_at ? new Date(t.expected_return_at) - dep : 0
   const p = Math.round(100 * (exp > 0 ? Math.min(.94, Math.max(.06, ms / exp)) : Math.min(.94, Math.max(.06, ms / (3 * 3600000)))))
   const late = isOverdue(t)
-  const out = dep ? vtsDur(ms).toLowerCase().replace('h ', 'h ') + ' sa labas' : 'nasa biyahe'
+  const out = dep ? vtsDur(ms).toLowerCase() + ' out' : 'on trip'
   return '<div class="vt-trip' + (late ? ' late' : '') + '" aria-label="' + out + '">'
     + '<div class="vt-trip-meta"><span>TDMH</span><span>' + out + '</span></div>'
     + '<div class="vt-trip-track"><i style="width:' + p + '%"></i><b style="left:' + p + '%"></b></div></div>'
@@ -1861,12 +1861,12 @@ async function renderDashboard() {
         : t.vehicle_type_needed === 'motorcycle' ? '<span class="vt-tag moto">MOTO</span>' : ''
       const who = t.driver_name
         ? '<div><div class="vt-k">DRIVER · VEHICLE</div><div class="vt-v">' + vtsEsc(t.driver_name) + '</div><div class="vt-v2">' + vtsEsc(t.vehicle_name||t.vehicle_plate||'—') + '</div></div>'
-        : '<div><div class="vt-k">VEHICLE</div><div class="vt-v">' + vtsEsc(t.vehicle_name||t.vehicle_plate||'Wala pang driver') + '</div></div>'
+        : '<div><div class="vt-k">VEHICLE</div><div class="vt-v">' + vtsEsc(t.vehicle_name||t.vehicle_plate||'No driver yet') + '</div></div>'
       return '<div class="vt-card' + (viewOnly ? ' view-only' : '') + '" onclick="openViewModal(\'' + t.id + '\')">'
         + '<div class="vt-top"><span><span class="vt-no">' + vtsEsc(t.ticket_no||'—') + '</span>' + typeTag + '</span>' + badge(t.status) + '</div>'
         + '<div class="vt-body"><div class="vt-dept">' + vtsEsc(t.department||'—') + '</div>'
         + (t.destination ? '<div class="vt-dest">→ ' + vtsEsc(t.destination) + '</div>' : (t.purpose ? '<div class="vt-dest">' + vtsEsc(t.purpose) + '</div>' : ''))
-        + (ov ? '<div class="vt-over">⚠ LAMPAS NA: ' + vtsEsc(overdueDuration(t)) + '</div>' : '') + '</div>'
+        + (ov ? '<div class="vt-over">⚠ OVERDUE: ' + vtsEsc(overdueDuration(t)) + '</div>' : '') + '</div>'
         + (t.status === 'on-trip' ? vtsMiniRoute(t) : '')
         + '<div class="vt-info"><div><div class="vt-k">DEPARTURE</div><div class="vt-v">' + depStr + '</div></div>' + who + '</div>'
         + (actions ? '<div class="vt-acts" onclick="event.stopPropagation()">' + actions + '</div>' : '')
@@ -1929,21 +1929,21 @@ async function renderDashboard() {
       const anyLate = onTrip.some(t=>isOverdue(t))
       const todayCount = myPending.filter(t=>{const d=t.departure_at?new Date(t.departure_at):null;return!d||d<=todayEnd}).length + approvedNoDriver.length + assignedToday.length + onTrip.length
       const subParts = [
-        myPending.length ? myPending.length + ' naghihintay ng approval mo' : 'Walang naghihintay ng approval',
-        approvedNoDriver.length ? approvedNoDriver.length + ' kailangan ng driver' : '',
-        assignedToday.length ? assignedToday.length + ' naka-assign at aalis ngayong araw' : ''
+        myPending.length ? myPending.length + ' awaiting your approval' : 'Nothing awaiting approval',
+        approvedNoDriver.length ? approvedNoDriver.length + (approvedNoDriver.length === 1 ? ' needs' : ' need') + ' a driver' : '',
+        assignedToday.length ? assignedToday.length + ' assigned and leaving today' : ''
       ].filter(Boolean)
       const heroHTML = vtsHero({
         headline: onTrip.length
-          ? firstName + ', <em>' + onTrip.length + '</em> sasakyan ang nasa biyahe ngayon.'
-          : firstName + ', walang sasakyan sa labas ngayon.',
+          ? firstName + ', <em>' + onTrip.length + '</em> ' + (onTrip.length === 1 ? 'vehicle is' : 'vehicles are') + ' out on a trip.'
+          : firstName + ', no vehicles are out right now.',
         sub: subParts.join(' · '),
         action: '<button class="btn btn-ghost btn-sm" onclick="renderDashboard()">↻ Refresh</button>',
         cells: [
-          { label:'PENDING APPROVAL', n: myPending.length, sub: myPending.length ? 'naghihintay sa\'yo' : 'walang naghihintay', cls: myPending.length ? 'warn' : '', click:"kbTab('pending')" },
-          { label:'NEEDS DRIVER', n: approvedNoDriver.length, sub: approvedNoDriver.length ? 'i-assign na' : 'lahat may driver', cls: approvedNoDriver.length ? 'warn' : 'ok', click:"kbTab('today')" },
-          { label:'ON TRIP NOW', n: onTrip.length, sub: onTrip.length ? 'pinakamatagal: ' + vtsDur(longestOut).toLowerCase() : 'walang nasa labas', cls: anyLate ? 'warn' : '', click:"kbTab('today')" },
-          { label:'DONE THIS WEEK', n: thisWeekDone.length, sub: 'natapos na biyahe', cls:'ok', click:"kbTab('done')" }
+          { label:'PENDING APPROVAL', n: myPending.length, sub: myPending.length ? 'waiting on you' : 'all clear', cls: myPending.length ? 'warn' : '', click:"kbTab('pending')" },
+          { label:'NEEDS DRIVER', n: approvedNoDriver.length, sub: approvedNoDriver.length ? 'assign now' : 'all have drivers', cls: approvedNoDriver.length ? 'warn' : 'ok', click:"kbTab('today')" },
+          { label:'ON TRIP NOW', n: onTrip.length, sub: onTrip.length ? 'longest: ' + vtsDur(longestOut).toLowerCase() : 'none out', cls: anyLate ? 'warn' : '', click:"kbTab('today')" },
+          { label:'DONE THIS WEEK', n: thisWeekDone.length, sub: 'completed trips', cls:'ok', click:"kbTab('done')" }
         ]
       })
       const tabsHTML = '<div class="vts-tabs" role="tablist">' + [
@@ -2009,18 +2009,18 @@ async function renderDashboard() {
       const firstName = vtsEsc((currentProfile?.full_name||'').split(' ')[0] || 'Hello')
       const outNow = myToday.filter(t=>t.status==='on-trip')
       const heroHTML = vtsHero({
-        bar: 'MGA BIYAHE MO',
-        headline: outNow.length ? firstName + ', <em>' + outNow.length + '</em> sa mga biyahe mo ang nasa daan ngayon.'
-          : myToday.length ? firstName + ', may <em>' + myToday.length + '</em> biyahe ka ngayong araw.'
-          : myPending.length ? firstName + ', may <em>' + myPending.length + '</em> request kang naghihintay ng approval.'
-          : firstName + ', wala kang nakabinbing biyahe ngayon.',
-        sub: T.length + ' kabuuang request · ' + done.length + ' natapos',
-        action: '<button class="btn btn-pri btn-sm" onclick="goTo(\'new-ticket\')">+ Bagong request</button>',
+        bar: 'YOUR TRIPS',
+        headline: outNow.length ? firstName + ', <em>' + outNow.length + '</em> of your trips ' + (outNow.length === 1 ? 'is' : 'are') + ' on the road.'
+          : myToday.length ? firstName + ', you have <em>' + myToday.length + '</em> trip' + (myToday.length === 1 ? '' : 's') + ' today.'
+          : myPending.length ? firstName + ', <em>' + myPending.length + '</em> of your requests ' + (myPending.length === 1 ? 'is' : 'are') + ' awaiting approval.'
+          : firstName + ', you have no trips lined up right now.',
+        sub: T.length + ' requests in total · ' + done.length + ' completed',
+        action: '<button class="btn btn-pri btn-sm" onclick="goTo(\'new-ticket\')">+ New request</button>',
         cells: [
-          { label:'NAGHIHINTAY NG APPROVAL', n: myPending.length, sub: myPending.length ? 'hinihintay ang approver' : 'walang naghihintay', cls: myPending.length ? 'warn' : '', click:"kbTab('pending')" },
-          { label:'BIYAHE NGAYONG ARAW', n: myToday.length, sub: outNow.length ? outNow.length + ' nasa daan' : 'ngayong araw', cls: '', click:"kbTab('today')" },
-          { label:'NAKA-SCHEDULE', n: myUpcoming.length, sub: 'sa mga susunod na araw', cls: '', click:"kbTab('upcoming')" },
-          { label:'NATAPOS', n: done.length, sub: 'kabuuang biyahe', cls:'ok', click:"kbTab('done')" }
+          { label:'AWAITING APPROVAL', n: myPending.length, sub: myPending.length ? 'with the approver' : 'all clear', cls: myPending.length ? 'warn' : '', click:"kbTab('pending')" },
+          { label:'TRIPS TODAY', n: myToday.length, sub: outNow.length ? outNow.length + ' on the road' : 'today', cls: '', click:"kbTab('today')" },
+          { label:'SCHEDULED', n: myUpcoming.length, sub: 'in the coming days', cls: '', click:"kbTab('upcoming')" },
+          { label:'COMPLETED', n: done.length, sub: 'all time', cls:'ok', click:"kbTab('done')" }
         ]
       })
       const tabsHTML = '<div class="vts-tabs" role="tablist">' + [
@@ -2096,23 +2096,23 @@ async function renderDashboard() {
       if (t._isPool) {
         const depts = t._poolTickets.map(x=>x.department).join(' · ')
         return `<div class="vg-card pool${late?' late':''}">
-          <div class="vt-top"><span><span class="vt-no">POOLED TRIP</span><span class="vt-tag" style="color:var(--purple)">${t._poolCount} TICKETS</span></span><span class="vg-state">${late?'LAMPAS NA SA ORAS':isSoon?'AALIS NA':'MAMAYA'}</span></div>
+          <div class="vt-top"><span><span class="vt-no">POOLED TRIP</span><span class="vt-tag" style="color:var(--purple)">${t._poolCount} TICKETS</span></span><span class="vg-state">${late?'PAST DEPARTURE':isSoon?'LEAVING SOON':'LATER'}</span></div>
           <div class="vg-main">
             <div style="min-width:0"><div class="vt-dept">${vtsEsc(depts)}</div><div class="vg-who">${vtsEsc(t.driver_name||'—')} · ${vtsEsc(t.vehicle_plate||'—')}</div></div>
-            <div class="vg-time"><span class="vt-k">ALIS</span><b>${vgTime(dep)}</b></div>
+            <div class="vg-time"><span class="vt-k">DEPARTS</span><b>${vgTime(dep)}</b></div>
           </div>
           <div class="vg-btns">
             <button class="vg-btn ${late?'vg-btn--late':isSoon?'vg-btn--soon':'vg-btn--out'}" onpointerup="openPoolGateOut('${t._poolId}')">GATE OUT →</button>
-            <button class="vg-sub" onclick="showPoolDetails('${t._poolId}')">Detalye</button>
+            <button class="vg-sub" onclick="showPoolDetails('${t._poolId}')">Details</button>
           </div>
         </div>`
       }
       return `<div class="vg-card${late?' late':''}">
-        <div class="vt-top"><span class="vt-no">${vtsEsc(t.ticket_no)}</span><span class="vg-state">${late?'LAMPAS NA SA ORAS':isSoon?'AALIS NA':'MAMAYA'}</span></div>
+        <div class="vt-top"><span class="vt-no">${vtsEsc(t.ticket_no)}</span><span class="vg-state">${late?'PAST DEPARTURE':isSoon?'LEAVING SOON':'LATER'}</span></div>
         <div class="vg-main">
           <div style="min-width:0"><div class="vt-dept">${vtsEsc(t.department)}</div><div class="vt-dest">→ ${vtsEsc(t.destination||'—')}</div>
             <div class="vg-who">${vtsEsc(t.driver_name||'—')} · ${vtsEsc(t.vehicle_name||t.vehicle_plate||'—')}</div></div>
-          <div class="vg-time"><span class="vt-k">ALIS</span><b>${vgTime(dep)}</b><button class="vg-link" onclick="openViewModal('${t.id}')">Detalye</button></div>
+          <div class="vg-time"><span class="vt-k">DEPARTS</span><b>${vgTime(dep)}</b><button class="vg-link" onclick="openViewModal('${t.id}')">Details</button></div>
         </div>
         <button
           data-id="${t.id}"
@@ -2130,22 +2130,22 @@ async function renderDashboard() {
       if (t._isPool) {
         const depts = t._poolTickets.map(x=>x.department).join(' · ')
         return `<div class="vg-card pool">
-          <div class="vt-top"><span><span class="vt-no">POOLED TRIP</span><span class="vt-tag" style="color:var(--purple)">${t._poolCount} TICKETS</span></span><span class="vg-state">NASA BIYAHE</span></div>
+          <div class="vt-top"><span><span class="vt-no">POOLED TRIP</span><span class="vt-tag" style="color:var(--purple)">${t._poolCount} TICKETS</span></span><span class="vg-state">ON TRIP</span></div>
           <div class="vg-main"><div style="min-width:0"><div class="vt-dept">${vtsEsc(depts)}</div><div class="vg-who">${vtsEsc(t.driver_name||'—')} · ${vtsEsc(t.vehicle_plate||'—')}</div></div></div>
           <div class="vg-btns">
             <button class="vg-btn vg-btn--in" onpointerup="openPoolGateIn('${t._poolId}')">← GATE IN</button>
-            <button class="vg-sub" onclick="showPoolDetails('${t._poolId}')">Detalye</button>
+            <button class="vg-sub" onclick="showPoolDetails('${t._poolId}')">Details</button>
           </div>
         </div>`
       }
       const exp = t.expected_return_at ? new Date(t.expected_return_at) : null
       const late = exp && exp < today
       return `<div class="vg-card${late?' late':''}">
-        <div class="vt-top"><span class="vt-no">${vtsEsc(t.ticket_no)}</span><span class="vg-state">${late?'LAMPAS NA SA BALIK':'NASA BIYAHE'}</span></div>
+        <div class="vt-top"><span class="vt-no">${vtsEsc(t.ticket_no)}</span><span class="vg-state">${late?'OVERDUE RETURN':'ON TRIP'}</span></div>
         <div class="vg-main">
           <div style="min-width:0"><div class="vt-dept">${vtsEsc(t.department)}</div><div class="vt-dest">→ ${vtsEsc(t.destination||'—')}</div>
             <div class="vg-who">${vtsEsc(t.driver_name||'—')} · ${vtsEsc(t.vehicle_name||t.vehicle_plate||'—')}</div></div>
-          <div class="vg-time"><span class="vt-k">INAASAHANG BALIK</span><b>${vgTime(exp)}</b><button class="vg-link" onclick="openViewModal('${t.id}')">Detalye</button></div>
+          <div class="vg-time"><span class="vt-k">EXPECTED BACK</span><b>${vgTime(exp)}</b><button class="vg-link" onclick="openViewModal('${t.id}')">Details</button></div>
         </div>
         ${vtsMiniRoute(t)}
         <div style="height:10px"></div>
@@ -2160,35 +2160,35 @@ async function renderDashboard() {
       </div>`
     }
     const buildTodayTab = () => {
-      const urgent = nowCount > 0 ? `<div class="vg-alert"><div><b>${nowCount} sasakyan ang lampas na sa oras ng gate-out</b><span>Lumipas na ang departure time. I-proseso agad ang gate-out.</span></div></div>` : ''
+      const urgent = nowCount > 0 ? `<div class="vg-alert"><div><b>${nowCount} ${nowCount === 1 ? 'vehicle is' : 'vehicles are'} past gate-out time</b><span>The departure time has passed. Process the gate-out now.</span></div></div>` : ''
       const sec = (n, label, color, items, render) => items.length
         ? `<div class="vk-sec"><div class="vk-col-h" style="color:${color}">${label}<span class="vk-c">${items.length}</span></div><div class="vk-list">${items.map(render).join('')}</div></div>` : ''
       const isEmpty = !gateOutNow.length && !gateOutSoon.length && !onTripItems.length && !gateOutLater.length
       return urgent + (isEmpty
-        ? `<div class="vk-empty" style="padding:44px 16px"><div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--text)">Tahimik ang gate ngayon</div><div style="margin-top:4px">Walang kailangang gate-out o gate-in sa ngayon.</div></div>`
-        : sec('01','Gate out na','var(--red)',gateOutNow,rAssigned)
-          + sec('02','Aalis sa loob ng 2 oras','var(--amber)',gateOutSoon,rAssigned)
-          + sec('03','Nasa labas, hinihintay ang balik','var(--pri)',onTripItems,rOnTrip)
-          + sec('04','Mamaya pa','var(--text3)',gateOutLater,rAssigned))
+        ? `<div class="vk-empty" style="padding:44px 16px"><div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--text)">The gate is quiet</div><div style="margin-top:4px">No gate-outs or gate-ins are needed right now.</div></div>`
+        : sec('01','Gate out now','var(--red)',gateOutNow,rAssigned)
+          + sec('02','Leaving within 2 hours','var(--amber)',gateOutSoon,rAssigned)
+          + sec('03','Out, awaiting return','var(--pri)',onTripItems,rOnTrip)
+          + sec('04','Later today','var(--text3)',gateOutLater,rAssigned))
     }
 
     const buildUpcomingTab = () => {
-      if (!futureAssigned.length) return `<div class="vk-empty" style="padding:44px 16px">Walang naka-schedule na biyahe pagkatapos ngayong araw.</div>`
+      if (!futureAssigned.length) return `<div class="vk-empty" style="padding:44px 16px">No trips are scheduled after today.</div>`
       return futureAssigned.map(t => {
         const dep = new Date(t.departure_at)
         return `<div class="vg-row" onclick="openViewModal('${t.id}')">
           <div class="vg-date"><b>${dep.toLocaleDateString('en-PH',{day:'numeric',timeZone:'Asia/Manila'})}</b><span>${dep.toLocaleDateString('en-PH',{month:'short',timeZone:'Asia/Manila'}).toUpperCase()}</span></div>
           <div style="flex:1;min-width:0"><div class="vt-no">${vtsEsc(t.ticket_no)}</div>
             <div style="font-weight:600;font-size:13px">${vtsEsc(t.department)} → ${vtsEsc(t.destination||'—')}</div>
-            <div style="font-size:12px;color:var(--text3)">${vtsEsc(t.driver_name||'Wala pang driver')} · ${vgTime(dep)}</div></div>
+            <div style="font-size:12px;color:var(--text3)">${vtsEsc(t.driver_name||'No driver yet')} · ${vgTime(dep)}</div></div>
         </div>`
       }).join('')
     }
 
     const buildDoneTab = () => {
-      if (!doneToday.length) return `<div class="vk-empty" style="padding:44px 16px">Wala pang nakabalik ngayong araw. Lalabas dito ang mga biyahe pagkatapos ng gate-in.</div>`
+      if (!doneToday.length) return `<div class="vk-empty" style="padding:44px 16px">No returns yet today. Trips appear here after gate-in.</div>`
       return doneToday.map(t => `<div class="vg-row" onclick="openViewModal('${t.id}')">
-          <div class="vg-date" style="border-color:var(--green)"><b style="color:var(--green)">✓</b><span>BALIK</span></div>
+          <div class="vg-date" style="border-color:var(--green)"><b style="color:var(--green)">✓</b><span>BACK</span></div>
           <div style="flex:1;min-width:0"><div class="vt-no" style="color:var(--green)">${vtsEsc(t.ticket_no)}</div>
             <div style="font-weight:600;font-size:13px">${vtsEsc(t.department)} → ${vtsEsc(t.destination||'—')}</div>
             <div style="font-size:12px;color:var(--text3)">${vtsEsc(t.driver_name||'—')} · Gate-in ${t.gate_in_at ? vgTime(new Date(t.gate_in_at)) : '—'}</div></div>
@@ -2211,16 +2211,16 @@ async function renderDashboard() {
     const firstName = vtsEsc((currentProfile?.full_name||'').split(' ')[0] || 'Guard')
     document.getElementById('CONTENT').innerHTML = vtsHero({
       bar: 'GATE OPERATIONS',
-      headline: nowCount ? firstName + ', <em>' + nowCount + '</em> sasakyan ang dapat nang mag-gate-out.'
-        : onTripItems.length ? firstName + ', <em>' + onTripItems.length + '</em> sasakyan ang nasa labas ngayon.'
-        : firstName + ', tahimik ang gate ngayon.',
-      sub: gateOutSoon.length + ' aalis sa loob ng 2 oras · ' + doneToday.length + ' nakabalik na ngayong araw',
+      headline: nowCount ? firstName + ', <em>' + nowCount + '</em> ' + (nowCount === 1 ? 'vehicle is' : 'vehicles are') + ' due to gate out.'
+        : onTripItems.length ? firstName + ', <em>' + onTripItems.length + '</em> ' + (onTripItems.length === 1 ? 'vehicle is' : 'vehicles are') + ' out right now.'
+        : firstName + ', the gate is quiet right now.',
+      sub: gateOutSoon.length + ' leaving within 2 hours · ' + doneToday.length + ' back today',
       action: '<button class="btn btn-ghost btn-sm" onclick="renderDashboard()">↻ Refresh</button>',
       cells: [
-        { label:'GATE OUT NA', n: nowCount, sub: nowCount ? 'lampas na sa oras' : 'walang naiiwan', cls: nowCount ? 'bad' : 'ok', click:"guardSwitchTab('today')" },
-        { label:'AALIS SA 2 ORAS', n: gateOutSoon.length, sub: 'ihanda ang gate', cls: gateOutSoon.length ? 'warn' : '', click:"guardSwitchTab('today')" },
-        { label:'NASA LABAS', n: onTripItems.length, sub: 'hinihintay ang balik', cls: '', click:"guardSwitchTab('today')" },
-        { label:'NAKABALIK NGAYON', n: doneToday.length, sub: 'tapos na ang biyahe', cls:'ok', click:"guardSwitchTab('done')" }
+        { label:'GATE OUT NOW', n: nowCount, sub: nowCount ? 'past departure time' : 'none overdue', cls: nowCount ? 'bad' : 'ok', click:"guardSwitchTab('today')" },
+        { label:'LEAVING IN 2 HRS', n: gateOutSoon.length, sub: 'get the gate ready', cls: gateOutSoon.length ? 'warn' : '', click:"guardSwitchTab('today')" },
+        { label:'OUT NOW', n: onTripItems.length, sub: 'awaiting return', cls: '', click:"guardSwitchTab('today')" },
+        { label:'BACK TODAY', n: doneToday.length, sub: 'trips completed', cls:'ok', click:"guardSwitchTab('done')" }
       ]
     }) + '<div id="_guardTabContent"></div>'
     guardSwitchTab('today')
@@ -2411,7 +2411,7 @@ function renderTicketsTable() {
               const depMid = new Date(depPH.getFullYear(),depPH.getMonth(),depPH.getDate())
               return Math.round((depMid - nowMid) / (1000*60*60*24))
             })()
-          acts.push(`<span class="vtype" style="padding:0 6px">${daysAway === 1 ? 'BUKAS' : 'SA ' + daysAway + ' ARAW'}</span>`)
+          acts.push(`<span class="vtype" style="padding:0 6px">${daysAway === 1 ? 'TOMORROW' : 'IN ' + daysAway + ' DAYS'}</span>`)
         }
       }
       if (role==='guard' && t.status==='on-trip')
@@ -5383,44 +5383,44 @@ async function renderDriverDashboard() {
     const hoursAway = (dep - now) / (1000 * 60 * 60)
     const stops = Array.isArray(t.stops) && t.stops.length ? t.stops : (t.destination ? [t.destination] : [])
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stops[0]||t.destination||'')}`
-    const state = isActive ? ['NASA BIYAHE','var(--green)'] : hoursAway < 2 ? ['AALIS NA','var(--red)'] : hoursAway < 24 ? ['NGAYONG ARAW','var(--amber)'] : ['NAKA-SCHEDULE','var(--pri)']
+    const state = isActive ? ['ON TRIP','var(--green)'] : hoursAway < 2 ? ['LEAVING SOON','var(--red)'] : hoursAway < 24 ? ['TODAY','var(--amber)'] : ['SCHEDULED','var(--pri)']
     return `
     <div class="vd-card${isActive ? ' active' : ''}">
       <div class="vt-top"><span><span class="vt-no">${vtsEsc(t.ticket_no)}</span> ${priorityBadge(t.priority)}</span><span class="badge" style="color:${state[1]}">${state[0]}</span></div>
       <div class="vt-body"><div class="vt-dept">${vtsEsc(t.department)}</div><div class="vt-dest" style="white-space:normal">${vtsEsc(t.purpose||'—')}</div></div>
       ${isActive ? vtsMiniRoute(t) : ''}
-      <div class="vd-stops"><div class="vt-k">RUTA</div>
+      <div class="vd-stops"><div class="vt-k">ROUTE</div>
         ${stops.map((s,i) => `<div class="vd-stop"><i>${i+1}</i><span>${vtsEsc(s)}</span></div>`).join('')}
       </div>
       <div class="vt-info">
-        <div><div class="vt-k">ALIS</div><div class="vt-v">${fmtDT(t.departure_at)}</div></div>
-        <div><div class="vt-k">INAASAHANG BALIK</div><div class="vt-v">${ret ? fmtDT(t.expected_return_at) : '—'}</div></div>
-        <div><div class="vt-k">SASAKYAN</div><div class="vt-v">${vtsEsc(t.vehicle_plate||'—')}</div><div class="vt-v2">${vtsEsc(t.vehicle_name||'')}</div></div>
-        <div><div class="vt-k">PASAHERO</div><div class="vt-v">${t.pax_count||'—'}</div></div>
+        <div><div class="vt-k">DEPARTS</div><div class="vt-v">${fmtDT(t.departure_at)}</div></div>
+        <div><div class="vt-k">EXPECTED BACK</div><div class="vt-v">${ret ? fmtDT(t.expected_return_at) : '—'}</div></div>
+        <div><div class="vt-k">VEHICLE</div><div class="vt-v">${vtsEsc(t.vehicle_plate||'—')}</div><div class="vt-v2">${vtsEsc(t.vehicle_name||'')}</div></div>
+        <div><div class="vt-k">PASSENGERS</div><div class="vt-v">${t.pax_count||'—'}</div></div>
       </div>
       <div class="vt-acts">
         <a class="btn btn-pri" href="${mapsUrl}" target="_blank" rel="noopener">Navigate ↗</a>
-        <button class="btn btn-ghost" onclick="openViewModal('${t.id}')">Detalye</button>
+        <button class="btn btn-ghost" onclick="openViewModal('${t.id}')">Details</button>
       </div>
     </div>`
   }
   document.getElementById('CONTENT').innerHTML = `
   ${vtsHero({
-    bar: 'SHIFT NG DRIVER',
-    headline: activeTrip ? vtsEsc((driverRec.full_name||'').split(' ')[0]) + ', nasa biyahe ka papuntang <em>' + vtsEsc(activeTrip.destination || (activeTrip.stops||[])[0] || '—') + '</em>.'
-      : nextTrip ? vtsEsc((driverRec.full_name||'').split(' ')[0]) + ', ang susunod mong alis ay <em>' + new Date(nextTrip.departure_at).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Asia/Manila'}) + '</em>.'
-      : vtsEsc((driverRec.full_name||'').split(' ')[0]) + ', wala kang naka-assign na biyahe ngayon.',
-    sub: (driverRec.driver_type === 'ambulance' ? 'Ambulance driver' : driverRec.driver_type === 'both' ? 'All-type driver' : 'Regular driver') + ' · ' + (driverRec.shift||'AM') + ' shift' + (driverRec.license_no ? ' · Lisensya ' + vtsEsc(driverRec.license_no) : ''),
+    bar: 'DRIVER SHIFT',
+    headline: activeTrip ? vtsEsc((driverRec.full_name||'').split(' ')[0]) + ", you're on a trip to <em>" + vtsEsc(activeTrip.destination || (activeTrip.stops||[])[0] || '—') + '</em>.'
+      : nextTrip ? vtsEsc((driverRec.full_name||'').split(' ')[0]) + ', your next departure is at <em>' + new Date(nextTrip.departure_at).toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Asia/Manila'}) + '</em>.'
+      : vtsEsc((driverRec.full_name||'').split(' ')[0]) + ', you have no assigned trips right now.',
+    sub: (driverRec.driver_type === 'ambulance' ? 'Ambulance driver' : driverRec.driver_type === 'both' ? 'All-type driver' : 'Regular driver') + ' · ' + (driverRec.shift||'AM') + ' shift' + (driverRec.license_no ? ' · License ' + vtsEsc(driverRec.license_no) : ''),
     cells: [
-      { label:'NATAPOS NA BIYAHE', n: totalTrips, sub: 'kabuuan', cls:'ok', click:'' },
-      { label:'NAKA-ASSIGN', n: assignedTrips.length, sub: assignedTrips.length ? 'mga susunod na biyahe' : 'wala pa', cls: assignedTrips.length ? 'warn' : '', click:'' },
-      { label:'NASA BIYAHE', n: activeTrip ? 1 : 0, sub: activeTrip ? 'mag-gate-in pagbalik' : 'available ka', cls: activeTrip ? '' : 'ok', click:'' }
+      { label:'TRIPS COMPLETED', n: totalTrips, sub: 'all time', cls:'ok', click:'' },
+      { label:'ASSIGNED', n: assignedTrips.length, sub: assignedTrips.length ? 'upcoming trips' : 'none yet', cls: assignedTrips.length ? 'warn' : '', click:'' },
+      { label:'ON A TRIP', n: activeTrip ? 1 : 0, sub: activeTrip ? 'gate in when back' : "you're available", cls: activeTrip ? '' : 'ok', click:'' }
     ]
   })}
   <!-- Active or Next Trip -->
   ${activeOrNext ? `
   <div class="vk-col-h" style="color:var(--pri)">
-    ${activeTrip ? 'Nasa biyahe ka' : 'Susunod na assignment'}
+    ${activeTrip ? 'Current trip' : 'Next assignment'}
   </div>
   ${tripCard(activeOrNext, !!activeTrip)}` : `
   <div class="card" style="text-align:center;padding:32px;margin-bottom:14px">
@@ -5431,12 +5431,12 @@ async function renderDriverDashboard() {
 
   <!-- Upcoming Trips -->
   ${upcoming.length > 0 ? `
-  <div class="vk-col-h vk-sec" style="color:var(--text3)">Iba pang biyahe</div>
+  <div class="vk-col-h vk-sec" style="color:var(--text3)">Other upcoming trips</div>
   ${upcoming.map(t => tripCard(t, false)).join('')}` : ''}
 
   <!-- Trip History -->
   ${history.length > 0 ? `
-  <div class="vk-col-h vk-sec" style="color:var(--text3)">Kasaysayan</div>
+  <div class="vk-col-h vk-sec" style="color:var(--text3)">History</div>
   <div class="card card-np" style="overflow:hidden;margin-bottom:14px">
     <table class="tbl" style="font-size:12px">
       <thead><tr><th>Ticket</th><th>Department</th><th>Destination</th><th>Date</th><th>Vehicle</th><th>Rating</th></tr></thead>
@@ -5534,15 +5534,15 @@ async function renderOwnerDashboard() {
   document.getElementById('CONTENT').innerHTML = `
   ${vtsHero({
     bar: 'EXECUTIVE VIEW',
-    headline: onTrip.length ? vtsEsc((currentProfile?.full_name||'').split(' ')[0] || 'Hello') + ', <em>' + onTrip.length + '</em> sasakyan ang nasa biyahe ngayon.'
-      : vtsEsc((currentProfile?.full_name||'').split(' ')[0] || 'Hello') + ', lahat ng sasakyan ay nasa TDMH.',
-    sub: todayTrips.length + ' request ngayong araw · ' + pending.length + ' naghihintay ng approval',
+    headline: onTrip.length ? vtsEsc((currentProfile?.full_name||'').split(' ')[0] || 'Hello') + ', <em>' + onTrip.length + '</em> ' + (onTrip.length === 1 ? 'vehicle is' : 'vehicles are') + ' out on a trip.'
+      : vtsEsc((currentProfile?.full_name||'').split(' ')[0] || 'Hello') + ', every vehicle is at TDMH.',
+    sub: todayTrips.length + ' requests today · ' + pending.length + ' awaiting approval',
     cells: [
-      { label:'AVAILABLE NA SASAKYAN', n: vAvail.length, sub: 'nasa motor pool', cls:'ok', click:"goTo('vehicles')" },
-      { label:'NASA BIYAHE', n: vOnTrip.length, sub: 'sasakyan sa labas', cls:'', click:"goTo('vehicles')" },
-      { label:'AVAILABLE NA DRIVER', n: dAvail.length, sub: 'handang i-assign', cls:'ok', click:"goTo('drivers')" },
-      { label:'PENDING APPROVAL', n: pending.length, sub: pending.length ? 'naghihintay' : 'walang naghihintay', cls: pending.length ? 'warn' : '', click:"goTo('tickets')" },
-      { label:'REQUEST NGAYON', n: todayTrips.length, sub: 'ngayong araw', cls:'', click:"goTo('tickets')" }
+      { label:'VEHICLES AVAILABLE', n: vAvail.length, sub: 'in the motor pool', cls:'ok', click:"goTo('vehicles')" },
+      { label:'ON A TRIP', n: vOnTrip.length, sub: 'vehicles out', cls:'', click:"goTo('vehicles')" },
+      { label:'DRIVERS AVAILABLE', n: dAvail.length, sub: 'ready to assign', cls:'ok', click:"goTo('drivers')" },
+      { label:'PENDING APPROVAL', n: pending.length, sub: pending.length ? 'waiting' : 'all clear', cls: pending.length ? 'warn' : '', click:"goTo('tickets')" },
+      { label:'REQUESTS TODAY', n: todayTrips.length, sub: 'today', cls:'', click:"goTo('tickets')" }
     ]
   })}
   <!-- KPI STATS -->
@@ -5958,24 +5958,24 @@ async function renderNewTicket() {
 
   const tmplBar = _templates.length > 0 ? `
     <div class="tpl-box">
-      <div class="vk-col-h" style="color:var(--text3);margin:0">MGA TEMPLATE MO</div>
-      <div class="tpl-sub">Pumili ng template para awtomatikong mapunan ang destinasyon, layunin, at uri ng sasakyan.</div>
+      <div class="vk-col-h" style="color:var(--text3);margin:0">YOUR TEMPLATES</div>
+      <div class="tpl-sub">Pick a template to fill in the destination, purpose, and vehicle type.</div>
       <div class="tpl-grid">
         ${_templates.slice(0,6).map(t => {
           const where = (Array.isArray(t.stops) && t.stops.length ? t.stops.join(' → ') : (t.destination || t.purpose || ''))
           return `<button type="button" class="tpl-chip" onclick="applyTemplate('${t.id}')" title="${vtsEsc(where)}">
             ${typeTag(t.vehicle_type)}<b>${vtsEsc(t.name)}</b>${where ? `<span>→ ${vtsEsc(where)}</span>` : ''}
           </button>`}).join('')}
-        ${_templates.length > 6 ? `<button type="button" class="tpl-chip tpl-more" onclick="openTemplatesModal()"><b>+${_templates.length - 6} pa</b><span>Tingnan lahat</span></button>` : ''}
+        ${_templates.length > 6 ? `<button type="button" class="tpl-chip tpl-more" onclick="openTemplatesModal()"><b>+${_templates.length - 6} more</b><span>View all</span></button>` : ''}
       </div>
     </div>` : ''
 
   document.getElementById('CONTENT').innerHTML = `
   <div style="max-width:600px">
     <div class="vts-flow">
-      <div class="vk-col-h" style="color:var(--text3);margin:0">DALOY NG REQUEST</div>
+      <div class="vk-col-h" style="color:var(--text3);margin:0">HOW A REQUEST MOVES</div>
       <ol><li><i>1</i>Request</li><li><i>2</i>Approval</li><li><i>3</i>Driver</li><li><i>4</i>Gate out</li><li><i>5</i>Gate in</li></ol>
-      <p>Ang ambulance o EMS ay diretso sa <strong>Ambulance Approver</strong>.</p>
+      <p>Ambulance and EMS requests go straight to the <strong>Ambulance Approver</strong>.</p>
     </div>
 
     ${tmplBar}
@@ -6024,8 +6024,8 @@ async function renderNewTicket() {
             <div id="ntEmergencyChk" style="width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s;background:transparent"></div>
           </div>
           <div style="flex:1">
-            <div style="font-size:13.5px;font-weight:700;color:var(--red)">Emergency — hindi na kailangan ang 48-hour filing</div>
-            <div style="font-size:12px;color:var(--text2);margin-top:2px">I-check kung hindi na makapaghihintay ng 48 oras ang biyahe. Agad na aabisuhan ang approver.</div>
+            <div style="font-size:13.5px;font-weight:700;color:var(--red)">Emergency — skip the 48-hour filing rule</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">Check this if the trip cannot wait 48 hours. The approver is alerted right away.</div>
           </div>
           <div id="ntEmergencyBadge" style="display:none;background:var(--red-s);color:var(--red);font-size:10px;font-weight:700;padding:3px 8px;border-radius:2px;white-space:nowrap;flex-shrink:0">EMERGENCY</div>
         </div>
@@ -7678,7 +7678,7 @@ const gpsEsc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'
 const GPS_HOME = { lat: 14.5735, lng: 121.1252, radiusM: 250, label: 'TDMH' }   // hospital motor pool
 const GPS_REFRESH_MS = 30000
 const GPS_COLORS = { Move: '#16a34a', Stop: '#2563eb', Offline: '#94a3b8' }
-const GPS_LABEL = { Move: 'Umaandar', Stop: 'Nakahinto', Offline: 'Offline' }
+const GPS_LABEL = { Move: 'Moving', Stop: 'Stopped', Offline: 'Offline' }
 let GPS = { map: null, markers: {}, data: [], timer: null, selected: null, home: null, next: 0, loading: false, mode: 'live', hist: null, liveLayer: null }
 
 function gpsLeave() {
@@ -7697,10 +7697,10 @@ function gpsDistM(a, b) {
 function gpsAgo(iso) {
   if (!iso) return '—'
   const m = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000))
-  if (m < 1) return 'ngayon lang'
-  if (m < 60) return m + ' min ang nakalipas'
-  if (m < 1440) return Math.floor(m / 60) + ' oras ang nakalipas'
-  return Math.floor(m / 1440) + ' araw ang nakalipas'
+  if (m < 1) return 'just now'
+  if (m < 60) return m + ' min ago'
+  if (m < 1440) return Math.floor(m / 60) + ' hr ago'
+  return Math.floor(m / 1440) + (Math.floor(m / 1440) === 1 ? ' day ago' : ' days ago')
 }
 function gpsLoadLeaflet() {
   if (window.L) return Promise.resolve()
@@ -7708,7 +7708,7 @@ function gpsLoadLeaflet() {
     const css = document.createElement('link'); css.rel = 'stylesheet'
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'; document.head.appendChild(css)
     const js = document.createElement('script'); js.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js'
-    js.onload = res; js.onerror = () => rej(new Error('Hindi ma-load ang map library')); document.head.appendChild(js)
+    js.onload = res; js.onerror = () => rej(new Error('Could not load the map library')); document.head.appendChild(js)
   })
 }
 // Enrich each device with where it is relative to TDMH and whether that matches the VTS trip state
@@ -7717,10 +7717,10 @@ function gpsAnalyse(d) {
   const dist = has ? gpsDistM(GPS_HOME, d) : null
   const atHome = dist != null && dist <= GPS_HOME.radiusM
   let flag = null
-  if (d.trip && atHome && d.gps_status !== 'Offline') flag = { lvl: 'warn', txt: 'Nasa TDMH na pero hindi pa na-gate-in.' }
-  else if (!d.trip && !atHome && d.gps_status === 'Move' && d.vehicle_id) flag = { lvl: 'bad', txt: 'Umaandar sa labas pero walang trip sa VTS.' }
-  else if (!d.trip && !atHome && d.gps_status !== 'Offline' && d.vehicle_id) flag = { lvl: 'warn', txt: 'Nasa labas pero walang trip sa VTS.' }
-  else if (d.gps_status === 'Offline') flag = { lvl: 'mute', txt: 'Walang signal mula sa GPS ' + gpsAgo(d.last_at) + '.' }
+  if (d.trip && atHome && d.gps_status !== 'Offline') flag = { lvl: 'warn', txt: 'Back at TDMH but not gated in yet.' }
+  else if (!d.trip && !atHome && d.gps_status === 'Move' && d.vehicle_id) flag = { lvl: 'bad', txt: 'Moving outside with no VTS trip.' }
+  else if (!d.trip && !atHome && d.gps_status !== 'Offline' && d.vehicle_id) flag = { lvl: 'warn', txt: 'Outside with no VTS trip.' }
+  else if (d.gps_status === 'Offline') flag = { lvl: 'mute', txt: 'No GPS signal (last seen ' + gpsAgo(d.last_at) + ').' }
   return { ...d, has, dist, atHome, flag }
 }
 
@@ -7729,14 +7729,14 @@ async function renderGPS() {
   const C = document.getElementById('CONTENT')
   C.innerHTML = `
   <div class="gps-head">
-    <div style="font-size:13px;color:var(--text2)">Live mula sa AKSH GPS <span id="gpsStamp" style="color:var(--text3)"></span></div>
+    <div style="font-size:13px;color:var(--text2)">Live from AKSH GPS <span id="gpsStamp" style="color:var(--text3)"></span></div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div class="gps-live" title="Kusang kumukuha ng bagong lokasyon kada 30 segundo">
-        <span class="gps-live-dot"></span><span id="gpsCountdown">Auto-refresh sa 30s</span>
+      <div class="gps-live" title="Fetches fresh positions every 30 seconds">
+        <span class="gps-live-dot"></span><span id="gpsCountdown">Auto-refresh in 30s</span>
         <span class="gps-live-bar"><i id="gpsBar"></i></span>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="gpsFitAll()">⤢ Ipakita lahat</button>
-      <button class="btn btn-pri btn-sm gps-refresh" id="gpsRefreshBtn" onclick="gpsRefresh(true)"><span class="gps-spin">↻</span> I-refresh ngayon</button>
+      <button class="btn btn-ghost btn-sm" onclick="gpsFitAll()">⤢ Show all</button>
+      <button class="btn btn-pri btn-sm gps-refresh" id="gpsRefreshBtn" onclick="gpsRefresh(true)"><span class="gps-spin">↻</span> Refresh now</button>
     </div>
   </div>
   <div class="gps-grid">
@@ -7746,7 +7746,7 @@ async function renderGPS() {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
       <div id="gpsLive" style="display:flex;flex-direction:column;gap:8px">
-        <div id="gpsSummary" style="font-size:13px;font-weight:700">Kinukuha ang lokasyon...</div>
+        <div id="gpsSummary" style="font-size:13px;font-weight:700">Fetching positions...</div>
         <div id="gpsList" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
       <div id="gpsHist" class="gps-hist" style="display:none"></div>
@@ -7767,7 +7767,7 @@ function gpsTick() {
   if (document.hidden || GPS.loading) return
   const left = Math.max(0, Math.ceil((GPS.next - Date.now()) / 1000))
   const cd = document.getElementById('gpsCountdown'), bar = document.getElementById('gpsBar')
-  if (cd) cd.textContent = left > 0 ? `Auto-refresh sa ${left}s` : 'Nire-refresh...'
+  if (cd) cd.textContent = left > 0 ? `Auto-refresh in ${left}s` : 'Refreshing...'
   if (bar) bar.style.width = (100 - left / (GPS_REFRESH_MS / 1000) * 100) + '%'
   if (left <= 0) gpsRefresh(false)
 }
@@ -7776,14 +7776,14 @@ async function gpsRefresh(manual, fit) {
   GPS.loading = true
   const btn = document.getElementById('gpsRefreshBtn'), cd = document.getElementById('gpsCountdown')
   if (btn) { btn.classList.add('loading'); btn.disabled = true }
-  if (cd) cd.textContent = 'Nire-refresh...'
+  if (cd) cd.textContent = 'Refreshing...'
   const res = await SB.functions.invoke('vts-gps', { body: {} }).catch(e => ({ error: e }))
   GPS.loading = false
   GPS.next = Date.now() + GPS_REFRESH_MS
   if (btn) { btn.classList.remove('loading'); btn.disabled = false }
   const { data, error } = res
   if (error || data?.error) {
-    sum.innerHTML = `<span style="color:var(--red)">Hindi makuha ang GPS ngayon.</span> <span style="font-weight:500;color:var(--text3);font-size:12px">${gpsEsc(data?.error || error?.message || '')}</span>`
+    sum.innerHTML = `<span style="color:var(--red)">GPS is unavailable right now.</span> <span style="font-weight:500;color:var(--text3);font-size:12px">${gpsEsc(data?.error || error?.message || '')}</span>`
     return
   }
   GPS.data = (data.devices || []).map(gpsAnalyse)
@@ -7806,12 +7806,12 @@ function gpsPopup(d) {
   const t = d.trip
   return `<div style="min-width:210px;font-family:inherit">
     <div style="font-weight:800;font-size:14px">${gpsEsc(d.vehicle_name || d.gps_name)}</div><div style="font-size:12px;font-weight:700;color:#64748b">${gpsEsc(d.plate || '—')}</div>
-    <div style="margin-top:4px;font-size:12px"><b style="color:${GPS_COLORS[d.gps_status]}">${GPS_LABEL[d.gps_status]}</b>${d.gps_status === 'Move' ? `, ${Math.round(d.speed)} km/h` : ''} · ${d.atHome ? 'nasa TDMH' : (d.dist != null ? (d.dist / 1000).toFixed(1) + ' km mula TDMH' : '')}</div>
-    <div style="font-size:11.5px;color:#64748b;margin-top:2px">Huling ulat: ${gpsAgo(d.last_at)}</div>
-    ${t ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:12px"><b>${gpsEsc(t.ticket_no)}</b>: ${gpsEsc(t.driver_name || '—')} papuntang <b>${gpsEsc(t.destination || '—')}</b><br><span style="color:#64748b">Gate-out ${fmtMins((Date.now() - new Date(t.gate_out_at)) / 60000)} na ang nakalipas</span></div>` : ''}
+    <div style="margin-top:4px;font-size:12px"><b style="color:${GPS_COLORS[d.gps_status]}">${GPS_LABEL[d.gps_status]}</b>${d.gps_status === 'Move' ? `, ${Math.round(d.speed)} km/h` : ''} · ${d.atHome ? 'at TDMH' : (d.dist != null ? (d.dist / 1000).toFixed(1) + ' km from TDMH' : '')}</div>
+    <div style="font-size:11.5px;color:#64748b;margin-top:2px">Last report: ${gpsAgo(d.last_at)}</div>
+    ${t ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:12px"><b>${gpsEsc(t.ticket_no)}</b>: ${gpsEsc(t.driver_name || '—')} to <b>${gpsEsc(t.destination || '—')}</b><br><span style="color:#64748b">Gate-out ${fmtMins((Date.now() - new Date(t.gate_out_at)) / 60000)} ago</span></div>` : ''}
     ${d.flag && d.flag.lvl !== 'mute' ? `<div style="margin-top:8px;font-size:11.5px;font-weight:700;color:${d.flag.lvl === 'bad' ? '#dc2626' : '#d97706'}">${gpsEsc(d.flag.txt)}</div>` : ''}
-    <div id="gpsAddr_${d.device_id}" style="margin-top:8px;font-size:11.5px"><a href="javascript:void(0)" onclick="gpsAddress(${d.device_id})">📍 Ano ang address dito?</a></div>
-    <button class="btn btn-pri btn-sm" style="margin-top:8px;width:100%" onclick="gpsHistOpen(${d.device_id})">🕘 Kasaysayan ng biyahe</button>
+    <div id="gpsAddr_${d.device_id}" style="margin-top:8px;font-size:11.5px"><a href="javascript:void(0)" onclick="gpsAddress(${d.device_id})">📍 What address is this?</a></div>
+    <button class="btn btn-pri btn-sm" style="margin-top:8px;width:100%" onclick="gpsHistOpen(${d.device_id})">🕘 Trip history</button>
   </div>`
 }
 function gpsDrawMarkers(fit) {
@@ -7849,16 +7849,16 @@ function gpsCluster() {
     const lat = ds.reduce((a, d) => a + d.lat, 0) / ds.length, lng = ds.reduce((a, d) => a + d.lng, 0) / ds.length
     const moving = ds.filter(d => d.gps_status === 'Move').length
     const flagged = ds.some(d => d.flag && d.flag.lvl !== 'mute')
-    const title = ds.every(d => d.atHome) ? 'Nasa TDMH' : ds.length + ' sasakyan'
+    const title = ds.every(d => d.atHome) ? 'At TDMH' : ds.length + ' vehicles'
     const icon = L.divIcon({ className: 'gps-pin', iconSize: [0, 0],
-      html: `<div class="gps-cl${flagged ? ' warn' : ''}"><b>${ds.length}</b></div><div class="gps-tag gps-tag-cl"><span>${title}</span><small>${moving ? moving + ' umaandar' : 'nakahinto lahat'}</small></div>` })
-    const cm = L.marker([lat, lng], { icon, zIndexOffset: 600, keyboard: true, title: ds.length + ' sasakyan' }).addTo(GPS.clusterLayer)
+      html: `<div class="gps-cl${flagged ? ' warn' : ''}"><b>${ds.length}</b></div><div class="gps-tag gps-tag-cl"><span>${title}</span><small>${moving ? moving + ' moving' : 'all stopped'}</small></div>` })
+    const cm = L.marker([lat, lng], { icon, zIndexOffset: 600, keyboard: true, title: ds.length + ' vehicles' }).addTo(GPS.clusterLayer)
     cm.on('click', () => {
       const b = L.latLngBounds(ds.map(d => [d.lat, d.lng]))
       const tight = GPS.map.getZoom() >= 17 || b.getNorthEast().distanceTo(b.getSouthWest()) < 40
       if (!tight) { GPS.map.fitBounds(b, { padding: [70, 70], maxZoom: 18 }); return }
       L.popup({ minWidth: 220 }).setLatLng([lat, lng]).setContent(
-        `<div style="font-weight:800;font-size:14px;margin-bottom:6px">${ds.length} sasakyan dito</div>` +
+        `<div style="font-weight:800;font-size:14px;margin-bottom:6px">${ds.length} vehicles here</div>` +
         ds.map(d => `<a href="javascript:void(0)" class="gps-cl-row" onclick="gpsFocus(${d.device_id})"><b>${gpsEsc(gpsShort(d))}</b> <span>${gpsEsc(d.plate || '')}</span><i style="color:${GPS_COLORS[d.gps_status]}">● ${GPS_LABEL[d.gps_status]}</i></a>`).join('')
       ).openOn(GPS.map)
     })
@@ -7875,22 +7875,22 @@ function gpsDrawList() {
   const out = GPS.data.filter(d => d.has && !d.atHome && d.gps_status !== 'Offline').length
   const flags = GPS.data.filter(d => d.flag && d.flag.lvl !== 'mute').length
   const sum = document.getElementById('gpsSummary')
-  if (sum) sum.innerHTML = `${out} nasa labas, ${GPS.data.filter(d => d.atHome).length} nasa TDMH${flags ? ` <span style="color:var(--amber)">· ${flags} kailangang i-check</span>` : ''}`
+  if (sum) sum.innerHTML = `${out} out, ${GPS.data.filter(d => d.atHome).length} at TDMH${flags ? ` <span style="color:var(--amber)">· ${flags} to check</span>` : ''}`
   const el = document.getElementById('gpsList'); if (!el) return
   el.innerHTML = GPS.data.map(d => {
     const c = GPS_COLORS[d.gps_status]
     const border = d.flag?.lvl === 'bad' ? 'var(--red)' : d.flag?.lvl === 'warn' ? 'var(--amber)' : 'var(--border)'
-    const where = d.atHome ? 'Nasa TDMH' : d.dist != null ? (d.dist / 1000).toFixed(1) + ' km mula TDMH' : 'Walang lokasyon'
+    const where = d.atHome ? 'At TDMH' : d.dist != null ? (d.dist / 1000).toFixed(1) + ' km from TDMH' : 'No location'
     return `<div class="gps-card" role="button" tabindex="0" style="border-color:${border}" onclick="gpsFocus(${d.device_id})" onkeydown="if(event.key==='Enter')gpsFocus(${d.device_id})">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span style="font-size:12.5px;font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${gpsEsc(gpsShort(d))} <span style="font-weight:600;color:var(--text3)">${gpsEsc(d.plate || '')}</span></span>
         <span style="font-size:10.5px;font-weight:700;color:${c}">● ${GPS_LABEL[d.gps_status]}${d.gps_status === 'Move' ? ' ' + Math.round(d.speed) + ' km/h' : ''}</span>
       </div>
       <div style="font-size:11.5px;color:var(--text2);margin-top:1px">${where}</div>
-      ${d.trip ? `<div style="font-size:11.5px;margin-top:5px">${gpsEsc(d.trip.driver_name || '—')} papuntang <b>${gpsEsc(d.trip.destination || '—')}</b> <span style="color:var(--text3)">(${gpsEsc(d.trip.ticket_no)})</span></div>` : ''}
+      ${d.trip ? `<div style="font-size:11.5px;margin-top:5px">${gpsEsc(d.trip.driver_name || '—')} to <b>${gpsEsc(d.trip.destination || '—')}</b> <span style="color:var(--text3)">(${gpsEsc(d.trip.ticket_no)})</span></div>` : ''}
       ${d.flag ? `<div style="font-size:10.5px;margin-top:5px;font-weight:600;color:${d.flag.lvl === 'bad' ? 'var(--red)' : d.flag.lvl === 'warn' ? 'var(--amber)' : 'var(--text3)'}">${gpsEsc(d.flag.txt)}</div>` : ''}
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px">
-        <span style="font-size:10px;color:var(--text3)">Huling ulat ${gpsAgo(d.last_at)}</span>
+        <span style="font-size:10px;color:var(--text3)">Last report ${gpsAgo(d.last_at)}</span>
         <button class="gps-hist-btn" onclick="event.stopPropagation();gpsHistOpen(${d.device_id})">🕘 History</button>
       </div>
     </div>`
@@ -7909,9 +7909,9 @@ function gpsFocus(id) {
 async function gpsAddress(id) {
   const d = GPS.data.find(x => x.device_id === id), el = document.getElementById('gpsAddr_' + id)
   if (!d || !el) return
-  el.textContent = 'Hinahanap ang address...'
+  el.textContent = 'Looking up the address...'
   const { data, error } = await SB.functions.invoke('vts-gps', { body: { action: 'address', lat: d.lat, lng: d.lng } })
-  el.textContent = (!error && data?.address) ? '📍 ' + data.address : 'Hindi makuha ang address.'
+  el.textContent = (!error && data?.address) ? '📍 ' + data.address : 'Could not get the address.'
 }
 
 // ── Tracking history (route, stops, playback) ─────────────────────────────
@@ -7920,7 +7920,7 @@ const GPS_STOP_RADIUS = 200       // metres
 const GPS_SPEEDS = [[60, '1 min/s'], [300, '5 min/s'], [900, '15 min/s']]
 const gpsTimePH = iso => iso ? new Date(iso).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' }) : '—'
 const gpsDatePH = d => new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10)          // 'YYYY-MM-DD' in Manila
-const gpsDurTxt = ms => { const m = Math.round(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' oras' + (m % 60 ? ' ' + (m % 60) + ' min' : '') }
+const gpsDurTxt = ms => { const m = Math.round(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' hr' + (m % 60 ? ' ' + (m % 60) + ' min' : '') }
 
 function gpsHistAnalyse(pts) {
   let dist = 0, moving = 0, max = 0
@@ -8007,11 +8007,11 @@ function gpsHistDraw() {
   const line = L.polyline(H.pts.map(p => [p.lat, p.lng]), { color: H.tripSel != null ? '#16a34a' : '#2563eb', weight: 4, opacity: .9 }).addTo(H.layer)
   const first = H.pts[0], last = H.pts[H.pts.length - 1]
   L.circleMarker([first.lat, first.lng], { radius: 7, color: '#fff', weight: 2, fillColor: '#16a34a', fillOpacity: 1 }).addTo(H.layer)
-    .bindTooltip('Simula ' + gpsTimePH(first.t), { direction: 'top' })
+    .bindTooltip('Start ' + gpsTimePH(first.t), { direction: 'top' })
   L.circleMarker([last.lat, last.lng], { radius: 7, color: '#fff', weight: 2, fillColor: '#dc2626', fillOpacity: 1 }).addTo(H.layer)
-    .bindTooltip('Dulo ' + gpsTimePH(last.t), { direction: 'top' })
+    .bindTooltip('End ' + gpsTimePH(last.t), { direction: 'top' })
   H.stats.stops.forEach((s, n) => L.circleMarker([s.lat, s.lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#d97706', fillOpacity: 1 }).addTo(H.layer)
-    .bindTooltip(`Hinto ${n + 1}: ${gpsDurTxt(s.dur)} (${gpsTimePH(s.from)}–${gpsTimePH(s.to)})${s.atHome ? ', nasa TDMH' : ''}`, { direction: 'top' }))
+    .bindTooltip(`Stop ${n + 1}: ${gpsDurTxt(s.dur)} (${gpsTimePH(s.from)}–${gpsTimePH(s.to)})${s.atHome ? ', at TDMH' : ''}`, { direction: 'top' }))
   H.cursor = L.marker([first.lat, first.lng], { icon: L.divIcon({ className: 'gps-pin', iconSize: [0, 0],
     html: `<div class="gps-dot" style="background:#0f172a"></div>` }), zIndexOffset: 1000 }).addTo(H.layer)
   GPS.map.invalidateSize()
@@ -8021,40 +8021,40 @@ function gpsHistPanel(state, msg) {
   const H = GPS.hist, el = document.getElementById('gpsHist'); if (!H || !el) return
   const d = H.d
   const head = `
-    <button class="btn btn-ghost btn-sm" onclick="gpsHistClose()">← Bumalik sa live</button>
+    <button class="btn btn-ghost btn-sm" onclick="gpsHistClose()">← Back to live</button>
     <div style="margin-top:10px"><div style="font-size:15px;font-weight:800">${gpsEsc(d.vehicle_name || d.gps_name)}</div>
-      <div style="font-size:12px;color:var(--text3);font-weight:600">${gpsEsc(d.plate || '')} · Kasaysayan ng biyahe</div></div>
+      <div style="font-size:12px;color:var(--text3);font-weight:600">${gpsEsc(d.plate || '')} · Trip history</div></div>
     <div class="gps-hist-range">
       <input type="date" class="fi" value="${H.date}" max="${gpsDatePH(new Date())}" onchange="GPS.hist.date=this.value;gpsHistLoad()">
-      <button class="gps-chip ${H.range === 'day' && H.date === gpsDatePH(new Date()) ? 'on' : ''}" onclick="GPS.hist.date=gpsDatePH(new Date());gpsHistLoad()">Ngayon</button>
-      <button class="gps-chip ${H.range === 'day' && H.date === gpsDatePH(new Date(Date.now() - 86400000)) ? 'on' : ''}" onclick="GPS.hist.date=gpsDatePH(new Date(Date.now()-86400000));gpsHistLoad()">Kahapon</button>
-      <button class="gps-chip ${H.range === 'last3' ? 'on' : ''}" onclick="gpsHistLoad('last3')">Huling 3 oras</button>
+      <button class="gps-chip ${H.range === 'day' && H.date === gpsDatePH(new Date()) ? 'on' : ''}" onclick="GPS.hist.date=gpsDatePH(new Date());gpsHistLoad()">Today</button>
+      <button class="gps-chip ${H.range === 'day' && H.date === gpsDatePH(new Date(Date.now() - 86400000)) ? 'on' : ''}" onclick="GPS.hist.date=gpsDatePH(new Date(Date.now()-86400000));gpsHistLoad()">Yesterday</button>
+      <button class="gps-chip ${H.range === 'last3' ? 'on' : ''}" onclick="gpsHistLoad('last3')">Last 3 hours</button>
     </div>`
-  if (state === 'loading') { el.innerHTML = head + `<div class="gps-hist-note">Kinukuha ang dinaanan...</div>`; return }
-  if (state === 'error') { el.innerHTML = head + `<div class="gps-hist-note" style="color:var(--red)">Hindi makuha ang history. ${gpsEsc(msg || '')}</div>`; return }
+  if (state === 'loading') { el.innerHTML = head + `<div class="gps-hist-note">Loading the route...</div>`; return }
+  if (state === 'error') { el.innerHTML = head + `<div class="gps-hist-note" style="color:var(--red)">Could not load the history. ${gpsEsc(msg || '')}</div>`; return }
   const S = H.stats
-  const trips = H.trips.length ? `<div class="gps-hist-sec">Mga trip sa VTS</div>
+  const trips = H.trips.length ? `<div class="gps-hist-sec">VTS trips</div>
     <div style="display:flex;flex-direction:column;gap:6px">
-      <button class="gps-trip ${H.tripSel == null ? 'on' : ''}" onclick="gpsHistSelect(null)"><b>Buong ${H.range === 'last3' ? 'huling 3 oras' : 'araw'}</b></button>
+      <button class="gps-trip ${H.tripSel == null ? 'on' : ''}" onclick="gpsHistSelect(null)"><b>${H.range === 'last3' ? 'All of the last 3 hours' : 'Whole day'}</b></button>
       ${H.trips.map((t, i) => `<button class="gps-trip ${H.tripSel === i ? 'on' : ''}" onclick="gpsHistSelect(${i})">
-        <b>${gpsEsc(t.ticket_no)}</b> papuntang ${gpsEsc(t.destination || '—')}
-        <span>${gpsEsc(t.driver_name || '—')} · ${gpsTimePH(t.gate_out_at)}–${t.gate_in_at ? gpsTimePH(t.gate_in_at) : 'nasa labas pa'}</span></button>`).join('')}
+        <b>${gpsEsc(t.ticket_no)}</b> to ${gpsEsc(t.destination || '—')}
+        <span>${gpsEsc(t.driver_name || '—')} · ${gpsTimePH(t.gate_out_at)}–${t.gate_in_at ? gpsTimePH(t.gate_in_at) : 'still out'}</span></button>`).join('')}
     </div>` : ''
   if (!H.pts.length) {
-    el.innerHTML = head + trips + `<div class="gps-hist-note">Walang naitalang galaw sa panahong ito.</div>`
+    el.innerHTML = head + trips + `<div class="gps-hist-note">No movement recorded in this period.</div>`
     return
   }
   const t0 = Date.parse(H.pts[0].t), t1 = Date.parse(H.pts[H.pts.length - 1].t)
   el.innerHTML = head + `
     <div class="gps-hist-stats">
       <div><b>${(S.dist / 1000).toFixed(1)}</b><span>km</span></div>
-      <div><b>${gpsDurTxt(S.moving * 1000)}</b><span>umaandar</span></div>
+      <div><b>${gpsDurTxt(S.moving * 1000)}</b><span>moving</span></div>
       <div><b>${Math.round(S.max)}</b><span>km/h max</span></div>
-      <div><b>${S.stops.length}</b><span>hinto</span></div>
+      <div><b>${S.stops.length}</b><span>stops</span></div>
     </div>
     <div class="gps-play">
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn btn-pri btn-sm" id="gpsPlayBtn" onclick="gpsHistToggle()">▶ I-play</button>
+        <button class="btn btn-pri btn-sm" id="gpsPlayBtn" onclick="gpsHistToggle()">▶ Play</button>
         <select class="fi" style="width:auto;padding:5px 8px;font-size:12px" onchange="GPS.hist.speed=+this.value">
           ${GPS_SPEEDS.map(([v, l]) => `<option value="${v}" ${v === H.speed ? 'selected' : ''}>${l}</option>`).join('')}</select>
       </div>
@@ -8062,9 +8062,9 @@ function gpsHistPanel(state, msg) {
       <div id="gpsReadout" class="gps-readout"></div>
     </div>
     ${trips}
-    ${S.stops.length ? `<div class="gps-hist-sec">Mga hinto (${GPS_STOP_MIN} min pataas)</div>
+    ${S.stops.length ? `<div class="gps-hist-sec">Stops (${GPS_STOP_MIN} min or longer)</div>
       ${S.stops.map((s, n) => `<button class="gps-trip" onclick="gpsHistSeek(${Date.parse(s.from)});GPS.map.setView([${s.lat},${s.lng}],16)">
-        <b>Hinto ${n + 1}: ${gpsDurTxt(s.dur)}</b><span>${gpsTimePH(s.from)}–${gpsTimePH(s.to)}${s.atHome ? ' · nasa TDMH' : ''}</span></button>`).join('')}` : ''}`
+        <b>Stop ${n + 1}: ${gpsDurTxt(s.dur)}</b><span>${gpsTimePH(s.from)}–${gpsTimePH(s.to)}${s.atHome ? ' · at TDMH' : ''}</span></button>`).join('')}` : ''}`
   gpsHistSeek(H.clock)
 }
 // Position at a moment in time (interpolated between the two surrounding points)
@@ -8084,7 +8084,7 @@ function gpsHistSeek(ms) {
   const stopped = H.stats.stops.find(s => H.clock >= Date.parse(s.from) && H.clock <= Date.parse(s.to))
   const ro = document.getElementById('gpsReadout')
   if (ro) ro.innerHTML = `<b>${new Date(H.clock).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Manila' })}</b>
-    · ${stopped ? `<span style="color:var(--amber);font-weight:700">nakahinto (${gpsDurTxt(Date.parse(stopped.to) - Date.parse(stopped.from))})</span>` : Math.round(a.s) + ' km/h'}`
+    · ${stopped ? `<span style="color:var(--amber);font-weight:700">stopped (${gpsDurTxt(Date.parse(stopped.to) - Date.parse(stopped.from))})</span>` : Math.round(a.s) + ' km/h'}`
   if (H.playing && !GPS.map.getBounds().pad(-0.15).contains([lat, lng])) GPS.map.panTo([lat, lng], { animate: true })
 }
 function gpsHistToggle() {
@@ -8092,7 +8092,7 @@ function gpsHistToggle() {
   if (H.playing) { gpsHistStop(); return }
   if (H.clock >= Date.parse(H.pts[H.pts.length - 1].t)) H.clock = Date.parse(H.pts[0].t)
   H.playing = true
-  const b = document.getElementById('gpsPlayBtn'); if (b) b.textContent = '⏸ I-pause'
+  const b = document.getElementById('gpsPlayBtn'); if (b) b.textContent = '⏸ Pause'
   H.timer = setInterval(() => {
     if (!GPS.hist) return
     const end = Date.parse(H.pts[H.pts.length - 1].t)
@@ -8103,7 +8103,7 @@ function gpsHistToggle() {
 function gpsHistStop() {
   const H = GPS.hist; if (!H) return
   clearInterval(H.timer); H.timer = null; H.playing = false
-  const b = document.getElementById('gpsPlayBtn'); if (b) b.textContent = '▶ I-play'
+  const b = document.getElementById('gpsPlayBtn'); if (b) b.textContent = '▶ Play'
 }
 
 // ════════════════════════════════════════════════
