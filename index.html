@@ -917,7 +917,7 @@ async function renderMyWork(){
       + '</button>'
   }).join('')
 
-  // ── Filter chips for "Mga hawak mo" ──
+  // ── Filter chips for "Your open items" ──
   const chipDefs = [['all','All',counts.csr+counts.maintenance+counts.it+counts.vts]].concat(
     ['csr','maintenance','it','vts'].filter(k=>items.some(i=>i.sys===k)).map(k=>[k,HX_SYS[k].name.split(' ')[0],counts[k]]))
   const chips = chipDefs.length>2 ? chipDefs.map(([k,l,n])=>'<button class="hx-fchip'+(k==='all'?' on':'')+'" data-f="'+k+'" onclick="hxFilter(\''+k+'\')">'+l+' <b>'+n+'</b></button>').join('') : ''
@@ -1300,7 +1300,7 @@ async function renderAnnouncements(){
 }
 
 function openAnnouncementForm(){
-  if(!canPost()){showToast('error','Hindi pwede','Only admins and supervisors can post.');return}
+  if(!canPost()){showToast('error','Not allowed','Only admins and supervisors can post.');return}
   document.getElementById('modalTitle').textContent='📢 Post Announcement'
   let html='<div class="field"><label>Title *</label><input type="text" id="a_title" placeholder="Announcement title"></div>'
   html+='<div class="field-row">'
@@ -1404,7 +1404,7 @@ async function renderMemos(){
 }
 
 function openMemoForm(){
-  if(!canPost()){showToast('error','Hindi pwede','Only admins and supervisors can post.');return}
+  if(!canPost()){showToast('error','Not allowed','Only admins and supervisors can post.');return}
   document.getElementById('modalTitle').textContent='📄 New Memo'
   let html='<div class="field"><label>Title *</label><input type="text" id="m_title" placeholder="Memo subject"></div>'
   html+='<div class="field-row">'
@@ -1468,7 +1468,7 @@ async function saveMemo(){
     })
     if(error)throw error
     closeModal('mainModal')
-    showToast('success','Published','📄 '+memoNo+' na-publish.')
+    showToast('success','Published','📄 '+memoNo+' published.')
     loadHubBadges()
     showPage('memos')
   }catch(e){
@@ -1600,7 +1600,7 @@ async function renderDocuments(){
 }
 
 function openDocumentForm(){
-  if(!canPost()){showToast('error','Hindi pwede','Only admins and supervisors can upload.');return}
+  if(!canPost()){showToast('error','Not allowed','Only admins and supervisors can upload.');return}
   document.getElementById('modalTitle').textContent='📁 Upload Document'
   let html='<div class="field"><label>Title *</label><input type="text" id="d_title" placeholder="Document name"></div>'
   html+='<div class="field"><label>Category</label><select id="d_cat">'
@@ -1640,7 +1640,7 @@ async function saveDocument(){
     showToast('success','Uploaded','📁 Document uploaded.')
     showPage('documents')
   }catch(e){
-    showToast('error','Error',e.message||'Hindi na-upload.')
+    showToast('error','Error',e.message||'Upload failed.')
     if(btn){btn.disabled=false;btn.textContent='⬆ Upload'}
   }
 }
@@ -2058,7 +2058,7 @@ function openBulkImport() {
   body += '<div style="font-size:12px;color:var(--txt2);background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:10px 12px;margin-bottom:14px;line-height:1.6;">'
   body += 'Upload the master sheet (use the <b>📥 Template</b>). The <b>email</b> is the key.<br>'
   body += '• New email → creates an account and sends a set-password link.<br>'
-  body += '• Existing na may pagbabago → i-a-update (walang email).<br>'
+  body += '• Existing user with changes → updated (no email).<br>'
   body += '• No changes → skipped.<br>'
   body += '• Missing from the sheet → listed for deactivation (you confirm first).'
   body += '</div>'
@@ -2133,7 +2133,7 @@ async function previewBulkImport() {
         sms_csr: smsVal(r.sms_csr), sms_maintenance: smsVal(r.sms_maintenance), sms_it: smsVal(r.sms_it)
       }
       if (!rec.full_name) { bad.push({ email, reason: 'Missing full_name' }); continue }
-      if (isHead && !dept_id) { bad.push({ email, reason: 'dept_head pero walang valid na department' }); continue }
+      if (isHead && !dept_id) { bad.push({ email, reason: 'dept_head but no valid department' }); continue }
       if (badExtra.length) { bad.push({ email, reason: 'also_heads may di-kilalang dept: ' + badExtra.join(', ') }); continue }
 
       const ex = existingByEmail[email]
@@ -2155,15 +2155,15 @@ async function previewBulkImport() {
 
     // Render summary
     let h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">'
-    h += bulkStat('🆕 Bago', toCreate.length, 'var(--green)')
+    h += bulkStat('🆕 New', toCreate.length, 'var(--green)')
     h += bulkStat('✏️ Update', toUpdate.length, 'var(--blue,#4a86e8)')
     h += bulkStat('⏸️ Deactivate', toDeactivate.length, 'var(--amber,#f0c838)')
     h += bulkStat('⏭️ Unchanged', unchanged.length, 'var(--txt3)')
     if (bad.length) h += bulkStat('⚠️ Problems', bad.length, 'var(--red)')
     h += '</div>'
 
-    if (toCreate.length) h += bulkList('🆕 Gagawin (may email na ipapadala)', toCreate.map(r => r.full_name + ' — ' + r.email))
-    if (toUpdate.length) h += bulkList('✏️ Ia-update (walang email)', toUpdate.map(r => r.full_name + ' — ' + r.email))
+    if (toCreate.length) h += bulkList('🆕 To create (an email will be sent)', toCreate.map(r => r.full_name + ' — ' + r.email))
+    if (toUpdate.length) h += bulkList('✏️ To update (no email)', toUpdate.map(r => r.full_name + ' — ' + r.email))
     if (toDeactivate.length) {
       h += '<div style="background:var(--amber-a,rgba(240,200,56,.1));border:1px solid var(--amber,#f0c838);border-radius:9px;padding:10px 12px;margin-bottom:10px;">'
       h += '<div style="font-weight:700;font-size:13px;color:var(--amber,#b8860b);margin-bottom:4px;">⏸️ Will be deactivated — not in the sheet</div>'
@@ -2238,11 +2238,11 @@ async function applyBulkImport() {
   }
 
   let summary = '<div style="background:var(--surf2);border:1px solid var(--bdr);border-radius:9px;padding:12px 14px;font-size:13px;line-height:1.8;">'
-  summary += '<div style="font-weight:700;margin-bottom:6px;">✅ Tapos na</div>'
-  summary += '🆕 Bagong account: <b>' + created + '</b> (na-email: ' + emailed + ')<br>'
-  summary += '✏️ Na-update: <b>' + updated + '</b><br>'
-  if (doDeactivate) summary += '⏸️ Na-deactivate: <b>' + deactivated + '</b><br>'
-  if (failed) summary += '<span style="color:var(--red);">⚠️ Bigo: ' + failed + '</span>'
+  summary += '<div style="font-weight:700;margin-bottom:6px;">✅ Done</div>'
+  summary += '🆕 New accounts: <b>' + created + '</b> (emailed: ' + emailed + ')<br>'
+  summary += '✏️ Updated: <b>' + updated + '</b><br>'
+  if (doDeactivate) summary += '⏸️ Deactivated: <b>' + deactivated + '</b><br>'
+  if (failed) summary += '<span style="color:var(--red);">⚠️ Failed: ' + failed + '</span>'
   summary += '</div>'
   if (errors.length) summary += '<div style="font-size:12px;color:var(--red);margin-top:8px;max-height:120px;overflow:auto;">' + errors.map(esc).join('<br>') + '</div>'
   prev.innerHTML = summary
