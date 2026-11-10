@@ -7699,7 +7699,7 @@ function gpsLeave() {
   if (GPS.hist) { gpsHistStop(); GPS.hist = null }
   GPS.mode = 'live'
   if (GPS.timer) { clearInterval(GPS.timer); GPS.timer = null }
-  if (GPS.map) { GPS.map.remove(); GPS.map = null; GPS.markers = {} }
+  if (GPS.map) { GPS.map.remove(); GPS.map = null; GPS.markers = {}; GPS.clusterLayer = null }
   GPS.loading = false
 }
 function gpsDistM(a, b) {
@@ -7847,7 +7847,12 @@ function gpsDrawMarkers(fit) {
 // Markers whose labels would overlap on screen are shown as one numbered bubble; recomputed on every zoom.
 function gpsCluster() {
   if (!GPS.map || !GPS.liveLayer) return
-  if (!GPS.clusterLayer) { GPS.clusterLayer = L.layerGroup().addTo(GPS.liveLayer); GPS.map.on('zoomend', gpsCluster) }
+  // The map is rebuilt on every visit to the GPS page: give each new map its own cluster layer and zoom listener
+  if (!GPS.clusterLayer || GPS._clusterMap !== GPS.map || !GPS.liveLayer.hasLayer(GPS.clusterLayer)) {
+    GPS.clusterLayer = L.layerGroup().addTo(GPS.liveLayer)
+    if (GPS._clusterMap !== GPS.map) GPS.map.on('zoomend', gpsCluster)
+    GPS._clusterMap = GPS.map
+  }
   GPS.clusterLayer.clearLayers()
   const groups = []
   GPS.data.filter(d => d.has && GPS.markers[d.device_id]).forEach(d => {
@@ -8159,6 +8164,7 @@ async function renderReports() {
 }
 
 async function renderReportContent() {
+  if (_rptTab === 'sms') _rptTab = 'overview'   // SMS cost report moved to TDMH Core
   const now = new Date()
 
   // ── Fetch everything in date range ─────────────────────
@@ -8320,136 +8326,6 @@ async function renderReportContent() {
       </div>`:'<div style="color:var(--text3);font-size:12px">No SLA data in this period</div>'}
     </div>
   </div>`
-
-  // ── SMS COST REPORT TAB ────────────────────────────────────
-  let smsHTML = ''
-  if (_rptTab === 'sms') {
-    const smsFrom = _rptFrom ? _rptFrom + 'T00:00:00+08:00' : new Date(Date.now() - 30*86400000).toISOString()
-    const smsTo   = _rptTo   ? _rptTo   + 'T23:59:59+08:00' : new Date().toISOString()
-
-    const { data: smsLogs } = await SB.from('vts_sms_logs')
-      .select('*')
-      .gte('sent_at', smsFrom)
-      .lte('sent_at', smsTo)
-      .order('sent_at', { ascending: false })
-
-    const logs = smsLogs || []
-    const totalSMS  = logs.reduce((s, l) => s + (l.sms_count||1), 0)
-    const totalCost = totalSMS * 0.50
-
-    // Group by day
-    const byDay = {}
-    logs.forEach(l => {
-      const day = new Date(l.sent_at).toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric',timeZone:'Asia/Manila'})
-      if (!byDay[day]) byDay[day] = { count: 0, cost: 0, logs: [] }
-      byDay[day].count += l.sms_count||1
-      byDay[day].cost  += (l.sms_count||1) * 0.50
-      byDay[day].logs.push(l)
-    })
-
-    // Group by week
-    const byWeek = {}
-    logs.forEach(l => {
-      const d = new Date(l.sent_at)
-      const day = d.getDay()
-      const monday = new Date(d)
-      monday.setDate(d.getDate() - (day===0?6:day-1))
-      monday.setHours(0,0,0,0)
-      const wk = monday.toLocaleDateString('en-PH',{month:'short',day:'numeric',timeZone:'Asia/Manila'})
-      if (!byWeek[wk]) byWeek[wk] = { count: 0, cost: 0 }
-      byWeek[wk].count += l.sms_count||1
-      byWeek[wk].cost  += (l.sms_count||1) * 0.50
-    })
-
-    // Group by event type
-    const byEvent = {}
-    logs.forEach(l => {
-      const ev = l.event_type||'general'
-      if (!byEvent[ev]) byEvent[ev] = { count: 0, cost: 0 }
-      byEvent[ev].count += l.sms_count||1
-      byEvent[ev].cost  += (l.sms_count||1) * 0.50
-    })
-
-    smsHTML = `
-    <!-- Summary cards -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
-      <div class="card" style="text-align:center;padding:14px">
-        <div style="font-size:28px;font-weight:800;color:var(--pri)">${totalSMS}</div>
-        <div style="font-size:11px;color:var(--text3);font-weight:600;margin-top:2px">Total SMS Sent</div>
-      </div>
-      <div class="card" style="text-align:center;padding:14px">
-        <div style="font-size:28px;font-weight:800;color:var(--green)">₱${totalCost.toFixed(2)}</div>
-        <div style="font-size:11px;color:var(--text3);font-weight:600;margin-top:2px">Total Cost</div>
-        <div style="font-size:10px;color:var(--text3)">@ ₱0.50/SMS</div>
-      </div>
-      <div class="card" style="text-align:center;padding:14px">
-        <div style="font-size:28px;font-weight:800;color:var(--amber)">${Object.keys(byDay).length}</div>
-        <div style="font-size:11px;color:var(--text3);font-weight:600;margin-top:2px">Days with SMS</div>
-      </div>
-      <div class="card" style="text-align:center;padding:14px">
-        <div style="font-size:28px;font-weight:800;color:#7c3aed">${Object.keys(byDay).length ? (totalSMS/Object.keys(byDay).length).toFixed(1) : '0'}</div>
-        <div style="font-size:11px;color:var(--text3);font-weight:600;margin-top:2px">Avg SMS/Day</div>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
-      <!-- By Event Type -->
-      <div class="card card-np" style="overflow:hidden">
-        <div class="card-hd" style="padding:12px 14px 10px"><div class="card-title" style="font-size:13px">📱 By Event Type</div></div>
-        <table class="tbl" style="font-size:12px">
-          <thead><tr><th>Event</th><th style="text-align:right">SMS</th><th style="text-align:right">Cost</th></tr></thead>
-          <tbody>
-            ${Object.entries(byEvent).sort((a,b)=>b[1].count-a[1].count).map(([ev,d])=>`
-            <tr>
-              <td style="font-size:11.5px">${ev}</td>
-              <td style="text-align:right;font-weight:700">${d.count}</td>
-              <td style="text-align:right;color:var(--green);font-weight:700">₱${d.cost.toFixed(2)}</td>
-            </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">No data</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-
-      <!-- By Week -->
-      <div class="card card-np" style="overflow:hidden">
-        <div class="card-hd" style="padding:12px 14px 10px"><div class="card-title" style="font-size:13px">📅 By Week</div></div>
-        <table class="tbl" style="font-size:12px">
-          <thead><tr><th>Week of</th><th style="text-align:right">SMS</th><th style="text-align:right">Cost</th></tr></thead>
-          <tbody>
-            ${Object.entries(byWeek).map(([wk,d])=>`
-            <tr>
-              <td style="font-size:11.5px">${wk}</td>
-              <td style="text-align:right;font-weight:700">${d.count}</td>
-              <td style="text-align:right;color:var(--green);font-weight:700">₱${d.cost.toFixed(2)}</td>
-            </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px">No data</td></tr>'}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Daily breakdown -->
-    <div class="card card-np" style="overflow:hidden">
-      <div class="card-hd" style="padding:12px 16px 10px"><div class="card-title" style="font-size:13px">📆 Daily Breakdown</div></div>
-      <table class="tbl" style="font-size:12px">
-        <thead><tr><th>Date</th><th>SMS Sent</th><th>Cost (₱)</th><th>Events</th></tr></thead>
-        <tbody>
-          ${Object.entries(byDay).map(([day,d])=>`
-          <tr>
-            <td style="font-weight:600">${day}</td>
-            <td style="font-weight:700;color:var(--pri)">${d.count}</td>
-            <td style="font-weight:700;color:var(--green)">₱${d.cost.toFixed(2)}</td>
-            <td style="font-size:10.5px;color:var(--text3)">${[...new Set(d.logs.map(l=>l.event_type).filter(Boolean))].join(', ')||'—'}</td>
-          </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">No SMS sent in this period</td></tr>'}
-        </tbody>
-        ${Object.keys(byDay).length > 0 ? `
-        <tfoot><tr style="background:var(--bg);font-weight:700;border-top:2px solid var(--border)">
-          <td>TOTAL</td>
-          <td style="color:var(--pri)">${totalSMS}</td>
-          <td style="color:var(--green)">₱${totalCost.toFixed(2)}</td>
-          <td></td>
-        </tr></tfoot>` : ''}
-      </table>
-    </div>`
-  }
 
   // ── FULL AUDIT TABLE TAB ────────────────────────────────
   const auditTableHTML = `
@@ -8773,7 +8649,6 @@ async function renderReportContent() {
       ['drivers','👤 Drivers'],
       ['sla','⏱ SLA'],
       ['pool','🚌 Convoy'],
-      ['sms','💬 SMS Cost'],
       ['audit','📋 Full Audit'],
     ].map(([id,lbl])=>`<button style="${tabStyle(id)}" onclick="_rptTab='${id}';renderReportContent()">${lbl}</button>`).join('')}
   </div>
@@ -8784,7 +8659,6 @@ async function renderReportContent() {
   ${_rptTab==='drivers'  ? drvPerfHTML      : ''}
   ${_rptTab==='sla'      ? slaHTML          : ''}
   ${_rptTab==='pool'     ? poolHTML         : ''}
-  ${_rptTab==='sms'      ? smsHTML          : ''}
   ${_rptTab==='audit'    ? auditTableHTML   : ''}
 
   <style>
