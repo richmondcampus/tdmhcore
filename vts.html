@@ -3712,6 +3712,7 @@ async function openReassignModal(id, ticketNo, vtype, curDriverName, curDriverId
   window._rsaCurDriverId  = curDriverId
   window._rsaCurVehicleId = curVehicleId
   window._rsaOrigVtype    = vtype
+  window._rsaVtypeOverride = null
 
   const buildDriverOpts = (typeOverride) => {
     const isA = typeOverride === 'ambulance'
@@ -3765,7 +3766,7 @@ async function openReassignModal(id, ticketNo, vtype, curDriverName, curDriverId
     const override = sel.value
     const origVtype = window._rsaOrigVtype || ''
     const note = document.getElementById('rsaVtypeNote')
-    if (note) note.style.display = override !== origVtype ? 'inline' : 'none'
+    if (note) { note.style.display = override !== origVtype ? 'inline' : 'none'; note.textContent = origVtype === 'ambulance' && override !== 'ambulance' ? '⚠ Downgrading an ambulance request' : '⚠ Overriding type' }
     const dSel = document.getElementById('rsaDrv')
     const vSel = document.getElementById('rsaVeh')
     if (dSel) dSel.innerHTML = '<option value="">-- Select New Driver --</option>' + buildDriverOpts(override)
@@ -3806,7 +3807,7 @@ async function openReassignModal(id, ticketNo, vtype, curDriverName, curDriverId
     ? new Date(tripData.departure_at).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Asia/Manila'})
     : '—'
 
-  const canOverrideType = ['admin','approver_admin','super_approver'].includes(currentProfile?.role) && vtype !== 'ambulance'
+  const canOverrideType = ['admin','approver_admin','super_approver'].includes(currentProfile?.role)   // ambulance tickets too, with a confirmation (see doReassign)
 
   const poolInfo = window._rsaPoolId
     ? `<div class="info info-purple" style="margin-bottom:14px">
@@ -3832,8 +3833,9 @@ async function openReassignModal(id, ticketNo, vtype, curDriverName, curDriverId
          <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
            <span style="font-size:10px;color:var(--text3);font-weight:600">Vehicle type:</span>
            <select class="fs" id="rsaVtypeOverride" style="font-size:11px;padding:4px 8px;border-radius:7px" onchange="rsaApplyTypeOverride(this)">
-             <option value="regular"    ${vtype==='regular'   ?'selected':''}>🚙 Regular</option>
-             <option value="motorcycle" ${vtype==='motorcycle'?'selected':''}>🏍 Motorcycle</option>
+             <option value="regular"    ${vtype==='regular'   ?'selected':''}>Regular</option>
+             <option value="motorcycle" ${vtype==='motorcycle'?'selected':''}>Motorcycle</option>
+             <option value="ambulance"  ${vtype==='ambulance' ?'selected':''}>Ambulance</option>
            </select>
            <span id="rsaVtypeNote" style="font-size:10px;color:var(--amber);font-weight:700;display:none">⚠ Overriding type</span>
          </div>` : ''}
@@ -3905,7 +3907,12 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
   const newVehLabel = newVehicle ? `${newVehicle.name||newVehicle.plate} (${newVehicle.plate})` : vv
   const drvLine = newDriverId === curDriverId ? `👤 Driver: ${newDriverName} (unchanged)` : `👤 New Driver: ${newDriverName}`
   const vehLine = vv === curVehicleId         ? `🚗 Vehicle: ${newVehLabel} (unchanged)`   : `🚗 New Vehicle: ${newVehLabel}`
-  if (!confirm(`Confirm reassignment of ${ticketNo}:\n\n${drvLine}\n${vehLine}\n\nProceed?`)) {
+  const ovType = window._rsaVtypeOverride, origType = window._rsaOrigVtype
+  const typeChanged = !!ovType && ovType !== origType
+  const typeLine = typeChanged ? `\n🚐 Vehicle type: ${origType} → ${ovType}` : ''
+  const ambWarn  = typeChanged && origType === 'ambulance' && ovType !== 'ambulance'
+    ? `\n\n⚠ This was requested as an AMBULANCE.\nOnly continue if no patient is being transported.` : ''
+  if (!confirm(`Confirm reassignment of ${ticketNo}:\n\n${drvLine}\n${vehLine}${typeLine}${ambWarn}\n\nProceed?`)) {
     return
   }
 
@@ -4052,7 +4059,7 @@ async function doReassign(id, ticketNo, curDriverId, curVehicleId) {
   if (rsaVtypeOverride && rsaVtypeOverride !== window._rsaOrigVtype) {
     await SB.from('vts_trips').update({ vehicle_type_needed: rsaVtypeOverride }).eq('id', id)
     await addAudit(id, ticketNo, '🔄 Vehicle Type Changed on Reassign',
-      `Changed from "${window._rsaOrigVtype}" to "${rsaVtypeOverride}" · ${currentProfile?.full_name}`)
+      `Changed from "${window._rsaOrigVtype}" to "${rsaVtypeOverride}" · Reason: ${reason} · ${currentProfile?.full_name}`)
     window._rsaVtypeOverride = null
   }
 
