@@ -1921,7 +1921,7 @@ async function renderMyRequests() {
         if (fDept) byItem = byItem.filter(r => r.dept_id === fDept)
         if (fPhoto) byItem = byItem.filter(r => r.attachment_url)
       }
-      requests = sortReqOldestFirst(byText.concat(byItem))
+      requests = sortReqNewestFirst(byText.concat(byItem))
       subtitle = 'Search results for "' + term + '"' + (deptName ? ' in ' + deptName : '')
     } else if (fStatus || fType || fDept || fPhoto) {
       const base = {}
@@ -1929,7 +1929,7 @@ async function renderMyRequests() {
       if (fType) base.request_type = fType
       if (fDept) base.dept_id = fDept
       if (fPhoto) base.has_photo = true
-      requests = sortReqOldestFirst(await loadRequests(base))
+      requests = sortReqNewestFirst(await loadRequests(base))
       subtitle = 'Filtered — ' + [deptName, fStatus && formatStatus(fStatus), fType && fType.toUpperCase(), fPhoto && '📎 May Photo'].filter(Boolean).join(' · ')
     } else {
       requests = await loadRequests({ limit: 50 })
@@ -1962,10 +1962,10 @@ async function renderMyRequests() {
   renderRequestsTable(content, requests, title, subtitle)
 }
 
-// Search/filter results: oldest → newest. (Text matches + item matches came back as two
+// Search/filter results: latest → oldest. (Text matches + item matches came back as two
 // separately-ordered lists and were just concatenated, so the dates looked jumbled.)
-function sortReqOldestFirst(list) {
-  return (list || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+function sortReqNewestFirst(list) {
+  return (list || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 }
 
 async function renderAllRequests() {
@@ -1992,13 +1992,13 @@ async function renderAllRequests() {
       if (fStatus) byItem = byItem.filter(r => r.status === fStatus)
       if (fType) byItem = byItem.filter(r => r.request_type === fType)
     }
-    all = sortReqOldestFirst(byText.concat(byItem))
+    all = sortReqNewestFirst(byText.concat(byItem))
   } else if (fStatus || fType) {
     // Filter without search → load ALL matching (no limit) so nothing is missed.
     const base = {}
     if (fStatus) base.status = fStatus
     if (fType) base.request_type = fType
-    all = sortReqOldestFirst(await loadRequests(base))
+    all = sortReqNewestFirst(await loadRequests(base))
   } else {
     // Nothing active → load only the most recent for speed.
     all = await loadRequests({ limit: 50 })
