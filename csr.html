@@ -1603,15 +1603,29 @@ async function subscribeRequests(onUpdate) {
 // ═══════════════════════════════════════════
 async function renderDashboard() {
   const content = document.getElementById('mainContent')
+  // Instant paint: show the last dashboard right away (cached), then refresh in the
+  // background. First visit falls back to the loader.
+  let cachedDash = null
+  try { cachedDash = JSON.parse(sessionStorage.getItem('csr_dash_cache') || 'null') } catch(_) {}
+  if (cachedDash && cachedDash.c) {
+    paintDashboard(cachedDash.c, cachedDash.charts || {})
+  } else {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
+  }
+
+  // Both RPCs in PARALLEL (dati sunod-sunod — doble ang hintay).
+  const [cRes, chRes] = await Promise.allSettled([SB.rpc('csr_dashboard_counts'), SB.rpc('csr_dashboard_charts')])
+  const c = (cRes.status === 'fulfilled' && cRes.value?.data) || cachedDash?.c || {}
+  const charts = (chRes.status === 'fulfilled' && chRes.value?.data) || cachedDash?.charts || {}
+  try { sessionStorage.setItem('csr_dash_cache', JSON.stringify({ c, charts, at: Date.now() })) } catch(_) {}
+  // User may have navigated away while loading — don't overwrite another page.
+  if (state.page !== 'dashboard') return
+  paintDashboard(c, charts)
+}
+
+function paintDashboard(c, charts) {
+  const content = document.getElementById('mainContent')
   const role = state.user.csr_role
-  content.innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
-
-  let c = {}
-  try { const { data } = await SB.rpc('csr_dashboard_counts'); c = data || {} } catch(_) {}
-
-  // Chart aggregates (fast — counts only, no row fetch).
-  let charts = {}
-  try { const { data } = await SB.rpc('csr_dashboard_charts'); charts = data || {} } catch(_) {}
 
   let html = ''
   html += '<div class="page-header">'
