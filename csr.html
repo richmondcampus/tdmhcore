@@ -1907,7 +1907,7 @@ async function renderMyRequests() {
         if (fDept) byItem = byItem.filter(r => r.dept_id === fDept)
         if (fPhoto) byItem = byItem.filter(r => r.attachment_url)
       }
-      requests = byText.concat(byItem)
+      requests = sortReqOldestFirst(byText.concat(byItem))
       subtitle = 'Search results for "' + term + '"' + (deptName ? ' in ' + deptName : '')
     } else if (fStatus || fType || fDept || fPhoto) {
       const base = {}
@@ -1915,7 +1915,7 @@ async function renderMyRequests() {
       if (fType) base.request_type = fType
       if (fDept) base.dept_id = fDept
       if (fPhoto) base.has_photo = true
-      requests = await loadRequests(base)
+      requests = sortReqOldestFirst(await loadRequests(base))
       subtitle = 'Filtered — ' + [deptName, fStatus && formatStatus(fStatus), fType && fType.toUpperCase(), fPhoto && '📎 May Photo'].filter(Boolean).join(' · ')
     } else {
       requests = await loadRequests({ limit: 50 })
@@ -1948,6 +1948,12 @@ async function renderMyRequests() {
   renderRequestsTable(content, requests, title, subtitle)
 }
 
+// Search/filter results: oldest → newest. (Text matches + item matches came back as two
+// separately-ordered lists and were just concatenated, so the dates looked jumbled.)
+function sortReqOldestFirst(list) {
+  return (list || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+}
+
 async function renderAllRequests() {
   const content = document.getElementById('mainContent')
   const term = (state.allReqSearch || '').trim()
@@ -1972,13 +1978,13 @@ async function renderAllRequests() {
       if (fStatus) byItem = byItem.filter(r => r.status === fStatus)
       if (fType) byItem = byItem.filter(r => r.request_type === fType)
     }
-    all = byText.concat(byItem)
+    all = sortReqOldestFirst(byText.concat(byItem))
   } else if (fStatus || fType) {
     // Filter without search → load ALL matching (no limit) so nothing is missed.
     const base = {}
     if (fStatus) base.status = fStatus
     if (fType) base.request_type = fType
-    all = await loadRequests(base)
+    all = sortReqOldestFirst(await loadRequests(base))
   } else {
     // Nothing active → load only the most recent for speed.
     all = await loadRequests({ limit: 50 })
@@ -2773,7 +2779,8 @@ async function recomputeRequestStatus(reqId) {
     const { data: items } = await SB.from('request_items')
       .select('item_name,quantity,quantity_issued,unit,is_removed,fulfillment_type').eq('request_id', reqId)
     const active = (items||[]).filter(it => !it.is_removed)
-    const forPo = active.filter(it => it.fulfillment_type === 'for_po')
+    // A for_po item that has already been fully issued (after delivery) is done.
+    const forPo = active.filter(it => it.fulfillment_type === 'for_po' && (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0)
     const issueItems = active.filter(it => it.fulfillment_type !== 'for_po')
     const pendingIssue = issueItems.filter(it => (Number(it.quantity) - (Number(it.quantity_issued)||0)) > 0)
     const anyIssued = active.some(it => (Number(it.quantity_issued)||0) > 0)
@@ -4852,7 +4859,7 @@ async function approvePurchasing(id) {
     try {
       const { data: reqRow } = await SB.from('requests').select('dept_id').eq('id', id).maybeSingle()
       const { data: forPoItems } = await SB.from('request_items')
-        .select('item_name,quantity,quantity_for_po,unit,estimated_cost')
+        .select('id,item_name,quantity,quantity_for_po,unit,estimated_cost')
         .eq('request_id', id).eq('fulfillment_type', 'for_po')
         .or('is_removed.is.null,is_removed.eq.false')
       const { data: existingPO } = await SB.from('purchase_orders').select('id').eq('request_id', id).limit(1).maybeSingle()
@@ -4867,7 +4874,7 @@ async function approvePurchasing(id) {
         }).select().single()
         if (po) {
           await SB.from('po_items').insert(forPoItems.map(it => ({
-            po_id: po.id, item_name: it.item_name,
+            po_id: po.id, item_name: it.item_name, request_item_id: it.id,
             quantity: Number(it.quantity_for_po && Number(it.quantity_for_po) > 0 ? it.quantity_for_po : it.quantity),
             unit: it.unit || 'pcs', unit_price: 0, quantity_received: 0, is_fee: false
           })))
@@ -5942,6 +5949,7 @@ async function savePO(action) {
     // Insert PO items
     await SB.from('po_items').insert(validItems.map(item => ({
       po_id: po.id,
+      request_item_id: item._reqItemId || null,
       item_name: item.item_name,
       description: item.item_description || null,
       quantity: Number(item.quantity),
@@ -6170,6 +6178,46 @@ async function viewPO(id) {
 }
 
 // ─── Issue items from PO delivery to department ───
+// ═══════════════════════════════════════════
+// PO → REQUEST ITEM LINKING
+// Issuing a received PO must reduce the ORIGINAL request's items (quantity_issued),
+// not just create an extra issuance. Match order: po_items.request_item_id →
+// same name among this PO's request items → same name anywhere in the request.
+// Name compare is on the ORIGINAL PO line name (not the edited/control-no. name).
+// ═══════════════════════════════════════════
+function _normItemName(s) { return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim() }
+
+async function matchPOLinesToRequest(poId, reqId, lines) {
+  // lines: [{ requestItemId, poName, altName }] → returns array of request_items rows (or null)
+  if (!reqId) return lines.map(() => null)
+  const { data: rItems } = await SB.from('request_items')
+    .select('id,item_name,quantity,quantity_issued,po_id,is_removed').eq('request_id', reqId)
+  const active = (rItems || []).filter(ri => !ri.is_removed)
+  const used = new Set()
+  return lines.map(ln => {
+    let m = ln.requestItemId ? active.find(ri => ri.id === ln.requestItemId) : null
+    for (const nm of [ln.poName, ln.altName].map(_normItemName).filter(Boolean)) {
+      if (m) break
+      m = active.find(ri => !used.has(ri.id) && ri.po_id === poId && _normItemName(ri.item_name) === nm)
+        || active.find(ri => !used.has(ri.id) && _normItemName(ri.item_name) === nm)
+    }
+    if (m) used.add(m.id)
+    return m || null
+  })
+}
+
+async function applyIssuedToRequestItems(matches, qtys) {
+  for (let i = 0; i < matches.length; i++) {
+    const ri = matches[i]
+    if (!ri) continue
+    const add = Number(qtys[i] || 0)
+    if (add <= 0) continue
+    const newIssued = Math.min(Number(ri.quantity || 0), Number(ri.quantity_issued || 0) + add)
+    await SB.from('request_items').update({ quantity_issued: newIssued }).eq('id', ri.id)
+    ri.quantity_issued = newIssued
+  }
+}
+
 async function openIssueFromPO(poId) {
   const { data: po } = await SB.from('purchase_orders').select('*').eq('id', poId).single()
   if (!po) { showToast('error','Hindi nahanap','Walang PO na nahanap.'); return }
@@ -6280,7 +6328,8 @@ async function confirmIssueFromPO() {
       quantity_issued: Number(document.getElementById('iss_' + item.id)?.value || item.quantity_received || item.quantity),
       item_name_snapshot: (document.getElementById('issname_' + item.id)?.value || item.item_name || '').trim() || null,
       unit_snapshot: item.unit || null,
-      request_item_id: item.request_item_id || null
+      request_item_id: item.request_item_id || null,
+      _poName: item.item_name || ''
     })).filter(i => i.quantity_issued > 0)
   if (!plannedItems.length) { releaseClick('confirmIssueFromPO'); showToast('error','Pumili','Pumili ng kahit isang item na i-i-issue.'); return }
 
@@ -6328,21 +6377,18 @@ async function confirmIssueFromPO() {
     const { count: existingItemCount } = await SB.from('issuance_items').select('id', { count:'exact', head:true }).eq('issuance_id', issId)
     // Only insert if this issuance doesn't already have items (avoids duplicates).
     if (!(existingItemCount && existingItemCount > 0)) {
-      await SB.from('issuance_items').insert(plannedItems.map(it => ({ ...it, issuance_id: issId })))
-      // Keep request_items in sync: mark the matching request items as issued so the
-      // request detail, Issue views, and reports all agree (prevents "di ma-issue",
-      // double-issue, and blank-item confusion).
-      if (reqId) {
-        const { data: rItems } = await SB.from('request_items').select('id,item_name,quantity,quantity_issued').eq('request_id', reqId)
-        for (const pi of plannedItems) {
-          const nm = (pi.item_name_snapshot || '').toLowerCase().trim()
-          const match = (rItems || []).find(ri => (ri.item_name || '').toLowerCase().trim() === nm)
-          if (match) {
-            const newIssued = Math.min(Number(match.quantity || 0), Number(match.quantity_issued || 0) + Number(pi.quantity_issued || 0))
-            await SB.from('request_items').update({ quantity_issued: newIssued }).eq('id', match.id)
-          }
-        }
-      }
+      // Link each line to its ORIGINAL request item, so issuing it reduces the request
+      // (dati name-match lang sa edited name → di tumutugma → naiwan sa request).
+      const matches = await matchPOLinesToRequest(poId, reqId, plannedItems.map(pi => ({
+        requestItemId: pi.request_item_id, poName: pi._poName, altName: pi.item_name_snapshot
+      })))
+      const rows = plannedItems.map((pi, i) => {
+        const { _poName, ...rest } = pi
+        return { ...rest, request_item_id: matches[i]?.id || pi.request_item_id || null, issuance_id: issId }
+      })
+      const { error: insErr } = await SB.from('issuance_items').insert(rows)
+      if (insErr) throw insErr
+      await applyIssuedToRequestItems(matches, plannedItems.map(pi => pi.quantity_issued))
     }
 
     // PO status: 'issued' only if everything ordered has been received AND issued.
@@ -6656,31 +6702,18 @@ async function confirmReceiveDelivery() {
     // Trigger: DB trigger fn_po_received_to_issuance will notify supply officers
     // and update request status to 'delivered'
 
-    // If fully received — auto-create issuance record for supply officer to complete
+    // NOTE: no more auto-created (empty) issuance here. The received PO now appears under
+    // Issuance → "Received POs — Ready to Issue", and 📤 Issue to Dept creates ONE issuance
+    // that is linked to (and deducts from) the original request items.
     if (allDelivered) {
-      const { data: po } = await SB.from('purchase_orders').select('*').eq('id', poId).single()
-      if (po?.request_id) {
-        const { data: issNum } = await SB.rpc('generate_issuance_no')
-        const issNo = issNum || ('ISS-' + Date.now())
-        await SB.from('issuances').insert({
-          issuance_no: issNo,
-          request_id: po.request_id,
-          po_id: poId,
-          issued_by: state.user.id,
-          issued_at: new Date().toISOString(),
-          scenario: 'after_po',
-          prepared_by: state.user.id,
-          notes: 'Auto-created after PO delivery — ' + po.po_number + (dr ? ' | DR: ' + dr : '')
-        })
-        // Update request status to delivered (in case trigger didn't fire)
-        await SB.from('requests').update({ status: 'delivered' }).eq('id', po.request_id)
-      }
+      const { data: po } = await SB.from('purchase_orders').select('request_id').eq('id', poId).single()
+      if (po?.request_id) await SB.from('requests').update({ status: 'delivered' }).eq('id', po.request_id)
     }
 
     closeModal('newRequestModal')
     showToast('success', '📦 Delivery Confirmed',
       allDelivered
-        ? 'Full delivery received — issuance created. Supply Officer can now issue to dept.'
+        ? 'Full delivery received — nasa Issuance na (Ready to Issue). I-issue sa dept.'
         : 'Partial delivery recorded. Receive remaining items when available.')
     renderPurchaseOrders()
     loadStats()
@@ -7670,20 +7703,56 @@ async function loadCSRForIssuance(requestId) {
 }
 
 function addManualIssItem() {
-  const body = document.getElementById('iss_items_body')
+  // Manual rows use the SAME 9-column layout + checkbox as the request rows, so the
+  // review/save steps treat them exactly like request items. (Dati walang checkbox ang
+  // manual rows kaya nilalaktawan sila ng reviewIssuance → hindi pumapasok sa issuance.)
+  let body = document.getElementById('iss_items_body')
   if (!body) {
-    // No table yet — create one
     const wrap = document.getElementById('iss_items_wrap')
-    wrap.innerHTML = '<div class="items-table-wrap"><table class="items-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th></th></tr></thead><tbody id="iss_items_body"></tbody></table></div>'
+    wrap.innerHTML = '<div class="items-table-wrap"><table class="items-table"><thead><tr>' +
+      '<th style="width:36px;"></th><th>Item</th><th>Kailangan</th><th>Naibigay na</th><th>Natira</th><th>Unit</th><th>Ibibigay</th><th>Aksyon</th><th>Stock</th>' +
+      '</tr></thead><tbody id="iss_items_body"></tbody></table></div>'
+    body = document.getElementById('iss_items_body')
   }
-  const newId = Date.now() + Math.floor(Math.random()*100000)
+  const mid = 'man_' + Date.now() + Math.floor(Math.random()*100000)
+  const inp = 'padding:4px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;color:var(--txt);'
   const row = document.createElement('tr')
-  row.id = 'iss_man_' + newId
-  row.innerHTML = '<td><input type="text" placeholder="Item name" class="iss_man_name" data-for="man_' + newId + '" oninput="syncManualIssName(\'man_' + newId + '\')" style="min-width:120px;"></td>' +
-    '<td><input type="number" class="iss_qty_input" data-item-id="man_' + newId + '" data-stock-id="" data-item-name="" data-unit="pcs" value="1" min="1" style="width:60px;"></td>' +
-    '<td><input type="text" placeholder="pcs" class="iss_man_unit" data-for="man_' + newId + '" oninput="syncManualIssName(\'man_' + newId + '\')" style="width:50px;"></td>' +
-    '<td><button class="remove-row" onclick="this.closest(\'tr\').remove()">✕</button></td>'
-  document.getElementById('iss_items_body').appendChild(row)
+  row.id = 'iss_row_' + mid
+  row.innerHTML =
+    '<td style="text-align:center;"><input type="checkbox" class="iss_item_chk" data-item-id="' + mid + '" checked onchange="onIssItemToggle(\'' + mid + '\')" style="cursor:pointer;width:16px;height:16px;"></td>' +
+    '<td><input type="text" placeholder="Item name" class="iss_man_name" data-for="' + mid + '" oninput="syncManualIssName(\'' + mid + '\')" onchange="lookupManualIssStock(\'' + mid + '\')" style="width:100%;min-width:130px;' + inp + 'font-weight:600;">' +
+      ' <span style="font-size:10px;color:var(--accent);font-weight:600;">＋ MANUAL</span></td>' +
+    '<td style="color:var(--txt3);">—</td><td style="color:var(--txt3);">—</td><td style="color:var(--txt3);">—</td>' +
+    '<td><input type="text" placeholder="pcs" class="iss_man_unit iss_unit_input" data-item-id="' + mid + '" data-for="' + mid + '" oninput="syncManualIssName(\'' + mid + '\')" style="width:60px;' + inp + 'text-align:center;"></td>' +
+    '<td><input type="number" class="iss_qty_input" data-item-id="' + mid + '" data-stock-id="" data-item-name="" data-unit="pcs" value="1" min="1" style="width:70px;' + inp + '"></td>' +
+    // Manual items can only be issued now — walang request item na mapagkakabitan ng PO.
+    '<td style="font-size:12px;color:var(--txt2);white-space:nowrap;">📦 Issue Now</td>' +
+    '<td style="font-size:12px;white-space:nowrap;"><span id="iss_stk_' + mid + '" style="color:var(--txt3);">—</span> ' +
+      '<button class="remove-row" title="Alisin" onclick="this.closest(\'tr\').remove()">✕</button></td>'
+  body.appendChild(row)
+  row.querySelector('.iss_man_name')?.focus()
+}
+
+// Manual item: look up an EXACT (case-insensitive) stock match by name so the issue
+// deducts from stock like a normal item. No match = issued without stock deduction.
+async function lookupManualIssStock(mid) {
+  const nameEl = document.querySelector('.iss_man_name[data-for="' + mid + '"]')
+  const qtyEl = document.querySelector('.iss_qty_input[data-item-id="' + mid + '"]')
+  const lbl = document.getElementById('iss_stk_' + mid)
+  const name = (nameEl?.value || '').trim()
+  if (!qtyEl) return
+  qtyEl.dataset.stockId = ''
+  if (!name) { if (lbl) { lbl.textContent = '—'; lbl.style.color = 'var(--txt3)' } return }
+  try {
+    const { data } = await SB.from('stock_items').select('id,quantity_on_hand,unit').ilike('item_name', name).limit(1)
+    const st = data && data[0]
+    if (st) {
+      qtyEl.dataset.stockId = st.id
+      const unitEl = document.querySelector('.iss_man_unit[data-for="' + mid + '"]')
+      if (unitEl && !unitEl.value.trim() && st.unit) { unitEl.value = st.unit; syncManualIssName(mid) }
+      if (lbl) { lbl.textContent = Number(st.quantity_on_hand) + ' available'; lbl.style.color = 'var(--green)' }
+    } else if (lbl) { lbl.textContent = 'Wala sa stock system'; lbl.style.color = 'var(--txt3)' }
+  } catch(_) {}
 }
 
 // Keep the manual item's name/unit in sync onto the qty input's data attributes,
@@ -8069,6 +8138,12 @@ function reviewIssuance() {
     if (action === 'for_po') poRows.push(row); else issueRows.push(row)
   })
   if (issueRows.length === 0 && poRows.length === 0) { showToast('error','Validation','Walang item na naka-check.'); return }
+  // Manual rows must have a name (otherwise they'd save as "Item").
+  const blankManual = [...document.querySelectorAll('.iss_man_name')].find(el => {
+    const chk = document.querySelector('.iss_item_chk[data-item-id="' + el.dataset.for + '"]')
+    return chk && chk.checked && !el.value.trim()
+  })
+  if (blankManual) { blankManual.focus(); showToast('error','Validation','Lagyan ng pangalan ang manual item (o alisin ito).'); return }
 
   // Build the review modal — issue-now items are editable; PO items shown for confirmation.
   let html = '<div style="font-size:13px;color:var(--txt2);margin-bottom:12px;">'
@@ -8726,12 +8801,15 @@ async function viewIssuance(id) {
       // PO issuance with no recorded issuance_items — AUTO-BACKFILL from the PO's received
       // items (safety net for older 0-item issuances), so they become real editable items.
       const { data: poItems } = await SB.from('po_items').select('*').eq('po_id', iss.po_id)
-      const toBackfill = (poItems || [])
-        .filter(pi => Number(pi.quantity_received || 0) > 0 && !pi.is_fee)
-        .map(pi => ({ issuance_id: id, quantity_issued: pi.quantity_received, item_name_snapshot: pi.item_name, unit_snapshot: pi.unit || null }))
+      const srcLines = (poItems || []).filter(pi => Number(pi.quantity_received || 0) > 0 && !pi.is_fee)
+      const bfMatches = await matchPOLinesToRequest(iss.po_id, iss.request_id, srcLines.map(pi => ({ requestItemId: pi.request_item_id, poName: pi.item_name })))
+      const toBackfill = srcLines
+        .map((pi, i) => ({ issuance_id: id, quantity_issued: pi.quantity_received, item_name_snapshot: pi.item_name, unit_snapshot: pi.unit || null, request_item_id: bfMatches[i]?.id || null }))
       if (toBackfill.length) {
         try {
-          const { data: inserted } = await SB.from('issuance_items').insert(toBackfill).select()
+          const { data: inserted, error: bfErr } = await SB.from('issuance_items').insert(toBackfill).select()
+          if (bfErr) throw bfErr
+          await applyIssuedToRequestItems(bfMatches, srcLines.map(pi => pi.quantity_received))
           rows = (inserted || []).map(it => ({ ri: { item_name: it.item_name_snapshot, unit: it.unit_snapshot || 'pcs', category: '—' }, qty: it.quantity_issued, iiId: it.id }))
         } catch(_) {
           rows = (poItems || []).filter(pi => Number(pi.quantity_received || 0) > 0 && !pi.is_fee)
