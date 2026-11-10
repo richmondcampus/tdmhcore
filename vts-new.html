@@ -18,7 +18,7 @@ if (typeof supabase === 'undefined') {
   document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>')
 }
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Public+Sans:ital,wght@0,400..800;1,400..600&display=swap" rel="stylesheet">
 <style>
 /* ── Reset & Base ── */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -775,6 +775,83 @@ body.dark #CONTENT [style*="background:#fff;"],body.dark .mo [style*="background
 ::-webkit-scrollbar{width:10px;height:10px} ::-webkit-scrollbar-thumb{background:var(--border2);border:3px solid transparent;background-clip:padding-box}
 ::selection{background:var(--pri-s)}
 @media (prefers-reduced-motion:reduce){#CONTENT > *{animation:none}}
+
+/* ════ Phase 6: editorial typography & refinement ════ */
+:root{--display:'Newsreader',Georgia,'Times New Roman',serif;--font:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'Public Sans',system-ui,sans-serif}
+body{font-family:var(--font);font-feature-settings:"tnum" 0;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3,.topbar-title,.card-title,.mo-title,.sb-brand,.vt-dept,.vh-head,.stat-val{font-family:var(--display);font-stretch:normal!important;letter-spacing:-.005em}
+/* Labels: small caps instead of shouting monospace */
+.vh-l,.vh-bar,.vk-col-h,.vt-k,.sb-section,.sb-user-label,.login-kicker,.stat-lbl,.fl,.vtype,.vg-state,.nav-tag,.tbl th,
+#CONTENT table th,#CONTENT [style*="text-transform:uppercase"][style*="letter-spacing"],.mo [style*="text-transform:uppercase"][style*="letter-spacing"]{
+  font-family:var(--font)!important;font-variant-caps:all-small-caps;text-transform:none!important;letter-spacing:.045em!important;font-weight:600!important}
+.vh-l,.vt-k,.vk-col-h,.vtype,.vg-state{font-size:12.5px!important}
+.vh-bar{font-size:13px!important;color:var(--text3)}
+.fl{font-size:12.5px!important;color:var(--text2)}
+.sb-section{font-size:12px!important;padding:18px 22px 6px}
+.sb-section::before{content:none}
+.topbar-title::before{content:"VTS";font-family:var(--font);font-variant-caps:all-small-caps;letter-spacing:.05em;font-size:13px;font-weight:600;color:var(--text3);margin-right:10px;vertical-align:1px}
+.topbar-title{font-size:21px;font-weight:500}
+.sb-brand{font-size:19px;font-weight:600}
+.vk-col-h{display:flex;align-items:center;gap:8px;font-size:13px!important}
+.vk-c{font-variant-caps:normal;font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:700;min-width:20px;text-align:center;padding:1px 6px;border-radius:999px;background:currentColor;color:var(--card)!important}
+.vk-c{background:transparent;border:1px solid currentColor;color:inherit!important}
+/* Hero: newspaper headline, serif numerals */
+.vh-head{font-weight:500;font-size:clamp(30px,3.4vw,46px);line-height:1.08;letter-spacing:-.012em}
+.vh-head em{font-style:italic;font-weight:500;color:var(--pri)}
+.vh-sub{font-size:15px}
+.vh-n{font-family:var(--display);font-stretch:normal;font-weight:400;font-size:56px;line-height:1;font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.02em}
+.vh-s{font-family:var(--font);font-size:13px;font-variant-caps:normal}
+.vh-cell::after{height:2px}
+/* Status: coloured dot + words, not a boxed stamp */
+.badge{border:0!important;padding:0!important;font-family:var(--font)!important;font-size:12.5px!important;font-weight:600!important;letter-spacing:0!important;text-transform:none!important;gap:6px;align-items:center}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+/* Ticket number & type */
+.vt-no{font-family:var(--font);font-weight:700;font-variant-numeric:tabular-nums;color:var(--text2);letter-spacing:.01em}
+.vt-top{font-family:var(--font);font-size:12.5px;letter-spacing:0;padding:10px 14px}
+.vt-tag{border:0;padding:0;margin-left:8px;font-variant-caps:all-small-caps;letter-spacing:.05em;font-size:12.5px;font-weight:700}
+.vt-dept{font-size:19px;font-weight:600;line-height:1.2}
+.vt-dest{font-size:13px;color:var(--text3)}
+.vt-v{font-size:13px}
+.prio{font-family:var(--font);font-variant-caps:all-small-caps;letter-spacing:.05em;font-size:12.5px}
+.prio-emergency{border-radius:999px;padding:0 8px}
+/* Cards: soft lift instead of the hard ink offset */
+.vt-card,.tpl-chip,.vd-card,.vg-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.vt-card:hover,.tpl-chip:hover{transform:translateY(-2px);box-shadow:0 10px 24px -14px rgba(20,22,58,.35);border-color:var(--border2)}
+body.dark .vt-card:hover,body.dark .tpl-chip:hover{box-shadow:0 10px 24px -12px rgba(0,0,0,.7)}
+.btn-pri:hover{transform:translateY(-1px);box-shadow:0 6px 16px -8px var(--pri)}
+.tbl-act-green:hover,.tbl-act-blue:hover,.tbl-act-teal:hover,.tbl-act-purple:hover{transform:translateY(-1px);box-shadow:0 6px 14px -8px var(--pri)}
+/* Card actions: one consistent button family */
+.vt-acts .btn{min-height:36px;font-size:13px;border-radius:2px}
+.vt-acts .btn-green{background:var(--pri)!important;color:var(--on-pri)!important;border:1.5px solid var(--pri)!important}
+.vt-acts .btn-red{background:transparent!important;color:var(--red)!important;border:1.5px solid var(--red)!important}
+.vt-acts .btn-pri{background:var(--pri)!important;border-color:var(--pri)!important}
+.vt-acts .btn[style*="amber"]{background:var(--card)!important;color:var(--text)!important;border:1.5px solid var(--border2)!important}
+/* Tabs */
+.kb-tab{font-size:15px}
+.kb-count{font-family:var(--font);font-variant-numeric:tabular-nums;font-weight:700;font-size:12px;border:0!important;background:var(--hover);color:var(--text2);border-radius:999px;padding:1px 8px}
+.kb-tab.active .kb-count{background:var(--pri);color:var(--on-pri)}
+.kb-count.urgent{background:var(--red-s);color:var(--red)}
+/* Compact trip track inside cards */
+.vt-trip{padding:4px 14px 2px}
+.vt-trip-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:6px;font-variant-numeric:tabular-nums}
+.vt-trip-meta span:last-child{color:var(--text2);font-weight:600}
+.vt-trip.late .vt-trip-meta span:last-child{color:var(--amber)}
+.vt-trip-track{position:relative;height:4px;background:var(--road);border-radius:2px}
+.vt-trip-track::before,.vt-trip-track::after{content:"";position:absolute;top:50%;transform:translateY(-50%);width:8px;height:8px;background:var(--card)}
+.vt-trip-track::before{left:-1px;border:2px solid var(--pri);border-radius:1px}
+.vt-trip-track::after{right:-1px;border:2px solid var(--green);border-radius:50%}
+.vt-trip-track i{position:absolute;left:0;top:0;bottom:0;background:var(--pri);border-radius:2px}
+.vt-trip-track b{position:absolute;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--pri);box-shadow:0 0 0 4px var(--pri-s)}
+.vt-trip-track b::after{content:"";position:absolute;inset:-6px;border-radius:50%;background:var(--pri);opacity:.18;animation:vr-glow 1.6s ease-in-out infinite}
+.vt-trip.late .vt-trip-track i,.vt-trip.late .vt-trip-track b{background:var(--amber)}
+.vt-trip.late .vt-trip-track b{box-shadow:0 0 0 4px var(--amber-s)}
+.vt-trip.late .vt-trip-track b::after{background:var(--amber)}
+/* Guard & driver numerals */
+.vg-time b,.vg-date b{font-family:var(--display);font-stretch:normal;font-weight:500;font-variant-numeric:lining-nums}
+.vg-btn{font-family:var(--font);letter-spacing:.02em}
+/* Login */
+.login-card h2{font-family:var(--display)!important;font-weight:500!important;font-stretch:normal!important}
+@media (prefers-reduced-motion:reduce){.vt-trip-track b::after{animation:none}}
 </style>
 </head>
 <body>
@@ -1372,14 +1449,14 @@ function vtsRouteSVG(cls, full) {
     + '<path class="vr-trail" pathLength="1000" d="' + D + '" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
     + '<circle class="vr-pulse vr-p-start" cx="40" cy="72" r="7" fill="currentColor"/>'
     + '<rect x="33" y="65" width="14" height="14" style="fill:var(--card)" stroke="currentColor" stroke-width="2"/>'
-    + '<text x="40" y="54" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1" style="fill:var(--text2)">TDMH</text>'
+    + '<text x="40" y="54" text-anchor="middle" font-family="Public Sans, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--text2)">TDMH</text>'
     + '<circle class="vr-pulse vr-p-stop" cx="486.6" cy="90" r="6" style="fill:var(--amber)"/>'
     + '<circle cx="486.6" cy="90" r="5.5" style="fill:var(--card);stroke:var(--amber)" stroke-width="2"/>'
-    + '<text x="486.6" y="106" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1" style="fill:var(--amber)">HINTO</text>'
+    + '<text x="486.6" y="106" text-anchor="middle" font-family="Public Sans, system-ui, sans-serif" font-size="10" letter-spacing="1" style="fill:var(--amber)">HINTO</text>'
     + '<circle class="vr-pulse vr-p-end" cx="1160" cy="90" r="7" style="fill:var(--green)"/>'
     + '<path d="M1160 92 c-6 -8 -9 -12 -9 -16 a9 9 0 0 1 18 0 c0 4 -3 8 -9 16 z" style="fill:var(--green)"/>'
     + '<circle cx="1160" cy="76" r="3.2" style="fill:var(--card)"/>'
-    + '<text x="1146" y="66" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1" style="fill:var(--green)">DESTINASYON</text>'
+    + '<text x="1146" y="66" text-anchor="end" font-family="Public Sans, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--green)">DESTINASYON</text>'
     + head + '</svg>'
 }
 
@@ -1452,19 +1529,12 @@ function vtsMiniRoute(t) {
   const dep = t.departure_at ? new Date(t.departure_at) : null
   const ms = dep ? Date.now() - dep : 0
   const exp = t.expected_return_at ? new Date(t.expected_return_at) - dep : 0
-  const p = exp > 0 ? Math.min(.92, Math.max(.06, ms / exp)) : Math.min(.92, Math.max(.06, ms / (3 * 3600000)))
-  const x = Math.round(12 + p * 276)
+  const p = Math.round(100 * (exp > 0 ? Math.min(.94, Math.max(.06, ms / exp)) : Math.min(.94, Math.max(.06, ms / (3 * 3600000)))))
   const late = isOverdue(t)
-  return '<svg class="vt-mini" viewBox="0 0 300 40" aria-hidden="true">'
-    + '<line x1="12" y1="22" x2="288" y2="22" style="stroke:var(--road)" stroke-width="8" stroke-linecap="round"/>'
-    + '<line x1="12" y1="22" x2="288" y2="22" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 6" opacity=".45"/>'
-    + '<line x1="12" y1="22" x2="' + x + '" y2="22" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>'
-    + '<rect x="7" y="17" width="10" height="10" style="fill:var(--card)" stroke="currentColor" stroke-width="2"/>'
-    + '<circle cx="288" cy="22" r="5" style="fill:var(--card);stroke:var(--green)" stroke-width="2"/>'
-    + '<text x="12" y="8" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1" style="fill:var(--text3)">TDMH</text>'
-    + '<text x="288" y="8" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1" style="fill:' + (late ? 'var(--amber)' : 'var(--text2)') + '">' + (dep ? vtsDur(ms) + ' SA LABAS' : 'NASA BIYAHE') + '</text>'
-    + '<g transform="translate(' + x + ' 22)"><g class="vr-mini-head"><circle class="vr-glow" r="10" fill="currentColor"/>'
-    + '<path d="M -7 -5 L 7 0 L -7 5 L -3.5 0 Z" fill="currentColor" style="stroke:var(--card)" stroke-width="1.4" stroke-linejoin="round"/></g></g></svg>'
+  const out = dep ? vtsDur(ms).toLowerCase().replace('h ', 'h ') + ' sa labas' : 'nasa biyahe'
+  return '<div class="vt-trip' + (late ? ' late' : '') + '" aria-label="' + out + '">'
+    + '<div class="vt-trip-meta"><span>TDMH</span><span>' + out + '</span></div>'
+    + '<div class="vt-trip-track"><i style="width:' + p + '%"></i><b style="left:' + p + '%"></b></div></div>'
 }
 
 document.addEventListener('DOMContentLoaded',()=>{const r=document.getElementById('loginRoute');if(r)r.outerHTML=vtsRouteSVG('login-route',false)})
@@ -1798,7 +1868,7 @@ async function renderDashboard() {
       return '<div class="vt-card' + (viewOnly ? ' view-only' : '') + '" onclick="openViewModal(\'' + t.id + '\')">'
         + '<div class="vt-top"><span><span class="vt-no">' + vtsEsc(t.ticket_no||'—') + '</span>' + typeTag + '</span>' + badge(t.status) + '</div>'
         + '<div class="vt-body"><div class="vt-dept">' + vtsEsc(t.department||'—') + '</div>'
-        + '<div class="vt-dest">→ ' + vtsEsc(t.destination||'—') + '</div>'
+        + (t.destination ? '<div class="vt-dest">→ ' + vtsEsc(t.destination) + '</div>' : (t.purpose ? '<div class="vt-dest">' + vtsEsc(t.purpose) + '</div>' : ''))
         + (ov ? '<div class="vt-over">⚠ LAMPAS NA: ' + vtsEsc(overdueDuration(t)) + '</div>' : '') + '</div>'
         + (t.status === 'on-trip' ? vtsMiniRoute(t) : '')
         + '<div class="vt-info"><div><div class="vt-k">DEPARTURE</div><div class="vt-v">' + depStr + '</div></div>' + who + '</div>'
@@ -1897,9 +1967,9 @@ async function renderDashboard() {
           const col1 = [...pendingToday,...approvedNoDriver]
           const col2 = assignedToday
           const col3 = onTrip
-          const c1h = '<div class="vk-col-h" style="color:var(--amber)">01 · PENDING / NEEDS DRIVER ('+col1.length+')</div>'
-          const c2h = '<div class="vk-col-h" style="color:var(--green)">02 · ASSIGNED TODAY ('+col2.length+')</div>'
-          const c3h = '<div class="vk-col-h" style="color:var(--pri)">03 · ON TRIP NOW ('+col3.length+')</div>'
+          const c1h = '<div class="vk-col-h" style="color:var(--amber)">Pending / needs driver<span class="vk-c">'+col1.length+'</span></div>'
+          const c2h = '<div class="vk-col-h" style="color:var(--green)">Assigned today<span class="vk-c">'+col2.length+'</span></div>'
+          const c3h = '<div class="vk-col-h" style="color:var(--pri)">On trip now<span class="vk-c">'+col3.length+'</span></div>'
           const c1b = col1.length ? col1.map(t=>tripCard(t,approverActions(t))).join('') : emptyCol('All clear')
           const c2b = col2.length ? col2.map(t=>tripCard(t,approverActions(t))).join('') : emptyCol('No assigned trips today')
           const c3b = col3.length ? col3.map(t=>tripCard(t,approverActions(t))).join('') : emptyCol('No vehicles out')
@@ -2095,14 +2165,14 @@ async function renderDashboard() {
     const buildTodayTab = () => {
       const urgent = nowCount > 0 ? `<div class="vg-alert"><div><b>${nowCount} sasakyan ang lampas na sa oras ng gate-out</b><span>Lumipas na ang departure time. I-proseso agad ang gate-out.</span></div></div>` : ''
       const sec = (n, label, color, items, render) => items.length
-        ? `<div class="vk-sec"><div class="vk-col-h" style="color:${color}">${n} · ${label} (${items.length})</div><div class="vk-list">${items.map(render).join('')}</div></div>` : ''
+        ? `<div class="vk-sec"><div class="vk-col-h" style="color:${color}">${label}<span class="vk-c">${items.length}</span></div><div class="vk-list">${items.map(render).join('')}</div></div>` : ''
       const isEmpty = !gateOutNow.length && !gateOutSoon.length && !onTripItems.length && !gateOutLater.length
       return urgent + (isEmpty
         ? `<div class="vk-empty" style="padding:44px 16px"><div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--text)">Tahimik ang gate ngayon</div><div style="margin-top:4px">Walang kailangang gate-out o gate-in sa ngayon.</div></div>`
-        : sec('01','GATE OUT NA','var(--red)',gateOutNow,rAssigned)
-          + sec('02','AALIS SA LOOB NG 2 ORAS','var(--amber)',gateOutSoon,rAssigned)
-          + sec('03','NASA LABAS — HINIHINTAY ANG BALIK','var(--pri)',onTripItems,rOnTrip)
-          + sec('04','MAMAYA PA','var(--text3)',gateOutLater,rAssigned))
+        : sec('01','Gate out na','var(--red)',gateOutNow,rAssigned)
+          + sec('02','Aalis sa loob ng 2 oras','var(--amber)',gateOutSoon,rAssigned)
+          + sec('03','Nasa labas, hinihintay ang balik','var(--pri)',onTripItems,rOnTrip)
+          + sec('04','Mamaya pa','var(--text3)',gateOutLater,rAssigned))
     }
 
     const buildUpcomingTab = () => {
@@ -5353,7 +5423,7 @@ async function renderDriverDashboard() {
   <!-- Active or Next Trip -->
   ${activeOrNext ? `
   <div class="vk-col-h" style="color:var(--pri)">
-    ${activeTrip ? '01 · NASA BIYAHE KA' : '01 · SUSUNOD NA ASSIGNMENT'}
+    ${activeTrip ? 'Nasa biyahe ka' : 'Susunod na assignment'}
   </div>
   ${tripCard(activeOrNext, !!activeTrip)}` : `
   <div class="card" style="text-align:center;padding:32px;margin-bottom:14px">
@@ -5364,12 +5434,12 @@ async function renderDriverDashboard() {
 
   <!-- Upcoming Trips -->
   ${upcoming.length > 0 ? `
-  <div class="vk-col-h vk-sec" style="color:var(--text3)">02 · IBA PANG BIYAHE</div>
+  <div class="vk-col-h vk-sec" style="color:var(--text3)">Iba pang biyahe</div>
   ${upcoming.map(t => tripCard(t, false)).join('')}` : ''}
 
   <!-- Trip History -->
   ${history.length > 0 ? `
-  <div class="vk-col-h vk-sec" style="color:var(--text3)">03 · KASAYSAYAN</div>
+  <div class="vk-col-h vk-sec" style="color:var(--text3)">Kasaysayan</div>
   <div class="card card-np" style="overflow:hidden;margin-bottom:14px">
     <table class="tbl" style="font-size:12px">
       <thead><tr><th>Ticket</th><th>Department</th><th>Destination</th><th>Date</th><th>Vehicle</th><th>Rating</th></tr></thead>
