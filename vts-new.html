@@ -18,7 +18,7 @@ if (typeof supabase === 'undefined') {
   document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"><\/script>')
 }
 </script>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Public+Sans:ital,wght@0,400..800;1,400..600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 <style>
 /* ── Reset & Base ── */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -777,29 +777,29 @@ body.dark #CONTENT [style*="background:#fff;"],body.dark .mo [style*="background
 @media (prefers-reduced-motion:reduce){#CONTENT > *{animation:none}}
 
 /* ════ Phase 6: editorial typography & refinement ════ */
-:root{--display:'Newsreader',Georgia,'Times New Roman',serif;--font:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'Public Sans',system-ui,sans-serif}
+:root{--display:'Source Serif 4',Georgia,'Times New Roman',serif;--font:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',sans-serif;--mono:'Atkinson Hyperlegible',system-ui,sans-serif}
 body{font-family:var(--font);font-feature-settings:"tnum" 0;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 h1,h2,h3,.topbar-title,.card-title,.mo-title,.sb-brand,.vt-dept,.vh-head,.stat-val{font-family:var(--display);font-stretch:normal!important;letter-spacing:-.005em}
 /* Labels: small caps instead of shouting monospace */
 .vh-l,.vh-bar,.vk-col-h,.vt-k,.sb-section,.sb-user-label,.login-kicker,.stat-lbl,.fl,.vtype,.vg-state,.nav-tag,.tbl th,
 #CONTENT table th,#CONTENT [style*="text-transform:uppercase"][style*="letter-spacing"],.mo [style*="text-transform:uppercase"][style*="letter-spacing"]{
-  font-family:var(--font)!important;font-variant-caps:all-small-caps;text-transform:none!important;letter-spacing:.045em!important;font-weight:600!important}
-.vh-l,.vt-k,.vk-col-h,.vtype,.vg-state{font-size:12.5px!important}
-.vh-bar{font-size:13px!important;color:var(--text3)}
-.fl{font-size:12.5px!important;color:var(--text2)}
-.sb-section{font-size:12px!important;padding:18px 22px 6px}
+  font-family:var(--font)!important;font-variant-caps:normal;text-transform:uppercase!important;letter-spacing:.06em!important;font-weight:700!important}
+.vh-l,.vt-k,.vk-col-h,.vtype,.vg-state{font-size:11px!important}
+.vh-bar{font-size:11.5px!important;color:var(--text3)}
+.fl{font-size:11px!important;color:var(--text2)}
+.sb-section{font-size:11px!important;padding:18px 22px 6px}
 .sb-section::before{content:none}
-.topbar-title::before{content:"VTS";font-family:var(--font);font-variant-caps:all-small-caps;letter-spacing:.05em;font-size:13px;font-weight:600;color:var(--text3);margin-right:10px;vertical-align:1px}
-.topbar-title{font-size:21px;font-weight:500}
+.topbar-title::before{content:"VTS";font-family:var(--font);text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-weight:700;color:var(--text3);margin-right:10px;vertical-align:3px}
+.topbar-title{font-size:21px;font-weight:600}
 .sb-brand{font-size:19px;font-weight:600}
 .vk-col-h{display:flex;align-items:center;gap:8px;font-size:13px!important}
 .vk-c{font-variant-caps:normal;font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:700;min-width:20px;text-align:center;padding:1px 6px;border-radius:999px;background:currentColor;color:var(--card)!important}
 .vk-c{background:transparent;border:1px solid currentColor;color:inherit!important}
 /* Hero: newspaper headline, serif numerals */
-.vh-head{font-weight:500;font-size:clamp(30px,3.4vw,46px);line-height:1.08;letter-spacing:-.012em}
-.vh-head em{font-style:italic;font-weight:500;color:var(--pri)}
+.vh-head{font-weight:600;font-size:clamp(30px,3.4vw,46px);line-height:1.08;letter-spacing:-.012em}
+.vh-head em{font-style:italic;font-weight:600;color:var(--pri)}
 .vh-sub{font-size:15px}
-.vh-n{font-family:var(--display);font-stretch:normal;font-weight:400;font-size:56px;line-height:1;font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.02em}
+.vh-n{font-family:var(--display);font-stretch:normal;font-weight:500;font-size:56px;line-height:1;font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.02em}
 .vh-s{font-family:var(--font);font-size:13px;font-variant-caps:normal}
 .vh-cell::after{height:2px}
 /* Status: coloured dot + words, not a boxed stamp */
@@ -808,11 +808,11 @@ h1,h2,h3,.topbar-title,.card-title,.mo-title,.sb-brand,.vt-dept,.vh-head,.stat-v
 /* Ticket number & type */
 .vt-no{font-family:var(--font);font-weight:700;font-variant-numeric:tabular-nums;color:var(--text2);letter-spacing:.01em}
 .vt-top{font-family:var(--font);font-size:12.5px;letter-spacing:0;padding:10px 14px}
-.vt-tag{border:0;padding:0;margin-left:8px;font-variant-caps:all-small-caps;letter-spacing:.05em;font-size:12.5px;font-weight:700}
+.vt-tag{border:0;padding:0;margin-left:8px;text-transform:uppercase;letter-spacing:.06em;font-size:10.5px;font-weight:700}
 .vt-dept{font-size:19px;font-weight:600;line-height:1.2}
 .vt-dest{font-size:13px;color:var(--text3)}
 .vt-v{font-size:13px}
-.prio{font-family:var(--font);font-variant-caps:all-small-caps;letter-spacing:.05em;font-size:12.5px}
+.prio{font-family:var(--font);text-transform:uppercase;letter-spacing:.06em;font-size:10.5px}
 .prio-emergency{border-radius:999px;padding:0 8px}
 /* Cards: soft lift instead of the hard ink offset */
 .vt-card,.tpl-chip,.vd-card,.vg-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
@@ -847,10 +847,10 @@ body.dark .vt-card:hover,body.dark .tpl-chip:hover{box-shadow:0 10px 24px -12px 
 .vt-trip.late .vt-trip-track b{box-shadow:0 0 0 4px var(--amber-s)}
 .vt-trip.late .vt-trip-track b::after{background:var(--amber)}
 /* Guard & driver numerals */
-.vg-time b,.vg-date b{font-family:var(--display);font-stretch:normal;font-weight:500;font-variant-numeric:lining-nums}
+.vg-time b,.vg-date b{font-family:var(--display);font-stretch:normal;font-weight:600;font-variant-numeric:lining-nums}
 .vg-btn{font-family:var(--font);letter-spacing:.02em}
 /* Login */
-.login-card h2{font-family:var(--display)!important;font-weight:500!important;font-stretch:normal!important}
+.login-card h2{font-family:var(--display)!important;font-weight:600!important;font-stretch:normal!important}
 @media (prefers-reduced-motion:reduce){.vt-trip-track b::after{animation:none}}
 </style>
 </head>
@@ -1449,14 +1449,14 @@ function vtsRouteSVG(cls, full) {
     + '<path class="vr-trail" pathLength="1000" d="' + D + '" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
     + '<circle class="vr-pulse vr-p-start" cx="40" cy="72" r="7" fill="currentColor"/>'
     + '<rect x="33" y="65" width="14" height="14" style="fill:var(--card)" stroke="currentColor" stroke-width="2"/>'
-    + '<text x="40" y="54" text-anchor="middle" font-family="Public Sans, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--text2)">TDMH</text>'
+    + '<text x="40" y="54" text-anchor="middle" font-family="Atkinson Hyperlegible, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--text2)">TDMH</text>'
     + '<circle class="vr-pulse vr-p-stop" cx="486.6" cy="90" r="6" style="fill:var(--amber)"/>'
     + '<circle cx="486.6" cy="90" r="5.5" style="fill:var(--card);stroke:var(--amber)" stroke-width="2"/>'
-    + '<text x="486.6" y="106" text-anchor="middle" font-family="Public Sans, system-ui, sans-serif" font-size="10" letter-spacing="1" style="fill:var(--amber)">STOP</text>'
+    + '<text x="486.6" y="106" text-anchor="middle" font-family="Atkinson Hyperlegible, system-ui, sans-serif" font-size="10" letter-spacing="1" style="fill:var(--amber)">STOP</text>'
     + '<circle class="vr-pulse vr-p-end" cx="1160" cy="90" r="7" style="fill:var(--green)"/>'
     + '<path d="M1160 92 c-6 -8 -9 -12 -9 -16 a9 9 0 0 1 18 0 c0 4 -3 8 -9 16 z" style="fill:var(--green)"/>'
     + '<circle cx="1160" cy="76" r="3.2" style="fill:var(--card)"/>'
-    + '<text x="1146" y="66" text-anchor="end" font-family="Public Sans, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--green)">DESTINATION</text>'
+    + '<text x="1146" y="66" text-anchor="end" font-family="Atkinson Hyperlegible, system-ui, sans-serif" font-size="11" letter-spacing="1" style="fill:var(--green)">DESTINATION</text>'
     + head + '</svg>'
 }
 
