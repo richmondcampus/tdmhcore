@@ -1548,7 +1548,6 @@ const NAV = [
   { id:'vehicles',     label:'Vehicles',       ic:'◉', roles:['admin','super_approver','guard','owner'] },
   { id:'drivers',      label:'Drivers',        ic:'◎', roles:['admin','super_approver','owner'] },
   { id:'maintenance',  label:'Maintenance',    ic:'🔧', roles:['admin','super_approver'], tag:'New' },
-  { id:'departments',  label:'Departments',    ic:'◫', roles:['admin','super_approver'] },
   { section: 'Planning' },
   { id:'templates',    label:'Trip Templates', ic:'📋', roles:['admin','super_approver','approver_admin'], tag:'New' },
   { section: 'Oversight' },
@@ -1556,8 +1555,6 @@ const NAV = [
   { id:'reports',      label:'Reports',        ic:'◪', roles:['admin','super_approver','approver_admin','approver_amb','owner'] },
   { id:'audit',        label:'Audit Logs',     ic:'◻', roles:['admin','super_approver','owner'] },
   { section: 'System' },
-  { id:'accounts',     label:'Accounts',       ic:'◷', roles:['admin'] },
-  { id:'driver-app',   label:'Driver App',     ic:'◱', roles:['admin'] },
   { id:'faq',          label:'FAQ',            ic:'◌', roles:['admin','super_approver','approver_admin','approver_amb','guard','requester','driver','owner'] },
 ]
 
@@ -1596,7 +1593,7 @@ const BOT_NAV_MAP = {
   approver_amb: [{id:'dashboard',ic:'🏠',lbl:'Home'},{id:'tickets',ic:'🎫',lbl:'Tickets',badge:true},{id:'reports',ic:'📊',lbl:'Reports'},{id:'more',ic:'⋯',lbl:'More'}],
   guard:        [{id:'dashboard',ic:'🏠',lbl:'Home'},{id:'tickets',ic:'🎫',lbl:'Tickets'},{id:'vehicles',ic:'🚗',lbl:'Fleet'},{id:'gps',ic:'📍',lbl:'GPS'},{id:'more',ic:'⋯',lbl:'More'}],
   requester:    [{id:'dashboard',ic:'🏠',lbl:'Home'},{id:'tickets',ic:'🎫',lbl:'My Trips'},{id:'new-ticket',ic:'➕',lbl:'New'},{id:'fleet',ic:'🚦',lbl:'Fleet'},{id:'faq',ic:'❓',lbl:'FAQ'}],
-  driver:       [{id:'dashboard',ic:'🏠',lbl:'Home'},{id:'tickets',ic:'🎫',lbl:'My Trips'},{id:'departments',ic:'🏥',lbl:'Depts'},{id:'faq',ic:'❓',lbl:'FAQ'}],
+  driver:       [{id:'dashboard',ic:'🏠',lbl:'Home'},{id:'tickets',ic:'🎫',lbl:'My Trips'},{id:'faq',ic:'❓',lbl:'FAQ'}],
   super_approver:[{id:'dashboard',ic:'🏠',lbl:'Home'},{id:'tickets',ic:'🎫',lbl:'Tickets',badge:true},{id:'new-ticket',ic:'➕',lbl:'New'},{id:'vehicles',ic:'🚗',lbl:'Fleet'},{id:'more',ic:'⋯',lbl:'More'}],
   owner:        [{id:'dashboard',ic:'🏠',lbl:'Home'},{id:'tickets',ic:'🎫',lbl:'Tickets'},{id:'reports',ic:'📊',lbl:'Reports'},{id:'audit',ic:'📋',lbl:'Audit'},{id:'more',ic:'⋯',lbl:'More'}],
 }
