@@ -852,6 +852,13 @@ body.dark .vt-card:hover,body.dark .tpl-chip:hover{box-shadow:0 10px 24px -12px 
 /* Login */
 .login-card h2{font-family:var(--display)!important;font-weight:600!important;font-stretch:normal!important}
 @media (prefers-reduced-motion:reduce){.vt-trip-track b::after{animation:none}}
+
+/* Desktop: the sidebar already shows where you are, so the page title is hidden (kept for screen readers).
+   Phones keep it, because the sidebar is hidden there. */
+@media (min-width:769px){
+  .topbar-title{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+  .topbar > div:last-child{margin-left:auto}
+}
 </style>
 </head>
 <body>
