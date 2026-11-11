@@ -1526,6 +1526,18 @@ function roleApprovalLevel(role) {
   return map[role] ?? null // null for requester and non-approver roles
 }
 
+// The level a person acts at for THIS request. Someone who heads the request's dept
+// (dept_heads table) acts as Dept Head (L1) while the request is at L1 — even if their
+// csr_role is supply_officer/purchasing_officer (e.g. CSR head who is also Supply Officer).
+// Otherwise they act at their csr_role's level.
+function actingApproval(req, role) {
+  if (role !== 'admin' && req && req.current_approval_level === 1
+      && (state.myHeadedDeptIds || []).includes(req.dept_id)) {
+    return { role: 'dept_head', level: 1 }
+  }
+  return { role, level: roleApprovalLevel(role) }
+}
+
 function canApprove(req, role) {
   // DERP requests are handled by IT or Maintenance team — CSR cannot approve/reject
   if (req.request_type === 'derp') return false
@@ -5033,11 +5045,12 @@ async function flagItemsForPO(reqId) {
 async function processApproval() {
   if (!(await ensureAuth())) { handleAuthLost(); return }
   const remarks = document.getElementById('approvalRemarks')?.value.trim() || ''
-  const role = state.user.csr_role
-  const level = roleApprovalLevel(role)
 
   const { data: req } = await SB.from('requests').select('*').eq('id', approvalRequestId).single()
   if (!req) { showToast('error','Error','Request not found.'); return }
+  // Dept head + Supply Officer in one account: at L1 she approves AS dept head
+  // (recorded as level 1 / dept_head), then the request moves on to L2 normally.
+  const { role, level } = actingApproval(req, state.user.csr_role)
 
   const isAutoApproved = req.current_approval_level === 99
 
@@ -5565,9 +5578,8 @@ async function saveApprovalAdjustments() {
 function openApprovalModal(reqId, action) {
   approvalAction = action
   approvalRequestId = reqId
-  const role = state.user.csr_role
-  const level = roleApprovalLevel(role)
   const req = state.requests.find(r => r.id === reqId)
+  const { role, level } = actingApproval(req, state.user.csr_role)
   const isAutoApproved = req?.current_approval_level === 99
 
   const titles = {
