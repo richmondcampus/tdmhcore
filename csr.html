@@ -4497,7 +4497,20 @@ async function saveRequest(action) {
 
 async function submitRequest(id) {
   confirm2('Submit this request for approval?', async () => {
-    const { error } = await SB.from('requests').update({ status: 'pending_approval', current_approval_level: 1 }).eq('id', id)
+    // Same routing as a direct submit: if the requester heads (or is OIC of) the
+    // request's dept, skip Level 1 — they can't approve their own request.
+    // (Dati: draft → Submit laging L1, kaya naiipit ang sariling request ng dept head.)
+    let startLevel = 1
+    try {
+      const { data: rq } = await SB.from('requests').select('dept_id,request_type').eq('id', id).maybeSingle()
+      if (rq && rq.request_type !== 'derp') {
+        const { data: deptInfo } = await SB.from('departments').select('dept_head_id, dept_oic_id').eq('id', rq.dept_id).maybeSingle()
+        const isOwnDeptHead = (state.myHeadedDeptIds || []).includes(rq.dept_id)
+          || (deptInfo && (deptInfo.dept_head_id === state.user.id || deptInfo.dept_oic_id === state.user.id))
+        if (isOwnDeptHead) startLevel = 2
+      }
+    } catch(_) {}
+    const { error } = await SB.from('requests').update({ status: 'pending_approval', current_approval_level: startLevel }).eq('id', id)
     if (error) { showToast('error', 'Error', error.message); return }
     closeModal('requestDetailModal')
     showToast('success', 'Submitted', 'Request submitted for approval.')
