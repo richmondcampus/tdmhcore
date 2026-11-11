@@ -2065,8 +2065,8 @@ function renderRequestsTable(content, requests, title, subtitle) {
   html += '<select onchange="onAllReqFilter()" id="filterType"><option value="">All Types</option>'
   ;['supply','purchase','issuance','derp'].forEach(t => { html += '<option value="' + t + '"' + (state.allReqType===t?' selected':'') + '>' + t.toUpperCase() + '</option>' })
   html += '</select>'
-  html += '<select onchange="filterRequests(this.value,\'urgency\')" id="filterUrgency"><option value="">All Urgency</option>'
-  ;['routine','urgent','emergency'].forEach(u => { html += '<option value="' + u + '">' + u.charAt(0).toUpperCase()+u.slice(1) + '</option>' })
+  html += '<select onchange="state.allReqUrgency=this.value;filterRequests(this.value,\'urgency\')" id="filterUrgency"><option value="">All Urgency</option>'
+  ;['routine','urgent','emergency'].forEach(u => { html += '<option value="' + u + '"' + (state.allReqUrgency===u?' selected':'') + '>' + u.charAt(0).toUpperCase()+u.slice(1) + '</option>' })
   html += '</select>'
   html += '<select onchange="state.allReqPhoto=this.value;onAllReqFilter()" id="filterPhoto"><option value="">📎 Lahat</option>'
   html += '<option value="with"' + (state.allReqPhoto==='with'?' selected':'') + '>📎 May Photo</option>'
@@ -2089,6 +2089,8 @@ function renderRequestsTable(content, requests, title, subtitle) {
     html += '<div class="mobile-cards" id="requestsMobileCards">' + built.cards + '</div>'
   }
   content.innerHTML = html
+  // Re-apply the client-side urgency filter so it survives re-renders.
+  if (state.allReqUrgency) filterRequests(state.allReqUrgency, 'urgency')
 }
 
 async function showReqHover(ev, reqId) {
@@ -7297,7 +7299,8 @@ async function renderIssuance() {
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">'
   html += '<input type="text" id="iss_f_search" placeholder="🔍 Issuance/Request no., receiver, o item..." value="' + escStk(issState.filters.search) + '" oninput="issState.filters.search=this.value;applyIssuanceFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-family:inherit;font-size:13px;">'
   if (!isDeptHead) {
-    html += deptAutocompleteHtml('iss_f_dept', 'acPickIssDept')
+    const _issDeptName = issState.filters.dept ? (state.departments.find(d => d.id === issState.filters.dept)?.dept_name || '') : ''
+    html += deptAutocompleteHtml('iss_f_dept', 'acPickIssDept', _issDeptName, issState.filters.dept || '')
   }
   html += '<select id="iss_f_scenario" onchange="issState.filters.scenario=this.value;applyIssuanceFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
   html += '<option value="">All Types</option>'
@@ -7344,6 +7347,10 @@ async function renderIssuance() {
   }
 
   content.innerHTML = html
+  // Keep the user's tab + filters after any action that re-renders this page.
+  const _f = issState.filters
+  if (_f.tab && _f.tab !== 'all' && document.getElementById('iss_tab_' + _f.tab)) filterIssTab(_f.tab)
+  else if (_f.search || _f.dept || _f.scenario || _f.from || _f.to) applyIssuanceFilters()
 }
 
 function buildIssuanceRows(issuances) {
@@ -7479,7 +7486,7 @@ function hideIssHover() {
 function filterIssTab(tab) {
   issState.filters.tab = tab
   // Update tab styles
-  ;['all','pending','confirmed'].forEach(t => {
+  ;['all','pending','confirmed','cancelled'].forEach(t => {
     const el = document.getElementById('iss_tab_' + t)
     if (el) {
       el.style.color = t === tab ? 'var(--accent)' : 'var(--txt2)'
@@ -12973,9 +12980,16 @@ async function sendEmail(to, subject, body) {
   } catch(e) { console.warn('[Email]', e.message) }
 }
 
-// Close modals on overlay click
+// Pop-ups do NOT close when clicking outside anymore (staff kept losing edits from a
+// stray click). Close only via ✕ / Close / Cancel. A click outside just nudges the box
+// so they know it's still open.
 document.querySelectorAll('.modal-overlay').forEach(o => {
-  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open') })
+  o.addEventListener('click', e => {
+    if (e.target !== o) return
+    const box = o.querySelector('.modal')
+    if (!box || !box.animate) return
+    box.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.015)' }, { transform: 'scale(1)' }], { duration: 180, easing: 'ease-out' })
+  })
 })
 
 // Enter key on login
