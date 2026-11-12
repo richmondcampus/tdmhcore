@@ -7112,17 +7112,24 @@ async function renderIssuance() {
   const isDeptHead = role === 'dept_head'
   const isSupplyOfficer = ['supply_officer','admin'].includes(role)
 
-  const [issRes, batchRes, pendingRes, receivedPORes] = await Promise.all([
-    (() => {
-      // Default to the last 7 days for speed; the date buttons widen this. All-time uses a cap.
+  const [issRes, batchRes, pendingRes, receivedPORes, notRecRes] = await Promise.all([
+    (async () => {
+      // Default: the last 90 days ("All" = every issuance). Fetched in pages of 1,000 because
+      // the API returns at most 1,000 rows per request — without paging the oldest were cut off.
       if (!issState.filters.from && !issState.filters.to && !issState._widened) {
-        const d = new Date(); d.setDate(d.getDate() - 7); issState.filters.from = d.toISOString().split('T')[0]
+        const d = new Date(); d.setDate(d.getDate() - 90); issState.filters.from = d.toISOString().split('T')[0]
       }
-      let q = SB.from('issuances').select('*').order('issued_at', { ascending: false })
-      if (issState.filters.from) q = q.gte('issued_at', issState.filters.from)
-      if (issState.filters.to) q = q.lte('issued_at', issState.filters.to + 'T23:59:59')
-      if (!issState.filters.from && !issState.filters.to) q = q.limit(1000)
-      return q
+      const rows = []
+      for (let off = 0; off < 50000; off += 1000) {
+        let q = SB.from('issuances').select('*').order('issued_at', { ascending: false }).range(off, off + 999)
+        if (issState.filters.from) q = q.gte('issued_at', issState.filters.from)
+        if (issState.filters.to) q = q.lte('issued_at', issState.filters.to + 'T23:59:59')
+        const { data, error } = await q
+        if (error) return { data: rows.length ? rows : null, error }
+        rows.push(...(data || []))
+        if (!data || data.length < 1000) break
+      }
+      return { data: rows, error: null }
     })(),
     SB.from('issuance_batches').select('*').order('created_at', { ascending: false }).limit(20),
     SB.from('requests').select('*')
@@ -7132,8 +7139,13 @@ async function renderIssuance() {
     // Received POs waiting to be issued — includes PARTIAL deliveries so the items that
     // already arrived can be issued without waiting for the full order.
     SB.from('purchase_orders').select('*, requests(request_no, purpose, dept_id)')
-      .in('status', ['received','partial_delivery']).order('received_at', { ascending: false })
+      .in('status', ['received','partial_delivery']).order('received_at', { ascending: false }),
+    // Not yet received: EVERY unconfirmed, uncancelled issuance, whatever the date range —
+    // so nothing old gets left behind (e.g. an October issuance still pending in November).
+    SB.from('issuances').select('id,issuance_no,request_id,dept_id,issued_at,received_by,receiver_name,scenario')
+      .is('confirmed_at', null).is('cancelled_at', null).order('issued_at', { ascending: true }).limit(1000)
   ])
+  issState.notReceived = notRecRes?.data || []
   // Received POs ready to issue. A fully-received PO ('received') is excluded once it has
   // any issuance. A partial_delivery PO stays listed as long as it has received items that
   // haven't been issued yet (so later-arriving batches can still be issued).
@@ -7178,6 +7190,7 @@ async function renderIssuance() {
       ?.filter(r => issMyDepts.includes(r.dept_id))
       .map(r => r.id) || []
     allIssuances = allIssuances.filter(i => deptRequestIds.includes(i.request_id))
+    issState.notReceived = issState.notReceived.filter(i => issMyDepts.includes(i.dept_id) || deptRequestIds.includes(i.request_id))
   }
 
   issState.issuances = allIssuances
@@ -7202,7 +7215,7 @@ async function renderIssuance() {
 
   // Load ALL requests linked to these issuances (including fully-issued ones, which
   // aren't in state.requests) so the list can show Request No. + Department correctly.
-  const linkedReqIds = [...new Set(allIssuances.map(i => i.request_id).filter(Boolean))]
+  const linkedReqIds = [...new Set([...allIssuances, ...(issState.notReceived || [])].map(i => i.request_id).filter(Boolean))]
   issState.reqLookup = {}
   for (let i = 0; i < linkedReqIds.length; i += 300) {
     const { data: linkedReqs } = await SB.from('requests').select('id,request_no,dept_id').in('id', linkedReqIds.slice(i, i + 300))
@@ -7213,18 +7226,16 @@ async function renderIssuance() {
   issState.itemsByIssuance = {}
   const visIds = allIssuances.map(i => i.id)
   if (visIds.length) {
-    const { data: issItems } = await SB.from('issuance_items')
-      .select('issuance_id, quantity_issued, request_item_id, stock_item_id, item_name_snapshot')
-      .in('issuance_id', visIds.slice(0, 500))
+    const issItems = await sbInChunks('issuance_items', 'issuance_id, quantity_issued, request_item_id, stock_item_id, item_name_snapshot', 'issuance_id', visIds)
     // Resolve item names from request_items / stock_items
     const reqItemIds = [...new Set((issItems||[]).map(x => x.request_item_id).filter(Boolean))]
     const stockIds = [...new Set((issItems||[]).map(x => x.stock_item_id).filter(Boolean))]
-    const [riRes, siRes] = await Promise.all([
-      reqItemIds.length ? SB.from('request_items').select('id,item_name,unit').in('id', reqItemIds) : Promise.resolve({ data: [] }),
-      stockIds.length ? SB.from('stock_items').select('id,item_name,unit').in('id', stockIds) : Promise.resolve({ data: [] })
+    const [riRows, siRows] = await Promise.all([
+      sbInChunks('request_items', 'id,item_name,unit', 'id', reqItemIds),
+      sbInChunks('stock_items', 'id,item_name,unit', 'id', stockIds)
     ])
-    const riById = {}; (riRes.data||[]).forEach(r => riById[r.id] = r)
-    const siById = {}; (siRes.data||[]).forEach(s => siById[s.id] = s)
+    const riById = {}; (riRows||[]).forEach(r => riById[r.id] = r)
+    const siById = {}; (siRows||[]).forEach(s => siById[s.id] = s)
     ;(issItems||[]).forEach(it => {
       const src = (it.request_item_id && riById[it.request_item_id]) || (it.stock_item_id && siById[it.stock_item_id])
       const name = it.item_name_snapshot || src?.item_name || 'Item'  // snapshot = source of truth
@@ -7254,7 +7265,7 @@ async function renderIssuance() {
   html += '</div></div>'
 
   // Stats
-  const pendingConfirmCount = allIssuances.filter(i => !i.confirmed_at).length
+  const pendingConfirmCount = (issState.notReceived || []).length   // all of them, not just the date range
   html += '<div class="stat-grid" style="margin-bottom:20px;">'
   if (pendingConfirmCount > 0 && !isDeptHead) {
     html += statCard('⏳', 'Pending Confirmation', pendingConfirmCount, 'Awaiting receipt confirmation', 'stat-amber')
@@ -7266,12 +7277,33 @@ async function renderIssuance() {
   }
   html += '</div>'
 
-  // Alert banner if pending confirmations
-  if (pendingConfirmCount > 0 && !isDeptHead) {
-    html += '<div style="background:var(--amber-a);border:1px solid var(--amber);border-radius:10px;padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;">'
-    html += '<span style="font-size:18px;">⏳</span>'
-    html += '<span style="font-size:13px;color:var(--amber);font-weight:600;">' + pendingConfirmCount + ' issuance(s) awaiting receipt confirmation — photo or online link needed.</span>'
+  // ⏳ Not yet received — pinned list of EVERY unconfirmed issuance, oldest first,
+  // independent of the date range. Age: amber from 3 days, red from 7 days.
+  const notRec = issState.notReceived || []
+  if (notRec.length) {
+    const dayMs = 86400000
+    html += '<div style="background:var(--surf1);border:1px solid var(--amber);border-radius:12px;padding:14px 16px;margin-bottom:16px;">'
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px;">'
+    html += '<div style="font-size:12px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.5px;">⏳ ' + (isDeptHead ? 'Not yet confirmed by your department' : 'Not yet received') + ' (' + notRec.length + ')</div>'
+    html += '<div style="font-size:11px;color:var(--txt3);">Laging nakikita kahit anong date range · pinakaluma sa taas · photo o online link para ma-confirm</div>'
     html += '</div>'
+    html += '<div style="max-height:320px;overflow-y:auto;">'
+    for (const iss of notRec) {
+      const req = iss.request_id ? (issState.reqLookup?.[iss.request_id] || state.requests?.find(r => r.id === iss.request_id)) : null
+      const deptId = iss.dept_id || req?.dept_id
+      const dept = deptId ? state.departments.find(d => d.id === deptId) : null
+      const days = Math.floor((Date.now() - new Date(iss.issued_at)) / dayMs)
+      const col = days >= 7 ? 'var(--red)' : days >= 3 ? 'var(--amber)' : 'var(--txt2)'
+      const ageTxt = days <= 0 ? 'today' : days === 1 ? '1 day' : days + ' days'
+      const when = new Date(iss.issued_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+      html += '<div onclick="viewIssuance(\'' + iss.id + '\')" style="display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--bdr);cursor:pointer;">'
+      html += '<span title="Days since issued" style="min-width:66px;text-align:center;font-size:12px;font-weight:700;color:' + col + ';border:1px solid ' + col + ';border-radius:20px;padding:2px 8px;">' + ageTxt + '</span>'
+      html += '<span class="td-mono" style="color:var(--accent);font-weight:600;">' + escStk(iss.issuance_no) + '</span>'
+      html += '<span style="font-size:12px;color:var(--txt2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escStk(dept?.dept_name || '—') + (req?.request_no ? ' · ' + escStk(req.request_no) : (iss.request_id ? '' : ' · ⚡ Blank')) + ' · issued ' + when + '</span>'
+      html += '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewIssuance(\'' + iss.id + '\')">View</button>'
+      html += '</div>'
+    }
+    html += '</div></div>'
   }
 
   // ✅ Received POs — Ready to Issue (dropped here after the delivery is received).
@@ -7315,10 +7347,8 @@ async function renderIssuance() {
   html += '</div>'
   // Quick date-range buttons + window hint (for speed on large data)
   html += '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">'
-  html += '<button class="btn btn-ghost btn-sm" onclick="issSetRange(7)">📅 7 days</button>'
-  html += '<button class="btn btn-ghost btn-sm" onclick="issSetRange(30)">📅 30 days</button>'
   html += '<button class="btn btn-ghost btn-sm" onclick="issSetRange(90)">📅 90 days</button>'
-  html += '<button class="btn btn-ghost btn-sm" onclick="issSetRange(0)">📅 All (mabagal)</button>'
+  html += '<button class="btn btn-ghost btn-sm" onclick="issSetRange(0)">📅 All</button>'
   const _iwin = issState.filters.from ? ('mula ' + issState.filters.from + (issState.filters.to ? ' hanggang ' + issState.filters.to : ' hanggang ngayon')) : 'lahat ng petsa'
   html += '<span style="font-size:11px;color:var(--txt3);margin-left:4px;">' + allIssuances.length + ' issuance · ' + _iwin + '</span>'
   html += '</div>'
@@ -7562,11 +7592,21 @@ function applyIssuanceFilters() {
 
 function clearIssuanceFilters() {
   issState.filters = { search: '', dept: '', from: '', to: '', scenario: '', tab: issState.filters.tab }
-  issState._widened = false  // back to fast 7-day default
+  issState._widened = false  // back to the 90-day default
   ;['iss_f_search','iss_f_dept','iss_f_scenario','iss_f_from','iss_f_to'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = ''
   })
   renderIssuance()
+}
+
+// Fetch rows WHERE field IN (ids) in parallel batches — keeps each request short and under
+// the API's 1,000-row cap no matter how many ids there are.
+async function sbInChunks(table, cols, field, ids, size = 150) {
+  if (!ids || !ids.length) return []
+  const batches = []
+  for (let i = 0; i < ids.length; i += size) batches.push(ids.slice(i, i + size))
+  const res = await Promise.all(batches.map(b => SB.from(table).select(cols).in(field, b)))
+  return res.flatMap(r => r.data || [])
 }
 
 // Quick date-range for the Issuance tab. days=0 = all-time.
