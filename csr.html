@@ -2034,10 +2034,8 @@ async function loadRequestItemsIndex(requestIds) {
     ids.forEach(id => { state.itemsByRequest[id] = state.itemsByRequest[id] || [] })
     // Fetch items for ALL ids, in batches of 300 (Supabase .in() limit-safe), so item
     // search works even on large queues (no 800-row cap).
-    for (let i = 0; i < ids.length; i += 300) {
-      const batch = ids.slice(i, i + 300)
-      const { data } = await SB.from('request_items')
-        .select('request_id,item_name,quantity,unit').in('request_id', batch)
+    {
+      const data = await sbInChunks('request_items', 'request_id,item_name,quantity,unit', 'request_id', ids, 150)
       ;(data || []).forEach(ri => {
         ;(state.itemsByRequest[ri.request_id] = state.itemsByRequest[ri.request_id] || [])
           .push({ name: ri.item_name || '', qty: ri.quantity, unit: ri.unit || '' })
@@ -7601,12 +7599,28 @@ function clearIssuanceFilters() {
 
 // Fetch rows WHERE field IN (ids) in parallel batches — keeps each request short and under
 // the API's 1,000-row cap no matter how many ids there are.
+// Fetch rows where `field` IN ids — chunked AND paginated. Supabase returns at most
+// 1000 rows per request and silently drops the rest, so each batch is paged with a
+// stable order until a short page comes back. (Dati: isang request lang kada batch →
+// kapag >1000 items, nawawala ang sobra — ito ang "missing items" sa Issuance Report.)
 async function sbInChunks(table, cols, field, ids, size = 150) {
-  if (!ids || !ids.length) return []
+  ids = [...new Set((ids || []).filter(Boolean))]
+  if (!ids.length) return []
   const batches = []
   for (let i = 0; i < ids.length; i += size) batches.push(ids.slice(i, i + size))
-  const res = await Promise.all(batches.map(b => SB.from(table).select(cols).in(field, b)))
-  return res.flatMap(r => r.data || [])
+  const PAGE = 1000
+  const res = await Promise.all(batches.map(async b => {
+    const out = []
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await SB.from(table).select(cols).in(field, b)
+        .order('id', { ascending: true }).range(from, from + PAGE - 1)
+      if (error) throw error
+      out.push(...(data || []))
+      if (!data || data.length < PAGE) break
+    }
+    return out
+  }))
+  return res.flat()
 }
 
 // Quick date-range for the Issuance tab. days=0 = all-time.
@@ -11578,8 +11592,8 @@ async function renderIssuanceReport() {
     while (true) {
       let q = SB.from(table).select('*').order(ord.col, { ascending: ord.asc }).range(from, from + size - 1)
       // Server-side date range (only for issuances, which have the date column).
-      if (dateCol && issRptState.filters.from) q = q.gte(dateCol, issRptState.filters.from)
-      if (dateCol && issRptState.filters.to) q = q.lte(dateCol, issRptState.filters.to + 'T23:59:59')
+      if (dateCol && issRptState.filters.from) q = q.gte(dateCol, issRptState.filters.from + 'T00:00:00+08:00')
+      if (dateCol && issRptState.filters.to) q = q.lte(dateCol, issRptState.filters.to + 'T23:59:59.999+08:00')
       const { data, error } = await q
       if (error) break
       all = all.concat(data || [])
@@ -11594,15 +11608,13 @@ async function renderIssuanceReport() {
   // Load issuances in the date window first, then only THEIR items (much smaller set).
   const issuances = await fetchAll('issuances', { col: 'issued_at', asc: false }, 'issued_at')
   const issIds = new Set(issuances.map(i => i.id))
-  async function fetchItemsFor(ids) {
-    const idList = [...ids], out = []
-    for (let i = 0; i < idList.length; i += 300) {
-      const { data } = await SB.from('issuance_items').select('*').in('issuance_id', idList.slice(i, i + 300))
-      if (data) out.push(...data)
-    }
-    return out
+  let allItems
+  try {
+    allItems = await sbInChunks('issuance_items', '*', 'issuance_id', [...issIds], 100)
+  } catch (e) {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Hindi ma-load ang items</h3><p>' + escStk(e.message || String(e)) + '. I-refresh at subukan ulit.</p></div>'
+    return
   }
-  const allItems = await fetchItemsFor(issIds)
 
   // Resolve item names from request_items + stock_items
   const reqItemIds = [...new Set(allItems.map(x => x.request_item_id).filter(Boolean))]
@@ -11702,6 +11714,11 @@ async function renderIssuanceReport() {
   applyIssRptFilters()
 }
 
+function _phDate(ts) {
+  if (!ts) return ''
+  try { return new Date(ts).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }) } catch(_) { return String(ts).split('T')[0] }
+}
+
 function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById, itemIdx) {
   let itemName = '—', qty = '', unit = ''
   if (it) {
@@ -11717,8 +11734,8 @@ function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, si
     _issNo: iss.issuance_no || '',
     _issuedAtTs: iss.issued_at ? new Date(iss.issued_at).getTime() : 0,
     _itemIdx: itemIdx || 0,
-    date: iss.issued_at ? iss.issued_at.split('T')[0] : '',
-    dateReceived: (iss.confirmed_at || iss.online_confirmed_at) ? (iss.confirmed_at || iss.online_confirmed_at).split('T')[0] : '',
+    date: _phDate(iss.issued_at),
+    dateReceived: _phDate(iss.confirmed_at || iss.online_confirmed_at),
     request_no: iss.request_id ? (req?.request_no || '') : 'Blank (walang request)',
     department: dept?.dept_name || '',
     dept_id: (iss.dept_id || req?.dept_id) || '',
