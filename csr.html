@@ -3026,8 +3026,10 @@ async function viewRequest(id) {
       // Status label per item
       let statusHtml
       if (removed) statusHtml = '<span style="font-size:10px;color:var(--red);background:var(--red-a,rgba(240,80,80,.12));padding:1px 7px;border-radius:5px;font-weight:700;">REMOVED</span>'
-      else if (item.fulfillment_type === 'for_po') statusHtml = '<span style="font-size:10px;color:var(--accent,#2222A8);background:var(--accent-a,rgba(34,34,168,.1));padding:1px 7px;border-radius:5px;font-weight:700;">🛒 For PO</span>'
-      else if (remaining === 0 && issuedQty > 0) statusHtml = '<span style="font-size:10px;color:var(--green);font-weight:700;">✅ Complete</span>'
+      // Check "complete" FIRST: a for_po item that was delivered and issued is done.
+      // (Dati: laging "🛒 For PO" basta for_po ang item, kahit naibigay na.)
+      else if (remaining === 0 && issuedQty > 0) statusHtml = '<span style="font-size:10px;color:var(--green);font-weight:700;">✅ Complete' + (item.fulfillment_type === 'for_po' ? ' <span style="font-weight:500;color:var(--txt3);">(via PO)</span>' : '') + '</span>'
+      else if (item.fulfillment_type === 'for_po') statusHtml = '<span style="font-size:10px;color:var(--accent,#2222A8);background:var(--accent-a,rgba(34,34,168,.1));padding:1px 7px;border-radius:5px;font-weight:700;">🛒 For PO</span>' + (issuedQty > 0 ? ' <span style="font-size:10px;color:var(--amber,#b8860b);font-weight:700;">' + issuedQty + '/' + reqQty + '</span>' : '')
       else if (issuedQty > 0) statusHtml = '<span style="font-size:10px;color:var(--amber,#b8860b);font-weight:700;">⏳ Partial</span>'
       else statusHtml = '<span style="font-size:10px;color:var(--txt3);">Pending</span>'
 
@@ -3276,7 +3278,7 @@ async function confirmPullBack() {
     // Recompute status based on what remains.
     const { data: allItems } = await SB.from('request_items').select('quantity,quantity_issued,is_removed,fulfillment_type').eq('request_id', reqId)
     const anyIssued = (allItems||[]).some(x => (Number(x.quantity_issued)||0) > 0)
-    const stillForPo = (allItems||[]).some(x => x.fulfillment_type === 'for_po' && !x.is_removed)
+    const stillForPo = (allItems||[]).some(x => x.fulfillment_type === 'for_po' && !x.is_removed && (Number(x.quantity) - (Number(x.quantity_issued)||0)) > 0)
     let newStatus = stillForPo ? 'for_po' : (anyIssued ? 'partially_issued' : 'approved')
     await SB.from('requests').update({
       status: newStatus,
@@ -6437,10 +6439,8 @@ async function confirmIssueFromPO() {
     const fullyReceived = (allPoItems || []).every(pi => pi.is_fee || Number(pi.quantity_received || 0) >= Number(pi.quantity || 0))
     await SB.from('purchase_orders').update({ status: fullyReceived ? 'issued' : 'partial_delivery' }).eq('id', poId)
 
-    // Update request status only if the PO is fully done; otherwise let the trigger decide.
-    if (reqId && fullyReceived) {
-      await SB.from('requests').update({ status: 'issued', updated_at: new Date().toISOString() }).eq('id', reqId)
-    }
+    // Request status is computed in the database from the request items
+    // (fn_recompute_request_status + trg_guard_request_status) — never forced here.
 
     closeModal('newRequestModal')
     showToast('success', '✅ Na-prepare', issNo + ' — i-confirm ang receipt (photo/link) sa susunod.')
