@@ -516,7 +516,7 @@ const ROUTES = {
   "reports/transactions": { roles: ["admin", "sysadmin"], label: "Transactions", fn: viewRptTxn },
   "reports/cards":        { roles: ["admin", "sysadmin"], label: "Rewards cards", fn: viewRptCards },
   "reports/users":        { roles: ["admin", "sysadmin"], label: "Users", fn: viewRptUsers },
-  "admin/cards":          { roles: ["sysadmin"], label: "Manage cards", fn: viewAdmCards },
+  "admin/cards":          { roles: ["admin", "sysadmin"], label: "Manage cards", fn: viewAdmCards },
   "admin/users":          { roles: ["sysadmin"], label: "Manage users", fn: viewAdmUsers },
   "admin/settings":       { roles: ["sysadmin"], label: "Settings", fn: viewSettings },
   "admin/logs":           { roles: ["sysadmin"], label: "Application logs", fn: viewLogs },
