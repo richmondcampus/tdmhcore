@@ -551,6 +551,7 @@ function refreshView() {
   if (S.tab === 'dashboard') renderDashboardBody();
   else if (S.tab === 'guests') renderGuestRows();
   else if (S.tab === 'scanner') updateScanCount();
+  else if (S.tab === 'attendance') renderAttendanceBody();
 }
 
 /* ============================================================
@@ -569,7 +570,7 @@ function renderShell() {
     <button class="btn btn-sm btn-ghost" id="logoutBtn">Logout</button>
   </header>
   <nav class="tabs">
-    ${[['dashboard', '📊 Dashboard'], ['guests', '👥 Bisita'], ['scanner', '📷 Scanner'], ['settings', '⚙️ Settings']]
+    ${[['dashboard', '📊 Dashboard'], ['guests', '👥 Bisita'], ['attendance', '✅ Attendance'], ['scanner', '📷 Scanner'], ['settings', '⚙️ Settings']]
       .map(([k, l]) => `<button class="tab ${S.tab === k ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}
   </nav>
   <main id="view"></main>`;
@@ -595,7 +596,7 @@ function renderTab() {
       <button class="btn btn-primary" onclick="openEventModal()">＋ Gumawa ng event</button></div>`;
     return;
   }
-  ({ dashboard: renderDashboard, guests: renderGuests, scanner: renderScanner, settings: renderSettings })[S.tab]?.();
+  ({ dashboard: renderDashboard, guests: renderGuests, attendance: renderAttendance, scanner: renderScanner, settings: renderSettings })[S.tab]?.();
 }
 
 /* ---------- event modal ---------- */
@@ -1056,6 +1057,140 @@ function openImportModal() {
     m.remove(); toast(`${done} bisita ang na-import`);
     await loadGuests(); renderGuests();
   };
+}
+
+/* ============================================================
+   ATTENDANCE (who checked in) + Excel export for reporting
+   ============================================================ */
+const isWalkin = g => /\(walk-in\)/i.test(g.checked_in_by || '');
+const byLabel = g => {
+  const b = g.checked_in_by || '';
+  if (!b) return '';
+  return b.startsWith('Scanner: ') ? b.slice(9).replace(/\s*\(walk-in\)$/i, '') : b.split('@')[0] + ' (admin)';
+};
+const phDate = iso => iso ? new Date(iso).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' }) : '';
+const phClock = iso => iso ? new Date(iso).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Manila' }) : '';
+
+function renderAttendance() {
+  S.att = S.att || { q: '', dept: '', status: 'in', sort: 'time' };
+  const depts = [...new Set(S.guests.map(g => g.department).filter(Boolean))].sort();
+  $('#view').innerHTML = `
+    <div class="dash-head">
+      <div><h2>✅ Attendance</h2><div class="hint"><span class="live-dot"></span>Live · ${esc(S.event.name)}</div></div>
+      <button class="btn btn-green" id="attXlsx">⬇ Export Excel (report)</button>
+    </div>
+    <div id="attKpis"></div>
+    <div class="toolbar">
+      <input class="input grow" id="attQ" placeholder="🔍 Hanapin ang pangalan" value="${esc(S.att.q)}">
+      <select class="input" id="attDept" style="max-width:220px"><option value="">Lahat ng department</option>
+        ${depts.map(d => `<option ${d === S.att.dept ? 'selected' : ''}>${esc(d)}</option>`).join('')}</select>
+      <select class="input" id="attSort" style="max-width:200px">
+        <option value="time" ${S.att.sort === 'time' ? 'selected' : ''}>Ayos: oras ng dating</option>
+        <option value="name" ${S.att.sort === 'name' ? 'selected' : ''}>Ayos: pangalan</option>
+        <option value="dept" ${S.att.sort === 'dept' ? 'selected' : ''}>Ayos: department</option>
+      </select>
+    </div>
+    <div class="chips" id="attChips"></div>
+    <div class="table-wrap"><table>
+      <thead id="attHead"></thead><tbody id="attRows"></tbody></table></div>
+    <p class="hint" style="margin-top:8px" id="attCount"></p>`;
+  $('#attQ').oninput = e => { S.att.q = e.target.value; renderAttendanceBody(); };
+  $('#attDept').onchange = e => { S.att.dept = e.target.value; renderAttendanceBody(); };
+  $('#attSort').onchange = e => { S.att.sort = e.target.value; renderAttendanceBody(); };
+  $('#attXlsx').onclick = exportAttendanceXlsx;
+  renderAttendanceBody();
+}
+
+function renderAttendanceBody() {
+  const rowsEl = $('#attRows'); if (!rowsEl) return;
+  const G = S.guests, A = S.att;
+  const inList = G.filter(g => g.checked_in_at);
+  const walk = inList.filter(isWalkin).length;
+  const times = inList.map(g => g.checked_in_at).sort();
+  $('#attKpis').innerHTML = `<div class="kpis">
+    <div class="kpi green"><div class="lbl">Dumating</div><div class="val">${inList.length}<span class="hint" style="font-size:14px"> / ${G.length}</span></div></div>
+    <div class="kpi"><div class="lbl">Hindi dumating</div><div class="val">${G.length - inList.length}</div></div>
+    <div class="kpi"><div class="lbl">Walk-in</div><div class="val">${walk}</div></div>
+    <div class="kpi indigo"><div class="lbl">Una / Huling dating</div><div class="val" style="font-size:18px;margin-top:10px">${times.length ? esc(fmtTime(times[0])) + ' – ' + esc(fmtTime(times[times.length - 1])) : '—'}</div></div>
+  </div>`;
+  const labels = { in: 'Dumating', out: 'Hindi dumating', all: 'Lahat' };
+  const counts = { in: inList.length, out: G.length - inList.length, all: G.length };
+  $('#attChips').innerHTML = Object.keys(labels).map(k => `<button class="chip ${A.status === k ? 'active' : ''}" data-f="${k}">${labels[k]} · ${counts[k]}</button>`).join('');
+  $('#attChips').querySelectorAll('.chip').forEach(c => c.onclick = () => { A.status = c.dataset.f; renderAttendanceBody(); });
+  // arrival order (#1 = first to arrive)
+  const order = new Map([...inList].sort((a, b) => a.checked_in_at.localeCompare(b.checked_in_at)).map((g, i) => [g.id, i + 1]));
+  const q = A.q.trim().toLowerCase();
+  let list = G.filter(g => A.status === 'all' || (A.status === 'in' ? g.checked_in_at : !g.checked_in_at))
+    .filter(g => !A.dept || g.department === A.dept)
+    .filter(g => !q || [fullName(g), (g.last_name || '') + ' ' + g.first_name].join(' ').toLowerCase().includes(q));
+  const nameKey = g => ((g.last_name || '') + ' ' + g.first_name).toLowerCase();
+  list.sort(A.sort === 'name' ? (a, b) => nameKey(a).localeCompare(nameKey(b))
+    : A.sort === 'dept' ? (a, b) => (a.department || '~').localeCompare(b.department || '~') || nameKey(a).localeCompare(nameKey(b))
+    : (a, b) => (b.checked_in_at || '').localeCompare(a.checked_in_at || '') || nameKey(a).localeCompare(nameKey(b)));
+  $('#attHead').innerHTML = `<tr><th style="width:50px">#</th><th>Pangalan</th><th>Department</th><th>Time in</th><th>Na-check in ni / sa</th><th>Uri</th></tr>`;
+  rowsEl.innerHTML = list.length ? list.map(g => `<tr>
+      <td class="sub">${order.get(g.id) || ''}</td>
+      <td><b>${esc(fullName(g))}</b></td>
+      <td>${esc(g.department || '—')}</td>
+      <td>${g.checked_in_at ? `<b>${esc(phClock(g.checked_in_at))}</b><div class="sub">${esc(phDate(g.checked_in_at))}</div>` : '<span class="pill pill-gray">Hindi dumating</span>'}</td>
+      <td>${esc(byLabel(g) || '—')}</td>
+      <td>${g.checked_in_at ? (isWalkin(g) ? '<span class="pill pill-amber">Walk-in</span>' : '<span class="pill pill-indigo">Invited</span>') : ''}</td>
+    </tr>`).join('') : `<tr><td colspan="6"><div class="empty">${A.status === 'in' && !inList.length ? 'Wala pang naka-check in.' : 'Walang tugma.'}</div></td></tr>`;
+  $('#attCount').textContent = `Ipinapakita: ${list.length}`;
+}
+
+async function exportAttendanceXlsx() {
+  const btn = $('#attXlsx'); btn.disabled = true; btn.textContent = 'Ginagawa ang Excel…';
+  try {
+    await loadScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+    const G = S.guests, ev = S.event;
+    const inList = [...G.filter(g => g.checked_in_at)].sort((a, b) => a.checked_in_at.localeCompare(b.checked_in_at));
+    const absent = G.filter(g => !g.checked_in_at).sort((a, b) => (a.department || '~').localeCompare(b.department || '~') || ((a.last_name || '') + a.first_name).localeCompare((b.last_name || '') + b.first_name));
+    const wb = XLSX.utils.book_new();
+    const sheet = (rows, widths) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = widths.map(w => ({ wch: w })); return ws; };
+    // 1) Summary
+    const depts = {};
+    for (const g of G) { const k = g.department || '(Walang department)'; depts[k] ??= { inv: 0, in: 0, walk: 0 }; depts[k].inv++; if (g.checked_in_at) { depts[k].in++; if (isWalkin(g)) depts[k].walk++; } }
+    const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 + '%' : '0%';
+    const sum = [
+      [ev.name], ['Petsa', ev.event_date ? fmtDate(ev.event_date) : ''], ['Venue', ev.venue || ''],
+      ['Report generated', new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' }) + ' (PH time)'], [],
+      ['Kabuuang bisita', G.length], ['Dumating', inList.length], ['Hindi dumating', absent.length], ['Walk-in', inList.filter(isWalkin).length],
+      ['Attendance rate', pct(inList.length, G.length)],
+      ['Unang dumating', inList[0] ? phClock(inList[0].checked_in_at) : ''], ['Huling dumating', inList.length ? phClock(inList[inList.length - 1].checked_in_at) : ''], [],
+      ['Department', 'Bisita', 'Dumating', 'Hindi dumating', 'Walk-in', 'Attendance %'],
+      ...Object.entries(depts).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, v.inv, v.in, v.inv - v.in, v.walk, pct(v.in, v.inv)]),
+      ['KABUUAN', G.length, inList.length, absent.length, inList.filter(isWalkin).length, pct(inList.length, G.length)],
+    ];
+    XLSX.utils.book_append_sheet(wb, sheet(sum, [28, 12, 12, 16, 10, 14]), 'Summary');
+    // 2) Checked in (arrival order)
+    XLSX.utils.book_append_sheet(wb, sheet([
+      ['#', 'Last Name', 'First Name', 'Department', 'Email', 'Petsa', 'Time In (PH)', 'Na-check in ni / sa', 'Uri'],
+      ...inList.map((g, i) => [i + 1, g.last_name || '', g.first_name, g.department || '', g.email || '', phDate(g.checked_in_at), phClock(g.checked_in_at), byLabel(g), isWalkin(g) ? 'Walk-in' : 'Invited']),
+    ], [5, 18, 20, 20, 28, 14, 14, 26, 10]), 'Dumating');
+    // 3) Absent
+    XLSX.utils.book_append_sheet(wb, sheet([
+      ['Last Name', 'First Name', 'Department', 'Email', 'Invite na-send'],
+      ...absent.map(g => [g.last_name || '', g.first_name, g.department || '', g.email || '', g.invite_sent_at ? 'Oo' : 'Hindi']),
+    ], [18, 20, 20, 28, 14]), 'Hindi dumating');
+    // 4) Arrivals per 30 minutes
+    const slots = {};
+    for (const g of inList) {
+      const d = new Date(new Date(g.checked_in_at).getTime() + 8 * 3600e3); d.setUTCMinutes(d.getUTCMinutes() < 30 ? 0 : 30, 0, 0);
+      const k = d.toISOString(); slots[k] = (slots[k] || 0) + 1;
+    }
+    const lbl = k => { const d = new Date(k); const h = d.getUTCHours(), m = d.getUTCMinutes(); const f = (H, M) => `${((H + 11) % 12) + 1}:${String(M).padStart(2, '0')} ${H < 12 ? 'AM' : 'PM'}`;
+      const e = new Date(d.getTime() + 30 * 60e3); return `${f(h, m)} – ${f(e.getUTCHours(), e.getUTCMinutes())}`; };
+    let run = 0;
+    XLSX.utils.book_append_sheet(wb, sheet([
+      ['Oras (PH)', 'Dumating', 'Cumulative'],
+      ...Object.keys(slots).sort().map(k => [lbl(k), slots[k], (run += slots[k])]),
+    ], [22, 12, 12]), 'Per 30 minuto');
+    const day = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `${ev.name.replace(/[^\w]+/g, '-')}-Attendance-${day}.xlsx`);
+    toast('Na-download ang Excel report');
+  } catch (err) { toast(err.message, true); }
+  btn.disabled = false; btn.textContent = '⬇ Export Excel (report)';
 }
 
 function exportCsv() {
