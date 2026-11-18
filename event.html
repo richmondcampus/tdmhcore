@@ -249,7 +249,7 @@ body.ticket-mode{background:linear-gradient(170deg,var(--indigo) 0%,#1d1b55 55%,
 const SUPABASE_URL = 'https://dcsepolfgjdbzafdhdzb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_uydN0ctNx1gytCKyU6SUlA_QbN7WZlc';
 const ORG_NAME = 'Taytay Doctors Multispecialty Hospital';
-const APP_VERSION = '2026.11.18-c'; // shown in the scanner and Settings to confirm which build a phone loaded
+const APP_VERSION = '2026.11.18-d'; // shown in the scanner and Settings to confirm which build a phone loaded
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const app = document.getElementById('app');
@@ -1981,10 +1981,34 @@ function showKeyQR(k) {
   };
 }
 
+/* ---------- auto-update: phones (esp. iPhone Safari) can keep an old cached copy ---------- */
+let lastUpdateCheck = 0;
+async function checkForUpdate() {
+  if (Date.now() - lastUpdateCheck < 60e3 || !location.protocol.startsWith('http')) return;
+  lastUpdateCheck = Date.now();
+  try {
+    const res = await fetch(location.pathname + '?_=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const live = ((await res.text()).match(/const APP_VERSION = '([^']+)'/) || [])[1];
+    if (!live || live === APP_VERSION) return;
+    if (sessionStorage.getItem('evt_reloaded_for') === live) return; // never loop
+    if (document.querySelector('.modal-bg[data-lock]')) return;       // don't interrupt invite sending
+    sessionStorage.setItem('evt_reloaded_for', live);
+    const q = new URLSearchParams();
+    const t = params.get('t'); if (t) q.set('t', t);
+    if (S.scanKey) q.set('scan', S.scanKey);                           // reopen straight into scanner mode
+    q.set('v', live);
+    toast('May bagong bersyon. Nire-reload…');
+    setTimeout(() => location.replace(location.pathname + '?' + q.toString()), 600);
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+
 /* ============================================================
    BOOT
    ============================================================ */
 (async function boot() {
+  setTimeout(checkForUpdate, 1500);
   const t = params.get('t');
   if (t) return renderTicket(t.trim());
   const scan = params.get('scan');
