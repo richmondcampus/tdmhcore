@@ -165,18 +165,32 @@ td .sub{font-size:12px;color:var(--muted)}
 /* ---------- scanner ---------- */
 .scan-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 @media(max-width:860px){.scan-grid{grid-template-columns:1fr}}
-#reader{width:100%;border-radius:14px;overflow:hidden;background:#111;min-height:260px}
-#reader video{border-radius:14px}
-.result{border-radius:16px;padding:22px;text-align:center;min-height:190px;display:flex;flex-direction:column;justify-content:center;gap:6px;transition:.2s;border:2px solid var(--border);background:#fff}
-.result .icon{font-size:42px;line-height:1}
-.result .title{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
-.result .name{font-size:26px;font-weight:900;line-height:1.15}
-.result .meta{font-size:14px;opacity:.85}
-.result.ok{background:var(--green);border-color:var(--green);color:#fff}
-.result.already{background:var(--amber-soft);border-color:var(--amber);color:#6e4b00}
-.result.bad{background:var(--red);border-color:var(--red);color:#fff}
-.scan-count{font-size:13px;color:var(--muted);text-align:center;margin-top:8px}
-.scan-count b{color:var(--green);font-size:16px}
+.scan-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.scan-count{font-size:13px;color:var(--muted)}
+.scan-count b{color:var(--green);font-size:18px}
+.reader-wrap{position:relative;width:100%;max-width:520px;margin:0 auto;aspect-ratio:1/1;border-radius:16px;overflow:hidden;background:#111}
+#reader{position:absolute;inset:0}
+#reader video{width:100%!important;height:100%!important;object-fit:cover;display:block}
+#reader img,#reader #qr-shaded-region{display:none!important}
+.scan-frame{position:absolute;inset:16%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 999px rgba(0,0,0,.28);pointer-events:none}
+.cam-idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;text-align:center;color:rgba(255,255,255,.75);background:radial-gradient(circle at 50% 40%,#2d2a7b 0%,#14123d 75%)}
+.result{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:20px;animation:pop .15s ease;cursor:pointer}
+.result .icon{font-size:56px;line-height:1}
+.result .title{font-size:14px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase}
+.result .name{font-size:28px;font-weight:900;line-height:1.15}
+.result .meta{font-size:15px;opacity:.9}
+.result .tap{font-size:11px;opacity:.7;margin-top:8px}
+.result.ok{background:rgba(31,157,85,.96);color:#fff}
+.result.already{background:rgba(253,243,220,.97);color:#6e4b00}
+.result.bad{background:rgba(207,59,59,.96);color:#fff}
+.last-scan{display:flex;align-items:center;gap:10px;max-width:520px;margin:8px auto 0;padding:10px 12px;border-radius:12px;background:#fff;border:1px solid var(--border);border-left:5px solid var(--border);font-size:13px;min-height:44px}
+.last-scan b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.last-scan .t{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
+.last-scan.ok{border-left-color:var(--green)} .last-scan.already{border-left-color:var(--amber)} .last-scan.bad{border-left-color:var(--red)}
+body.scanmode main{padding:10px 10px 40px}
+body.scanmode .top{padding:6px 12px}
+body.scanmode .top .badge-logo{width:30px;height:30px}
+body.scanmode .tabs .tab{padding:9px 12px}
 .search-results{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .sr{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px}
 .sr .info{flex:1;min-width:0}
@@ -1405,14 +1419,40 @@ function openSendModal(only) {
    ============================================================ */
 /* ---------- scanner-only mode (guards, via Scanner Access QR) ---------- */
 async function renderScanMode(key) {
-  document.body.className = '';
+  document.body.className = 'scanmode';
   app.innerHTML = `<div class="login-wrap"><div class="login" style="text-align:center">Binubuksan ang scanner…</div></div>`;
-  const { data, error } = await sb.rpc('evt_scan_session', { p_key: key });
-  if (error || data?.status !== 'ok') {
+  // Retry a few times: event venues often have flaky mobile data / WiFi
+  let data = null, error = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    ({ data, error } = await Promise.race([
+      sb.rpc('evt_scan_session', { p_key: key }),
+      sleep(10000).then(() => ({ data: null, error: new Error('Timeout: walang sagot ang server sa loob ng 10 segundo') })),
+    ]).catch(err => ({ data: null, error: err })));
+    if (!error) break;
+    if (attempt < 3) {
+      const msg = app.querySelector('.login'); if (msg) msg.textContent = `Kumokonekta sa server… (subok ${attempt + 1} sa 3)`;
+      await sleep(1200 * attempt);
+    }
+  }
+  if (error) {
+    // Network/server problem: keep the saved scanner access so the guard can just retry
+    app.innerHTML = `<div class="login-wrap"><div class="login" style="text-align:center">
+      <div style="font-size:44px">📶</div><h2 style="color:var(--amber);margin:8px 0">Walang koneksyon sa server</h2>
+      <p class="hint">Hindi maabot ng phone ang TDMH Events server. Valid pa rin ang Scanner QR mo, kaya hindi mo na kailangang i-scan ulit.</p>
+      <ul class="hint" style="text-align:left;margin:12px 0 0 18px;line-height:1.7">
+        <li>I-check ang internet. Subukang lumipat mula WiFi papuntang mobile data, o ang kabaligtaran.</li>
+        <li>Kung naka-on ang VPN o iCloud Private Relay, subukang i-off.</li>
+      </ul>
+      <p class="hint" style="margin-top:10px;font-family:ui-monospace,Menlo,monospace;font-size:11px">${esc(error.message || String(error))}</p>
+      <button class="btn btn-primary btn-lg" style="margin-top:14px;width:100%" id="scanRetry">↻ Subukan ulit</button></div></div>`;
+    $('#scanRetry').onclick = () => renderScanMode(key);
+    return;
+  }
+  if (data?.status !== 'ok') {
     localStorage.removeItem('evt_scan_key');
     app.innerHTML = `<div class="login-wrap"><div class="login" style="text-align:center">
       <div style="font-size:44px">⛔</div><h2 style="color:var(--red);margin:8px 0">Hindi valid ang Scanner QR</h2>
-      <p class="hint">${error ? esc(error.message) : 'Expired na o na-revoke ang scanner access na ito. Humingi ng bagong Scanner QR sa IT.'}</p>
+      <p class="hint">Expired na o na-revoke ang scanner access na ito. Humingi ng bagong Scanner QR sa IT.</p>
       <button class="btn btn-lg" style="margin-top:16px;width:100%" onclick="location.href=location.pathname">Bumalik</button></div></div>`;
     return;
   }
@@ -1587,20 +1627,24 @@ function renderWalkin() {
 }
 
 function renderScanner() {
-  const evName = S.scanKey ? S.scanInfo.event_name : S.event.name;
   $('#view').innerHTML = `
     <div class="scan-grid">
-      <div class="card">
-        <h3>📷 I-scan ang QR · ${esc(evName)}</h3>
-        <div id="reader"></div>
-        <div class="row" style="margin-top:10px;justify-content:center">
-          <button class="btn btn-primary btn-lg" id="camBtn">▶ Buksan ang camera</button>
+      <div>
+        <div class="scan-top"><div class="scan-count" id="scanCount"></div>
+          <button class="btn btn-sm hidden" id="camBtn">■ Isara ang camera</button></div>
+        <div class="reader-wrap">
+          <div id="reader"></div>
+          <div class="scan-frame hidden" id="scanFrame"></div>
+          <div class="cam-idle" id="camIdle">
+            <button class="btn btn-green btn-lg" id="camStart">▶ Buksan ang camera</button>
+            <div class="hint" style="color:rgba(255,255,255,.7)">Dito lalabas ang resulta ng bawat scan</div>
+          </div>
+          <div class="result hidden" id="result"></div>
         </div>
+        <div class="last-scan" id="lastScan"><span class="hint">Wala pang na-scan</span></div>
       </div>
       <div>
-        <div class="result" id="result"><div class="icon">📱</div><div class="meta">Itapat ang QR ng bisita sa camera</div></div>
-        <div class="scan-count" id="scanCount"></div>
-        <div class="card" style="margin-top:14px">
+        <div class="card">
           <h3>🔍 Manual check-in</h3>
           <p class="hint" style="margin-bottom:8px">Para sa nakalimutan ang phone o hindi ma-scan ang QR.</p>
           <input class="input" id="manualQ" placeholder="I-type ang pangalan…">
@@ -1608,7 +1652,10 @@ function renderScanner() {
         </div>
       </div>
     </div>`;
-  $('#camBtn').onclick = () => S.scanner ? stopScanner().then(() => { $('#camBtn').textContent = '▶ Buksan ang camera'; }) : startScanner();
+  $('#camStart').onclick = () => startScanner();
+  $('#camBtn').onclick = stopScanner;
+  $('#result').onclick = hideResult;
+  startScanner({ auto: true }); // open the camera right away; falls back to the button if the browser needs a tap
   $('#manualQ').oninput = renderManual;
   updateScanCount();
 }
@@ -1646,27 +1693,49 @@ function paintManual(list) {
   box.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => doCheckIn(b.dataset.t));
 }
 
-async function startScanner() {
-  const btn = $('#camBtn'); btn.disabled = true; btn.textContent = 'Binubuksan…';
+function setCamUI(on) {
+  $('#camIdle')?.classList.toggle('hidden', on);
+  $('#scanFrame')?.classList.toggle('hidden', !on);
+  $('#camBtn')?.classList.toggle('hidden', !on);
+}
+
+let camStarting = false;
+async function startScanner(opts = {}) {
+  if (S.scanner || camStarting || !$('#reader')) return;
+  camStarting = true;
+  const btn = $('#camStart'); if (btn) { btn.disabled = true; btn.textContent = 'Binubuksan ang camera…'; }
   initAudio();
   try {
     await loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js');
     S.scanner = new Html5Qrcode('reader', { verbose: false });
-    await S.scanner.start({ facingMode: 'environment' },
-      { fps: 12, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.72); return { width: s, height: s }; } },
-      onScan, () => {});
-    btn.textContent = '■ Isara ang camera';
+    // Whole frame is scanned (no qrbox) so guests don't have to aim precisely
+    await S.scanner.start({ facingMode: 'environment' }, { fps: 12, aspectRatio: 1.0 }, onScan, () => {});
+    setCamUI(true);
   } catch (err) {
-    S.scanner = null; btn.textContent = '▶ Buksan ang camera';
-    toast('Hindi mabuksan ang camera: ' + (err.message || err), true);
+    try { S.scanner?.clear(); } catch {}
+    S.scanner = null; setCamUI(false);
+    const denied = /NotAllowed|Permission|denied/i.test(String(err?.name || '') + String(err?.message || err));
+    if (!opts.auto || denied) {
+      toast(denied ? 'Walang permiso sa camera. I-allow ang Camera para sa site na ito sa browser settings.' : 'Hindi mabuksan ang camera: ' + (err.message || err), true);
+    }
   }
-  btn.disabled = false;
+  camStarting = false;
+  if (btn) { btn.disabled = false; btn.textContent = '▶ Buksan ang camera'; }
 }
+
+// Phones stop the camera when the app goes to the background: release it, then reopen on return
+document.addEventListener('visibilitychange', () => {
+  const onScan = $('#reader') && (S.scanKey ? (S.scanTab || 'scan') === 'scan' : S.tab === 'scanner');
+  if (document.hidden) { if (S.scanner) stopScanner(); }
+  else if (onScan) setTimeout(() => startScanner({ auto: true }), 300);
+});
+// Sounds need one tap to unlock on iPhone; any tap on the page does it
+document.addEventListener('pointerdown', () => initAudio(), { passive: true });
 
 async function stopScanner() {
   if (!S.scanner) return;
   try { await S.scanner.stop(); S.scanner.clear(); } catch {}
-  S.scanner = null;
+  S.scanner = null; setCamUI(false);
 }
 
 function extractToken(text) {
@@ -1678,7 +1747,7 @@ function extractToken(text) {
 function onScan(text) {
   const token = extractToken(text);
   const now = Date.now();
-  if (token === S.lastToken && now - S.lastAt < 4000) return;
+  if (token === S.lastToken && now - S.lastAt < 8000) return;
   S.lastToken = token; S.lastAt = now;
   if (!token) return showResult('bad', '✕', 'Hindi valid na QR', 'Hindi ito QR ng TDMH Events');
   doCheckIn(token);
@@ -1722,11 +1791,17 @@ function showResult(kind, icon, title, name = '', meta = '') {
     return;
   }
   el.className = 'result ' + kind;
-  el.innerHTML = `<div class="icon">${icon}</div><div class="title">${esc(title)}</div>${name ? `<div class="name">${esc(name)}</div>` : ''}${meta ? `<div class="meta">${esc(meta)}</div>` : ''}`;
+  el.innerHTML = `<div class="icon">${icon}</div><div class="title">${esc(title)}</div>${name ? `<div class="name">${esc(name)}</div>` : ''}${meta ? `<div class="meta">${esc(meta)}</div>` : ''}<div class="tap">I-tap para isara</div>`;
+  const last = $('#lastScan');
+  if (last) {
+    last.className = 'last-scan ' + kind;
+    last.innerHTML = `<span style="font-size:18px">${icon}</span><div style="min-width:0"><b>${esc(name || title)}</b><span class="hint">${esc(name ? title + (meta ? ' · ' + meta : '') : meta)}</span></div><span class="t">${esc(fmtTime(new Date().toISOString()))}</span>`;
+  }
   beep(kind); if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 80 : [60, 60, 60]);
   clearTimeout(resultTimer);
-  resultTimer = setTimeout(() => { const r = $('#result'); if (r) { r.className = 'result'; r.innerHTML = '<div class="icon">📱</div><div class="meta">Handa na sa susunod na QR</div>'; } }, 5000);
+  resultTimer = setTimeout(hideResult, kind === 'ok' ? 2500 : 4500);
 }
+function hideResult() { clearTimeout(resultTimer); const r = $('#result'); if (r) r.className = 'result hidden'; }
 
 let audioCtx = null;
 function initAudio() { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch {} }
