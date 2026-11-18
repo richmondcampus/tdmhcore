@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2d2a7b">
+<title>TDMH Events · QR Invites & Check-in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+:root{
+  --indigo:#2d2a7b; --indigo2:#4440b0; --indigo-soft:#ecebfb;
+  --green:#1f9d55; --green2:#27b865; --green-soft:#e6f6ec;
+  --amber:#c98a06; --amber-soft:#fdf3dc; --red:#cf3b3b; --red-soft:#fbe8e8;
+  --bg:#f4f5fa; --card:#fff; --text:#1b1d2e; --muted:#6b7090; --border:#e2e4ef;
+  --radius:14px; --shadow:0 1px 2px rgba(20,20,60,.05),0 4px 16px rgba(20,20,60,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--indigo2)}
+.hidden{display:none!important}
+
+/* ---------- shell ---------- */
+.top{position:sticky;top:0;z-index:20;background:var(--indigo);color:#fff;display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}
+.badge-logo{width:34px;height:34px;border-radius:9px;background:#fff;color:var(--indigo);display:grid;place-items:center;font-weight:900;font-size:9px;letter-spacing:0;position:relative}
+.badge-logo::after{content:"";position:absolute;right:-3px;bottom:-3px;width:11px;height:11px;border-radius:50%;background:var(--green2);border:2px solid var(--indigo)}
+.brand small{display:block;font-weight:500;opacity:.7;font-size:11px}
+.top .spacer{flex:1}
+.ev-select{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:10px;padding:7px 10px;max-width:260px}
+.ev-select option{color:var(--text)}
+.top .btn-ghost{color:#fff;border-color:rgba(255,255,255,.3)}
+.user-chip{font-size:12px;opacity:.85}
+.top.scan{flex-wrap:nowrap}
+.top.scan .brand{min-width:0}
+.top.scan .brand>div:last-child{min-width:0}
+.top.scan .brand small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}
+.top.scan .pill{max-width:30vw;overflow:hidden;text-overflow:ellipsis}
+.tabs{display:flex;gap:4px;background:#fff;border-bottom:1px solid var(--border);padding:0 12px;overflow-x:auto;position:sticky;top:54px;z-index:19}
+.tab{padding:12px 14px;border:none;background:none;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap}
+.tab.active{color:var(--indigo);border-bottom-color:var(--green)}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
+
+/* ---------- common ---------- */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+.card h3{font-size:14px;font-weight:700;margin-bottom:12px;color:var(--indigo)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);background:#fff;border-radius:10px;padding:8px 14px;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:var(--indigo2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.btn-primary:hover{background:var(--indigo2)}
+.btn-green{background:var(--green);border-color:var(--green);color:#fff}
+.btn-green:hover{background:var(--green2)}
+.btn-danger{color:var(--red)}
+.btn-ghost{background:transparent}
+.btn-sm{padding:5px 9px;font-size:12px;border-radius:8px}
+.btn-lg{padding:12px 20px;font-size:15px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-size:12px;font-weight:600;color:var(--muted)}
+.field input,.field select,.field textarea,.input{border:1px solid var(--border);border-radius:10px;padding:9px 11px;background:#fff;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus,.input:focus{outline:2px solid var(--indigo-soft);border-color:var(--indigo2)}
+.hint{font-size:12px;color:var(--muted);line-height:1.5}
+input[type=checkbox]{width:auto!important;flex:none;margin:0;accent-color:var(--green)}
+label.row{gap:8px;cursor:pointer}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.pill-green{background:var(--green-soft);color:var(--green)}
+.pill-amber{background:var(--amber-soft);color:var(--amber)}
+.pill-red{background:var(--red-soft);color:var(--red)}
+.pill-gray{background:#eef0f6;color:var(--muted)}
+.pill-indigo{background:var(--indigo-soft);color:var(--indigo)}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.toast-wrap{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{background:var(--text);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;box-shadow:var(--shadow);animation:pop .2s ease}
+.toast.err{background:var(--red)}
+@keyframes pop{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(20,20,50,.45);z-index:50;display:grid;place-items:center;padding:16px}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal.wide{max-width:820px}
+.modal h2{font-size:17px;color:var(--indigo);margin-bottom:14px}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media(max-width:560px){.grid2{grid-template-columns:1fr}}
+
+/* login */
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(160deg,var(--indigo) 0%,#1d1b55 60%,#14123d 100%)}
+.login{background:#fff;border-radius:18px;padding:28px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.login .brand{color:var(--indigo);margin-bottom:20px}
+.login .badge-logo{background:var(--indigo);color:#fff}
+.login .badge-logo::after{border-color:#fff}
+
+/* ---------- dashboard ---------- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+@media(max-width:800px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.kpi .lbl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.kpi .val{font-size:30px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi.green .val{color:var(--green)} .kpi.indigo .val{color:var(--indigo)}
+.dash-grid{display:grid;grid-template-columns:320px 1fr;gap:14px}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr}}
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+.ring-wrap .big{font-size:40px;font-weight:900;color:var(--indigo)}
+.dept-row{display:grid;grid-template-columns:minmax(90px,170px) 1fr 70px;gap:10px;align-items:center;margin-bottom:9px;font-size:13px}
+.dept-row .name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:10px;background:#eef0f6;border-radius:6px;overflow:hidden}
+.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--green2));border-radius:6px;transition:width .5s ease}
+.dept-row .num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.feed{display:flex;flex-direction:column}
+.feed-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.feed-item:last-child{border-bottom:none}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--indigo-soft);color:var(--indigo);display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0}
+.feed-item .t{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.feed-item.new{animation:flash 1.6s ease}
+@keyframes flash{0%{background:var(--green-soft)}100%{background:transparent}}
+.dash-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.dash-head h2{font-size:20px;color:var(--indigo)}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green2);margin-right:6px;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* TV mode */
+body.tv{background:#14123d;color:#fff}
+body.tv .top,body.tv .tabs{display:none}
+body.tv main{max-width:none;padding:28px 36px}
+body.tv .card,body.tv .kpi{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);box-shadow:none;color:#fff}
+body.tv .card h3,body.tv .dash-head h2,body.tv .ring-wrap .big{color:#fff}
+body.tv .kpi .lbl,body.tv .dept-row .num,body.tv .feed-item .t,body.tv .hint{color:rgba(255,255,255,.65)}
+body.tv .kpi .val{font-size:52px}
+body.tv .kpi.indigo .val{color:#b9b6ff}
+body.tv .bar{background:rgba(255,255,255,.1)}
+body.tv .feed-item{border-color:rgba(255,255,255,.1);font-size:18px}
+body.tv .avatar{background:rgba(255,255,255,.12);color:#fff}
+body.tv .dept-row{font-size:17px;grid-template-columns:minmax(120px,240px) 1fr 90px}
+body.tv .bar{height:16px}
+body.tv .btn{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.2)}
+body.tv .ring-wrap .big{font-size:64px}
+
+/* ---------- guests ---------- */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar .input{max-width:280px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--border);background:#fff;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted)}
+.chip.active{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--radius);background:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--border);background:#fafbfe;position:sticky;top:0}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#fafbff}
+td .sub{font-size:12px;color:var(--muted)}
+.acts{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}
+.progress{height:10px;background:#eef0f6;border-radius:6px;overflow:hidden;margin:10px 0}
+.progress>i{display:block;height:100%;background:var(--green);transition:width .3s}
+.map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.preview{font-size:12px;margin-top:10px}
+.preview td,.preview th{padding:6px 8px}
+.log{background:#f7f8fc;border:1px solid var(--border);border-radius:10px;padding:10px;max-height:160px;overflow:auto;font-size:12px;font-family:ui-monospace,Menlo,monospace;line-height:1.6}
+
+/* ---------- scanner ---------- */
+.scan-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media(max-width:860px){.scan-grid{grid-template-columns:1fr}}
+#reader{width:100%;border-radius:14px;overflow:hidden;background:#111;min-height:260px}
+#reader video{border-radius:14px}
+.result{border-radius:16px;padding:22px;text-align:center;min-height:190px;display:flex;flex-direction:column;justify-content:center;gap:6px;transition:.2s;border:2px solid var(--border);background:#fff}
+.result .icon{font-size:42px;line-height:1}
+.result .title{font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.result .name{font-size:26px;font-weight:900;line-height:1.15}
+.result .meta{font-size:14px;opacity:.85}
+.result.ok{background:var(--green);border-color:var(--green);color:#fff}
+.result.already{background:var(--amber-soft);border-color:var(--amber);color:#6e4b00}
+.result.bad{background:var(--red);border-color:var(--red);color:#fff}
+.scan-count{font-size:13px;color:var(--muted);text-align:center;margin-top:8px}
+.scan-count b{color:var(--green);font-size:16px}
+.search-results{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.sr{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px}
+.sr .info{flex:1;min-width:0}
+.sr .info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- ticket page ---------- */
+body.ticket-mode{background:linear-gradient(170deg,var(--indigo) 0%,#1d1b55 55%,#14123d 100%);min-height:100vh}
+.ticket-page{min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:28px 16px 40px}
+.ticket{width:100%;max-width:400px;background:#fff;border-radius:22px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.4)}
+.ticket .head{background:var(--indigo);color:#fff;padding:22px 22px 26px;position:relative}
+.ticket .head .org{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;opacity:.75;font-weight:700}
+.ticket .head h1{font-size:23px;font-weight:900;margin-top:6px;line-height:1.2}
+.ticket .head .when{margin-top:10px;font-size:13px;opacity:.9;line-height:1.6}
+.ticket .tear{height:22px;position:relative;background:#fff}
+.ticket .tear::before,.ticket .tear::after{content:"";position:absolute;top:-11px;width:22px;height:22px;border-radius:50%;background:#1d1b55}
+.ticket .tear::before{left:-11px}.ticket .tear::after{right:-11px}
+.ticket .tear i{position:absolute;left:18px;right:18px;top:0;border-top:2px dashed var(--border)}
+.ticket .body{padding:4px 22px 22px;text-align:center}
+.ticket .guest{font-size:24px;font-weight:900;color:var(--text);line-height:1.2}
+.ticket .dept{color:var(--muted);font-weight:600;margin-top:3px}
+.ticket canvas{width:240px;height:240px;margin:16px auto 10px;display:block;image-rendering:pixelated}
+.ticket .code{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);letter-spacing:1px}
+.ticket .info{text-align:left;margin-top:16px;border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.ticket .info b{color:var(--indigo)}
+.ticket .foot{display:flex;gap:8px;padding:0 22px 22px}
+.ticket .foot .btn{flex:1}
+.ticket .status{margin-top:12px}
+.poster-ticket{width:100%;max-width:460px}
+.poster-img{width:100%;display:block;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.45)}
+.poster-info{background:#fff;border-radius:16px;padding:16px 18px;margin-top:14px;text-align:center}
+.poster-info .info{text-align:left;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.poster-info .info b{color:var(--indigo)}
+.design-wrap{display:grid;grid-template-columns:220px 1fr;gap:14px;align-items:start}
+@media(max-width:560px){.design-wrap{grid-template-columns:1fr}}
+.design-prev{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#f4f5fa;touch-action:none;cursor:move}
+.design-prev canvas{display:block;width:100%;height:auto}
+@media print{
+  .poster-info{display:none}
+  .poster-img{box-shadow:none;border-radius:0}
+  body.ticket-mode{background:#fff}
+  .ticket{box-shadow:none;border:1px solid #ddd}
+  .ticket .foot{display:none}
+  .ticket .tear::before,.ticket .tear::after{background:#fff}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+/* ============================================================
+   TDMH Events — QR invitations, check-in, live attendance
+   Supabase project: tdmh-events (dcsepolfgjdbzafdhdzb)
+   ============================================================ */
+const SUPABASE_URL = 'https://dcsepolfgjdbzafdhdzb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_uydN0ctNx1gytCKyU6SUlA_QbN7WZlc';
+const ORG_NAME = 'Taytay Doctors Multispecialty Hospital';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const app = document.getElementById('app');
+const params = new URLSearchParams(location.search);
+
+const S = {
+  user: null, staff: null, events: [], event: null, guests: [],
+  tab: localStorage.getItem('evt_tab') || 'dashboard',
+  filter: 'all', q: '', channel: null, scanner: null,
+  lastToken: null, lastAt: 0, scanBusy: false, recentIds: new Set(),
+  scanKey: null, scanInfo: null, scanPoll: null, keys: [],
+};
+
+/* ---------- utils ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fullName = g => [g.first_name, g.last_name].filter(Boolean).join(' ');
+const initials = g => ((g.first_name || '?').charAt(0) + (g.last_name || '').charAt(0)).toUpperCase();
+const titleCase = s => String(s || '').toLowerCase().replace(/(^|[\s\-'.])([a-zñ])/g, (m, a, b) => a + b.toUpperCase()).trim();
+const fmtDate = iso => iso ? new Date(iso).toLocaleString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' }) : '';
+const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' }) : '';
+const fmtShort = iso => iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila' }) : '';
+// Date/time inputs are always PH time (UTC+8, no DST), whatever the device's own timezone is.
+const toLocalInput = iso => iso ? new Date(new Date(iso).getTime() + 8 * 3600e3).toISOString().slice(0, 16) : '';
+const fromPHInput = v => v ? new Date(v + ':00+08:00').toISOString() : null;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function toast(msg, isErr) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (isErr ? ' err' : '');
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), isErr ? 5000 : 2600);
+}
+const scriptCache = {};
+function loadScript(src) {
+  if (!scriptCache[src]) scriptCache[src] = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+  return scriptCache[src];
+}
+function modal(html, cls = '') {
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal ${cls}">${html}</div>`;
+  bg.addEventListener('mousedown', e => { if (e.target === bg && !bg.dataset.lock) bg.remove(); });
+  document.body.appendChild(bg);
+  return bg;
+}
+
+/* ---------- settings (stored per browser) ---------- */
+const SETTINGS_DEFAULT = {
+  senderName: 'TDMH Events',
+  subject: 'Your QR Invitation – {event}',
+  ticketBase: location.protocol.startsWith('http') ? location.origin + location.pathname : '',
+};
+function getSettings() {
+  try { return { ...SETTINGS_DEFAULT, ...JSON.parse(localStorage.getItem('evt_settings') || '{}') }; }
+  catch { return { ...SETTINGS_DEFAULT }; }
+}
+function saveSettings(s) { localStorage.setItem('evt_settings', JSON.stringify(s)); }
+const ticketUrl = token => `${getSettings().ticketBase || SETTINGS_DEFAULT.ticketBase}?t=${token}`;
+
+/* ---------- QR helpers ---------- */
+function makeQR(text) { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q; }
+function drawQR(ctx, text, x, y, size) {
+  const q = makeQR(text); const n = q.getModuleCount(); const quiet = 2;
+  const cell = size / (n + quiet * 2);
+  ctx.fillStyle = '#fff'; ctx.fillRect(x, y, size, size);
+  ctx.fillStyle = '#111';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+    if (q.isDark(r, c)) ctx.fillRect(Math.floor(x + (c + quiet) * cell), Math.floor(y + (r + quiet) * cell), Math.ceil(cell), Math.ceil(cell));
+}
+function qrGifBase64(text) { return makeQR(text).createDataURL(6, 2).split(',')[1]; }
+
+/* ---------- invite design: guest QR on top of the event poster ---------- */
+// Default QR box = the plaid square of the TDMH Year End Party poster (fractions of width/height)
+const DEFAULT_QR_BOX = { x: 0.1414, y: 0.4005, size: 0.3911 };
+const imgCache = {};
+function loadImage(url) {
+  if (!imgCache[url]) imgCache[url] = new Promise((res, rej) => {
+    const i = new Image(); i.crossOrigin = 'anonymous';
+    i.onload = () => res(i); i.onerror = () => { delete imgCache[url]; rej(new Error('Hindi ma-load ang invite background')); };
+    i.src = url;
+  });
+  return imgCache[url];
+}
+function roundRect(x, X, Y, w, h, r) {
+  x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r);
+  x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath();
+}
+// Returns a canvas: poster + white card with the guest's QR (and name) inside the QR box
+async function renderInvite(ev, g, url, maxW = 1414, imgOverride) {
+  const img = imgOverride || await loadImage(ev.invite_bg_url);
+  try { await document.fonts.ready; } catch {}
+  const scale = Math.min(1, maxW / img.naturalWidth);
+  const W = Math.round(img.naturalWidth * scale), H = Math.round(img.naturalHeight * scale);
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.drawImage(img, 0, 0, W, H);
+  const b = ev.invite_qr_box || DEFAULT_QR_BOX;
+  const bs = b.size * W, inset = bs * 0.045;
+  const cx = b.x * W + inset, cy = b.y * H + inset, cs = bs - inset * 2;
+  x.save(); x.shadowColor = 'rgba(0,0,0,.28)'; x.shadowBlur = cs * 0.04; x.shadowOffsetY = cs * 0.012;
+  x.fillStyle = '#fff'; roundRect(x, cx, cy, cs, cs, cs * 0.06); x.fill(); x.restore();
+  const name = ev.invite_show_name !== false ? fullName(g) : '';
+  const qrSize = name ? cs * 0.80 : cs * 0.92;
+  const qx = cx + (cs - qrSize) / 2, qy = name ? cy + cs * 0.025 : cy + (cs - qrSize) / 2;
+  drawQR(x, url, qx, qy, qrSize);
+  if (name) {
+    let fs = cs * 0.085; const maxTW = cs * 0.9;
+    do { x.font = `800 ${fs}px Inter, Arial, sans-serif`; fs -= 1; } while (x.measureText(name).width > maxTW && fs > 8);
+    x.fillStyle = '#16245e'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillText(name, cx + cs / 2, qy + qrSize + (cy + cs - qy - qrSize) / 2);
+  }
+  return c;
+}
+const canvasB64 = (c, q = 0.86) => c.toDataURL('image/jpeg', q).split(',')[1];
+
+/* ============================================================
+   PUBLIC TICKET PAGE  (?t=TOKEN)
+   ============================================================ */
+async function renderTicket(token) {
+  document.body.classList.add('ticket-mode');
+  app.innerHTML = `<div class="ticket-page"><div class="ticket"><div class="body" style="padding:40px">Loading ticket…</div></div></div>`;
+  const { data, error } = await sb.rpc('evt_get_ticket', { p_token: token });
+  if (error || !data) {
+    app.innerHTML = `<div class="ticket-page"><div class="ticket"><div class="head"><div class="org">${esc(ORG_NAME)}</div><h1>Ticket not found</h1></div>
+      <div class="body" style="padding:22px"><p class="hint">Hindi mahanap ang ticket na ito. Pakisuri ang link sa iyong email o makipag-ugnayan sa organizer.</p></div></div></div>`;
+    return;
+  }
+  const d = data;
+  document.title = `${d.event_name} · ${d.first_name} ${d.last_name || ''}`;
+  const url = location.origin + location.pathname + '?t=' + d.token;
+  if (d.invite_bg_url) {
+    try { return await renderPosterTicket(d, url); } catch (err) { console.warn(err); /* fall back to the plain ticket */ }
+  }
+  app.innerHTML = `
+  <div class="ticket-page"><div class="ticket" id="ticket">
+    <div class="head">
+      <div class="org">${esc(ORG_NAME)}</div>
+      <h1>${esc(d.event_name)}</h1>
+      <div class="when">${d.event_date ? '📅 ' + esc(fmtDate(d.event_date)) + '<br>' : ''}${d.venue ? '📍 ' + esc(d.venue) : ''}</div>
+    </div>
+    <div class="tear"><i></i></div>
+    <div class="body">
+      <div class="guest">${esc(fullName(d))}</div>
+      ${d.department ? `<div class="dept">${esc(d.department)}</div>` : ''}
+      <canvas id="qr" width="480" height="480"></canvas>
+      <div class="code">${esc(d.token.toUpperCase())}</div>
+      <div class="status">${d.checked_in_at
+        ? `<span class="pill pill-green">✓ Checked in · ${esc(fmtShort(d.checked_in_at))}</span>`
+        : `<span class="pill pill-indigo">Ipakita ang QR na ito sa entrance</span>`}</div>
+      ${(d.dress_code || d.notes) ? `<div class="info">
+        ${d.dress_code ? `<div><b>Dress code:</b> ${esc(d.dress_code)}</div>` : ''}
+        ${d.notes ? `<div>${esc(d.notes).replace(/\n/g, '<br>')}</div>` : ''}
+      </div>` : ''}
+    </div>
+    <div class="foot">
+      <button class="btn btn-primary" id="savePng">⬇ I-save ang ticket</button>
+      <button class="btn" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div></div>`;
+  drawQR($('#qr').getContext('2d'), url, 0, 0, 480);
+  $('#savePng').onclick = () => downloadTicketPng(d, url);
+}
+
+async function renderPosterTicket(d, url) {
+  const ev = { invite_bg_url: d.invite_bg_url, invite_qr_box: d.invite_qr_box, invite_show_name: d.invite_show_name };
+  const c = await renderInvite(ev, d, url, 1414);
+  const src = c.toDataURL('image/jpeg', 0.92);
+  const fname = `TDMH-invite-${fullName(d).replace(/[^\w]+/g, '-')}.jpg`;
+  app.innerHTML = `
+  <div class="ticket-page"><div class="poster-ticket">
+    <img src="${src}" alt="Invitation para kay ${esc(fullName(d))}" class="poster-img">
+    <div class="poster-info">
+      <div class="status">${d.checked_in_at
+        ? `<span class="pill pill-green">✓ Checked in · ${esc(fmtShort(d.checked_in_at))}</span>`
+        : `<span class="pill pill-indigo">Ipakita ang QR na ito sa registration area</span>`}</div>
+      <div class="info">
+        <div><b>${esc(d.event_name)}</b></div>
+        ${d.event_date ? `<div>📅 ${esc(fmtDate(d.event_date))}</div>` : ''}
+        ${d.venue ? `<div>📍 ${esc(d.venue)}</div>` : ''}
+        ${d.dress_code ? `<div><b>Dress code:</b> ${esc(d.dress_code)}</div>` : ''}
+        ${d.notes ? `<div>${esc(d.notes).replace(/\n/g, '<br>')}</div>` : ''}
+      </div>
+      <div class="row" style="margin-top:14px">
+        <a class="btn btn-primary grow" href="${src}" download="${esc(fname)}">⬇ I-save ang invite</a>
+        <button class="btn" onclick="window.print()">🖨 Print</button>
+      </div>
+      <p class="hint" style="margin-top:10px;text-align:center">Tip: I-save o i-screenshot ito bago pumunta, para hindi na kailangan ng internet sa entrance.</p>
+    </div>
+  </div></div>`;
+}
+
+function downloadTicketPng(d, url) {
+  const W = 900, H = 1350, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const wrap = (text, maxW, font) => { x.font = font; const words = String(text).split(' '); const lines = []; let line = '';
+    for (const w of words) { const t = line ? line + ' ' + w : w; if (x.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t; }
+    if (line) lines.push(line); return lines; };
+  x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#2d2a7b'; x.fillRect(0, 0, W, 380);
+  x.fillStyle = 'rgba(255,255,255,.75)'; x.font = '700 24px Inter, sans-serif'; x.fillText(ORG_NAME.toUpperCase(), 60, 80);
+  x.fillStyle = '#fff'; let y = 150;
+  for (const l of wrap(d.event_name, W - 120, '900 54px Inter, sans-serif')) { x.fillText(l, 60, y); y += 64; }
+  x.font = '500 28px Inter, sans-serif'; x.fillStyle = 'rgba(255,255,255,.9)';
+  if (d.event_date) { x.fillText(fmtDate(d.event_date), 60, y + 10); y += 44; }
+  if (d.venue) x.fillText(d.venue, 60, y + 10);
+  x.fillStyle = '#1f9d55'; x.fillRect(0, 380, W, 10);
+  x.textAlign = 'center'; x.fillStyle = '#1b1d2e'; y = 470;
+  for (const l of wrap(fullName(d), W - 120, '900 50px Inter, sans-serif')) { x.fillText(l, W / 2, y); y += 60; }
+  if (d.department) { x.font = '600 30px Inter, sans-serif'; x.fillStyle = '#6b7090'; x.fillText(d.department, W / 2, y); y += 20; }
+  drawQR(x, url, (W - 600) / 2, y + 20, 600);
+  x.font = '600 24px ui-monospace, Menlo, monospace'; x.fillStyle = '#6b7090'; x.fillText(d.token.toUpperCase(), W / 2, y + 660);
+  x.font = '600 26px Inter, sans-serif'; x.fillStyle = '#2d2a7b'; x.fillText('Ipakita ang QR na ito sa entrance', W / 2, y + 710);
+  const a = document.createElement('a'); a.href = c.toDataURL('image/png');
+  a.download = `TDMH-ticket-${fullName(d).replace(/[^\w]+/g, '-')}.png`; a.click();
+}
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+function renderLogin(msg = '') {
+  document.body.className = '';
+  app.innerHTML = `
+  <div class="login-wrap"><form class="login" id="loginForm">
+    <div class="brand"><div class="badge-logo">TDMH</div><div>TDMH Events<small>QR invites & check-in</small></div></div>
+    <div class="field"><label>Email</label><input type="email" id="lgEmail" required autocomplete="username"></div>
+    <div class="field"><label>Password</label><input type="password" id="lgPass" required autocomplete="current-password"></div>
+    ${msg ? `<p class="hint" style="color:var(--red);margin-bottom:10px">${esc(msg)}</p>` : ''}
+    <button class="btn btn-primary btn-lg" style="width:100%" id="lgBtn">Mag-login</button>
+    ${localStorage.getItem('evt_scan_key') ? `<button type="button" class="btn btn-green btn-lg" style="width:100%;margin-top:10px" id="lgScan">📷 Buksan ulit ang Scanner</button>` : ''}
+    <p class="hint" style="margin-top:14px;text-align:center">Guard/scanner? I-scan lang ang Scanner Access QR na bigay ng IT.</p>
+  </form></div>`;
+  $('#lgScan')?.addEventListener('click', () => renderScanMode(localStorage.getItem('evt_scan_key')));
+  $('#loginForm').onsubmit = async e => {
+    e.preventDefault(); $('#lgBtn').disabled = true; $('#lgBtn').textContent = 'Sandali…';
+    const { data, error } = await sb.auth.signInWithPassword({ email: $('#lgEmail').value.trim(), password: $('#lgPass').value });
+    if (error) return renderLogin(error.message === 'Invalid login credentials' ? 'Mali ang email o password.' : error.message);
+    afterLogin(data.user);
+  };
+}
+
+async function afterLogin(user) {
+  S.user = user;
+  const { data: staff, error } = await sb.from('evt_staff').select('*').ilike('email', user.email).maybeSingle();
+  if (error || !staff) {
+    await sb.auth.signOut();
+    return renderLogin(`Ang ${user.email} ay wala sa staff list ng TDMH Events. Ipadagdag sa admin.`);
+  }
+  S.staff = staff;
+  await loadEvents();
+  await loadGuests();
+  renderShell();
+}
+
+async function logout() { await stopScanner(); if (S.channel) sb.removeChannel(S.channel); await sb.auth.signOut(); location.reload(); }
+
+/* ============================================================
+   EVENTS & GUESTS DATA
+   ============================================================ */
+async function loadEvents() {
+  const { data, error } = await sb.from('evt_events').select('*').order('event_date', { ascending: false, nullsFirst: true });
+  if (error) return toast(error.message, true);
+  S.events = data || [];
+  const saved = localStorage.getItem('evt_current');
+  S.event = S.events.find(e => e.id === saved) || S.events[0] || null;
+}
+
+async function selectEvent(id) {
+  S.event = S.events.find(e => e.id === id) || null;
+  if (S.event) localStorage.setItem('evt_current', S.event.id);
+  await loadGuests();
+  renderShell();
+}
+
+async function loadGuests() {
+  if (S.channel) { sb.removeChannel(S.channel); S.channel = null; }
+  S.guests = [];
+  if (!S.event) return;
+  const all = []; const size = 1000;
+  for (let from = 0; ; from += size) {
+    const { data, error } = await sb.from('evt_guests').select('*').eq('event_id', S.event.id)
+      .order('last_name', { ascending: true }).order('first_name').range(from, from + size - 1);
+    if (error) { toast(error.message, true); break; }
+    all.push(...data);
+    if (data.length < size) break;
+  }
+  S.guests = all;
+  const evId = S.event.id;
+  S.channel = sb.channel('guests-' + evId)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'evt_guests', filter: `event_id=eq.${evId}` }, onGuestChange)
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'evt_guests' }, onGuestChange)
+    .subscribe();
+}
+
+let refreshTimer = null;
+function onGuestChange(p) {
+  if (p.eventType === 'DELETE') {
+    S.guests = S.guests.filter(g => g.id !== p.old.id);
+  } else {
+    if (p.new.event_id !== S.event?.id) return;
+    const i = S.guests.findIndex(g => g.id === p.new.id);
+    const wasIn = i >= 0 && S.guests[i].checked_in_at;
+    if (i >= 0) S.guests[i] = p.new; else S.guests.push(p.new);
+    if (p.new.checked_in_at && !wasIn) S.recentIds.add(p.new.id);
+  }
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(refreshView, 250);
+}
+
+function refreshView() {
+  if (S.tab === 'dashboard') renderDashboardBody();
+  else if (S.tab === 'guests') renderGuestRows();
+  else if (S.tab === 'scanner') updateScanCount();
+}
+
+/* ============================================================
+   SHELL
+   ============================================================ */
+function renderShell() {
+  document.body.className = '';
+  const evOpts = S.events.map(e => `<option value="${e.id}" ${e.id === S.event?.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('');
+  app.innerHTML = `
+  <header class="top">
+    <div class="brand"><div class="badge-logo">TDMH</div><div>TDMH Events<small>QR invites & check-in</small></div></div>
+    <div class="spacer"></div>
+    ${S.events.length ? `<select class="ev-select" id="evSelect">${evOpts}</select>` : ''}
+    <button class="btn btn-sm btn-ghost" id="newEvBtn">＋ Event</button>
+    <span class="user-chip">${esc(S.staff.display_name || S.user.email)}</span>
+    <button class="btn btn-sm btn-ghost" id="logoutBtn">Logout</button>
+  </header>
+  <nav class="tabs">
+    ${[['dashboard', '📊 Dashboard'], ['guests', '👥 Bisita'], ['scanner', '📷 Scanner'], ['settings', '⚙️ Settings']]
+      .map(([k, l]) => `<button class="tab ${S.tab === k ? 'active' : ''}" data-tab="${k}">${l}</button>`).join('')}
+  </nav>
+  <main id="view"></main>`;
+  $('#evSelect')?.addEventListener('change', e => selectEvent(e.target.value));
+  $('#newEvBtn').onclick = () => openEventModal();
+  $('#logoutBtn').onclick = logout;
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+  renderTab();
+}
+
+async function switchTab(tab) {
+  if (S.tab === 'scanner' && tab !== 'scanner') await stopScanner();
+  S.tab = tab; localStorage.setItem('evt_tab', tab);
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  renderTab();
+}
+
+function renderTab() {
+  const v = $('#view');
+  if (!S.event && S.tab !== 'settings') {
+    v.innerHTML = `<div class="card empty"><div style="font-size:42px">🎄</div><h3 style="margin:10px 0">Wala pang event</h3>
+      <p class="hint" style="margin-bottom:14px">Gumawa muna ng event (hal. "TDMH Christmas Party 2026"), tapos i-import ang guest list.</p>
+      <button class="btn btn-primary" onclick="openEventModal()">＋ Gumawa ng event</button></div>`;
+    return;
+  }
+  ({ dashboard: renderDashboard, guests: renderGuests, scanner: renderScanner, settings: renderSettings })[S.tab]?.();
+}
+
+/* ---------- event modal ---------- */
+function openEventModal(ev) {
+  const e = ev || {};
+  const m = modal(`
+    <h2>${ev ? 'I-edit ang event' : 'Bagong event'}</h2>
+    <div class="field"><label>Pangalan ng event *</label><input id="evName" value="${esc(e.name || '')}" placeholder="TDMH Christmas Party 2026"></div>
+    <div class="grid2">
+      <div class="field"><label>Petsa at oras (PH time)</label><input type="datetime-local" id="evDate" value="${toLocalInput(e.event_date)}"></div>
+      <div class="field"><label>Venue</label><input id="evVenue" value="${esc(e.venue || '')}"></div>
+    </div>
+    <div class="field"><label>Dress code / theme</label><input id="evDress" value="${esc(e.dress_code || '')}"></div>
+    <div class="field"><label>Notes para sa bisita (lalabas sa ticket at email)</label><textarea id="evNotes" rows="3">${esc(e.notes || '')}</textarea></div>
+    <div class="field" style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+      <label style="font-size:13px;color:var(--indigo)">🎨 Invite design (poster na may QR ng bisita)</label>
+      <div class="design-wrap">
+        <div><div class="design-prev" id="dPrev"><div class="hint" style="padding:30px 12px;text-align:center">Walang background. Simple ticket ang gagamitin.</div></div></div>
+        <div>
+          <input type="file" id="dFile" accept="image/png,image/jpeg,image/webp" class="input">
+          <p class="hint" style="margin:8px 0">I-upload ang poster (PNG/JPG). <b>I-drag ang QR box</b> sa preview para ilipat, at gamitin ang slider para sa laki.</p>
+          <div class="field" id="dSizeWrap"><label>Laki ng QR box: <span id="dSizeLbl"></span></label><input type="range" id="dSize" min="15" max="80" step="0.5"></div>
+          <label class="row hint" id="dNameWrap"><input type="checkbox" id="dName" ${e.invite_show_name !== false ? 'checked' : ''}> Ipakita ang pangalan ng bisita sa ilalim ng QR</label>
+          <div class="row" style="margin-top:10px"><button type="button" class="btn btn-sm" id="dReset">↺ Default na puwesto</button><button type="button" class="btn btn-sm btn-danger" id="dRemove">Alisin ang background</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      ${ev ? `<button class="btn btn-danger" id="evDel" style="margin-right:auto">Burahin</button>` : ''}
+      <button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="evSave">I-save</button>
+    </div>`, 'wide');
+  m.querySelector('[data-close]').onclick = () => m.remove();
+
+  // ---- invite design editor ----
+  const D = { bg: e.invite_bg_url || null, box: { ...(e.invite_qr_box || DEFAULT_QR_BOX) }, blob: null, img: null };
+  const sample = { first_name: 'Juan', last_name: 'Dela Cruz' };
+  let raf = 0;
+  const paint = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(async () => {
+    const prev = $('#dPrev', m); const has = !!(D.img || D.bg);
+    $('#dSizeWrap', m).classList.toggle('hidden', !has); $('#dNameWrap', m).classList.toggle('hidden', !has);
+    $('#dReset', m).classList.toggle('hidden', !has); $('#dRemove', m).classList.toggle('hidden', !has);
+    $('#dSize', m).value = (D.box.size * 100).toFixed(1); $('#dSizeLbl', m).textContent = (D.box.size * 100).toFixed(1) + '%';
+    if (!has) { prev.innerHTML = '<div class="hint" style="padding:30px 12px;text-align:center">Walang background. Simple ticket ang gagamitin.</div>'; return; }
+    try {
+      const img = D.img || await loadImage(D.bg); D.img = img;
+      const c = await renderInvite({ invite_qr_box: D.box, invite_show_name: $('#dName', m).checked }, sample, 'https://example.com/?t=sample', 440, img);
+      const x = c.getContext('2d'); x.setLineDash([6, 4]); x.lineWidth = 2; x.strokeStyle = '#ff3b6b';
+      x.strokeRect(D.box.x * c.width, D.box.y * c.height, D.box.size * c.width, D.box.size * c.width);
+      prev.innerHTML = ''; prev.appendChild(c);
+    } catch (err) { prev.innerHTML = `<div class="hint" style="padding:20px;color:var(--red)">${esc(err.message)}</div>`; }
+  }); };
+  const clampBox = () => {
+    const ar = D.img ? D.img.naturalWidth / D.img.naturalHeight : 0.707;
+    D.box.size = Math.min(0.8, Math.max(0.15, D.box.size));
+    D.box.x = Math.min(1 - D.box.size, Math.max(0, D.box.x));
+    D.box.y = Math.min(1 - D.box.size * ar, Math.max(0, D.box.y));
+  };
+  const prevEl = $('#dPrev', m); let dragging = false;
+  const moveTo = ev2 => {
+    const r = prevEl.getBoundingClientRect(); if (!D.img) return;
+    const ar = D.img.naturalWidth / D.img.naturalHeight;
+    D.box.x = (ev2.clientX - r.left) / r.width - D.box.size / 2;
+    D.box.y = (ev2.clientY - r.top) / r.height - (D.box.size * ar) / 2;
+    clampBox(); paint();
+  };
+  prevEl.addEventListener('pointerdown', ev2 => { if (!D.img) return; dragging = true; prevEl.setPointerCapture(ev2.pointerId); moveTo(ev2); });
+  prevEl.addEventListener('pointermove', ev2 => { if (dragging) moveTo(ev2); });
+  prevEl.addEventListener('pointerup', () => { dragging = false; });
+  $('#dSize', m).oninput = ev2 => {
+    const cxF = D.box.x + D.box.size / 2, cyF = D.box.y + (D.box.size * (D.img ? D.img.naturalWidth / D.img.naturalHeight : 0.707)) / 2;
+    D.box.size = parseFloat(ev2.target.value) / 100;
+    const ar = D.img ? D.img.naturalWidth / D.img.naturalHeight : 0.707;
+    D.box.x = cxF - D.box.size / 2; D.box.y = cyF - (D.box.size * ar) / 2; clampBox(); paint();
+  };
+  $('#dName', m).onchange = paint;
+  $('#dReset', m).onclick = () => { D.box = { ...DEFAULT_QR_BOX }; paint(); };
+  $('#dRemove', m).onclick = () => { D.bg = null; D.blob = null; D.img = null; $('#dFile', m).value = ''; paint(); };
+  $('#dFile', m).onchange = async ev2 => {
+    const f = ev2.target.files[0]; if (!f) return;
+    try {
+      const src = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Hindi mabasa ang image')); i.src = URL.createObjectURL(f); });
+      const s = Math.min(1, 1600 / src.naturalWidth);
+      const c = document.createElement('canvas'); c.width = Math.round(src.naturalWidth * s); c.height = Math.round(src.naturalHeight * s);
+      const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(src, 0, 0, c.width, c.height);
+      D.blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+      const img = new Image(); img.src = URL.createObjectURL(D.blob); await img.decode(); D.img = img;
+      if (!e.invite_qr_box) D.box = { ...DEFAULT_QR_BOX };
+      clampBox(); paint();
+    } catch (err) { toast(err.message, true); }
+  };
+  paint();
+
+  m.querySelector('#evSave').onclick = async () => {
+    const row = {
+      name: $('#evName', m).value.trim(),
+      event_date: fromPHInput($('#evDate', m).value),
+      venue: $('#evVenue', m).value.trim() || null,
+      dress_code: $('#evDress', m).value.trim() || null,
+      notes: $('#evNotes', m).value.trim() || null,
+      invite_qr_box: (D.blob || D.bg) ? D.box : null,
+      invite_show_name: $('#dName', m).checked,
+    };
+    if (!row.name) return toast('Ilagay ang pangalan ng event', true);
+    const saveBtn = $('#evSave', m); saveBtn.disabled = true;
+    if (D.blob) {
+      saveBtn.textContent = 'Ina-upload ang poster…';
+      const path = `invites/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}.jpg`;
+      const up = await sb.storage.from('evt-assets').upload(path, D.blob, { contentType: 'image/jpeg', cacheControl: '31536000' })
+        .catch(err => ({ error: err }));
+      if (up.error) { saveBtn.disabled = false; saveBtn.textContent = 'I-save'; return toast('Upload error: ' + up.error.message, true); }
+      row.invite_bg_url = sb.storage.from('evt-assets').getPublicUrl(path).data.publicUrl;
+    } else {
+      row.invite_bg_url = D.bg;
+    }
+    const q = ev ? sb.from('evt_events').update(row).eq('id', ev.id).select().single() : sb.from('evt_events').insert(row).select().single();
+    const { data, error } = await q;
+    saveBtn.disabled = false; saveBtn.textContent = 'I-save';
+    if (error) return toast(error.message, true);
+    m.remove(); toast('Na-save ang event');
+    await loadEvents(); await selectEvent(data.id);
+  };
+  m.querySelector('#evDel')?.addEventListener('click', async () => {
+    if (!confirm(`Burahin ang "${ev.name}" kasama ang LAHAT ng ${S.guests.length} bisita at check-in records nito?`)) return;
+    const { error } = await sb.from('evt_events').delete().eq('id', ev.id);
+    if (error) return toast(error.message, true);
+    m.remove(); localStorage.removeItem('evt_current'); await loadEvents(); await selectEvent(S.event?.id); toast('Nabura ang event');
+  });
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function stats() {
+  const total = S.guests.length;
+  const arrived = S.guests.filter(g => g.checked_in_at);
+  const sent = S.guests.filter(g => g.invite_sent_at).length;
+  const depts = {};
+  for (const g of S.guests) {
+    const k = g.department || 'Walang department';
+    depts[k] ??= { total: 0, arrived: 0 };
+    depts[k].total++; if (g.checked_in_at) depts[k].arrived++;
+  }
+  const recent = [...arrived].sort((a, b) => b.checked_in_at.localeCompare(a.checked_in_at)).slice(0, 12);
+  return { total, arrived: arrived.length, sent, depts, recent };
+}
+
+function renderDashboard() {
+  $('#view').innerHTML = `
+    <div class="dash-head">
+      <div><h2>${esc(S.event.name)}</h2>
+        <div class="hint"><span class="live-dot"></span>Live${S.event.event_date ? ' · ' + esc(fmtDate(S.event.event_date)) : ''}${S.event.venue ? ' · ' + esc(S.event.venue) : ''}</div></div>
+      <div class="row">
+        <button class="btn" id="tvBtn">📺 TV mode</button>
+        <button class="btn" id="editEvBtn">✏️ Edit event</button>
+      </div>
+    </div>
+    <div id="dashBody"></div>`;
+  $('#tvBtn').onclick = toggleTV;
+  $('#editEvBtn').onclick = () => openEventModal(S.event);
+  renderDashboardBody();
+}
+
+function renderDashboardBody() {
+  const body = $('#dashBody'); if (!body) return;
+  const st = stats();
+  const pct = st.total ? Math.round(st.arrived / st.total * 100) : 0;
+  const R = 70, C = 2 * Math.PI * R;
+  const deptRows = Object.entries(st.depts).sort((a, b) => b[1].total - a[1].total);
+  const showDept = !(deptRows.length === 1 && deptRows[0][0] === 'Walang department');
+  body.innerHTML = `
+    <div class="kpis">
+      <div class="kpi indigo"><div class="lbl">Bisita</div><div class="val">${st.total}</div></div>
+      <div class="kpi green"><div class="lbl">Dumating na</div><div class="val">${st.arrived}</div></div>
+      <div class="kpi"><div class="lbl">Hindi pa dumarating</div><div class="val">${st.total - st.arrived}</div></div>
+      <div class="kpi"><div class="lbl">Invite na-send</div><div class="val">${st.sent}</div></div>
+    </div>
+    <div class="dash-grid">
+      <div class="card ring-wrap">
+        <h3 style="align-self:flex-start">Attendance</h3>
+        <svg width="190" height="190" viewBox="0 0 190 190">
+          <circle cx="95" cy="95" r="${R}" fill="none" stroke="currentColor" stroke-opacity=".1" stroke-width="18"/>
+          <circle cx="95" cy="95" r="${R}" fill="none" stroke="#27b865" stroke-width="18" stroke-linecap="round"
+            stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct / 100)}" transform="rotate(-90 95 95)" style="transition:stroke-dashoffset .6s"/>
+          <text x="95" y="105" text-anchor="middle" font-size="38" font-weight="900" fill="currentColor">${pct}%</text>
+        </svg>
+        <div class="hint">${st.arrived} sa ${st.total} na bisita</div>
+      </div>
+      <div class="card">
+        <h3>${showDept ? 'Kada department' : 'Mga huling dumating'}</h3>
+        ${showDept ? deptRows.map(([k, v]) => `
+          <div class="dept-row"><div class="name" title="${esc(k)}">${esc(k)}</div>
+            <div class="bar"><i style="width:${v.total ? v.arrived / v.total * 100 : 0}%"></i></div>
+            <div class="num">${v.arrived}/${v.total}</div></div>`).join('') : feedHtml(st.recent)}
+      </div>
+    </div>
+    ${showDept ? `<div class="card" style="margin-top:14px"><h3>Mga huling dumating</h3>${feedHtml(st.recent)}</div>` : ''}`;
+  S.recentIds.clear();
+}
+
+function feedHtml(list) {
+  if (!list.length) return `<div class="empty" style="padding:20px">Wala pang naka-check in.</div>`;
+  return `<div class="feed">${list.map(g => `
+    <div class="feed-item ${S.recentIds.has(g.id) ? 'new' : ''}"><div class="avatar">${esc(initials(g))}</div>
+      <div><b>${esc(fullName(g))}</b>${g.department ? `<div class="hint">${esc(g.department)}</div>` : ''}</div>
+      <div class="t">${esc(fmtTime(g.checked_in_at))}</div></div>`).join('')}</div>`;
+}
+
+function toggleTV() {
+  const on = !document.body.classList.contains('tv');
+  document.body.classList.toggle('tv', on);
+  $('#tvBtn').textContent = on ? '✕ Exit TV mode' : '📺 TV mode';
+  if (on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && document.body.classList.contains('tv')) {
+    document.body.classList.remove('tv'); const b = $('#tvBtn'); if (b) b.textContent = '📺 TV mode';
+  }
+});
+
+/* ============================================================
+   GUESTS
+   ============================================================ */
+function renderGuests() {
+  const st = stats();
+  const pending = S.guests.filter(g => g.email && !g.invite_sent_at).length;
+  $('#view').innerHTML = `
+    <div class="toolbar">
+      <input class="input grow" id="gSearch" placeholder="🔍 Hanapin (pangalan, email, dept)" value="${esc(S.q)}">
+      <button class="btn" id="impBtn">⬆ Import CSV/Excel</button>
+      <button class="btn" id="addBtn">＋ Bisita</button>
+      <button class="btn btn-green" id="sendBtn">✉ Send invites${pending ? ` (${pending})` : ''}</button>
+      <button class="btn" id="expBtn">⬇ Export</button>
+    </div>
+    <div class="chips" id="gChips"></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Pangalan</th><th>Department</th><th>Email</th><th>Invite</th><th>Check-in</th><th style="text-align:right">Actions</th></tr></thead>
+      <tbody id="gRows"></tbody></table></div>
+    <p class="hint" style="margin-top:8px" id="gCount"></p>`;
+  $('#gSearch').oninput = e => { S.q = e.target.value; renderGuestRows(); };
+  $('#impBtn').onclick = openImportModal;
+  $('#addBtn').onclick = () => openGuestModal();
+  $('#sendBtn').onclick = () => openSendModal();
+  $('#expBtn').onclick = exportCsv;
+  renderGuestRows();
+}
+
+function guestFilterMatch(g) {
+  switch (S.filter) {
+    case 'unsent': return g.email && !g.invite_sent_at;
+    case 'sent': return !!g.invite_sent_at;
+    case 'error': return !!g.invite_error && !g.invite_sent_at;
+    case 'noemail': return !g.email;
+    case 'in': return !!g.checked_in_at;
+    case 'out': return !g.checked_in_at;
+    default: return true;
+  }
+}
+
+function renderGuestRows() {
+  const tbody = $('#gRows'); if (!tbody) return;
+  const G = S.guests;
+  const counts = {
+    all: G.length, unsent: G.filter(g => g.email && !g.invite_sent_at).length, sent: G.filter(g => g.invite_sent_at).length,
+    error: G.filter(g => g.invite_error && !g.invite_sent_at).length, noemail: G.filter(g => !g.email).length,
+    in: G.filter(g => g.checked_in_at).length, out: G.filter(g => !g.checked_in_at).length,
+  };
+  const labels = { all: 'Lahat', unsent: 'Hindi pa na-send', sent: 'Na-send', error: 'May error', noemail: 'Walang email', in: 'Dumating', out: 'Hindi pa dumarating' };
+  $('#gChips').innerHTML = Object.keys(labels).filter(k => k === 'all' || counts[k] || S.filter === k)
+    .map(k => `<button class="chip ${S.filter === k ? 'active' : ''}" data-f="${k}">${labels[k]} · ${counts[k]}</button>`).join('');
+  $('#gChips').querySelectorAll('.chip').forEach(c => c.onclick = () => { S.filter = c.dataset.f; renderGuestRows(); });
+
+  const q = S.q.trim().toLowerCase();
+  const list = G.filter(guestFilterMatch).filter(g => !q || [fullName(g), g.email, g.department].join(' ').toLowerCase().includes(q));
+  if (!G.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty">Wala pang bisita. I-click ang <b>Import CSV/Excel</b> para i-upload ang guest list.</div></td></tr>`;
+  } else if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty">Walang tugma.</div></td></tr>`;
+  } else {
+    tbody.innerHTML = list.map(g => `
+      <tr data-id="${g.id}">
+        <td><b>${esc(fullName(g))}</b></td>
+        <td>${esc(g.department || '—')}</td>
+        <td>${g.email ? esc(g.email) : '<span class="sub">—</span>'}</td>
+        <td>${g.invite_sent_at ? `<span class="pill pill-green" title="${esc(fmtShort(g.invite_sent_at))}">✓ Sent</span>`
+          : g.invite_error ? `<span class="pill pill-red" title="${esc(g.invite_error)}">Error</span>`
+          : g.email ? '<span class="pill pill-gray">Hindi pa</span>' : '<span class="pill pill-amber">Walang email</span>'}</td>
+        <td>${g.checked_in_at ? `<span class="pill pill-green">✓ ${esc(fmtTime(g.checked_in_at))}</span>` : '<span class="sub">—</span>'}</td>
+        <td><div class="acts">
+          <button class="btn btn-sm" data-a="link" title="Kopyahin ang ticket link">🔗</button>
+          <button class="btn btn-sm" data-a="open" title="Buksan ang ticket">🎫</button>
+          ${g.email ? `<button class="btn btn-sm" data-a="send" title="${g.invite_sent_at ? 'I-resend' : 'I-send'} ang invite">✉</button>` : ''}
+          ${g.checked_in_at ? `<button class="btn btn-sm" data-a="undo" title="I-undo ang check-in">↺</button>`
+            : `<button class="btn btn-sm btn-green" data-a="in" title="Manual check-in">✓</button>`}
+          <button class="btn btn-sm" data-a="edit" title="Edit">✏️</button>
+        </div></td>
+      </tr>`).join('');
+    tbody.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => guestAction(b.dataset.a, b.closest('tr').dataset.id));
+  }
+  $('#gCount').textContent = `Ipinapakita: ${list.length} sa ${G.length}`;
+}
+
+async function guestAction(a, id) {
+  const g = S.guests.find(x => x.id === id); if (!g) return;
+  if (a === 'link') { await navigator.clipboard.writeText(ticketUrl(g.token)).catch(() => {}); toast('Nakopya ang link'); }
+  if (a === 'open') window.open(ticketUrl(g.token), '_blank');
+  if (a === 'send') openSendModal([g]);
+  if (a === 'edit') openGuestModal(g);
+  if (a === 'in') {
+    const { data, error } = await sb.rpc('evt_check_in', { p_token: g.token, p_event_id: S.event.id });
+    if (error) return toast(error.message, true);
+    toast(data.status === 'ok' ? `✓ ${fullName(g)} checked in` : 'Naka-check in na');
+  }
+  if (a === 'undo') {
+    if (!confirm(`I-undo ang check-in ni ${fullName(g)}?`)) return;
+    const { error } = await sb.from('evt_guests').update({ checked_in_at: null, checked_in_by: null }).eq('id', id);
+    if (error) return toast(error.message, true);
+    toast('Na-undo ang check-in');
+  }
+}
+
+function openGuestModal(g) {
+  const e = g || {};
+  const m = modal(`
+    <h2>${g ? 'I-edit ang bisita' : 'Magdagdag ng bisita'}</h2>
+    <div class="grid2">
+      <div class="field"><label>First name *</label><input id="gFirst" value="${esc(e.first_name || '')}"></div>
+      <div class="field"><label>Last name</label><input id="gLast" value="${esc(e.last_name || '')}"></div>
+    </div>
+    <div class="field"><label>Department</label><input id="gDept" value="${esc(e.department || '')}" list="deptList">
+      <datalist id="deptList">${[...new Set(S.guests.map(x => x.department).filter(Boolean))].sort().map(d => `<option value="${esc(d)}">`).join('')}</datalist></div>
+    <div class="field"><label>Email</label><input type="email" id="gEmail" value="${esc(e.email || '')}"></div>
+    ${g ? `<p class="hint">Ticket code: <code>${esc(g.token)}</code></p>` : ''}
+    <div class="actions">
+      ${g ? `<button class="btn btn-danger" id="gDel" style="margin-right:auto">Burahin</button>` : ''}
+      <button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="gSave">I-save</button>
+    </div>`);
+  m.querySelector('[data-close]').onclick = () => m.remove();
+  m.querySelector('#gSave').onclick = async () => {
+    const row = {
+      first_name: $('#gFirst', m).value.trim(), last_name: $('#gLast', m).value.trim() || null,
+      department: $('#gDept', m).value.trim() || null, email: $('#gEmail', m).value.trim().toLowerCase() || null,
+    };
+    if (!row.first_name) return toast('Ilagay ang first name', true);
+    const q = g ? sb.from('evt_guests').update(row).eq('id', g.id).select().single()
+                : sb.from('evt_guests').insert({ ...row, event_id: S.event.id }).select().single();
+    const { data, error } = await q;
+    if (error) return toast(error.code === '23505' ? 'May bisita na sa event na ito na may ganitong email.' : error.message, true);
+    const i = S.guests.findIndex(x => x.id === data.id); if (i >= 0) S.guests[i] = data; else S.guests.push(data);
+    m.remove(); toast('Na-save'); renderGuestRows();
+  };
+  m.querySelector('#gDel')?.addEventListener('click', async () => {
+    if (!confirm(`Burahin si ${fullName(g)}?`)) return;
+    const { error } = await sb.from('evt_guests').delete().eq('id', g.id);
+    if (error) return toast(error.message, true);
+    S.guests = S.guests.filter(x => x.id !== g.id); m.remove(); toast('Nabura'); renderGuestRows();
+  });
+}
+
+/* ---------- import ---------- */
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const HEADER_GUESS = {
+  first: ['firstname', 'givenname', 'first', 'pangalan', 'fname'],
+  last: ['lastname', 'surname', 'apelyido', 'last', 'familyname', 'lname'],
+  full: ['name', 'fullname', 'completename', 'employeename', 'guestname', 'employee', 'guest'],
+  dept: ['department', 'dept', 'unit', 'area', 'section', 'office', 'division', 'departmentunit'],
+  email: ['email', 'emailaddress', 'eaddress', 'emailadd', 'gmail', 'mail'],
+};
+function guessHeader(headers, key) {
+  const n = headers.map(norm);
+  for (const cand of HEADER_GUESS[key]) { const i = n.indexOf(cand); if (i >= 0) return headers[i]; }
+  if (key === 'email') { const i = n.findIndex(h => h.includes('email') && !/sent|status/.test(h)); if (i >= 0) return headers[i]; }
+  if (key === 'dept') { const i = n.findIndex(h => h.includes('department') || h.includes('dept')); if (i >= 0) return headers[i]; }
+  return '';
+}
+
+function openImportModal() {
+  const m = modal(`
+    <h2>Import guest list</h2>
+    <p class="hint" style="margin-bottom:12px">Tumatanggap ng <b>.csv, .xlsx, .xls</b>. Puwedeng i-export mula sa Google Sheets (File → Download). Kusang hahanapin ang columns na <b>First Name, Last Name, Email, Department</b>, at puwede mo itong palitan sa ibaba.</p>
+    <input type="file" id="impFile" accept=".csv,.xlsx,.xls" class="input">
+    <div id="impMap" style="margin-top:14px"></div>
+    <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="impGo" disabled>Import</button></div>`, 'wide');
+  m.querySelector('[data-close]').onclick = () => m.remove();
+  let rows = [], headers = [];
+  m.querySelector('#impFile').onchange = async ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    $('#impMap', m).innerHTML = '<p class="hint">Binabasa ang file…</p>';
+    try {
+      await loadScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');
+      const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+      headers = rows.length ? Object.keys(rows[0]) : [];
+    } catch (err) { $('#impMap', m).innerHTML = `<p class="hint" style="color:var(--red)">${esc(err.message)}</p>`; return; }
+    if (!rows.length) { $('#impMap', m).innerHTML = '<p class="hint">Walang laman ang unang sheet.</p>'; return; }
+    const fields = [['first', 'First name'], ['last', 'Last name'], ['full', 'Full name (kung iisang column)'], ['dept', 'Department'], ['email', 'Email']];
+    const g = {}; fields.forEach(([k]) => g[k] = guessHeader(headers, k));
+    if (g.first) g.full = '';
+    $('#impMap', m).innerHTML = `
+      <div class="map-grid">${fields.map(([k, l]) => `
+        <div class="field"><label>${l}</label><select data-k="${k}">
+          <option value="">(wala)</option>${headers.map(h => `<option ${h === g[k] ? 'selected' : ''}>${esc(h)}</option>`).join('')}
+        </select></div>`).join('')}</div>
+      <label class="row hint" style="margin-bottom:6px"><input type="checkbox" id="impTitle" checked> Gawing Title Case ang mga pangalan (hal. "ROEL ABORDO" → "Roel Abordo")</label>
+      <div id="impPrev"></div>`;
+    const update = () => {
+      const map = {}; m.querySelectorAll('select[data-k]').forEach(s => map[s.dataset.k] = s.value);
+      const tc = $('#impTitle', m).checked;
+      const existing = new Set(S.guests.map(x => (x.email || '').toLowerCase()).filter(Boolean));
+      const seen = new Set(); const out = []; let dup = 0, noName = 0;
+      for (const r of rows) {
+        let first = map.first ? String(r[map.first]).trim() : '';
+        let last = map.last ? String(r[map.last]).trim() : '';
+        if (!first && map.full) {
+          const full = String(r[map.full]).trim();
+          if (full.includes(',')) { const [l, f] = full.split(',', 2); last = l.trim(); first = (f || '').trim(); }
+          else { first = full; }
+        }
+        if (!first && !last) { noName++; continue; }
+        if (!first) { first = last; last = ''; }
+        const email = map.email ? String(r[map.email]).trim().toLowerCase() : '';
+        const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '';
+        if (validEmail) { if (existing.has(validEmail) || seen.has(validEmail)) { dup++; continue; } seen.add(validEmail); }
+        out.push({
+          event_id: S.event.id,
+          first_name: tc ? titleCase(first) : first, last_name: (tc ? titleCase(last) : last) || null,
+          department: map.dept ? (String(r[map.dept]).trim() || null) : null, email: validEmail || null,
+        });
+      }
+      m._out = out;
+      const noEmail = out.filter(o => !o.email).length;
+      $('#impPrev', m).innerHTML = `
+        <div class="row" style="margin:6px 0">
+          <span class="pill pill-green">${out.length} ii-import</span>
+          ${noEmail ? `<span class="pill pill-amber">${noEmail} walang valid na email</span>` : ''}
+          ${dup ? `<span class="pill pill-gray">${dup} duplicate (nilaktawan)</span>` : ''}
+          ${noName ? `<span class="pill pill-gray">${noName} walang pangalan (nilaktawan)</span>` : ''}
+        </div>
+        <div class="table-wrap preview"><table><thead><tr><th>First</th><th>Last</th><th>Department</th><th>Email</th></tr></thead>
+        <tbody>${out.slice(0, 6).map(o => `<tr><td>${esc(o.first_name)}</td><td>${esc(o.last_name || '')}</td><td>${esc(o.department || '—')}</td><td>${esc(o.email || '—')}</td></tr>`).join('')}</tbody></table></div>
+        ${out.length > 6 ? `<p class="hint" style="margin-top:6px">…at ${out.length - 6} pa</p>` : ''}`;
+      $('#impGo', m).disabled = !out.length;
+    };
+    m.querySelectorAll('select[data-k]').forEach(s => s.onchange = update);
+    $('#impTitle', m).onchange = update;
+    update();
+  };
+  m.querySelector('#impGo').onclick = async () => {
+    const out = m._out || []; const btn = $('#impGo', m); btn.disabled = true;
+    let done = 0;
+    for (let i = 0; i < out.length; i += 200) {
+      btn.textContent = `Ini-import… ${done}/${out.length}`;
+      const { error } = await sb.from('evt_guests').insert(out.slice(i, i + 200));
+      if (error) { toast(error.message, true); break; }
+      done += Math.min(200, out.length - i);
+    }
+    m.remove(); toast(`${done} bisita ang na-import`);
+    await loadGuests(); renderGuests();
+  };
+}
+
+function exportCsv() {
+  const head = ['First Name', 'Last Name', 'Department', 'Email', 'Invite Sent', 'Checked In', 'Checked In By', 'Ticket Link'];
+  const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [head.map(cell).join(',')].concat(S.guests.map(g => [
+    g.first_name, g.last_name, g.department, g.email, fmtShort(g.invite_sent_at), fmtShort(g.checked_in_at), g.checked_in_by, ticketUrl(g.token),
+  ].map(cell).join(',')));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `${S.event.name.replace(/[^\w]+/g, '-')}-attendance.csv`; a.click();
+}
+
+/* ---------- send invites (Supabase Edge Function "send-invites" → Gmail SMTP) ---------- */
+async function callMailer(payload) {
+  const { data, error } = await sb.functions.invoke('send-invites', { body: payload });
+  if (error) {
+    let msg = error.message;
+    try { const j = await error.context.json(); msg = j.error || msg; } catch {}
+    throw new Error(msg);
+  }
+  if (!data?.ok) throw new Error(data?.error || 'Mailer error');
+  return data;
+}
+const phDay = iso => new Date(new Date(iso).getTime() + 8 * 3600e3).toISOString().slice(0, 10);
+const sentToday = () => { const t = phDay(new Date().toISOString()); return S.guests.filter(g => g.invite_sent_at && phDay(g.invite_sent_at) === t).length; };
+const GMAIL_DAILY = 2000; // Google Workspace Gmail sending limit per user per day (approx.)
+
+async function buildEmail(g) {
+  const ev = S.event; const st = getSettings(); const link = ticketUrl(g.token);
+  const subject = st.subject.replace(/\{event\}/g, ev.name).replace(/\{first_name\}/g, g.first_name);
+  if (ev.invite_bg_url) return buildPosterEmail(g, ev, link, subject);
+  const row = (label, val) => val ? `<tr><td style="padding:4px 0;color:#6b7090;font-size:13px;width:90px;vertical-align:top">${label}</td><td style="padding:4px 0;font-size:14px;color:#1b1d2e;font-weight:600">${esc(val)}</td></tr>` : '';
+  const html = `
+<div style="background:#f4f5fa;padding:24px 12px;font-family:Arial,Helvetica,sans-serif">
+ <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden">
+  <tr><td style="background:#2d2a7b;padding:24px 28px;color:#ffffff">
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;opacity:.8;font-weight:bold">${esc(ORG_NAME)}</div>
+    <div style="font-size:24px;font-weight:bold;margin-top:6px;line-height:1.25">${esc(ev.name)}</div>
+  </td></tr>
+  <tr><td style="height:6px;background:#1f9d55"></td></tr>
+  <tr><td style="padding:24px 28px 8px">
+    <p style="font-size:16px;color:#1b1d2e;margin:0 0 12px">Hi <b>${esc(g.first_name)}</b>,</p>
+    <p style="font-size:14px;color:#3a3d55;line-height:1.6;margin:0 0 14px">Ikaw ay inaanyayahan sa <b>${esc(ev.name)}</b>! Narito ang iyong personal na QR invitation. Ipakita ito sa entrance para sa mabilis na check-in.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:6px">
+      ${row('Petsa', ev.event_date ? fmtDate(ev.event_date) : '')}${row('Venue', ev.venue)}${row('Dress code', ev.dress_code)}
+    </table>
+  </td></tr>
+  <tr><td align="center" style="padding:8px 28px 4px">
+    <div style="font-size:18px;font-weight:bold;color:#1b1d2e">${esc(fullName(g))}</div>
+    ${g.department ? `<div style="font-size:13px;color:#6b7090;margin-top:2px">${esc(g.department)}</div>` : ''}
+    <img src="cid:qr" width="220" height="220" alt="QR code" style="display:block;margin:14px auto 6px;width:220px;height:220px;image-rendering:pixelated">
+    <div style="font-family:monospace;font-size:11px;color:#6b7090;letter-spacing:1px">${esc(g.token.toUpperCase())}</div>
+  </td></tr>
+  <tr><td align="center" style="padding:18px 28px 6px">
+    <a href="${link}" style="display:inline-block;background:#1f9d55;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 26px;border-radius:10px">Buksan ang aking QR Ticket</a>
+  </td></tr>
+  ${ev.notes ? `<tr><td style="padding:14px 28px 0;font-size:13px;color:#3a3d55;line-height:1.6">${esc(ev.notes).replace(/\n/g, '<br>')}</td></tr>` : ''}
+  <tr><td style="padding:20px 28px 24px;font-size:12px;color:#8a8ea8;line-height:1.5">
+    Tip: I-screenshot ang QR o i-save ang ticket sa iyong phone bago pumunta. Personal ang QR na ito, huwag i-share sa iba.
+  </td></tr>
+ </table>
+</div>`;
+  const text = `Hi ${g.first_name},\n\nIkaw ay inaanyayahan sa ${ev.name}.\n${ev.event_date ? 'Petsa: ' + fmtDate(ev.event_date) + '\n' : ''}${ev.venue ? 'Venue: ' + ev.venue + '\n' : ''}\nBuksan ang iyong QR ticket: ${link}\n\n${ORG_NAME}`;
+  return { id: g.id, to: g.email, subject, html, text, qrBase64: qrGifBase64(link), qrMime: 'image/gif' };
+}
+
+// Poster version: the invite image itself (poster + guest QR) is the email
+async function buildPosterEmail(g, ev, link, subject) {
+  const c = await renderInvite(ev, g, link, 1000);
+  const row = (label, val) => val ? `<tr><td style="padding:3px 10px 3px 0;color:#6b7090;font-size:13px;vertical-align:top;white-space:nowrap">${label}</td><td style="padding:3px 0;font-size:14px;color:#1b1d2e;font-weight:600">${esc(val)}</td></tr>` : '';
+  const html = `
+<div style="background:#f4f5fa;padding:20px 10px;font-family:Arial,Helvetica,sans-serif">
+ <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto">
+  <tr><td style="padding:0 6px 14px;font-size:15px;color:#1b1d2e;line-height:1.6">
+    Hi <b>${esc(g.first_name)}</b>,<br>Narito ang iyong personal na invitation sa <b>${esc(ev.name)}</b>. Ipakita ang QR code sa registration area.
+  </td></tr>
+  <tr><td><a href="${link}"><img src="cid:qr" width="560" alt="${esc(ev.name)} invitation para kay ${esc(fullName(g))}" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:12px"></a></td></tr>
+  <tr><td style="padding:16px 6px 0">
+    <table role="presentation" cellpadding="0" cellspacing="0">
+      ${row('Petsa', ev.event_date ? fmtDate(ev.event_date) : '')}${row('Venue', ev.venue)}${row('Dress code', ev.dress_code)}
+    </table>
+    ${ev.notes ? `<p style="font-size:13px;color:#3a3d55;line-height:1.6;margin:10px 0 0">${esc(ev.notes).replace(/\n/g, '<br>')}</p>` : ''}
+  </td></tr>
+  <tr><td align="center" style="padding:18px 6px 6px">
+    <a href="${link}" style="display:inline-block;background:#16245e;color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:12px 26px;border-radius:10px">Buksan / I-save ang aking invite</a>
+  </td></tr>
+  <tr><td style="padding:14px 6px 0;font-size:12px;color:#8a8ea8;line-height:1.5;text-align:center">
+    Tip: I-screenshot ang invite bago pumunta. Personal ang QR na ito, huwag i-share sa iba.<br>${esc(ORG_NAME)}
+  </td></tr>
+ </table>
+</div>`;
+  const text = `Hi ${g.first_name},\n\nNarito ang iyong invitation sa ${ev.name}.\n${ev.event_date ? 'Petsa: ' + fmtDate(ev.event_date) + '\n' : ''}${ev.venue ? 'Venue: ' + ev.venue + '\n' : ''}\nBuksan ang iyong QR invite: ${link}\n\n${ORG_NAME}`;
+  return { id: g.id, to: g.email, subject, html, text, qrBase64: canvasB64(c, 0.8), qrMime: 'image/jpeg', qrName: 'invite.jpg' };
+}
+
+function openSendModal(only) {
+  const st = getSettings();
+  if (!st.ticketBase.startsWith('https://')) toast('Babala: hindi https ang ticket link base. I-check sa Settings.', true);
+  const targets = only || S.guests.filter(g => g.email && !g.invite_sent_at);
+  const m = modal(`
+    <h2>✉ Send QR invitations</h2>
+    ${only ? `<p class="hint">Ipapadala kay <b>${esc(fullName(only[0]))}</b> (${esc(only[0].email)})${only[0].invite_sent_at ? ', na-send na dati kaya ito ay resend' : ''}.</p>`
+      : `<p class="hint"><b>${targets.length}</b> na bisita ang may email at hindi pa napapadalhan.</p>`}
+    <div class="row" style="margin:12px 0"><span class="pill pill-indigo" id="quotaPill">Tinitingnan ang email sender…</span></div>
+    ${only ? '' : `<div class="field"><label>Ilan ang ipapadala ngayon?</label><input type="number" id="sendN" min="1" value="${targets.length}"></div>
+    <p class="hint">Mga <b>2,000 email/araw</b> ang limit ng Workspace Gmail. Huwag isara ang tab habang nagpapadala. Kapag naputol, i-click lang ulit at itutuloy nito ang mga hindi pa napapadalhan.</p>`}
+    <div class="progress"><i id="sendBar" style="width:0"></i></div>
+    <div class="log hidden" id="sendLog"></div>
+    <div class="actions"><button class="btn" id="sendClose">Close</button><button class="btn btn-green" id="sendGo" disabled>Simulan</button></div>`);
+  const log = msg => { const l = $('#sendLog', m); l.classList.remove('hidden'); l.innerHTML += esc(msg) + '<br>'; l.scrollTop = l.scrollHeight; };
+  let stop = false, running = false;
+  const pillText = sender => `Sender: ${sender} · Na-send ngayong araw: ${sentToday()}`;
+  let sender = '';
+  callMailer({ action: 'status' }).then(j => {
+    if (!j.configured) {
+      $('#quotaPill', m).className = 'pill pill-red';
+      $('#quotaPill', m).textContent = 'Hindi pa naka-set ang Gmail sender (GMAIL_USER / GMAIL_PASS sa Supabase secrets)';
+      return;
+    }
+    sender = j.sender; $('#quotaPill', m).textContent = pillText(sender);
+    if (!only) $('#sendN', m).value = Math.min(targets.length, Math.max(1, GMAIL_DAILY - sentToday()));
+    $('#sendGo', m).disabled = !targets.length;
+  }).catch(err => { $('#quotaPill', m).className = 'pill pill-red'; $('#quotaPill', m).textContent = 'Hindi ma-contact ang email sender: ' + err.message; });
+
+  $('#sendClose', m).onclick = () => { if (running) { stop = true; log('Ihihinto pagkatapos ng kasalukuyang batch…'); } else m.remove(); };
+  $('#sendGo', m).onclick = async () => {
+    const n = only ? 1 : Math.max(1, Math.min(parseInt($('#sendN', m).value) || 0, targets.length));
+    const queue = targets.slice(0, n);
+    running = true; m.dataset.lock = '1'; $('#sendGo', m).disabled = true; $('#sendClose', m).textContent = 'Stop';
+    let ok = 0, fail = 0;
+    const BATCH = 5;
+    for (let i = 0; i < queue.length && !stop; i += BATCH) {
+      const batch = queue.slice(i, i + BATCH);
+      try {
+        const j = await callMailer({ action: 'send', senderName: getSettings().senderName, messages: await Promise.all(batch.map(buildEmail)) });
+        const okIds = j.results.filter(r => r.ok).map(r => r.id);
+        if (okIds.length) {
+          const now = new Date().toISOString();
+          await sb.from('evt_guests').update({ invite_sent_at: now, invite_error: null }).in('id', okIds);
+          S.guests.forEach(g => { if (okIds.includes(g.id)) { g.invite_sent_at = now; g.invite_error = null; } });
+        }
+        for (const r of j.results.filter(r => !r.ok)) {
+          await sb.from('evt_guests').update({ invite_error: r.error }).eq('id', r.id);
+          const g = S.guests.find(x => x.id === r.id); if (g) g.invite_error = r.error;
+          log(`✗ ${g ? fullName(g) : r.id}: ${r.error}`);
+          if (/5\.4\.5|limit|Invalid login|Username and Password/i.test(r.error)) { stop = true; log('Inihinto: problema sa Gmail login o naabot ang daily limit.'); }
+        }
+        ok += okIds.length; fail += j.results.length - okIds.length;
+        $('#quotaPill', m).textContent = pillText(sender);
+      } catch (err) { log('✗ Batch error: ' + err.message); fail += batch.length; await sleep(1500); }
+      $('#sendBar', m).style.width = Math.round(Math.min(i + BATCH, queue.length) / queue.length * 100) + '%';
+    }
+    log(`Tapos: ${ok} na-send, ${fail} hindi.${stop && ok + fail < queue.length ? ' (Inihinto)' : ''}`);
+    running = false; delete m.dataset.lock; $('#sendClose', m).textContent = 'Close';
+    toast(`${ok} invite ang na-send`);
+    if (S.tab === 'guests') renderGuests();
+  };
+}
+
+/* ============================================================
+   SCANNER
+   ============================================================ */
+/* ---------- scanner-only mode (guards, via Scanner Access QR) ---------- */
+async function renderScanMode(key) {
+  document.body.className = '';
+  app.innerHTML = `<div class="login-wrap"><div class="login" style="text-align:center">Binubuksan ang scanner…</div></div>`;
+  const { data, error } = await sb.rpc('evt_scan_session', { p_key: key });
+  if (error || data?.status !== 'ok') {
+    localStorage.removeItem('evt_scan_key');
+    app.innerHTML = `<div class="login-wrap"><div class="login" style="text-align:center">
+      <div style="font-size:44px">⛔</div><h2 style="color:var(--red);margin:8px 0">Hindi valid ang Scanner QR</h2>
+      <p class="hint">${error ? esc(error.message) : 'Expired na o na-revoke ang scanner access na ito. Humingi ng bagong Scanner QR sa IT.'}</p>
+      <button class="btn btn-lg" style="margin-top:16px;width:100%" onclick="location.href=location.pathname">Bumalik</button></div></div>`;
+    return;
+  }
+  S.scanKey = key; S.scanInfo = data;
+  S.scanTab = S.scanTab || 'scan';
+  if ((S.scanTab === 'list' && !data.can_view_list) || (S.scanTab === 'walkin' && !data.can_add_guest)) S.scanTab = 'scan';
+  const tabs = [['scan', '📷 Scan']];
+  if (data.can_view_list) tabs.push(['list', '👥 Guest list']);
+  if (data.can_add_guest) tabs.push(['walkin', '＋ Walk-in']);
+  app.innerHTML = `
+    <header class="top scan">
+      <div class="brand"><div class="badge-logo">TDMH</div><div>Scanner<small>${esc(data.event_name)}</small></div></div>
+      <div class="spacer"></div>
+      <button class="pill" id="devBtn" style="background:rgba(255,255,255,.15);color:#fff;border:none;cursor:pointer" title="Palitan ang pangalan ng phone">📍 ${esc(data.label)}${scanDevice() ? ' · ' + esc(scanDevice()) : ''}</button>
+      <button class="btn btn-sm btn-ghost" id="exitScan">Exit</button>
+    </header>
+    ${tabs.length > 1 ? `<nav class="tabs" style="top:0;position:relative">${tabs.map(([k, l]) => `<button class="tab ${S.scanTab === k ? 'active' : ''}" data-st="${k}">${l}</button>`).join('')}</nav>` : ''}
+    <main id="view"></main>`;
+  $('#exitScan').onclick = async () => {
+    if (!confirm('Lumabas sa scanner? Kailangan mong i-scan ulit ang Scanner QR para makabalik.')) return;
+    await stopScanner(); clearInterval(S.scanPoll); localStorage.removeItem('evt_scan_key'); location.href = location.pathname;
+  };
+  $('#devBtn').onclick = () => askDevice(true);
+  document.querySelectorAll('[data-st]').forEach(b => b.onclick = async () => {
+    if (S.scanTab === 'scan' && b.dataset.st !== 'scan') await stopScanner();
+    S.scanTab = b.dataset.st;
+    document.querySelectorAll('[data-st]').forEach(x => x.classList.toggle('active', x === b));
+    renderScanTab();
+  });
+  renderScanTab();
+  if (!localStorage.getItem('evt_scan_device_asked')) askDevice(false);
+  clearInterval(S.scanPoll);
+  S.scanPoll = setInterval(async () => {
+    const { data: d } = await sb.rpc('evt_scan_session', { p_key: S.scanKey });
+    if (!d) return;
+    if (d.status !== 'ok') { clearInterval(S.scanPoll); await stopScanner(); return renderScanMode(S.scanKey); }
+    S.scanInfo = d; updateScanCount();
+    if (S.scanTab === 'list') loadScanGuests();
+  }, 20000);
+}
+
+const scanDevice = () => localStorage.getItem('evt_scan_device') || '';
+function askDevice(force) {
+  const m = modal(`
+    <h2>Sino ang gumagamit ng phone na ito?</h2>
+    <p class="hint" style="margin-bottom:12px">Optional. Lalabas ito sa check-in log para malaman kung sino ang nag-scan (hal. "Guard Juan" o "Phone 2").</p>
+    <div class="field"><input id="devName" maxlength="40" value="${esc(scanDevice())}" placeholder="Guard Juan"></div>
+    <div class="actions"><button class="btn" id="devSkip">Skip</button><button class="btn btn-primary" id="devSave">I-save</button></div>`);
+  const done = v => {
+    localStorage.setItem('evt_scan_device_asked', '1');
+    if (v !== undefined) { if (v) localStorage.setItem('evt_scan_device', v); else localStorage.removeItem('evt_scan_device'); }
+    m.remove();
+    const b = $('#devBtn'); if (b) b.textContent = `📍 ${S.scanInfo.label}${scanDevice() ? ' · ' + scanDevice() : ''}`;
+  };
+  $('#devSkip', m).onclick = () => done(force ? undefined : '');
+  $('#devSave', m).onclick = () => done($('#devName', m).value.trim());
+  setTimeout(() => $('#devName', m)?.focus(), 50);
+}
+
+function renderScanTab() {
+  if (S.scanTab === 'list') return renderScanList();
+  if (S.scanTab === 'walkin') return renderWalkin();
+  renderScanner();
+}
+
+/* scanner: guest list */
+async function loadScanGuests() {
+  const { data, error } = await sb.rpc('evt_scan_guests', { p_key: S.scanKey });
+  if (error) return toast(error.message, true);
+  if (data.status === 'key_invalid') return renderScanMode(S.scanKey);
+  if (data.status !== 'ok') return toast('Walang access sa guest list ang QR na ito', true);
+  S.scanGuests = data.guests || [];
+  S.scanInfo.total = S.scanGuests.length; S.scanInfo.arrived = S.scanGuests.filter(g => g.checked_in_at).length;
+  paintScanList();
+}
+
+function renderScanList() {
+  S.scanFilter = S.scanFilter || 'all';
+  $('#view').innerHTML = `
+    <div class="toolbar"><input class="input grow" id="slQ" placeholder="🔍 Hanapin ang pangalan o department" value="${esc(S.scanQ || '')}" style="max-width:none"></div>
+    <div class="chips" id="slChips"></div>
+    <div id="slRows" class="search-results" style="margin-top:0"><p class="hint">Loading…</p></div>`;
+  $('#slQ').oninput = e => { S.scanQ = e.target.value; paintScanList(); };
+  if (S.scanGuests) paintScanList();
+  loadScanGuests();
+}
+
+function paintScanList() {
+  const box = $('#slRows'); if (!box || !S.scanGuests) return;
+  const G = S.scanGuests;
+  const counts = { all: G.length, in: G.filter(g => g.checked_in_at).length, out: G.filter(g => !g.checked_in_at).length };
+  const labels = { all: 'Lahat', out: 'Hindi pa dumarating', in: 'Dumating na' };
+  $('#slChips').innerHTML = Object.keys(labels).map(k => `<button class="chip ${S.scanFilter === k ? 'active' : ''}" data-f="${k}">${labels[k]} · ${counts[k]}</button>`).join('');
+  $('#slChips').querySelectorAll('.chip').forEach(c => c.onclick = () => { S.scanFilter = c.dataset.f; paintScanList(); });
+  const q = (S.scanQ || '').trim().toLowerCase();
+  const list = G.filter(g => S.scanFilter === 'all' || (S.scanFilter === 'in' ? g.checked_in_at : !g.checked_in_at))
+    .filter(g => !q || [fullName(g), (g.last_name || '') + ' ' + g.first_name, g.department].join(' ').toLowerCase().includes(q));
+  const shown = list.slice(0, 150);
+  box.innerHTML = shown.length ? shown.map(g => `
+    <div class="sr"><div class="avatar">${esc(initials(g))}</div>
+      <div class="info"><b>${esc(fullName(g))}</b><span class="hint">${esc(g.department || '')}${g.checked_in_at && g.checked_in_by ? (g.department ? ' · ' : '') + esc(g.checked_in_by.replace(/^Scanner: /, '').split('@')[0]) : ''}</span></div>
+      <button class="btn btn-sm" data-tk="${g.token}" title="Ipakita ang QR ticket">🎫</button>
+      ${g.checked_in_at ? `<span class="pill pill-green">✓ ${esc(fmtTime(g.checked_in_at))}</span>` : `<button class="btn btn-sm btn-green" data-t="${g.token}">Check in</button>`}
+    </div>`).join('') + (list.length > shown.length ? `<p class="hint" style="text-align:center">…${list.length - shown.length} pa. I-type ang pangalan para lumiit ang listahan.</p>` : '')
+    : '<div class="empty">Walang tugma.</div>';
+  box.querySelectorAll('button[data-t]').forEach(b => b.onclick = async () => { b.disabled = true; await doCheckIn(b.dataset.t); loadScanGuests(); });
+  box.querySelectorAll('button[data-tk]').forEach(b => b.onclick = () => showGuestQR(G.find(g => g.token === b.dataset.tk)));
+}
+
+function showGuestQR(g) {
+  const url = ticketUrl(g.token);
+  const m = modal(`
+    <h2>${esc(fullName(g))}</h2>
+    <div style="text-align:center"><canvas id="gQr" width="480" height="480" style="width:240px;height:240px;image-rendering:pixelated"></canvas>
+      <div class="hint">${esc(g.department || '')}</div></div>
+    <p class="hint" style="margin-top:10px">Puwedeng i-screenshot ito ng bisita, o buksan ang ticket sa phone niya.</p>
+    <div class="actions"><button class="btn" id="gCopy">🔗 Copy link</button><a class="btn" href="${esc(url)}" target="_blank">🎫 Buksan ang ticket</a><button class="btn btn-primary" data-close>Close</button></div>`);
+  drawQR($('#gQr', m).getContext('2d'), url, 0, 0, 480);
+  m.querySelector('[data-close]').onclick = () => m.remove();
+  $('#gCopy', m).onclick = async () => { await navigator.clipboard.writeText(url).catch(() => {}); toast('Nakopya ang link'); };
+}
+
+/* scanner: walk-in */
+function renderWalkin() {
+  $('#view').innerHTML = `
+    <div class="card" style="max-width:520px;margin:0 auto">
+      <h3>＋ Walk-in / on-site registration</h3>
+      <p class="hint" style="margin-bottom:12px">Para sa bisitang wala sa listahan o walang natanggap na invite. Hanapin muna sa Guest list para hindi madoble.</p>
+      <div class="grid2">
+        <div class="field"><label>First name *</label><input id="wFirst" autocomplete="off"></div>
+        <div class="field"><label>Last name</label><input id="wLast" autocomplete="off"></div>
+      </div>
+      <div class="field"><label>Department</label><input id="wDept" autocomplete="off"></div>
+      <div class="field"><label>Email (optional)</label><input id="wEmail" type="email" autocomplete="off"></div>
+      <label class="row hint" style="margin-bottom:12px"><input type="checkbox" id="wIn" checked> I-check in agad</label>
+      <button class="btn btn-green btn-lg" style="width:100%" id="wSave">I-register</button>
+      <div id="wOut" style="margin-top:14px"></div>
+    </div>`;
+  $('#wSave').onclick = async () => {
+    const first = $('#wFirst').value.trim();
+    if (!first) return toast('Ilagay ang first name', true);
+    $('#wSave').disabled = true;
+    const { data, error } = await sb.rpc('evt_scan_add_guest', {
+      p_key: S.scanKey, p_first: first, p_last: $('#wLast').value.trim(), p_dept: $('#wDept').value.trim(),
+      p_email: $('#wEmail').value.trim(), p_device: scanDevice() || null, p_check_in: $('#wIn').checked,
+    });
+    $('#wSave').disabled = false;
+    const out = $('#wOut');
+    if (error) return toast(error.message, true);
+    if (data.status === 'key_invalid') return renderScanMode(S.scanKey);
+    if (data.status === 'duplicate') {
+      out.innerHTML = `<div class="sr" style="background:var(--amber-soft);border-color:var(--amber)"><div class="info"><b>Nasa listahan na: ${esc(fullName(data))}</b>
+        <span class="hint">${data.checked_in_at ? 'Naka-check in na ' + esc(fmtTime(data.checked_in_at)) : 'Hindi pa naka-check in'}</span></div>
+        ${data.checked_in_at ? '' : `<button class="btn btn-sm btn-green" id="wDupIn">Check in</button>`}</div>`;
+      $('#wDupIn')?.addEventListener('click', async () => { await doCheckIn(data.token); renderWalkin(); });
+      return;
+    }
+    if (data.status !== 'ok') return toast(data.message || 'Hindi na-save', true);
+    beep('ok');
+    S.scanGuests = null;
+    out.innerHTML = `<div style="text-align:center;border:2px solid var(--green);border-radius:14px;padding:16px">
+      <div class="pill pill-green">✓ Registered${data.checked_in_at ? ' at checked in' : ''}</div>
+      <div style="font-size:20px;font-weight:900;margin-top:8px">${esc(fullName(data))}</div>
+      <canvas id="wQr" width="440" height="440" style="width:220px;height:220px;image-rendering:pixelated;margin-top:8px"></canvas>
+      <p class="hint">Puwedeng i-screenshot ng bisita ang QR na ito.</p>
+      <button class="btn" style="margin-top:8px" id="wNext">＋ Susunod na walk-in</button></div>`;
+    drawQR($('#wQr').getContext('2d'), ticketUrl(data.token), 0, 0, 440);
+    $('#wNext').onclick = renderWalkin;
+    ['#wFirst', '#wLast', '#wDept', '#wEmail'].forEach(s => $(s).value = '');
+    if (data.checked_in_at) { S.scanInfo.arrived++; } S.scanInfo.total++;
+  };
+}
+
+function renderScanner() {
+  const evName = S.scanKey ? S.scanInfo.event_name : S.event.name;
+  $('#view').innerHTML = `
+    <div class="scan-grid">
+      <div class="card">
+        <h3>📷 I-scan ang QR · ${esc(evName)}</h3>
+        <div id="reader"></div>
+        <div class="row" style="margin-top:10px;justify-content:center">
+          <button class="btn btn-primary btn-lg" id="camBtn">▶ Buksan ang camera</button>
+        </div>
+      </div>
+      <div>
+        <div class="result" id="result"><div class="icon">📱</div><div class="meta">Itapat ang QR ng bisita sa camera</div></div>
+        <div class="scan-count" id="scanCount"></div>
+        <div class="card" style="margin-top:14px">
+          <h3>🔍 Manual check-in</h3>
+          <p class="hint" style="margin-bottom:8px">Para sa nakalimutan ang phone o hindi ma-scan ang QR.</p>
+          <input class="input" id="manualQ" placeholder="I-type ang pangalan…">
+          <div class="search-results" id="manualRes"></div>
+        </div>
+      </div>
+    </div>`;
+  $('#camBtn').onclick = () => S.scanner ? stopScanner().then(() => { $('#camBtn').textContent = '▶ Buksan ang camera'; }) : startScanner();
+  $('#manualQ').oninput = renderManual;
+  updateScanCount();
+}
+
+function updateScanCount() {
+  const el = $('#scanCount'); if (!el) return;
+  const st = S.scanKey ? S.scanInfo : stats();
+  el.innerHTML = `<b>${st.arrived}</b> / ${st.total} na ang dumating`;
+  if ($('#manualQ')?.value && !S.scanKey) renderManual();
+}
+
+let manualTimer = null;
+function renderManual() {
+  const q = $('#manualQ').value.trim().toLowerCase(); const box = $('#manualRes');
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  if (S.scanKey) {
+    clearTimeout(manualTimer);
+    manualTimer = setTimeout(async () => {
+      const { data, error } = await sb.rpc('evt_scan_search', { p_key: S.scanKey, p_q: q });
+      if ($('#manualQ')?.value.trim().toLowerCase() !== q) return; // stale
+      paintManual(error ? [] : data || []);
+    }, 300);
+    return;
+  }
+  paintManual(S.guests.filter(g => [fullName(g), g.last_name + ' ' + g.first_name, g.email].join(' ').toLowerCase().includes(q)).slice(0, 8));
+}
+
+function paintManual(list) {
+  const box = $('#manualRes'); if (!box) return;
+  box.innerHTML = list.length ? list.map(g => `
+    <div class="sr"><div class="avatar">${esc(initials(g))}</div>
+      <div class="info"><b>${esc(fullName(g))}</b><span class="hint">${esc(g.department || g.email || '')}</span></div>
+      ${g.checked_in_at ? `<span class="pill pill-green">✓ ${esc(fmtTime(g.checked_in_at))}</span>` : `<button class="btn btn-sm btn-green" data-t="${g.token}">Check in</button>`}
+    </div>`).join('') : '<p class="hint">Walang tugma.</p>';
+  box.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => doCheckIn(b.dataset.t));
+}
+
+async function startScanner() {
+  const btn = $('#camBtn'); btn.disabled = true; btn.textContent = 'Binubuksan…';
+  initAudio();
+  try {
+    await loadScript('https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js');
+    S.scanner = new Html5Qrcode('reader', { verbose: false });
+    await S.scanner.start({ facingMode: 'environment' },
+      { fps: 12, qrbox: (w, h) => { const s = Math.floor(Math.min(w, h) * 0.72); return { width: s, height: s }; } },
+      onScan, () => {});
+    btn.textContent = '■ Isara ang camera';
+  } catch (err) {
+    S.scanner = null; btn.textContent = '▶ Buksan ang camera';
+    toast('Hindi mabuksan ang camera: ' + (err.message || err), true);
+  }
+  btn.disabled = false;
+}
+
+async function stopScanner() {
+  if (!S.scanner) return;
+  try { await S.scanner.stop(); S.scanner.clear(); } catch {}
+  S.scanner = null;
+}
+
+function extractToken(text) {
+  const t = String(text).trim();
+  try { const u = new URL(t); const v = u.searchParams.get('t'); if (v) return v; } catch {}
+  return /^[a-f0-9]{12,40}$/i.test(t) ? t.toLowerCase() : null;
+}
+
+function onScan(text) {
+  const token = extractToken(text);
+  const now = Date.now();
+  if (token === S.lastToken && now - S.lastAt < 4000) return;
+  S.lastToken = token; S.lastAt = now;
+  if (!token) return showResult('bad', '✕', 'Hindi valid na QR', 'Hindi ito QR ng TDMH Events');
+  doCheckIn(token);
+}
+
+async function doCheckIn(token) {
+  if (S.scanBusy) return; S.scanBusy = true;
+  try {
+    const { data, error } = S.scanKey
+      ? await sb.rpc('evt_scan_check_in', { p_key: S.scanKey, p_token: token, p_device: scanDevice() || null })
+      : await sb.rpc('evt_check_in', { p_token: token, p_event_id: S.event.id });
+    if (error) throw error;
+    if (S.scanKey && data.total != null) { S.scanInfo.arrived = data.arrived; S.scanInfo.total = data.total; }
+    const name = data.first_name ? `${data.first_name} ${data.last_name || ''}`.trim() : '';
+    if (data.status === 'key_invalid') {
+      showResult('bad', '⛔', 'Scanner access expired', '', 'Humingi ng bagong Scanner QR sa IT');
+      await stopScanner(); const b = $('#camBtn'); if (b) b.disabled = true;
+    } else if (data.status === 'ok') {
+      showResult('ok', '✓', 'Welcome!', name, data.department || '');
+      const g = S.guests.find(x => x.id === data.id);
+      if (g && !g.checked_in_at) { g.checked_in_at = data.checked_in_at; S.recentIds.add(g.id); }
+    } else if (data.status === 'already') {
+      showResult('already', '⚠', 'Naka-check in na', name, `Dumating ${fmtTime(data.checked_in_at)}${data.checked_in_by ? ' · ' + data.checked_in_by.split('@')[0] : ''}`);
+    } else if (data.status === 'wrong_event') {
+      showResult('bad', '✕', 'Ibang event', name, 'Ang QR na ito ay para sa ibang event');
+    } else {
+      showResult('bad', '✕', 'Hindi nakita', '', 'Walang bisitang may ganitong QR');
+    }
+    updateScanCount();
+    if (S.scanKey && $('#manualQ')?.value) renderManual();
+  } catch (err) {
+    showResult('bad', '✕', 'Error', '', err.message || String(err));
+  } finally { S.scanBusy = false; }
+}
+
+let resultTimer = null;
+function showResult(kind, icon, title, name = '', meta = '') {
+  const el = $('#result');
+  if (!el) { // not on the scan screen (e.g. guest list): use a toast instead
+    beep(kind); toast(`${icon} ${title}${name ? ': ' + name : ''}${meta && kind !== 'ok' ? ' (' + meta + ')' : ''}`, kind === 'bad');
+    return;
+  }
+  el.className = 'result ' + kind;
+  el.innerHTML = `<div class="icon">${icon}</div><div class="title">${esc(title)}</div>${name ? `<div class="name">${esc(name)}</div>` : ''}${meta ? `<div class="meta">${esc(meta)}</div>` : ''}`;
+  beep(kind); if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 80 : [60, 60, 60]);
+  clearTimeout(resultTimer);
+  resultTimer = setTimeout(() => { const r = $('#result'); if (r) { r.className = 'result'; r.innerHTML = '<div class="icon">📱</div><div class="meta">Handa na sa susunod na QR</div>'; } }, 5000);
+}
+
+let audioCtx = null;
+function initAudio() { try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch {} }
+function beep(kind) {
+  if (!audioCtx) return;
+  const tones = kind === 'ok' ? [[880, 0, .12], [1320, .12, .14]] : kind === 'already' ? [[520, 0, .25]] : [[220, 0, .18], [180, .2, .22]];
+  for (const [f, start, dur] of tones) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = f; o.type = 'sine'; g.gain.value = .15;
+    o.connect(g); g.connect(audioCtx.destination);
+    const t = audioCtx.currentTime + start; o.start(t); o.stop(t + dur);
+  }
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+async function renderSettings() {
+  const st = getSettings();
+  $('#view').innerHTML = `
+    <div class="grid2" style="gap:14px;align-items:start">
+      <div class="card">
+        <h3>✉ Email sender</h3>
+        <p class="hint" style="margin-bottom:12px">Pinapadala sa Gmail ng ospital, dumadaan sa Supabase (<code>send-invites</code>). Ang Gmail address at App Password ay nasa Supabase secrets (<code>GMAIL_USER</code>, <code>GMAIL_PASS</code>), wala sa page na ito.</p>
+        <div class="row" style="margin-bottom:14px"><span class="pill pill-gray" id="sStatus">Tinitingnan…</span></div>
+        <div class="field"><label>Sender name</label><input id="sName" value="${esc(st.senderName)}"></div>
+        <div class="field"><label>Email subject <span class="hint">({event}, {first_name})</span></label><input id="sSubj" value="${esc(st.subject)}"></div>
+        <div class="field"><label>Ticket link base (URL ng page na ito sa GitHub Pages)</label><input id="sBase" value="${esc(st.ticketBase)}" placeholder="https://richmondcampus.github.io/…/events.html"></div>
+        <div class="row"><button class="btn btn-primary" id="sSave">I-save</button><button class="btn" id="sTest">✉ Mag-send ng test email sa akin</button></div>
+        <p class="hint" id="sTestOut" style="margin-top:8px"></p>
+      </div>
+      <div>
+        ${S.event ? `<div class="card" style="margin-bottom:14px"><h3>🎄 Event</h3>
+          <p><b>${esc(S.event.name)}</b></p><p class="hint">${esc(fmtDate(S.event.event_date) || 'Walang petsa')}${S.event.venue ? ' · ' + esc(S.event.venue) : ''}</p>
+          <button class="btn" style="margin-top:10px" id="sEditEv">✏️ I-edit ang event</button></div>
+        <div class="card" style="margin-bottom:14px"><div class="row" style="margin-bottom:10px"><h3 class="grow" style="margin:0">📷 Scanner access (guards)</h3>
+          <button class="btn btn-sm btn-green" id="newKeyBtn">＋ Scanner QR</button></div>
+          <p class="hint" style="margin-bottom:10px">I-scan ng guard ang QR gamit ang phone camera, at bubukas agad ang scanner kahit walang login. Pang-check-in lang ito ng event na ito.</p>
+          <div id="keyList" class="hint">Loading…</div></div>` : ''}
+        <div class="card"><h3>👤 Staff accounts</h3><div id="staffList" class="hint">Loading…</div>
+          <p class="hint" style="margin-top:10px">Para magdagdag ng scanner/staff: (1) Supabase → Authentication → Users → <b>Add user</b> (auto-confirm), (2) idagdag ang email sa <code>evt_staff</code> table.</p></div>
+      </div>
+    </div>`;
+  const read = () => ({ senderName: $('#sName').value.trim() || 'TDMH Events',
+    subject: $('#sSubj').value.trim() || SETTINGS_DEFAULT.subject, ticketBase: $('#sBase').value.trim().replace(/\?.*$/, '') });
+  $('#sSave').onclick = () => { saveSettings(read()); toast('Na-save ang settings'); };
+  callMailer({ action: 'status' }).then(j => {
+    const el = $('#sStatus'); if (!el) return;
+    el.className = 'pill ' + (j.configured ? 'pill-green' : 'pill-red');
+    el.textContent = j.configured ? `✓ Naka-set · ${j.sender}` : 'Hindi pa naka-set ang GMAIL_USER / GMAIL_PASS';
+  }).catch(err => { const el = $('#sStatus'); if (el) { el.className = 'pill pill-red'; el.textContent = '✕ ' + err.message; } });
+  $('#sTest').onclick = async () => {
+    saveSettings(read());
+    if (!S.event) return toast('Gumawa muna ng event', true);
+    $('#sTestOut').textContent = `Nagpapadala ng test kay ${S.user.email}…`;
+    try {
+      const sample = { id: 'test', first_name: S.staff.display_name || 'Test', last_name: '(TEST)', department: 'IT', email: S.user.email, token: 'test-preview' };
+      const msg = await buildEmail(sample); msg.subject = '[TEST] ' + msg.subject;
+      const j = await callMailer({ action: 'send', senderName: getSettings().senderName, messages: [msg] });
+      const r = j.results[0];
+      $('#sTestOut').innerHTML = r.ok ? `<span style="color:var(--green)">✓ Na-send. Tingnan ang inbox ng ${esc(S.user.email)}.</span>` : `<span style="color:var(--red)">✕ ${esc(r.error)}</span>`;
+    } catch (err) { $('#sTestOut').innerHTML = `<span style="color:var(--red)">✕ ${esc(err.message)}</span>`; }
+  };
+  $('#sEditEv')?.addEventListener('click', () => openEventModal(S.event));
+  $('#newKeyBtn')?.addEventListener('click', openKeyModal);
+  if (S.event) loadKeys();
+  const { data } = await sb.from('evt_staff').select('*').order('email');
+  const box = $('#staffList'); if (box) box.innerHTML = (data || []).map(s => `<div class="row" style="padding:4px 0"><span class="grow">${esc(s.display_name || '')} <span class="hint">${esc(s.email)}</span></span><span class="pill ${s.role === 'admin' ? 'pill-indigo' : 'pill-gray'}">${esc(s.role)}</span></div>`).join('') || 'Wala';
+}
+
+/* ---------- scanner access keys (admin) ---------- */
+const scanUrl = key => `${getSettings().ticketBase || SETTINGS_DEFAULT.ticketBase}?scan=${key}`;
+const keyState = k => k.revoked_at ? ['Revoked', 'pill-red'] : (k.expires_at && new Date(k.expires_at) < new Date()) ? ['Expired', 'pill-gray'] : ['Active', 'pill-green'];
+
+async function loadKeys() {
+  const { data, error } = await sb.from('evt_scanner_keys').select('*').eq('event_id', S.event.id).order('created_at');
+  const box = $('#keyList'); if (!box) return;
+  if (error) { box.textContent = error.message; return; }
+  S.keys = data || [];
+  box.innerHTML = S.keys.length ? S.keys.map(k => { const [lbl, cls] = keyState(k); return `
+    <div class="sr" style="margin-bottom:6px">
+      <div class="info"><b>📍 ${esc(k.label)}</b><span class="hint">${k.scan_count} scans${k.last_used_at ? ' · huling gamit ' + esc(fmtShort(k.last_used_at)) : ''} · ${k.expires_at ? 'hanggang ' + esc(fmtShort(k.expires_at)) : 'walang expiry'}</span>
+        <span class="hint">${['📷 Scan', k.can_view_list ? '👥 Guest list' : '', k.can_add_guest ? '＋ Walk-in' : ''].filter(Boolean).join(' · ')}</span></div>
+      <span class="pill ${cls}">${lbl}</span>
+      ${lbl !== 'Revoked' ? `<button class="btn btn-sm" data-ed="${k.id}">Edit</button>` : ''}
+      ${lbl === 'Active' ? `<button class="btn btn-sm" data-qr="${k.id}">QR</button><button class="btn btn-sm btn-danger" data-rv="${k.id}">Revoke</button>` : ''}
+    </div>`; }).join('') : 'Wala pang scanner QR. Puwedeng isang QR lang para sa lahat ng phones, o isa kada gate.';
+  box.querySelectorAll('[data-qr]').forEach(b => b.onclick = () => showKeyQR(S.keys.find(k => k.id === b.dataset.qr)));
+  box.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => openKeyModal(S.keys.find(k => k.id === b.dataset.ed)));
+  box.querySelectorAll('[data-rv]').forEach(b => b.onclick = async () => {
+    const k = S.keys.find(x => x.id === b.dataset.rv);
+    if (!confirm(`I-revoke ang "${k.label}"? Hindi na makakapag-scan ang phone na gumagamit nito.`)) return;
+    const { error } = await sb.from('evt_scanner_keys').update({ revoked_at: new Date().toISOString() }).eq('id', k.id);
+    if (error) return toast(error.message, true);
+    toast('Na-revoke'); loadKeys();
+  });
+}
+
+function openKeyModal(k) {
+  const ev = S.event;
+  const def = ev.event_date ? new Date(new Date(ev.event_date).getTime() + 7 * 24 * 3600e3) : new Date(Date.now() + 30 * 24 * 3600e3);
+  const noExp = k ? !k.expires_at : false;
+  const expVal = k ? (k.expires_at && new Date(k.expires_at) > new Date() ? k.expires_at : def.toISOString()) : def.toISOString();
+  const m = modal(`
+    <h2>${k ? '✏️ Edit Scanner QR' : '＋ Scanner QR'}</h2>
+    <div class="field"><label>Label (gate o grupo) *</label><input id="kLabel" value="${esc(k?.label || '')}" placeholder="Entrance Team / Main Gate"></div>
+    <div class="field"><label>Valid hanggang (PH time)</label><input type="datetime-local" id="kExp" value="${toLocalInput(expVal)}" ${noExp ? 'disabled' : ''}></div>
+    <label class="row hint" style="margin:-4px 0 12px"><input type="checkbox" id="kNoExp" ${noExp ? 'checked' : ''}> Walang expiry (manual revoke lang)</label>
+    <p class="hint" style="margin-bottom:10px">Valid agad ang QR pagkagawa, kaya magagamit mo na rin ito sa testing. Puwede itong gamitin ng maraming phone nang sabay-sabay.</p>
+    <div class="field"><label>Access ng scanner</label>
+      <label class="row" style="font-size:13px"><input type="checkbox" checked disabled> 📷 Mag-scan at manual check-in</label>
+      <label class="row" style="font-size:13px"><input type="checkbox" id="kList" ${k ? (k.can_view_list ? 'checked' : '') : 'checked'}> 👥 Makita ang guest list (pangalan, dept, status; walang email)</label>
+      <label class="row" style="font-size:13px"><input type="checkbox" id="kAdd" ${k ? (k.can_add_guest ? 'checked' : '') : 'checked'}> ＋ Mag-register ng walk-in na bisita</label>
+    </div>
+    <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn btn-green" id="kSave">${k ? 'I-save' : 'Gumawa'}</button></div>`);
+  m.querySelector('[data-close]').onclick = () => m.remove();
+  $('#kNoExp', m).onchange = e => { $('#kExp', m).disabled = e.target.checked; };
+  m.querySelector('#kSave').onclick = async () => {
+    const label = $('#kLabel', m).value.trim();
+    if (!label) return toast('Ilagay ang label', true);
+    const exp = $('#kExp', m).value;
+    const row = {
+      label, expires_at: $('#kNoExp', m).checked ? null : fromPHInput(exp),
+      can_view_list: $('#kList', m).checked, can_add_guest: $('#kAdd', m).checked,
+    };
+    const q = k ? sb.from('evt_scanner_keys').update(row).eq('id', k.id).select().single()
+                : sb.from('evt_scanner_keys').insert({ ...row, event_id: ev.id, created_by: S.user.email }).select().single();
+    const { data, error } = await q;
+    if (error) return toast(error.message, true);
+    m.remove(); await loadKeys();
+    if (k) toast('Na-update. Hindi na kailangang i-scan ulit ng mga phone.'); else showKeyQR(data);
+  };
+  setTimeout(() => $('#kLabel', m)?.focus(), 50);
+}
+
+function showKeyQR(k) {
+  const url = scanUrl(k.key);
+  if (!url.startsWith('https://')) toast('Babala: ilagay muna ang tamang GitHub Pages URL sa "Ticket link base" para gumana ang QR sa phone.', true);
+  const m = modal(`
+    <h2>📷 Scanner Access · ${esc(k.label)}</h2>
+    <div style="text-align:center">
+      <canvas id="kQr" width="520" height="520" style="width:260px;height:260px;image-rendering:pixelated"></canvas>
+      <p style="font-weight:700;margin-top:6px">${esc(S.event.name)}</p>
+      <p class="hint">${k.expires_at ? 'Valid hanggang ' + esc(fmtDate(k.expires_at)) : 'Walang expiry'}</p>
+    </div>
+    <ol class="hint" style="margin:14px 0 0 18px;line-height:1.7">
+      <li>Buksan ng guard ang <b>Camera</b> ng phone at itapat sa QR na ito.</li>
+      <li>I-tap ang link at bubukas ang scanner. Pindutin ang <b>Buksan ang camera</b> at i-allow.</li>
+      <li>Puwede na siyang mag-scan ng QR ng mga bisita.</li>
+    </ol>
+    <p class="hint" style="margin-top:10px;color:var(--red)">Huwag i-post o i-share sa GC. Kahit sino na may QR na ito ay makakapag-check in ng bisita.</p>
+    <div class="actions">
+      <button class="btn" id="kCopy">🔗 Copy link</button>
+      <button class="btn" id="kPng">⬇ Download PNG</button>
+      <button class="btn btn-primary" data-close>Close</button>
+    </div>`);
+  drawQR($('#kQr', m).getContext('2d'), url, 0, 0, 520);
+  m.querySelector('[data-close]').onclick = () => m.remove();
+  m.querySelector('#kCopy').onclick = async () => { await navigator.clipboard.writeText(url).catch(() => {}); toast('Nakopya ang scanner link'); };
+  m.querySelector('#kPng').onclick = () => {
+    const W = 900, H = 1180, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+    x.fillStyle = '#2d2a7b'; x.fillRect(0, 0, W, 230); x.fillStyle = '#1f9d55'; x.fillRect(0, 230, W, 10);
+    x.textAlign = 'center'; x.fillStyle = 'rgba(255,255,255,.75)'; x.font = '700 26px Inter, sans-serif'; x.fillText('SCANNER ACCESS · STAFF ONLY', W / 2, 75);
+    x.fillStyle = '#fff'; x.font = '900 56px Inter, sans-serif'; x.fillText(k.label, W / 2, 150);
+    x.font = '500 28px Inter, sans-serif'; x.fillText(S.event.name, W / 2, 200);
+    drawQR(x, url, 150, 290, 600);
+    x.fillStyle = '#1b1d2e'; x.font = '700 30px Inter, sans-serif'; x.fillText('I-scan gamit ang phone camera para buksan ang scanner', W / 2, 950);
+    x.fillStyle = '#6b7090'; x.font = '500 26px Inter, sans-serif';
+    x.fillText(k.expires_at ? 'Valid hanggang ' + fmtDate(k.expires_at) : 'Walang expiry', W / 2, 1000);
+    x.fillStyle = '#cf3b3b'; x.font = '600 24px Inter, sans-serif'; x.fillText('Huwag i-share. Para lang sa naka-assign na guard.', W / 2, 1060);
+    const a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = `TDMH-scanner-${k.label.replace(/[^\w]+/g, '-')}.png`; a.click();
+  };
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+(async function boot() {
+  const t = params.get('t');
+  if (t) return renderTicket(t.trim());
+  const scan = params.get('scan');
+  if (scan) {
+    localStorage.setItem('evt_scan_key', scan.trim());
+    history.replaceState(null, '', location.pathname); // don't leave the key in the address bar
+    return renderScanMode(scan.trim());
+  }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return renderLogin();
+  await afterLogin(session.user);
+})();
+</script>
+</body>
+</html>
