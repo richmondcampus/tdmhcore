@@ -66,7 +66,8 @@ main{max-width:1180px;margin:0 auto;padding:18px 16px 60px}
 .field input:focus,.field select:focus,.field textarea:focus,.input:focus{outline:2px solid var(--indigo-soft);border-color:var(--indigo2)}
 .hint{font-size:12px;color:var(--muted);line-height:1.5}
 input[type=checkbox]{width:auto!important;flex:none;margin:0;accent-color:var(--green)}
-label.row{gap:8px;cursor:pointer}
+label.row{gap:8px;cursor:pointer;flex-wrap:nowrap;align-items:flex-start}
+label.row input[type=checkbox]{margin-top:2px}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
 .pill-green{background:var(--green-soft);color:var(--green)}
 .pill-amber{background:var(--amber-soft);color:var(--amber)}
@@ -1077,7 +1078,8 @@ function renderAttendance() {
   $('#view').innerHTML = `
     <div class="dash-head">
       <div><h2>✅ Attendance</h2><div class="hint"><span class="live-dot"></span>Live · ${esc(S.event.name)}</div></div>
-      <button class="btn btn-green" id="attXlsx">⬇ Export Excel (report)</button>
+      <div class="row"><button class="btn btn-danger" id="attReset">↺ Reset para sa testing</button>
+        <button class="btn btn-green" id="attXlsx">⬇ Export Excel (report)</button></div>
     </div>
     <div id="attKpis"></div>
     <div class="toolbar">
@@ -1098,6 +1100,7 @@ function renderAttendance() {
   $('#attDept').onchange = e => { S.att.dept = e.target.value; renderAttendanceBody(); };
   $('#attSort').onchange = e => { S.att.sort = e.target.value; renderAttendanceBody(); };
   $('#attXlsx').onclick = exportAttendanceXlsx;
+  $('#attReset').onclick = openResetModal;
   renderAttendanceBody();
 }
 
@@ -1127,7 +1130,7 @@ function renderAttendanceBody() {
   list.sort(A.sort === 'name' ? (a, b) => nameKey(a).localeCompare(nameKey(b))
     : A.sort === 'dept' ? (a, b) => (a.department || '~').localeCompare(b.department || '~') || nameKey(a).localeCompare(nameKey(b))
     : (a, b) => (b.checked_in_at || '').localeCompare(a.checked_in_at || '') || nameKey(a).localeCompare(nameKey(b)));
-  $('#attHead').innerHTML = `<tr><th style="width:50px">#</th><th>Pangalan</th><th>Department</th><th>Time in</th><th>Na-check in ni / sa</th><th>Uri</th></tr>`;
+  $('#attHead').innerHTML = `<tr><th style="width:50px">#</th><th>Pangalan</th><th>Department</th><th>Time in</th><th>Na-check in ni / sa</th><th>Uri</th><th></th></tr>`;
   rowsEl.innerHTML = list.length ? list.map(g => `<tr>
       <td class="sub">${order.get(g.id) || ''}</td>
       <td><b>${esc(fullName(g))}</b></td>
@@ -1135,8 +1138,54 @@ function renderAttendanceBody() {
       <td>${g.checked_in_at ? `<b>${esc(phClock(g.checked_in_at))}</b><div class="sub">${esc(phDate(g.checked_in_at))}</div>` : '<span class="pill pill-gray">Hindi dumating</span>'}</td>
       <td>${esc(byLabel(g) || '—')}</td>
       <td>${g.checked_in_at ? (isWalkin(g) ? '<span class="pill pill-amber">Walk-in</span>' : '<span class="pill pill-indigo">Invited</span>') : ''}</td>
-    </tr>`).join('') : `<tr><td colspan="6"><div class="empty">${A.status === 'in' && !inList.length ? 'Wala pang naka-check in.' : 'Walang tugma.'}</div></td></tr>`;
+      <td style="text-align:right">${g.checked_in_at ? `<button class="btn btn-sm" data-undo="${g.id}" title="I-undo ang check-in">↺ Undo</button>` : ''}</td>
+    </tr>`).join('') : `<tr><td colspan="7"><div class="empty">${A.status === 'in' && !inList.length ? 'Wala pang naka-check in.' : 'Walang tugma.'}</div></td></tr>`;
   $('#attCount').textContent = `Ipinapakita: ${list.length}`;
+  rowsEl.querySelectorAll('[data-undo]').forEach(b => b.onclick = () => guestAction('undo', b.dataset.undo));
+}
+
+/* testing helper: clear check-ins (and optionally test walk-ins / invite status) for this event */
+function openResetModal() {
+  const ev = S.event;
+  const inCount = S.guests.filter(g => g.checked_in_at).length;
+  const walkins = S.guests.filter(isWalkin);
+  const sent = S.guests.filter(g => g.invite_sent_at).length;
+  const hrsToEvent = ev.event_date ? (new Date(ev.event_date) - Date.now()) / 3600e3 : Infinity;
+  const nearEvent = hrsToEvent < 12;
+  const m = modal(`
+    <h2>↺ Reset para sa testing</h2>
+    ${nearEvent ? `<div class="sr" style="background:var(--red-soft);border-color:var(--red);margin-bottom:12px"><div class="info"><b style="color:var(--red)">⚠ Malapit na o tapos na ang event</b><span class="hint">Kapag ni-reset ito sa mismong event, mabubura ang totoong attendance. Para lang ito sa testing bago ang event.</span></div></div>` : ''}
+    <p class="hint" style="margin-bottom:12px">Para sa <b>${esc(ev.name)}</b> lang ito. Hindi nito binubura ang mga bisita at hindi nito binabago ang QR nila, kaya gagana pa rin ang mga na-send na invite.</p>
+    <label class="row" style="font-size:13px;margin-bottom:8px"><input type="checkbox" id="rsIn" checked><span>Burahin ang lahat ng check-in (<b>${inCount}</b>) at i-reset ang scan count ng mga Scanner QR</span></label>
+    <label class="row" style="font-size:13px;margin-bottom:8px"><input type="checkbox" id="rsWalk" ${walkins.length ? 'checked' : 'disabled'}><span>Burahin ang mga walk-in na ginawa sa testing (<b>${walkins.length}</b>)</span></label>
+    <label class="row" style="font-size:13px;margin-bottom:14px"><input type="checkbox" id="rsSent"><span>I-reset din ang "Invite na-send" status (<b>${sent}</b>). Hindi nito binabawi ang mga email na naipadala na.</span></label>
+    <div class="field"><label>I-type ang <b>RESET</b> para kumpirmahin</label><input id="rsConfirm" autocomplete="off" placeholder="RESET"></div>
+    <div class="actions"><button class="btn" data-close>Cancel</button><button class="btn btn-danger" id="rsGo" disabled style="border-color:var(--red)">↺ I-reset</button></div>`);
+  m.querySelector('[data-close]').onclick = () => m.remove();
+  $('#rsConfirm', m).oninput = e => { $('#rsGo', m).disabled = e.target.value.trim().toUpperCase() !== 'RESET'; };
+  $('#rsGo', m).onclick = async () => {
+    const btn = $('#rsGo', m); btn.disabled = true; btn.textContent = 'Nire-reset…';
+    const done = [];
+    try {
+      if ($('#rsWalk', m).checked && walkins.length) {
+        const { error } = await sb.from('evt_guests').delete().eq('event_id', ev.id).ilike('checked_in_by', '%(walk-in)%');
+        if (error) throw error; done.push(`${walkins.length} walk-in ang nabura`);
+      }
+      if ($('#rsIn', m).checked) {
+        const { error } = await sb.from('evt_guests').update({ checked_in_at: null, checked_in_by: null }).eq('event_id', ev.id).not('checked_in_at', 'is', null);
+        if (error) throw error;
+        const k = await sb.from('evt_scanner_keys').update({ scan_count: 0 }).eq('event_id', ev.id);
+        if (k.error) throw k.error; done.push('na-clear ang check-ins');
+      }
+      if ($('#rsSent', m).checked) {
+        const { error } = await sb.from('evt_guests').update({ invite_sent_at: null, invite_error: null }).eq('event_id', ev.id).not('invite_sent_at', 'is', null);
+        if (error) throw error; done.push('na-reset ang invite status');
+      }
+      m.remove();
+      await loadGuests(); renderTab();
+      toast(done.length ? '✓ ' + done.join(', ') : 'Walang binago');
+    } catch (err) { btn.disabled = false; btn.textContent = '↺ I-reset'; toast(err.message, true); }
+  };
 }
 
 async function exportAttendanceXlsx() {
