@@ -1791,7 +1791,7 @@ async function renderSettings() {
     } catch (err) { $('#sTestOut').innerHTML = `<span style="color:var(--red)">✕ ${esc(err.message)}</span>`; }
   };
   $('#sEditEv')?.addEventListener('click', () => openEventModal(S.event));
-  $('#newKeyBtn')?.addEventListener('click', openKeyModal);
+  $('#newKeyBtn')?.addEventListener('click', () => openKeyModal());
   if (S.event) loadKeys();
   const { data } = await sb.from('evt_staff').select('*').order('email');
   const box = $('#staffList'); if (box) box.innerHTML = (data || []).map(s => `<div class="row" style="padding:4px 0"><span class="grow">${esc(s.display_name || '')} <span class="hint">${esc(s.email)}</span></span><span class="pill ${s.role === 'admin' ? 'pill-indigo' : 'pill-gray'}">${esc(s.role)}</span></div>`).join('') || 'Wala';
@@ -1826,6 +1826,7 @@ async function loadKeys() {
 }
 
 function openKeyModal(k) {
+  if (!k?.id) k = null; // only a saved key is an edit (guards against an Event object being passed in)
   const ev = S.event;
   const def = ev.event_date ? new Date(new Date(ev.event_date).getTime() + 7 * 24 * 3600e3) : new Date(Date.now() + 30 * 24 * 3600e3);
   const noExp = k ? !k.expires_at : false;
