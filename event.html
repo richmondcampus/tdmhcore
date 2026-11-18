@@ -249,6 +249,7 @@ body.ticket-mode{background:linear-gradient(170deg,var(--indigo) 0%,#1d1b55 55%,
 const SUPABASE_URL = 'https://dcsepolfgjdbzafdhdzb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_uydN0ctNx1gytCKyU6SUlA_QbN7WZlc';
 const ORG_NAME = 'Taytay Doctors Multispecialty Hospital';
+const APP_VERSION = '2026.11.18-c'; // shown in the scanner and Settings to confirm which build a phone loaded
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const app = document.getElementById('app');
@@ -1642,6 +1643,7 @@ function renderScanner() {
           <div class="result hidden" id="result"></div>
         </div>
         <div class="last-scan" id="lastScan"><span class="hint">Wala pang na-scan</span></div>
+        <p class="hint" style="text-align:center;margin-top:6px;font-size:10px;opacity:.6">TDMH Events v${APP_VERSION}</p>
       </div>
       <div>
         <div class="card">
@@ -1832,6 +1834,7 @@ async function renderSettings() {
         <div class="field"><label>Ticket link base (URL ng page na ito sa GitHub Pages)</label><input id="sBase" value="${esc(st.ticketBase)}" placeholder="https://richmondcampus.github.io/…/events.html"></div>
         <div class="row"><button class="btn btn-primary" id="sSave">I-save</button><button class="btn" id="sTest">✉ Mag-send ng test email sa akin</button></div>
         <p class="hint" id="sTestOut" style="margin-top:8px"></p>
+        <p class="hint" style="margin-top:10px;font-size:11px">App version: <b>v${APP_VERSION}</b></p>
       </div>
       <div>
         ${S.event ? `<div class="card" style="margin-bottom:14px"><h3>🎄 Event</h3>
