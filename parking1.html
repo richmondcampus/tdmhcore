@@ -1,0 +1,2121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="TDMH Parking"/>
+  <meta name="theme-color" content="#1b1c33"/>
+  <meta name="description" content="Taytay Doctors Multispecialty Hospital — Parking Management System"/>
+  <title>TDMH Parking System</title>
+  <link rel="manifest" id="pwa-manifest"/>
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><text y='.85em' font-size='72' x='14'>🏥</text></svg>"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>"/>
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.22.10/babel.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body,#root{margin:0;padding:0;min-height:100vh}
+    body{background:#f0f4f8}
+    #splash{position:fixed;inset:0;background:linear-gradient(135deg,#1b1c33,#1e1b4b,#312e81);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;z-index:9999;transition:opacity .6s}
+    #splash .sico{font-size:60px;margin-bottom:16px;animation:bp 1.8s infinite}
+    #splash h1{font-size:18px;font-weight:700;text-align:center;margin:0 0 5px;color:#eef2ff}
+    #splash p{font-size:13px;color:#a5b4fc;margin:0 0 24px}
+    #splash .sbar{width:220px;height:4px;background:rgba(255,255,255,.15);border-radius:100px;overflow:hidden}
+    #splash .sfill{height:100%;background:linear-gradient(90deg,#4f46e5,#818cf8);border-radius:100px;animation:sl 2s ease forwards}
+    #splash .sst{font-size:11px;color:#475569;margin-top:12px}
+    @keyframes bp{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+    @keyframes sl{from{width:0}to{width:100%}}
+  </style>
+</head>
+<body>
+<div id="splash">
+  <div class="sico">🏥</div>
+  <h1>Taytay Doctors Multispecialty Hospital</h1>
+  <p>Parking Management System</p>
+  <div class="sbar"><div class="sfill"></div></div>
+  <div class="sst" id="sst">Connecting to database…</div>
+</div>
+<div id="root"></div>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script type="text/babel">
+/* @jsxRuntime classic */
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+// ─── SUPABASE CONFIG ────────────────────────────────────────────────────────
+const SUPABASE_URL  = "https://rddvjspqlqmyxlyrnbol.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHZqc3BxbHFteXhseXJuYm9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NzkzNDIsImV4cCI6MjA4ODE1NTM0Mn0.uIm1H4sjzeCMj3-ySLeCX0q50EVp2oZ16YLHspu5SU0";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ─── CONSTANTS ──────────────────────────────────────────────────────────────
+const LOCS = [
+  {id:"compound",name:"Medina's Compound",short:"Compound",icon:"🏥",color:"#4f46e5"},
+  {id:"quality",  name:"Quality",          short:"Quality", icon:"⭐",color:"#10b981"},
+  {id:"motopark", name:"Motorcycle Parking",short:"Moto Park",icon:"🏍️",color:"#8b5cf6"},
+];
+const LOC_SLOTS = {
+  compound:[{type:"car",total:25},{type:"motorcycle",total:15}],
+  quality: [{type:"car",total:19}],
+  motopark:[{type:"motorcycle",total:75}],
+};
+const VT = {
+  car:       {label:"Car",       icon:"🚗",color:"#4f46e5",fh:3,fr:30,sr:15,ovr:150},
+  motorcycle:{label:"Motorcycle",icon:"🏍️",color:"#8b5cf6",fh:3,fr:15,sr:5, ovr:50},
+  tricycle:  {label:"Tricycle",  icon:"🛺",color:"#10b981",fh:3,fr:20,sr:10,ovr:100},
+};
+const PERMS = {
+  admin:    {earn:true, allLocs:true, act:true, ci:true,co:true,rates:true,users:true, rep:true, search:true},
+  cashier:  {earn:true, allLocs:true, act:true, ci:false,co:true,rates:true,users:false,rep:true,search:true},
+  attendant:{earn:false,allLocs:false,act:false,ci:true,co:false,rates:true,users:false,rep:false,search:true},
+};
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+const genSlots=(l,t,n)=>Array.from({length:n},(_,i)=>({id:`${l}-${t}-${i+1}`,locId:l,type:t,number:i+1,occupied:false,vehicle:null}));
+function initSlotsLocal(){
+  const d={};
+  LOCS.forEach(loc=>{d[loc.id]=[];(LOC_SLOTS[loc.id]||[]).forEach(({type,total})=>d[loc.id].push(...genSlots(loc.id,type,total)));});
+  return d;
+}
+function calcFee(iso,vt){
+  const v=VT[vt];if(!v)return{fee:0,pwdFee:0,dur:"0h 0m",overnight:false};
+  const cin=new Date(iso);const cout=new Date();
+  const ms=cout-cin;const hrs=ms/3600000;
+  const tm=Math.floor(ms/60000);
+  // Count how many 10PM-7AM windows the stay covers with at least 8hrs overlap
+  let overnightCount=0;
+  let winStart=new Date(cin);winStart.setHours(22,0,0,0);
+  if(cin.getHours()<7)winStart.setDate(winStart.getDate()-1);
+  while(winStart<cout){
+    const winEnd=new Date(winStart);winEnd.setDate(winEnd.getDate()+1);winEnd.setHours(7,0,0,0);
+    const oStart=Math.max(cin.getTime(),winStart.getTime());
+    const oEnd=Math.min(cout.getTime(),winEnd.getTime());
+    if((oEnd-oStart)/3600000>=8)overnightCount++;
+    winStart=new Date(winEnd);winStart.setHours(22,0,0,0);
+  }
+  const isO=overnightCount>0;
+  let fee,pwdFee;
+  if(isO){
+    // Each overnight window charged at flat rate, remaining hours at regular rate
+    const ovrHrs=overnightCount*9;
+    const regHrs=Math.max(0,hrs-ovrHrs);
+    const regFee=regHrs<=v.fh?v.fr:v.fr+Math.ceil(regHrs-v.fh)*v.sr;
+    fee=(overnightCount*v.ovr)+(regHrs>0?regFee:0);
+    // PWD/SC: first 3 REGULAR hrs free — overnight windows still fully charged
+    const pwdReg=regHrs<=3?0:Math.ceil(regHrs-3)*v.sr;
+    pwdFee=(overnightCount*v.ovr)+pwdReg;
+  }else{
+    fee=hrs<=v.fh?v.fr:v.fr+Math.ceil(hrs-v.fh)*v.sr;
+    pwdFee=hrs<=3?0:Math.ceil(hrs-3)*v.sr;
+  }
+  return{fee,pwdFee,dur:Math.floor(tm/60)+'h '+tm%60+'m',overnight:isO};
+}
+function calcFeeManual(checkinISO, vtype, checkoutISO){
+  const v=VT[vtype];if(!v)return{fee:0,pwdFee:0,dur:"0h 0m",overnight:false};
+  const cin=new Date(checkinISO);const cout=checkoutISO?new Date(checkoutISO):new Date();
+  const ms=cout-cin;if(ms<=0)return{fee:0,pwdFee:0,dur:"0h 0m",overnight:false};
+  const hrs=ms/3600000;
+  const tm=Math.floor(ms/60000);
+  let overnightCount=0;
+  let winStart=new Date(cin);winStart.setHours(22,0,0,0);
+  if(cin.getHours()<7)winStart.setDate(winStart.getDate()-1);
+  while(winStart<cout){
+    const winEnd=new Date(winStart);winEnd.setDate(winEnd.getDate()+1);winEnd.setHours(7,0,0,0);
+    const oStart=Math.max(cin.getTime(),winStart.getTime());
+    const oEnd=Math.min(cout.getTime(),winEnd.getTime());
+    if((oEnd-oStart)/3600000>=8)overnightCount++;
+    winStart=new Date(winEnd);winStart.setHours(22,0,0,0);
+  }
+  const isO=overnightCount>0;
+  let fee,pwdFee;
+  if(isO){
+    const ovrHrs=overnightCount*9;
+    const regHrs=Math.max(0,hrs-ovrHrs);
+    const regFee=regHrs<=v.fh?v.fr:v.fr+Math.ceil(regHrs-v.fh)*v.sr;
+    fee=(overnightCount*v.ovr)+(regHrs>0?regFee:0);
+    const pwdReg=regHrs<=3?0:Math.ceil(regHrs-3)*v.sr;
+    pwdFee=(overnightCount*v.ovr)+pwdReg;
+  }else{
+    fee=hrs<=v.fh?v.fr:v.fr+Math.ceil(hrs-v.fh)*v.sr;
+    pwdFee=hrs<=3?0:Math.ceil(hrs-3)*v.sr;
+  }
+  return{fee,pwdFee,dur:Math.floor(tm/60)+'h '+tm%60+'m',overnight:isO};
+}
+const fmtT   =iso=>new Date(iso).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"});
+const fmtDT  =iso=>new Date(iso).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+const fmtFull=iso=>new Date(iso).toLocaleString("en-PH",{weekday:"short",year:"numeric",month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
+const ago    =iso=>{const m=Math.floor((Date.now()-new Date(iso))/60000);if(m<1)return"just now";if(m<60)return`${m}m ago`;return`${Math.floor(m/60)}h ${m%60}m ago`;};
+const P      =n=>`₱${Number(n).toLocaleString("en-PH")}`;
+// Philippine Time (UTC+8)
+const PHT_OFF=8*60*60000;
+const toPHT=d=>new Date(new Date(d).getTime()+PHT_OFF);
+const dOnly  =iso=>{try{return toPHT(iso).toISOString().split("T")[0];}catch{return"";}};
+const todayStr=()=>toPHT(new Date()).toISOString().split("T")[0];
+const dAgo   =n=>{const d=toPHT(new Date());d.setDate(d.getDate()-n);return d.toISOString().split("T")[0];};
+let _tix=1000;
+const nextTix=()=>`TKT-${++_tix}`;
+async function seedTicketCounter(){
+  // Ticket numbers now generated by DB sequence — this is kept as no-op for compatibility
+}
+
+// ─── SLOT MAPPER ────────────────────────────────────────────────────────────
+function mapSlot(s){
+  return{
+    id:s.id,locId:s.loc_id,type:s.type,number:s.number,occupied:s.occupied,
+    vehicle:s.occupied?{plate:s.v_plate,name:s.v_name,vtype:s.v_vtype,checkin:s.v_checkin,ticketNo:s.v_ticket,checkinBy:s.v_checkin_by}:null
+  };
+}
+
+
+// ─── CSS ────────────────────────────────────────────────────────────────────
+const CSS=`
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#eef0f7;--s:#fff;--s2:#f6f7fc;--bd:#e3e6f0;--tx:#1b1c33;--mu:#646a86;--ac:#4f46e5;--gn:#15803d;--r:14px;--sh:0 1px 2px rgba(27,28,51,.05),0 2px 10px rgba(27,28,51,.05);--sl:0 10px 34px rgba(27,28,51,.14)}
+body{font-family:'Hanken Grotesk',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:10px}
+.app{max-width:1200px;margin:0 auto;padding:14px 14px 48px}
+.lp{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(135deg,#1b1c33,#1e1b4b,#312e81)}
+.lb{background:#fff;border-radius:22px;padding:32px;width:100%;max-width:390px;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.ll-logo{width:56px;height:56px;background:linear-gradient(135deg,#4338ca,#4f46e5);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 14px;box-shadow:0 6px 20px rgba(79,70,229,.4)}
+.lt{text-align:center;margin-bottom:22px}.lt h1{font-size:16px;font-weight:700;color:#1b1c33;line-height:1.3}.lt p{font-size:12px;color:#64748b;margin-top:4px}
+.lf2{margin-bottom:12px}
+.ll2{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#64748b;margin-bottom:4px}
+.li2{width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid #e2e8f0;font-size:13px;font-family:'Hanken Grotesk',sans-serif;color:#1b1c33;background:#f6f7fc;outline:none;transition:border-color .15s}
+.li2:focus{border-color:#4f46e5;background:#fff}
+.lbtn{width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#4338ca,#4f46e5);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Hanken Grotesk',sans-serif;box-shadow:0 4px 14px rgba(79,70,229,.35);transition:all .15s;margin-top:3px}
+.lbtn:hover{box-shadow:0 6px 20px rgba(79,70,229,.45)}
+.lbtn:disabled{opacity:.6;cursor:not-allowed}
+.lerr{background:#fee2e2;color:#7f1d1d;border:1px solid #fca5a5;border-radius:8px;padding:7px 11px;font-size:12px;margin-bottom:11px}
+.hdr{background:linear-gradient(135deg,#1b1c33 0%,#1e1b4b 60%,#312e81 100%);border-radius:var(--r);padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:relative;overflow:hidden;box-shadow:var(--sl)}
+.hdr::after{content:'';position:absolute;top:-50px;right:-30px;width:200px;height:200px;background:radial-gradient(circle,rgba(74,222,128,.16),transparent 68%);pointer-events:none}
+.hl{display:flex;align-items:center;gap:11px}
+.hlogo{width:42px;height:42px;background:linear-gradient(135deg,#4338ca,#4f46e5);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 4px 12px rgba(79,70,229,.4)}
+.ht h1{font-size:clamp(12px,2vw,16px);font-weight:700;color:#eef2ff;letter-spacing:-.3px;line-height:1.2}
+.ht p{color:#a5b4fc;font-size:11px;margin-top:1px}
+.hr2{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.rbdg{padding:4px 10px;border-radius:100px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.rb-admin{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+.rb-cashier{background:rgba(16,185,129,.2);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+.rb-attendant{background:rgba(139,92,246,.2);color:#c4b5fd;border:1px solid rgba(139,92,246,.3)}
+.hck{font-family:'Space Mono',monospace;color:#86efac;font-size:clamp(11px,1.7vw,14px);font-weight:700;letter-spacing:1px}
+.hbtn{padding:5px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#cbd5e1;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'Hanken Grotesk',sans-serif}
+.hbtn:hover{background:rgba(255,255,255,.16);color:#fff}
+.rtind{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);font-size:10px;color:#6ee7b7;font-weight:600}
+.rtdot{width:6px;height:6px;border-radius:50%;background:#10b981;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.lsp{min-height:calc(100vh - 110px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.lsb{background:var(--s);border:1px solid var(--bd);border-radius:18px;padding:28px;width:100%;max-width:460px;box-shadow:var(--sl);text-align:center}
+.lsb h2{font-size:17px;font-weight:700;margin-bottom:7px}.lsb p{color:var(--mu);font-size:13px;margin-bottom:22px}
+.los{display:flex;flex-direction:column;gap:9px}
+.lo{padding:14px 18px;border-radius:11px;border:1.5px solid var(--bd);cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .2s;background:var(--s2);text-align:left}
+.lo:hover{border-color:var(--ac);background:#eef2ff;transform:translateX(4px)}
+.lo-ico{font-size:24px;flex-shrink:0}.lo-nm{font-size:13px;font-weight:700}.lo-sub{font-size:11px;color:var(--mu);margin-top:1px}
+.eb{background:linear-gradient(135deg,#1b1c33,#1e1b4b);border-radius:var(--r);padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:11px;box-shadow:var(--sl)}
+.ebl h3{color:#a5b4fc;font-size:10px;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:2px}
+.ebt{font-family:'Space Mono',monospace;font-size:clamp(20px,4vw,32px);font-weight:700;color:#4ade80}
+.ebd{font-size:11px;color:#94a3b8;margin-top:2px}
+.ebr{display:flex;gap:13px;flex-wrap:wrap}
+.ebs{text-align:right}.ebsl{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.4px}
+.ebsv{font-family:'Space Mono',monospace;font-size:14px;font-weight:700;color:#e2e8f0;margin-top:1px}
+.ebsc{font-size:10px;color:#64748b;margin-top:1px}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:14px}
+.sc{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:12px 14px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--c,var(--ac))}
+.sl2{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:5px}
+.sv{font-size:clamp(17px,2.5vw,23px);font-weight:700;font-family:'Space Mono',monospace;color:var(--c,var(--tx));line-height:1}
+.ss{font-size:10px;color:var(--mu);margin-top:3px}
+.rc{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;margin-bottom:14px;box-shadow:var(--sh)}
+.rc h3{font-size:13px;font-weight:700;margin-bottom:9px}
+.rgd{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px}
+.rit{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;position:relative;overflow:hidden}
+.rit::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--rc2)}
+.rh{display:flex;align-items:center;gap:6px;margin-bottom:6px}.rh .ri{font-size:15px}.rn{font-size:12px;font-weight:700}
+.rr{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px solid var(--bd)}.rr:last-child{border:none}
+.rk{color:var(--mu)}.rv{font-family:'Space Mono',monospace;font-weight:700;color:var(--gn);font-size:10px}
+.tabs{display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:6px 13px;border-radius:100px;border:1px solid var(--bd);font-family:'Hanken Grotesk',sans-serif;font-size:12px;font-weight:600;cursor:pointer;background:var(--s);color:var(--mu);transition:all .2s}
+.tab:hover{border-color:var(--ac);color:var(--ac)}
+.tab.active{background:var(--ac);color:#fff;border-color:var(--ac);box-shadow:0 3px 12px rgba(79,70,229,.35)}
+.tbdg{display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.25);border-radius:100px;padding:1px 6px;font-size:10px;margin-left:4px}
+.tab:not(.active) .tbdg{background:var(--bd);color:var(--tx)}
+.lg{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:12px}
+.lc{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:transform .2s,box-shadow .2s}
+.lc:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(27,28,51,.12)}
+.lch{padding:11px 14px;background:var(--s2);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.lchl{display:flex;align-items:center;gap:8px}
+.lcico{font-size:18px}.lcnm{font-size:13px;font-weight:700}.lcsub{font-size:10px;color:var(--mu);margin-top:1px}
+.avp{padding:3px 9px;border-radius:100px;font-family:'Space Mono',monospace;font-size:10px;font-weight:700;flex-shrink:0}
+.av-ok{background:#d1fae5;color:#065f46}.av-warn{background:#fef3c7;color:#78350f}.av-full{background:#fee2e2;color:#7f1d1d}
+.bw{padding:8px 14px;border-bottom:1px solid var(--bd)}
+.blbl{display:flex;justify-content:space-between;font-size:10px;color:var(--mu);margin-bottom:4px}
+.btr{height:5px;background:var(--bd);border-radius:100px;overflow:hidden}
+.bfi{height:100%;border-radius:100px;transition:width .5s ease}
+.tsc{padding:8px 14px 0}
+.tl{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:6px}
+.td{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.spg{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:9px}
+.sp{aspect-ratio:1;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:9px;font-family:'Space Mono',monospace;font-weight:700;transition:all .15s;border:1.5px solid transparent;user-select:none}
+.sp:hover{transform:scale(1.07);z-index:2;box-shadow:0 2px 8px rgba(27,28,51,.14)}
+.sp.free{background:#f1fdf4;border-color:#a7e9bc;color:#15803d}
+.sp.occ{background:#fef1f1;border-color:#f3b4b4;color:#c02626}
+.sp.sel{box-shadow:0 0 0 2.5px rgba(79,70,229,.6);border-color:var(--ac)!important;z-index:3}
+.spico{font-size:11px;margin-bottom:1px;line-height:1}.spn{font-size:8px;line-height:1}
+.lcleg{display:flex;gap:9px;padding:3px 14px 10px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--mu)}
+.lsq{width:7px;height:7px;border-radius:2px}
+.pnl{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:15px;box-shadow:var(--sh)}
+.srow{display:flex;gap:8px;margin-bottom:12px}
+.rl{display:flex;flex-direction:column;gap:7px}
+.ritem{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:7px}
+.rpl2{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:1px}
+.rsub{font-size:11px;color:var(--mu);margin-top:2px}
+.bdg{padding:2px 7px;border-radius:100px;font-size:10px;font-weight:700;text-transform:uppercase}
+.bdg-c{background:#e0e7ff;color:#3730a3}.bdg-m{background:#ede9fe;color:#5b21b6}.bdg-t{background:#d1fae5;color:#065f46}
+.al{display:flex;flex-direction:column;gap:5px;max-height:400px;overflow-y:auto;margin-top:9px}
+.ai{display:flex;gap:8px;padding:8px 10px;border-radius:7px;background:var(--s2);align-items:flex-start}
+.adot{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0}
+.atxt{font-size:12px;color:#334155;line-height:1.4}.atm{font-family:'Space Mono',monospace;font-size:10px;color:var(--mu);margin-top:2px}
+.elg{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px;margin-bottom:14px}
+.elc{background:var(--s2);border:1px solid var(--bd);border-radius:9px;padding:12px;position:relative;overflow:hidden}
+.elc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--lc)}
+.elnm{font-size:12px;font-weight:700;margin-bottom:5px}
+.elv{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:var(--lc)}
+.elcnt{font-size:10px;color:var(--mu);margin-top:2px}
+.etbl{width:100%;border-collapse:collapse}
+.etbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);font-weight:700;padding:5px 8px;border-bottom:2px solid var(--bd);text-align:left;white-space:nowrap}
+.etbl td{font-size:11px;padding:6px 8px;border-bottom:1px solid var(--bd)}
+.etbl tr:last-child td{border:none}.etbl tr:hover td{background:#f6f7fc}
+.epl{font-family:'Space Mono',monospace;font-size:11px;font-weight:700}
+.eam{font-family:'Space Mono',monospace;font-weight:700;color:var(--gn)}
+.um-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.um-card{background:var(--s2);border:1px solid var(--bd);border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:box-shadow .2s}
+.um-card:hover{box-shadow:var(--sh)}
+.um-av{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.um-nm{font-size:13px;font-weight:700}
+.um-un{font-size:11px;color:var(--mu);font-family:'Space Mono',monospace;margin-top:1px}
+.um-acts{display:flex;gap:5px;flex-shrink:0}
+.urb{padding:3px 8px;border-radius:100px;font-size:10px;font-weight:700;text-transform:uppercase}
+.urb-admin{background:#fee2e2;color:#9f1239}
+.urb-cashier{background:#d1fae5;color:#065f46}
+.urb-attendant{background:#ede9fe;color:#5b21b6}
+.icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--bd);background:var(--s);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s}
+.icon-btn:hover{border-color:var(--ac);background:#eef2ff}
+.icon-btn.del:hover{border-color:#ef4444;background:#fef2f2}
+.ov{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.mo{background:var(--s);border:1px solid var(--bd);border-radius:18px;width:100%;max-width:420px;box-shadow:var(--sl);animation:su .22s ease}
+@keyframes su{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.mh{padding:17px 21px 13px;border-bottom:1px solid var(--bd)}
+.mh h2{font-size:15px;font-weight:700}.mh p{color:var(--mu);font-size:12px;margin-top:2px}
+.mb{padding:14px 21px}.mf{padding:9px 21px 17px;display:flex;gap:8px;flex-wrap:wrap}
+.fg{margin-bottom:11px}
+.fl{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mu);margin-bottom:4px}
+.fi{width:100%;padding:8px 11px;border-radius:8px;border:1.5px solid var(--bd);font-size:13px;font-family:'Hanken Grotesk',sans-serif;color:var(--tx);background:var(--s2);outline:none;transition:border-color .15s}
+.fi:focus{border-color:var(--ac);background:#fff}
+.fi-err{border-color:#ef4444!important}
+.ferr{font-size:11px;color:#ef4444;margin-top:3px}
+.rrow{display:flex;gap:6px}
+.rbt{flex:1;padding:7px 4px;border-radius:8px;border:1.5px solid var(--bd);cursor:pointer;text-align:center;font-size:11px;font-weight:700;transition:all .15s;background:var(--s2);color:var(--mu)}
+.rbt.active{background:var(--ac);color:#fff;border-color:var(--ac)}
+.btn{padding:9px 15px;border-radius:9px;border:none;cursor:pointer;font-size:12px;font-weight:700;font-family:'Hanken Grotesk',sans-serif;transition:all .15s;flex:1}
+.bp{background:var(--ac);color:#fff;box-shadow:0 3px 10px rgba(79,70,229,.3)}.bp:hover{background:#4338ca}
+.bd2{background:#ef4444;color:#fff}.bd2:hover{background:#dc2626}
+.bg{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}.bg:hover{border-color:var(--ac);color:var(--ac)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.ir{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bd);font-size:12px}
+.ir:last-child{border:none}
+.ik{color:var(--mu)}.iv{font-family:'Space Mono',monospace;font-size:11px;font-weight:700}
+.fb{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fcd34d;border-radius:10px;padding:12px;text-align:center;margin-top:10px}
+.fbl{font-size:10px;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;font-weight:700}
+.fbv{font-family:'Space Mono',monospace;font-size:27px;font-weight:700;color:#b45309}
+.fbn{font-size:11px;color:#92400e;margin-top:2px}
+.hb{background:var(--s2);border:1px solid var(--bd);border-radius:8px;padding:8px 11px;font-size:11px;color:var(--mu);margin-top:8px}
+.phint{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 11px;font-size:11px;color:#3730a3;margin-top:8px;display:flex;align-items:center;gap:6px}
+.tkb{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #c4b5fd;border-radius:10px;padding:10px 13px;margin-top:8px;display:flex;align-items:center;gap:9px}
+.tkn{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:#5b21b6}
+.tkl{font-size:11px;color:#7c3aed;font-weight:600}
+.rch{text-align:center;padding-bottom:11px;border-bottom:1px solid var(--bd);margin-bottom:11px}
+.rct{font-size:11px;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:1.5px}
+.rcd{font-family:'Space Mono',monospace;font-size:10px;color:var(--mu);margin-top:2px}
+.emp{text-align:center;padding:30px 20px;color:var(--mu)}
+.emp .ei{font-size:36px;margin-bottom:7px}.emp p{font-size:12px}
+.rpl3{display:grid;grid-template-columns:245px 1fr;gap:13px;align-items:start}
+@media(max-width:720px){.rpl3{grid-template-columns:1fr}}
+.rsb{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:14px;box-shadow:var(--sh);position:sticky;top:14px}
+.rsb h3{font-size:13px;font-weight:700;margin-bottom:13px}
+.rsec{margin-bottom:14px}
+.rst{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mu);margin-bottom:6px}
+.rpre{padding:7px 10px;border-radius:8px;border:1px solid var(--bd);cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;background:var(--s2);color:var(--mu);margin-bottom:4px;display:block}
+.rpre:hover{border-color:var(--ac);color:var(--ac);background:#eef2ff}
+.rpre.active{background:#e0e7ff;border-color:var(--ac);color:#3730a3}
+.drgd{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:9px}
+.df label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);margin-bottom:3px}
+.di{width:100%;padding:6px 8px;border-radius:7px;border:1.5px solid var(--bd);font-size:11px;font-family:'Hanken Grotesk',sans-serif;color:var(--tx);background:var(--s2);outline:none;transition:border-color .15s}
+.di:focus{border-color:var(--ac)}
+.rchk{display:flex;flex-direction:column;gap:5px}
+.rck{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--tx)}
+.rck input{width:13px;height:13px;cursor:pointer;accent-color:var(--ac)}
+.rmain{display:flex;flex-direction:column;gap:12px}
+.rkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.rkpi{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:12px 13px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.rkpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kc,#4f46e5)}
+.kl{font-size:10px;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;font-weight:700;margin-bottom:4px}
+.kv{font-family:'Space Mono',monospace;font-size:clamp(15px,3vw,21px);font-weight:700;color:var(--kc,var(--tx));line-height:1}
+.ks{font-size:10px;color:var(--mu);margin-top:3px}
+.rcc{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:14px;box-shadow:var(--sh)}
+.rcc h4{font-size:13px;font-weight:700;margin-bottom:12px}
+.cbg{display:flex;flex-direction:column;gap:4px}
+.cbr{display:grid;grid-template-columns:72px 1fr 62px;align-items:center;gap:7px}
+.cbl{font-size:11px;color:var(--mu);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cbt{height:18px;background:var(--s2);border-radius:5px;overflow:hidden}
+.cbf{height:100%;border-radius:5px;display:flex;align-items:center;padding-left:7px;font-size:10px;font-weight:700;color:#fff;transition:width .6s ease;min-width:3px}
+.cbv{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--gn);text-align:right}
+.dc2{display:flex;flex-direction:column;gap:4px}
+.dr{display:grid;grid-template-columns:80px 1fr 65px;align-items:center;gap:7px}
+.dlbl{font-size:10px;color:var(--mu);text-align:right}
+.dtr{height:14px;background:var(--s2);border-radius:4px;overflow:hidden}
+.dfi{height:100%;background:linear-gradient(90deg,#4338ca,#4f46e5);border-radius:4px;transition:width .5s;min-width:2px}
+.dv{font-family:'Space Mono',monospace;font-size:10px;font-weight:700;color:var(--mu);text-align:right}
+.rspl{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+@media(max-width:600px){.rspl{grid-template-columns:1fr}}
+.dw{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.dgleg{display:flex;flex-direction:column;gap:6px}
+.dli{display:flex;align-items:center;gap:7px;font-size:11px}
+.dld{width:9px;height:9px;border-radius:50%;flex-shrink:0}.dll{color:var(--mu)}
+.hml{display:grid;grid-template-columns:38px repeat(7,1fr);gap:3px;margin-bottom:3px}
+.hmd{font-size:10px;color:var(--mu);text-align:center;font-weight:600}
+.hmrow{display:grid;grid-template-columns:38px repeat(7,1fr);gap:3px;margin-bottom:3px}
+.hmhl{font-size:9px;color:var(--mu);display:flex;align-items:center;justify-content:flex-end;padding-right:3px}
+.hmc{height:26px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700}
+.rtbl{width:100%;border-collapse:collapse}
+.rtbl th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);font-weight:700;padding:5px 8px;border-bottom:2px solid var(--bd);text-align:left;white-space:nowrap}
+.rtbl td{font-size:11px;padding:6px 8px;border-bottom:1px solid var(--bd)}
+.rtbl tr:last-child td{border:none}.rtbl tr:hover td{background:#f6f7fc}
+.nod{text-align:center;padding:24px;color:var(--mu);font-size:12px}
+.nod .ni{font-size:30px;margin-bottom:7px}
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 16px;border-radius:10px;font-size:12px;font-weight:600;box-shadow:var(--sl);animation:tin .3s ease;max-width:320px;pointer-events:all}
+.toast-ok{background:#1b1c33;color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+.toast-err{background:#1b1c33;color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+.toast-info{background:#1b1c33;color:#a5b4fc;border:1px solid rgba(79,70,229,.3)}
+@keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.dbg{background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:9px 11px;font-size:11px;color:#3730a3;margin-top:10px}
+:focus-visible{outline:2px solid var(--ac);outline-offset:1px;border-radius:4px}
+.etbl td,.rtbl td,.kv,.ebt,.eam,.iv,.fbv{font-variant-numeric:tabular-nums}
+.etbl th,.rtbl th{letter-spacing:.7px}
+.etbl tbody tr:hover td,.rtbl tbody tr:hover td{background:#f4f5fb}
+.btn,.tab,.lbtn,.hbtn,.rbt,.rpre{letter-spacing:.1px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+@media(max-width:600px){
+  .app{padding:10px}.sg{grid-template-columns:repeat(2,1fr)}.lg{grid-template-columns:1fr}
+  .ov{align-items:flex-end;padding:0}.mo{border-radius:18px 18px 0 0;max-width:100%}
+  .um-grid{grid-template-columns:1fr}.spg{gap:3px}
+}
+`;
+
+// ─── THERMAL PRINTER ────────────────────────────────────────────────────────
+function printThermal(payload,preWin){
+  // Save for reprint
+  if(window._lastPrintPayload!==undefined) window._lastPrintPayload=payload;
+  // Android: Kotlin bridge overrides this function entirely
+  // Web: use browser print optimized for 58mm thermal
+  printBrowser(payload, preWin);
+}
+
+function printBrowser(payload,preWin){
+  const{isCheckIn,isVoid,ticketNo,plate,name,vtype,locName,slotNum,checkin,fee,dur,overnight,cashierName,lostTicket,pwdSc,pwdDisc}=payload;
+  const vObj=VT[vtype]||VT.car;
+  const fmt=iso=>new Date(iso).toLocaleString("en-PH",{month:"short",day:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  const EQ="================================";
+  const DQ="--------------------------------";
+
+  const R=[];
+  const ln=(t)=>R.push("<div>"+t+"</div>");
+  const ct=(t)=>R.push("<div style='text-align:center'>"+t+"</div>");
+
+  ln(EQ);
+  ct("TAYTAY DOCTORS");
+  ct("MULTISPECIALTY HOSPITAL");
+  ct("Parking Management System");
+  ln(EQ);
+  ct(isVoid?"** VOID / LOSS RECORD **":isCheckIn?"*** PARKING TICKET ***":"*** PAYMENT RECEIPT ***");
+  ln(EQ);
+  ln("TICKET#  : "+ticketNo);
+  ln(DQ);
+  ln("PLATE    : "+(plate||"---"));
+  ln("NAME     : "+(name||"---"));
+  ln("VEHICLE  : "+vObj.label);
+  ln("LOCATION : "+locName);
+  ln("SLOT     : #"+slotNum);
+  ln(DQ);
+  if(isCheckIn){
+    ln("DATE IN  : "+fmt(checkin));
+    ln(DQ);
+    ln("First "+vObj.fh+"hrs : "+P(vObj.fr));
+    ln("Per hour  : "+P(vObj.sr)+"/hr");
+    ln("Overnight : "+P(vObj.ovr));
+    ln(EQ);
+    ct("PLEASE KEEP THIS TICKET");
+    ct("Present upon exit for payment");
+    ct("Lost Parking Ticket: P50.00");
+    ct("PWD/SC: 1st 3hrs FREE (w/ ID)");
+    ln(DQ);
+    ln("Attendant : "+cashierName);
+    ln("Issued    : "+fmt(new Date().toISOString()));
+    ln(EQ);
+    ct("Thank you! Drive safely.");
+  } else if(isVoid){
+    ln("TIME IN  : "+fmt(checkin));
+    ln("VOID AT  : "+fmt(new Date().toISOString()));
+    ln("DURATION : "+dur);
+    ln("EXP FEE  : "+P(fee));
+    ln(EQ);
+    ct("LOST PARKING TICKET");
+    ct("PHP 50.00");
+    ln(DQ);
+    ln("Voided by : "+cashierName);
+    ln(EQ);
+    ct("Official void record.");
+  } else {
+    ln("TIME IN  : "+fmt(checkin));
+    ln("TIME OUT : "+fmt(payload.checkout||new Date().toISOString()));
+    ln("DURATION : "+dur);
+    ln(DQ);
+    ln("RATE     : "+(overnight?"OVERNIGHT":"REGULAR"));
+    ln(EQ);
+    ct("TOTAL AMOUNT DUE");
+    R.push("<div class='big'>"+P(fee)+"</div>");
+    if(overnight) ct("Overnight Rate 10PM-7AM");
+    ln(DQ);
+    if(pwdSc) ln("PWD/SC 3hrs FREE: -PHP "+Number(pwdDisc||0).toLocaleString("en-PH"));
+    if(payload.lostTicket) ln("Lost Ticket: +PHP 50.00");
+    ln("Cashier  : "+cashierName);
+    ln(EQ);
+    ct("Thank you for parking!");
+    ct("Drive safely.");
+  }
+  R.push("<div style='height:24px'></div>");
+
+  const style=""
+    +"@page{margin:0;size:58mm auto}"
+    +"*{margin:0;padding:0;box-sizing:border-box}"
+    +"html,body{margin:0;padding:0 2px;width:58mm;background:#fff;color:#000;font-family:'Courier New',Courier,monospace;font-size:7pt;font-weight:600;line-height:1.1}"
+    +"div{margin:0;padding:0;white-space:nowrap;overflow:hidden;line-height:1.1}"
+    +".big{font-size:12pt;font-weight:900;text-align:center;line-height:1.2}"
+    +".np{margin-top:12px;text-align:center;font-family:Arial,sans-serif;white-space:normal;overflow:visible;font-size:12pt}"
+    +"@media print{.np{display:none!important}@page{size:58mm auto;margin:0}html,body{width:58mm;margin:0;padding:0 2px;font-size:7pt}}";
+
+  const html="<!DOCTYPE html><html><head>"
+    +"<meta charset='UTF-8'/><title>Receipt</title>"
+    +"<style>"+style+"</style>"
+    +"</head><body>"+R.join("")
+    +"<div class='np'>"
+    +"<button onclick='window.print()' style='padding:8px 16px;background:#4f46e5;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold'>Print</button>"
+    +"<button onclick='window.close()' style='padding:8px 12px;background:#f1f5f9;border:1px solid #ccc;border-radius:6px;cursor:pointer;font-size:13px;margin-left:6px'>Close</button>"
+    +"<p style='font-size:10px;color:#666;margin-top:8px'>Paper: 58x3276mm &middot; Margins: None &middot; Scale: 100%</p>"
+    +"</div>"
+    +"<script>setTimeout(function(){window.print();},500);<\/script>"
+    +"</body></html>";
+
+  const w=preWin||window.open("","_blank","width=420,height=620,toolbar=0,menubar=0,scrollbars=1");
+  if(w){w.document.open();w.document.write(html);w.document.close();}
+  else alert("Please allow popups to print.");
+}
+
+
+function useToast(){
+  const [toasts,setToasts]=useState([]);
+  const add=useCallback((msg,type="ok")=>{
+    const id=Date.now();
+    setToasts(p=>[...p,{id,msg,type}]);
+    setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),3500);
+  },[]);
+  const Toasts=()=>(
+    <div className="toast-wrap">
+      {toasts.map(t=><div key={t.id} className={`toast toast-${t.type}`}>{t.msg}</div>)}
+    </div>
+  );
+  return{add,Toasts};
+}
+
+// ─── DONUT CHART ─────────────────────────────────────────────────────────────
+function DonutChart({data,size=110}){
+  const total=data.reduce((s,d)=>s+d.value,0);
+  if(!total)return <div style={{color:"#94a3b8",fontSize:12,padding:"10px 0"}}>No data</div>;
+  let angle=-90;
+  const cx=size/2,cy=size/2,r=size*.38,inn=size*.22;
+  const slices=data.map(d=>{const a=(d.value/total)*360;const s=angle;angle+=a;return{...d,sa:s,sw:a};});
+  const arc=(cx,cy,r,s,sw)=>{
+    const a=s*Math.PI/180,b=(s+sw)*Math.PI/180;
+    const x1=cx+r*Math.cos(a),y1=cy+r*Math.sin(a),x2=cx+r*Math.cos(b),y2=cy+r*Math.sin(b);
+    return `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${sw>180?1:0},1 ${x2},${y2} Z`;
+  };
+  return(
+    <div className="dw">
+      <svg width={size} height={size}>
+        {slices.map((s,i)=><path key={i} d={arc(cx,cy,r,s.sa,s.sw)} fill={s.color} opacity={.9}/>)}
+        <circle cx={cx} cy={cy} r={inn} fill="white"/>
+        <text x={cx} y={cy-3} textAnchor="middle" fontSize="9" fill="#64748b" fontFamily="Hanken Grotesk">Total</text>
+        <text x={cx} y={cy+9} textAnchor="middle" fontSize="10" fontWeight="700" fill="#1b1c33" fontFamily="Space Mono">{total}</text>
+      </svg>
+      <div className="dgleg">
+        {data.map((d,i)=>(
+          <div className="dli" key={i}>
+            <div className="dld" style={{background:d.color}}/>
+            <span className="dll">{d.label}</span>
+            <span style={{fontFamily:"'Space Mono',monospace",fontWeight:700,fontSize:10,marginLeft:8,color:d.color}}>{d.value} ({Math.round(d.value/total*100)}%)</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── REPORTS PANEL ───────────────────────────────────────────────────────────
+// Fetches its own data directly from Supabase — always shows latest records
+function ReportsPanel({currentUser,onFix}){
+  const [from,setFrom]=useState(todayStr());
+  const [to,setTo]=useState(todayStr());
+
+  function exportCSV(){
+    const rows=[['Date/Time','Ticket','Plate','Vehicle','Location','Duration','Type','Checked In By','Checked Out By','Fee']];
+    [...filtered].sort((a,b)=>new Date(b.checkout_at||b.checkout_time||b.checkin_at)-new Date(a.checkout_at||a.checkout_time||a.checkin_at)).forEach(e=>{
+      rows.push([
+        fmtDT(e.checkout_at||e.checkout_time||e.checkin_at),
+        e.ticket_no||'',
+        e.plate||'',
+        VT[e.vtype]?.label||e.vtype||'',
+        LOCS.find(l=>l.id===e.loc_id)?.name||e.loc_id||'',
+        e.dur||e.duration||'',
+        e.overnight?'Overnight':'Regular',
+        e.checkin_by||'',
+        e.cashier||'',
+        e.fee||0
+      ]);
+    });
+    const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`TDMH_Parking_${from}_to_${to}.csv`;
+    a.click();URL.revokeObjectURL(url);
+  }
+  const [preset,setPreset]=useState("today");
+  const [locF,setLocF]=useState({compound:true,quality:true,motopark:true});
+  const [vtF,setVtF]=useState({car:true,motorcycle:true,tricycle:true});
+  const [txns,setTxns]=useState([]);
+  const [fetching,setFetching]=useState(false);
+
+  // fetch whenever date range changes
+  useEffect(()=>{
+    let cancelled=false;
+    async function fetchData(){
+      setFetching(true);
+      try{
+        // PHT offset: subtract 8hrs to get UTC equivalent for DB query
+        // e.g. Apr 19 00:00 PHT = Apr 18 16:00 UTC
+        const fromUTC=new Date(from+"T00:00:00+08:00").toISOString();
+        const toUTC=new Date(to+"T23:59:59+08:00").toISOString();
+        // Paginated fetch — Supabase has 1000 row default limit
+        let allData=[], page=0, batchSize=1000, done=false;
+        let fetchError=null;
+        while(!done){
+          const{data:batch,error:bErr}=await sb.from("transactions")
+            .select("*")
+            .gte("checkout_at",fromUTC)
+            .lte("checkout_at",toUTC)
+            .order("checkout_at",{ascending:false})
+            .range(page*batchSize,(page+1)*batchSize-1);
+          if(bErr){fetchError=bErr;break;}
+          if(!batch||batch.length===0){done=true;}
+          else{allData=[...allData,...batch];if(batch.length<batchSize)done=true;page++;}
+        }
+        const{data:d2}=await sb.from("transactions")
+          .select("*")
+          .is("checkout_at",null)
+          .gte("checkout_time",fromUTC)
+          .lte("checkout_time",toUTC);
+        const seen=new Set();
+        const data=[...allData,...(d2||[])].filter(r=>{if(seen.has(r.id))return false;seen.add(r.id);return true;});
+        const error=fetchError;
+        if(!cancelled&&!error&&data) setTxns(data);
+      }catch(e){console.error("Reports fetch error:",e);}
+      if(!cancelled) setFetching(false);
+    }
+    fetchData();
+    return()=>{cancelled=true;};
+  },[from,to]);
+
+  function applyPreset(p){
+    setPreset(p);
+    if(p==="today"){setFrom(todayStr());setTo(todayStr());}
+    else if(p==="yesterday"){const y=dAgo(1);setFrom(y);setTo(y);}
+    else if(p==="week"){setFrom(dAgo(6));setTo(todayStr());}
+    else if(p==="month"){setFrom(dAgo(29));setTo(todayStr());}
+  }
+
+  const allFiltered=useMemo(()=>txns.filter(e=>{
+    const d=dOnly(e.checkout_at||e.checkout_time||e.checkin_at||e.checkin_time);
+    if(!d)return false;
+    return d>=from&&d<=to&&locF[e.loc_id]!==false&&vtF[e.vtype]!==false;
+  }),[txns,from,to,locF,vtF]);
+  const filtered=useMemo(()=>allFiltered.filter(e=>e.status!=="voided"),[allFiltered]);
+  const voided=useMemo(()=>allFiltered.filter(e=>e.status==="voided"),[allFiltered]);
+  const lossTotal=voided.reduce((s,e)=>s+Number(e.fee||0),0);
+  const lostTxns=useMemo(()=>filtered.filter(e=>e.notes&&(e.notes.includes("LOST_TICKET")||e.notes.includes("Lost Parking Ticket")||e.notes.toLowerCase().includes("lost"))),[filtered]);
+  const lostTotal=lostTxns.length*50;
+  const pwdTxns=useMemo(()=>filtered.filter(e=>e.notes&&e.notes.includes("PWD_SC_EXEMPT")),[filtered]);
+  // Recompute discount per PWD txn from actual times: normal fee minus PWD fee (first 3hrs free)
+  const pwdCalc=e=>{
+    try{
+      const rc=calcFeeManual(e.checkin_at||e.checkin_time,e.vtype,e.checkout_at||e.checkout_time);
+      return{normal:rc.fee||0,disc:Math.max(0,(rc.fee||0)-(rc.pwdFee||0))};
+    }catch(err){return{normal:0,disc:0};}
+  };
+  const pwdDiscTotal=useMemo(()=>pwdTxns.reduce((s,e)=>s+pwdCalc(e).disc,0),[pwdTxns]);
+
+  const total=filtered.reduce((s,e)=>s+Number(e.fee||0),0);
+  const cnt=filtered.length;
+  const avg=cnt>0?Math.round(total/cnt):0;
+  const ovrCnt=filtered.filter(e=>e.overnight).length;
+  const days=new Set(filtered.map(e=>dOnly(e.checkout_at||e.checkout_time||e.checkin_at))).size;
+  const avgD=days>0?Math.round(total/days):0;
+
+  const dayRange=[];let cur=new Date(from);const end=new Date(to);
+  while(cur<=end){dayRange.push(cur.toISOString().split("T")[0]);cur=new Date(cur);cur.setDate(cur.getDate()+1);}
+  const dayMap={};filtered.forEach(e=>{const d=dOnly(e.checkout_at||e.checkout_time||e.checkin_at);dayMap[d]=(dayMap[d]||0)+Number(e.fee||0);});
+  const dayData=dayRange.map(d=>({label:new Date(d).toLocaleDateString("en-PH",{month:"short",day:"numeric"}),val:dayMap[d]||0}));
+  const maxDay=Math.max(...dayData.map(d=>d.val),1);
+
+  const byLoc=LOCS.map(l=>{const t=filtered.filter(e=>e.loc_id===l.id).reduce((s,e)=>s+Number(e.fee||0),0);const c=filtered.filter(e=>e.loc_id===l.id).length;return{...l,total:t,count:c};});
+  const maxL=Math.max(...byLoc.map(l=>l.total),1);
+  const byV=Object.entries(VT).map(([k,v])=>{const t=filtered.filter(e=>e.vtype===k).reduce((s,e)=>s+Number(e.fee||0),0);const c=filtered.filter(e=>e.vtype===k).length;return{key:k,...v,total:t,count:c};});
+  const cashMap={};filtered.forEach(e=>{const k=e.cashier||"Unknown";cashMap[k]=cashMap[k]||{name:k,total:0,count:0};cashMap[k].total+=Number(e.fee||0);cashMap[k].count++;});
+  const byCash=Object.values(cashMap).sort((a,b)=>b.total-a.total);
+  const maxC=Math.max(...byCash.map(c=>c.total),1);
+
+  const HOURS=[7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const grid={};HOURS.forEach(h=>DAYS.forEach((_,di)=>{grid[`${h}-${di}`]=0;}));
+  filtered.forEach(e=>{const d=new Date(e.checkout_at||e.checkout_time||e.checkin_at);const h=d.getHours();const dow=(d.getDay()+6)%7;if(h>=7&&h<=20)grid[`${h}-${dow}`]=(grid[`${h}-${dow}`]||0)+1;});
+  const maxP=Math.max(...Object.values(grid),1);
+
+  const plateMap={};filtered.forEach(e=>{plateMap[e.plate]=plateMap[e.plate]||{plate:e.plate,count:0,total:0,vtype:e.vtype};plateMap[e.plate].count++;plateMap[e.plate].total+=Number(e.fee||0);});
+  const topP=Object.values(plateMap).sort((a,b)=>b.count-a.count).slice(0,8);
+
+  return(
+    <div className="rpl3">
+      <div className="rsb">
+        <h3>📊 Report Filters</h3>
+        {fetching&&<div style={{background:"#eef2ff",border:"1px solid #c7d2fe",borderRadius:8,padding:"7px 10px",fontSize:11,color:"#3730a3",marginBottom:10,display:"flex",alignItems:"center",gap:6}}><span className="spin" style={{borderTopColor:"#4f46e5",borderColor:"rgba(79,70,229,.3)"}}/>Fetching…</div>}
+        <div className="rsec">
+          <div className="rst">Quick Presets</div>
+          {[{k:"today",l:"Today"},{k:"yesterday",l:"Yesterday"},{k:"week",l:"Last 7 Days"},{k:"month",l:"Last 30 Days"},{k:"custom",l:"Custom Range"}].map(p=>(
+            <div key={p.k} className={`rpre ${preset===p.k?"active":""}`} onClick={()=>applyPreset(p.k)}>{p.l}</div>
+          ))}
+        </div>
+        <div className="rsec">
+          <div className="rst">Date Range</div>
+          <div className="drgd">
+            <div className="df"><label>From</label><input type="date" className="di" value={from} max={to} onChange={e=>{setFrom(e.target.value);setPreset("custom");}}/></div>
+            <div className="df"><label>To</label><input type="date" className="di" value={to} min={from} max={todayStr()} onChange={e=>{setTo(e.target.value);setPreset("custom");}}/></div>
+          </div>
+        </div>
+        <div className="rsec">
+          <div className="rst">Locations</div>
+          <div className="rchk">{LOCS.map(l=>(<label className="rck" key={l.id}><input type="checkbox" checked={!!locF[l.id]} onChange={e=>setLocF(p=>({...p,[l.id]:e.target.checked}))}/><span style={{color:l.color,marginRight:3}}>{l.icon}</span>{l.short}</label>))}</div>
+        </div>
+        <div className="rsec">
+          <div className="rst">Vehicle Types</div>
+          <div className="rchk">{Object.entries(VT).map(([k,v])=>(<label className="rck" key={k}><input type="checkbox" checked={!!vtF[k]} onChange={e=>setVtF(p=>({...p,[k]:e.target.checked}))}/>{v.icon} {v.label}</label>))}</div>
+        </div>
+        <div style={{padding:"9px 0 3px",borderTop:"1px solid var(--bd)",marginTop:3,fontSize:11,color:"var(--mu)",textAlign:"center"}}>
+          <b style={{color:"var(--tx)"}}>{cnt}</b> shown · <b style={{color:"var(--tx)"}}>{txns.length}</b> loaded
+        </div>
+      </div>
+
+      <div className="rmain">
+
+        <div className="rkpis">
+          <div className="rkpi" style={{"--kc":"#d97706"}}><div className="kl">Total Revenue</div><div className="kv">{P(total)}</div><div className="ks">{cnt} transactions</div></div>
+          <div className="rkpi" style={{"--kc":"#4f46e5"}}><div className="kl">Daily Average</div><div className="kv">{P(avgD)}</div><div className="ks">{days} day{days!==1?"s":""}</div></div>
+          <div className="rkpi" style={{"--kc":"#10b981"}}><div className="kl">Avg/Txn</div><div className="kv">{P(avg)}</div><div className="ks">per vehicle</div></div>
+          <div className="rkpi" style={{"--kc":"#8b5cf6"}}><div className="kl">Overnight</div><div className="kv">{ovrCnt}</div><div className="ks">{P(filtered.filter(e=>e.overnight).reduce((s,e)=>s+Number(e.fee||0),0))}</div></div>
+          <div className="rkpi" style={{"--kc":"#ef4444"}}><div className="kl">⚠️ Voided</div><div className="kv">{voided.length}</div><div className="ks" style={{color:"#ef4444"}}>{P(lossTotal)} lost</div></div>
+          <div className="rkpi" style={{"--kc":"#f59e0b"}}><div className="kl">🎫 Lost Tickets</div><div className="kv">{lostTxns.length}</div><div className="ks" style={{color:"#d97706"}}>{P(lostTotal)} collected</div></div>
+          <div className="rkpi" style={{"--kc":"#4f46e5"}}><div className="kl">♿ PWD/SC Exempted</div><div className="kv">{pwdTxns.length}</div><div className="ks" style={{color:"#3730a3"}}>{P(pwdDiscTotal)} discounted</div></div>
+        </div>
+        <div className="rcc">
+          <h4>📈 Daily Revenue Trend</h4>
+          {fetching?<div className="nod"><div className="ni">⏳</div>Loading…</div>:dayData.length===0?<div className="nod"><div className="ni">📭</div>No data</div>:(
+            <div className="dc2">{dayData.map((d,i)=>(<div className="dr" key={i}><div className="dlbl">{d.label}</div><div className="dtr"><div className="dfi" style={{width:`${(d.val/maxDay)*100}%`}}/></div><div className="dv">{d.val>0?P(d.val):"—"}</div></div>))}</div>
+          )}
+        </div>
+        <div className="rspl">
+          <div className="rcc">
+            <h4>📍 Revenue by Location</h4>
+            <div className="cbg">{byLoc.map(l=>(<div className="cbr" key={l.id}><div className="cbl">{l.icon} {l.short}</div><div className="cbt"><div className="cbf" style={{width:`${(l.total/maxL)*100}%`,background:l.color}}>{l.count>0?`${l.count}`:""}</div></div><div className="cbv">{P(l.total)}</div></div>))}</div>
+          </div>
+          <div className="rcc">
+            <h4>🚗 By Vehicle Type</h4>
+            <DonutChart data={byV.filter(v=>v.count>0).map(v=>({label:v.label,value:v.count,color:v.color}))} size={110}/>
+          </div>
+        </div>
+        <div className="rcc">
+          <h4>👤 Cashier Performance</h4>
+          {byCash.length===0?<div className="nod"><div className="ni">👤</div>No data</div>:(
+            <div className="cbg">{byCash.map((c,i)=>(<div className="cbr" key={i}><div className="cbl">{(c.name||"").split(" ")[0]}</div><div className="cbt"><div className="cbf" style={{width:`${(c.total/maxC)*100}%`,background:"#4f46e5"}}>{c.count} transactions</div></div><div className="cbv">{P(c.total)}</div></div>))}</div>
+          )}
+        </div>
+        <div className="rcc">
+          <h4>🔥 Peak Hours Heatmap</h4>
+          <div style={{overflowX:"auto"}}><div style={{minWidth:340}}>
+            <div className="hml"><div/>{DAYS.map(d=><div key={d} className="hmd">{d}</div>)}</div>
+            {HOURS.map(h=>(<div className="hmrow" key={h}><div className="hmhl">{h>12?`${h-12}pm`:h===12?"12pm":`${h}am`}</div>{DAYS.map((_,di)=>{const v=grid[`${h}-${di}`]||0;const pct=v/maxP;return <div key={di} className="hmc" style={{background:pct===0?"#f1f5f9":`rgba(79,70,229,${0.1+pct*.85})`,color:pct>.5?"#fff":pct>0?"#3730a3":"#cbd5e1"}}>{v>0?v:""}</div>;})}
+            </div>))}
+          </div></div>
+        </div>
+        <div className="rcc">
+          <h4>🏆 Top Frequent Visitors</h4>
+          {topP.length===0?<div className="nod"><div className="ni">🚗</div>No data</div>:(
+            <div style={{overflowX:"auto"}}><table className="rtbl">
+              <thead><tr><th>#</th><th>Plate</th><th>Vehicle</th><th>Visits</th><th>Total Paid</th><th>Avg/Visit</th></tr></thead>
+              <tbody>{topP.map((p,i)=>(<tr key={i}><td style={{color:"var(--mu)",fontWeight:700}}>{i+1}</td><td><span style={{fontFamily:"'Space Mono',monospace",fontWeight:700}}>{p.plate}</span></td><td>{VT[p.vtype]?.icon} {VT[p.vtype]?.label}</td><td><span style={{background:"#e0e7ff",color:"#3730a3",padding:"2px 7px",borderRadius:100,fontSize:10,fontWeight:700}}>{p.count}×</span></td><td><span className="eam">{P(p.total)}</span></td><td style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"var(--mu)"}}>{P(Math.round(p.total/p.count))}</td></tr>))}</tbody>
+            </table></div>
+          )}
+        </div>
+        <div className="rcc">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:11,flexWrap:"wrap",gap:7}}>
+            <h4 style={{margin:0}}>📄 Transaction Log</h4>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontFamily:"'Space Mono',monospace",fontSize:12,color:"#d97706",fontWeight:700}}>{cnt} records · {P(total)}</span>
+              <button className="btn" style={{padding:"4px 10px",fontSize:11,background:"#f0fdf4",color:"#166534",border:"1px solid #86efac"}} onClick={exportCSV}>⬇️ Export CSV</button>
+            </div>
+          </div>
+          {fetching?<div className="nod"><div className="ni">⏳</div>Loading transactions…</div>:filtered.length===0?<div className="nod"><div className="ni">📭</div>No transactions found</div>:(
+            <div style={{overflowX:"auto",maxHeight:400,overflowY:"auto"}}><table className="rtbl">
+              <thead><tr><th>Date/Time</th><th>Ticket</th><th>Plate</th><th>Vehicle</th><th>Location</th><th>Dur</th><th>Type</th><th>Checked In By</th><th>Checked Out By</th><th>Notes</th><th>Amount</th>{currentUser?.role==="admin"&&<th></th>}</tr></thead>
+              <tbody>{[...filtered].sort((a,b)=>new Date(b.checkout_at||b.checkout_time||b.checkin_at)-new Date(a.checkout_at||a.checkout_time||a.checkin_at)).map((e,i)=>(
+                <tr key={i}>
+                  <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{fmtDT(e.checkout_at||e.checkout_time||e.checkin_at)}</td>
+                  <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#7c3aed"}}>{e.ticket_no||"—"}</td>
+                  <td><span style={{fontFamily:"'Space Mono',monospace",fontWeight:700}}>{e.plate}</span></td>
+                  <td>{VT[e.vtype]?.icon} {VT[e.vtype]?.label}</td>
+                  <td style={{fontSize:10}}>{LOCS.find(l=>l.id===e.loc_id)?.short||e.loc_id}</td>
+                  <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.dur||e.duration||"—"}</td>
+                  <td>{e.overnight?<span style={{background:"#ede9fe",color:"#5b21b6",padding:"1px 5px",borderRadius:100,fontSize:9,fontWeight:700}}>🌙</span>:<span style={{background:"#eef2ff",color:"#3730a3",padding:"1px 5px",borderRadius:100,fontSize:9,fontWeight:700}}>REG</span>}</td>
+                  <td style={{fontSize:10,color:"var(--mu)"}}>{(e.checkin_by||"—").split(" ")[0]}</td>
+                  <td style={{fontSize:10,color:"var(--mu)"}}>{(e.cashier||"—").split(" ")[0]}</td>
+                  <td>{e.notes?<span style={{fontSize:9,background:(e.notes.includes("LOST_TICKET")||e.notes.includes("Lost Parking"))?"#fff8e1":e.notes.includes("MANUAL")?"#eef2ff":"#f1f5f9",color:(e.notes.includes("LOST_TICKET")||e.notes.includes("Lost Parking"))?"#d97706":e.notes.includes("MANUAL")?"#3730a3":"#64748b",padding:"2px 6px",borderRadius:100,fontWeight:700,whiteSpace:"nowrap"}}>{(e.notes.includes("LOST_TICKET")||e.notes.includes("Lost Parking"))?"🎫 Lost Ticket":(e.notes.includes("MANUAL")||e.notes.includes("Manual"))?"🧾 Manual":"📝 "+e.notes.substring(0,15)}</span>:"—"}</td>
+                  <td><span className="eam">{P(e.fee||0)}</span></td>
+                  {currentUser?.role==="admin"&&<td><button className="btn bg" title="Fix transaction — revert / PWD / delete" style={{padding:"3px 7px",fontSize:11,background:"#f5f3ff",color:"#6d28d9",border:"1px solid #ddd6fe"}} onClick={()=>onFix&&onFix(e)}>↩️</button></td>}
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+          {voided.length>0&&currentUser?.role!=="cashier"&&(
+            <div className="rc" style={{marginTop:12}}>
+              <div className="rch" style={{background:"#fef2f2",borderColor:"#fca5a5"}}>
+                <h4 style={{color:"#991b1b",margin:0}}>⚠️ Voided Transactions — {P(lossTotal)} lost</h4>
+              </div>
+              <div style={{overflowX:"auto",maxHeight:300,overflowY:"auto"}}><table className="rtbl">
+                <thead><tr><th>Date/Time</th><th>Ticket</th><th>Plate</th><th>Vehicle</th><th>Location</th><th>Duration</th><th>Voided By</th><th>Expected Fee</th></tr></thead>
+                <tbody>{voided.map((e,i)=>(
+                  <tr key={i} style={{background:"#fef2f2"}}>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{fmtDT(e.checkout_at||e.checkout_time||e.checkin_at)}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#7c3aed"}}>{e.ticket_no||"—"}</td>
+                    <td><span style={{fontFamily:"'Space Mono',monospace",fontWeight:700}}>{e.plate}</span></td>
+                    <td>{VT[e.vtype]?.icon} {VT[e.vtype]?.label||e.vtype}</td>
+                    <td style={{fontSize:10}}>{LOCS.find(l=>l.id===e.loc_id)?.short||e.loc_id}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.dur||e.duration||"—"}</td>
+                    <td style={{fontSize:10,color:"var(--mu)"}}>{(e.cashier||"—").split(" ")[0]}</td>
+                    <td><span style={{color:"#dc2626",fontFamily:"'Space Mono',monospace",fontWeight:700}}>{P(e.fee||0)}</span></td>
+                  </tr>
+                ))}</tbody>
+              </table></div>
+            </div>
+          )}
+          {lostTxns.length>0&&(
+            <div className="rcc" style={{marginTop:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:11,flexWrap:"wrap",gap:7}}>
+                <h4 style={{margin:0,color:"#d97706"}}>🎫 Lost Ticket Transactions — {P(lostTotal)} collected</h4>
+                <span style={{fontSize:11,color:"var(--mu)"}}>{lostTxns.length} records · based on checkout date</span>
+              </div>
+              <div style={{overflowX:"auto",maxHeight:300,overflowY:"auto"}}><table className="rtbl">
+                <thead><tr><th>Date/Time</th><th>Ticket</th><th>Plate</th><th>Vehicle</th><th>Location</th><th>Duration</th><th>Cashier</th><th>Parking Fee</th><th>Lost Fee</th><th>Total</th></tr></thead>
+                <tbody>{lostTxns.map((e,i)=>{
+                  const parkFee=Number(e.fee||0)-50;
+                  return(
+                  <tr key={i} style={{background:"#fffbeb"}}>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{fmtDT(e.checkout_at||e.checkout_time||e.checkin_at)}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#7c3aed"}}>{e.ticket_no||"—"}</td>
+                    <td><span style={{fontFamily:"'Space Mono',monospace",fontWeight:700}}>{e.plate}</span></td>
+                    <td>{VT[e.vtype]?.icon} {VT[e.vtype]?.label||e.vtype}</td>
+                    <td style={{fontSize:10}}>{LOCS.find(l=>l.id===e.loc_id)?.short||e.loc_id}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.dur||e.duration||"—"}</td>
+                    <td style={{fontSize:10,color:"var(--mu)"}}>{(e.cashier||"—").split(" ")[0]}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{P(parkFee)}</td>
+                    <td><span style={{background:"#fef3c7",color:"#d97706",padding:"2px 6px",borderRadius:100,fontSize:10,fontWeight:700}}>+₱50</span></td>
+                    <td><span className="eam">{P(e.fee||0)}</span></td>
+                  </tr>
+                );})}
+                </tbody>
+              </table></div>
+            </div>
+          )}
+          {pwdTxns.length>0&&(
+            <div className="rcc" style={{marginTop:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:11,flexWrap:"wrap",gap:7}}>
+                <h4 style={{margin:0,color:"#3730a3"}}>♿ PWD/SC Transactions — {P(pwdDiscTotal)} total discount given</h4>
+                <span style={{fontSize:11,color:"var(--mu)"}}>{pwdTxns.length} records · first 3 hrs free per Taytay ordinance</span>
+              </div>
+              <div style={{overflowX:"auto",maxHeight:300,overflowY:"auto"}}><table className="rtbl">
+                <thead><tr><th>Date/Time</th><th>Ticket</th><th>Plate</th><th>Vehicle</th><th>Location</th><th>Duration</th><th>Cashier</th><th>Normal Fee</th><th>Discount</th><th>Paid</th></tr></thead>
+                <tbody>{pwdTxns.map((e,i)=>{
+                  const pc=pwdCalc(e);
+                  return(
+                  <tr key={i} style={{background:"#eef2ff"}}>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,whiteSpace:"nowrap"}}>{fmtDT(e.checkout_at||e.checkout_time||e.checkin_at)}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#7c3aed"}}>{e.ticket_no||"—"}</td>
+                    <td><span style={{fontFamily:"'Space Mono',monospace",fontWeight:700}}>{e.plate}</span></td>
+                    <td>{VT[e.vtype]?.icon} {VT[e.vtype]?.label||e.vtype}</td>
+                    <td style={{fontSize:10}}>{LOCS.find(l=>l.id===e.loc_id)?.short||e.loc_id}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.dur||e.duration||"—"}</td>
+                    <td style={{fontSize:10,color:"var(--mu)"}}>{(e.cashier||"—").split(" ")[0]}</td>
+                    <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{P(pc.normal)}</td>
+                    <td><span style={{background:"#e0e7ff",color:"#3730a3",padding:"2px 6px",borderRadius:100,fontSize:10,fontWeight:700}}>-{P(pc.disc)}</span></td>
+                    <td><span className="eam">{P(e.fee||0)}</span></td>
+                  </tr>
+                  );
+                })}</tbody>
+              </table></div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── USER MANAGEMENT PANEL ───────────────────────────────────────────────────
+function UserManagement({currentUser,toast}){
+  const [users,setUsers]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [modal,setModal]=useState(null);
+  const [target,setTarget]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const [form,setForm]=useState({name:"",username:"",password:"",confirm:"",role:"cashier"});
+  const [errs,setErrs]=useState({});
+
+  const fetchUsers=useCallback(async()=>{
+    setLoading(true);
+    const{data,error}=await sb.from("users").select("id,name,username,role,created_at").order("created_at");
+    if(!error)setUsers(data||[]);
+    setLoading(false);
+  },[]);
+
+  useEffect(()=>{fetchUsers();},[fetchUsers]);
+
+  function openCreate(){setForm({name:"",username:"",password:"",confirm:"",role:"cashier"});setErrs({});setTarget(null);setModal("create");}
+  function openEdit(u){setForm({name:u.name,username:u.username,password:"",confirm:"",role:u.role});setErrs({});setTarget(u);setModal("edit");}
+  function openPasswd(u){setForm({name:"",username:"",password:"",confirm:"",role:""});setErrs({});setTarget(u);setModal("passwd");}
+  function openDelete(u){setTarget(u);setModal("delete");}
+
+  function validate(mode){
+    const e={};
+    if(mode!=="passwd"){
+      if(!form.name.trim())e.name="Name is required";
+      if(!form.username.trim())e.username="Username is required";
+      else if(form.username.trim().length<3)e.username="Min 3 characters";
+    }
+    if(mode==="create"||mode==="passwd"){
+      if(!form.password)e.password="Password is required";
+      else if(form.password.length<6)e.password="Min 6 characters";
+      if(form.password!==form.confirm)e.confirm="Passwords do not match";
+    }
+    setErrs(e);return Object.keys(e).length===0;
+  }
+
+  async function doCreate(){
+    if(!validate("create"))return;setSaving(true);
+    const{data:existing}=await sb.from("users").select("id").eq("username",form.username.trim()).maybeSingle();
+    if(existing){setErrs({username:"Username already taken"});setSaving(false);return;}
+    const{error}=await sb.from("users").insert({name:form.name.trim(),username:form.username.trim(),password:form.password,role:form.role});
+    setSaving(false);if(error){toast("Failed to create user: "+error.message,"err");return;}
+    toast(`✅ User "${form.name.trim()}" created`,"ok");setModal(null);fetchUsers();
+  }
+
+  async function doEdit(){
+    if(!validate("edit"))return;setSaving(true);
+    const{data:existing}=await sb.from("users").select("id").eq("username",form.username.trim()).neq("id",target.id).maybeSingle();
+    if(existing){setErrs({username:"Username already taken"});setSaving(false);return;}
+    const{error}=await sb.from("users").update({name:form.name.trim(),username:form.username.trim(),role:form.role}).eq("id",target.id);
+    setSaving(false);if(error){toast("Failed to update: "+error.message,"err");return;}
+    toast(`✅ User "${form.name.trim()}" updated`,"ok");setModal(null);fetchUsers();
+  }
+
+  async function doPasswd(){
+    if(!validate("passwd"))return;setSaving(true);
+    const{error}=await sb.from("users").update({password:form.password}).eq("id",target.id);
+    setSaving(false);if(error){toast("Failed to update password: "+error.message,"err");return;}
+    toast(`🔑 Password updated for ${target.name}`,"ok");setModal(null);
+  }
+
+  async function doDelete(){
+    if(target.id===currentUser.id){toast("You cannot delete your own account","err");setModal(null);return;}
+    setSaving(true);
+    const{error}=await sb.from("users").delete().eq("id",target.id);
+    setSaving(false);if(error){toast("Failed to delete: "+error.message,"err");return;}
+    toast(`🗑️ User "${target.name}" deleted`,"ok");setModal(null);fetchUsers();
+  }
+
+  const roleColors={admin:"#fee2e2",cashier:"#d1fae5",attendant:"#ede9fe"};
+  const roleIcons={admin:"👑",cashier:"💳",attendant:"🅿️"};
+
+  return(
+    <div className="pnl">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:9}}>
+        <div><div style={{fontSize:14,fontWeight:700}}>👥 User Management</div><div style={{fontSize:11,color:"var(--mu)",marginTop:2}}>{users.length} users in system</div></div>
+        <button className="btn bp" style={{flex:"none",padding:"9px 16px"}} onClick={openCreate}>＋ Add New User</button>
+      </div>
+      {loading?<div className="emp"><div className="ei">⏳</div><p>Loading users…</p></div>:(
+        <div className="um-grid">
+          {users.map(u=>(
+            <div className="um-card" key={u.id}>
+              <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+                <div className="um-av" style={{background:roleColors[u.role]||"#f1f5f9"}}>{roleIcons[u.role]||"👤"}</div>
+                <div style={{minWidth:0}}>
+                  <div className="um-nm" style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                    {u.name}{u.id===currentUser.id&&<span style={{fontSize:9,background:"#d1fae5",color:"#065f46",padding:"1px 5px",borderRadius:100}}>● You</span>}
+                  </div>
+                  <div className="um-un">@{u.username}</div>
+                  <div style={{marginTop:3}}><span className={`urb urb-${u.role}`}>{u.role}</span></div>
+                </div>
+              </div>
+              <div className="um-acts">
+                <button className="icon-btn" title="Edit user" onClick={()=>openEdit(u)}>✏️</button>
+                <button className="icon-btn" title="Change password" onClick={()=>openPasswd(u)}>🔑</button>
+                {u.id!==currentUser.id&&<button className="icon-btn del" title="Delete user" onClick={()=>openDelete(u)}>🗑️</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {modal==="create"&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setModal(null)}><div className="mo"><div className="mh"><h2>➕ Create New User</h2><p>Add a new staff account</p></div><div className="mb"><div className="fg"><label className="fl">Full Name *</label><input className={`fi ${errs.name?"fi-err":""}`} placeholder="e.g. Maria Santos" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>{errs.name&&<div className="ferr">{errs.name}</div>}</div><div className="fg"><label className="fl">Username *</label><input className={`fi ${errs.username?"fi-err":""}`} placeholder="e.g. maria.santos" value={form.username} onChange={e=>setForm(p=>({...p,username:e.target.value.toLowerCase().replace(/\s/g,"")}))} />{errs.username&&<div className="ferr">{errs.username}</div>}</div><div className="fg"><label className="fl">Role *</label><div className="rrow">{["admin","cashier","attendant"].map(r=><div key={r} className={`rbt ${form.role===r?"active":""}`} onClick={()=>setForm(p=>({...p,role:r}))}>{roleIcons[r]} {r}</div>)}</div></div><div className="fg"><label className="fl">Password *</label><input className={`fi ${errs.password?"fi-err":""}`} type="password" placeholder="Min 6 characters" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))}/>{errs.password&&<div className="ferr">{errs.password}</div>}</div><div className="fg"><label className="fl">Confirm Password *</label><input className={`fi ${errs.confirm?"fi-err":""}`} type="password" placeholder="Repeat password" value={form.confirm} onChange={e=>setForm(p=>({...p,confirm:e.target.value}))}/>{errs.confirm&&<div className="ferr">{errs.confirm}</div>}</div></div><div className="mf"><button className="btn bg" onClick={()=>setModal(null)}>Cancel</button><button className="btn bp" onClick={doCreate} disabled={saving}>{saving&&<span className="spin"/>}Create User</button></div></div></div>)}
+      {modal==="edit"&&target&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setModal(null)}><div className="mo"><div className="mh"><h2>✏️ Edit User</h2><p>Update details for {target.name}</p></div><div className="mb"><div className="fg"><label className="fl">Full Name *</label><input className={`fi ${errs.name?"fi-err":""}`} value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/>{errs.name&&<div className="ferr">{errs.name}</div>}</div><div className="fg"><label className="fl">Username *</label><input className={`fi ${errs.username?"fi-err":""}`} value={form.username} onChange={e=>setForm(p=>({...p,username:e.target.value.toLowerCase().replace(/\s/g,"")}))} />{errs.username&&<div className="ferr">{errs.username}</div>}</div><div className="fg"><label className="fl">Role *</label><div className="rrow">{["admin","cashier","attendant"].map(r=><div key={r} className={`rbt ${form.role===r?"active":""}`} onClick={()=>setForm(p=>({...p,role:r}))}>{roleIcons[r]} {r}</div>)}</div></div>{target.id===currentUser.id&&<div className="dbg">⚠️ You are editing your own account. Role changes take effect on next login.</div>}</div><div className="mf"><button className="btn bg" onClick={()=>setModal(null)}>Cancel</button><button className="btn bp" onClick={doEdit} disabled={saving}>{saving&&<span className="spin"/>}Save Changes</button></div></div></div>)}
+      {modal==="passwd"&&target&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setModal(null)}><div className="mo"><div className="mh"><h2>🔑 Change Password</h2><p>Set new password for {target.name}</p></div><div className="mb"><div className="fg"><label className="fl">New Password *</label><input className={`fi ${errs.password?"fi-err":""}`} type="password" placeholder="Min 6 characters" value={form.password} onChange={e=>setForm(p=>({...p,password:e.target.value}))} autoFocus/>{errs.password&&<div className="ferr">{errs.password}</div>}</div><div className="fg"><label className="fl">Confirm New Password *</label><input className={`fi ${errs.confirm?"fi-err":""}`} type="password" placeholder="Repeat password" value={form.confirm} onChange={e=>setForm(p=>({...p,confirm:e.target.value}))}/>{errs.confirm&&<div className="ferr">{errs.confirm}</div>}</div></div><div className="mf"><button className="btn bg" onClick={()=>setModal(null)}>Cancel</button><button className="btn bp" onClick={doPasswd} disabled={saving}>{saving&&<span className="spin"/>}Update Password</button></div></div></div>)}
+      {modal==="delete"&&target&&(<div className="ov" onClick={e=>e.target===e.currentTarget&&setModal(null)}><div className="mo"><div className="mh"><h2>🗑️ Delete User</h2><p>This action cannot be undone</p></div><div className="mb"><div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:28,marginBottom:6}}>{roleIcons[target.role]}</div><div style={{fontWeight:700,fontSize:14}}>{target.name}</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:"var(--mu)",margin:"3px 0"}}>@{target.username}</div><div style={{fontSize:12,color:"#dc2626",marginTop:8}}>Are you sure you want to permanently delete this user?</div></div></div><div className="mf"><button className="btn bg" onClick={()=>setModal(null)}>Cancel</button><button className="btn bd2" onClick={doDelete} disabled={saving}>{saving&&<span className="spin"/>}Yes, Delete</button></div></div></div>)}
+    </div>
+  );
+}
+
+// ─── MAIN APP ────────────────────────────────────────────────────────────────
+function ActivityLog({actLog}){
+  const PAGE_SIZE=50;
+  const [actPage,setActPage]=useState(0);
+  const [actFilter,setActFilter]=useState("");
+  const filtered=actFilter
+    ?actLog.filter(a=>a.msg.toLowerCase().includes(actFilter.toLowerCase()))
+    :actLog;
+  const totalPages=Math.ceil(filtered.length/PAGE_SIZE);
+  const pageItems=filtered.slice(actPage*PAGE_SIZE,(actPage+1)*PAGE_SIZE);
+  return(
+    <div className="pnl">
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
+        <span style={{fontSize:14,fontWeight:700}}>📋 Activity Log</span>
+        <span style={{fontSize:11,color:"var(--mu)"}}>{filtered.length} entries{actFilter?" (filtered)":""}</span>
+      </div>
+      <div className="srow" style={{marginBottom:10}}>
+        <input className="fi" placeholder="🔍 Filter — plate, ticket, action…" value={actFilter} onChange={e=>{setActFilter(e.target.value);setActPage(0);}}/>
+        {actFilter&&<button className="btn bg" style={{flex:"none",padding:"8px 12px"}} onClick={()=>{setActFilter("");setActPage(0);}}>✕</button>}
+      </div>
+      {actLog.length===0
+        ?<div className="emp"><div className="ei">📋</div><p>No activity yet</p></div>
+        :filtered.length===0
+          ?<div className="emp"><div className="ei">🔍</div><p>No results for "{actFilter}"</p></div>
+          :(
+            <>
+              <div className="al">
+                {pageItems.map(a=>(<div className="ai" key={a.id}><div className="adot" style={{background:a.color}}/><div><div className="atxt">{a.msg}</div><div className="atm">{a.time?new Date(a.time).toLocaleString("en-PH",{month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</div></div></div>))}
+              </div>
+              {totalPages>1&&(
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:12,flexWrap:"wrap"}}>
+                  <button className="btn bg" style={{padding:"6px 10px",fontSize:12}} onClick={()=>setActPage(0)} disabled={actPage===0}>«</button>
+                  <button className="btn bg" style={{padding:"6px 10px",fontSize:12}} onClick={()=>setActPage(p=>Math.max(0,p-1))} disabled={actPage===0}>‹ Prev</button>
+                  <span style={{fontSize:12,fontWeight:700,color:"var(--mu)",padding:"0 8px"}}>Page {actPage+1} of {totalPages}</span>
+                  <button className="btn bg" style={{padding:"6px 10px",fontSize:12}} onClick={()=>setActPage(p=>Math.min(totalPages-1,p+1))} disabled={actPage===totalPages-1}>Next ›</button>
+                  <button className="btn bg" style={{padding:"6px 10px",fontSize:12}} onClick={()=>setActPage(totalPages-1)} disabled={actPage===totalPages-1}>»</button>
+                </div>
+              )}
+            </>
+          )
+      }
+    </div>
+  );
+}
+
+function TDMHParking(){
+  const {add:toast,Toasts}=useToast();
+
+  // Restore session from localStorage on load
+  const savedUser = (()=>{ try{ const u=localStorage.getItem('tdmh_user'); return u?JSON.parse(u):null; }catch{return null;} })();
+  const [user,setUser]       = useState(savedUser);
+  const [attLoc,setAttLoc]   = useState(null);
+  const [slots,setSlots]     = useState(initSlotsLocal);
+  const [tab,setTab]         = useState("overview");
+  const [modal,setModal]     = useState(null);
+  const [sel,setSel]         = useState(null);
+  const [form,setForm]       = useState({plate:"",name:"",vtype:"car"});
+  const [search,setSearch]   = useState("");
+  const [txns,setTxns]       = useState([]);
+  const [actLog,setActLog]   = useState([]);
+  const [clock,setClock]     = useState(new Date());
+  const [receipt,setReceipt] = useState(null);
+  const [lastPrintPayload,setLastPrintPayload] = useState(null);
+  const [processing,setProcessing] = useState(false);
+  const [manualModal,setManualModal] = useState(false);
+  const [manualForm,setManualForm] = useState({plate:"",name:"",vtype:"car",locId:"compound",slotNum:"",checkin:"",checkout:""});
+  const [manualFee,setManualFee] = useState(null);
+  const [lostTicket,setLostTicket] = useState(false);
+  const [pwdSc,setPwdSc] = useState(false);
+  const [revertTxn,setRevertTxn] = useState(null);
+  const [reverting,setReverting] = useState(false);
+  const [delArm,setDelArm] = useState(false);
+  const [lf,setLf]           = useState({username:"",password:"",err:"",loading:false});
+  const [dbReady,setDbReady] = useState(false);
+  const [rtConnected,setRtConnected] = useState(false);
+  const [battery,setBattery] = useState({level:null,charging:false});
+
+  // Receive battery updates from Android
+  React.useEffect(()=>{
+    window.updateBattery=(level,charging)=>setBattery({level,charging});
+    // Get initial value if on Android
+    if(window.AndroidBattery){
+      setBattery({level:window.AndroidBattery.getLevel(),charging:window.AndroidBattery.isCharging()});
+    }
+    return()=>{ window.updateBattery=null; };
+  },[]);
+
+  // clock
+  useEffect(()=>{const t=setInterval(()=>setClock(new Date()),1000);return()=>clearInterval(t);},[]);
+
+  // ── ONE-TIME DB SETUP (seed slots if empty) ──────────────────────────────
+  useEffect(()=>{
+    async function setup(){
+      try{
+        const{data:existing}=await sb.from("slots").select("id").limit(1);
+        if(!existing||existing.length===0){
+          const allSlots=[];
+          LOCS.forEach(loc=>{(LOC_SLOTS[loc.id]||[]).forEach(({type,total})=>{for(let i=1;i<=total;i++)allSlots.push({id:`${loc.id}-${type}-${i}`,loc_id:loc.id,type,number:i,occupied:false,v_plate:null,v_name:null,v_vtype:null,v_checkin:null,v_ticket:null,v_checkin_by:null});});});
+          await sb.from("slots").insert(allSlots);
+        }
+        document.getElementById("sst").textContent="Ready!";
+        setDbReady(true);
+      }catch(e){
+        document.getElementById("sst").textContent="Database error — check Supabase config";
+        console.error(e);
+      }
+    }
+    setup();
+  },[]);
+
+  // hide splash
+  useEffect(()=>{
+    if(dbReady){
+      setTimeout(()=>{const s=document.getElementById("splash");if(s){s.style.opacity="0";setTimeout(()=>s.remove(),600);}},600);
+    }
+  },[dbReady]);
+
+  // ── LOAD DATA + REALTIME on every login ─────────────────────────────────
+  useEffect(()=>{
+    if(!user) return;
+
+    async function loadData(){
+      try{
+        // load slots
+        const{data:slotsData}=await sb.from("slots").select("*");
+        if(slotsData){
+          const sd={};LOCS.forEach(l=>{sd[l.id]=[];});
+          slotsData.forEach(s=>{if(sd[s.loc_id])sd[s.loc_id].push(mapSlot(s));});
+          LOCS.forEach(l=>{sd[l.id].sort((a,b)=>a.number-b.number);});
+          setSlots(sd);
+        }
+        // load txns last 90 days
+        // Load today's transactions only on startup — fast load
+        const todayPHT=new Date(new Date().getTime()+8*60*60*1000).toISOString().split('T')[0];
+        const{data:txnData}=await sb.from("transactions").select("*")
+          .gte("checkout_at",todayPHT+"T00:00:00+08:00")
+          .order("checkout_at",{ascending:false})
+          .limit(500);
+        setTxns(txnData||[]);
+        // seed ticket counter from latest ticket in DB so we never duplicate
+        await seedTicketCounter();
+      }catch(e){console.error("Data load error:",e);}
+    }
+    // Expose to window so Android can trigger refresh on screen wake
+    window.loadData = loadData;
+    loadData();
+    // Load activity logs from DB (last 500)
+    async function loadActivityLogs(){
+      try{
+        const{data}=await sb.from("activity_logs")
+          .select("*")
+          .order("created_at",{ascending:false})
+          .limit(500);
+        if(data&&data.length>0){
+          setActLog(data.map(r=>({id:r.id,msg:r.msg,color:r.color||"#64748b",time:r.created_at})));
+        }
+      }catch(e){console.warn("Activity log load failed:",e);}
+    }
+    loadActivityLogs();
+
+    // Auto-refresh every 10 seconds — fast polling for cross-device sync
+    const autoRefresh = setInterval(()=>{ loadData(); }, 30 * 1000);
+
+    // Refresh when tab/app becomes visible again
+    const handleVisibility = ()=>{ if(document.visibilityState==='visible') loadData(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Refresh when SIM/internet reconnects after a drop
+    const handleOnline = ()=>{ console.log('Connection restored'); setTimeout(()=>loadData(), 2000); };
+    window.addEventListener('online', handleOnline);
+
+    // ── REALTIME: slots ──────────────────────────────────────────────────
+    const slotSub=sb.channel('slots-global')
+      .on("postgres_changes",{event:"*",schema:"public",table:"slots"},payload=>{
+        const s=payload.new;
+        if(!s||!s.loc_id)return;
+        const mapped=mapSlot(s);
+        setSlots(prev=>{
+          const updated={...prev};
+          if(!updated[s.loc_id])updated[s.loc_id]=[];
+          const idx=updated[s.loc_id].findIndex(x=>x.id===s.id);
+          if(idx>=0){
+            const copy=[...updated[s.loc_id]];
+            copy[idx]=mapped;
+            updated[s.loc_id]=copy;
+          }else{
+            updated[s.loc_id]=[...updated[s.loc_id],mapped].sort((a,b)=>a.number-b.number);
+          }
+          return updated;
+        });
+      })
+      .subscribe(status=>{
+        if(status==="SUBSCRIBED"){setRtConnected(true);console.log("✅ Slots realtime connected");}
+        if(status==="CLOSED"||status==="CHANNEL_ERROR"){setRtConnected(false);}
+      });
+
+    // ── REALTIME: transactions ───────────────────────────────────────────
+    const txnSub=sb.channel('txns-global')
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"transactions"},payload=>{
+        const t=payload.new;
+        if(!t)return;
+        setTxns(prev=>{
+          if(prev.find(x=>x.id===t.id))return prev;
+          return[t,...prev];
+        });
+        // only show toast/log if it came from another device (different cashier or same but different session is fine)
+        const locName=LOCS.find(l=>l.id===t.loc_id)?.name||t.loc_id;
+        // RT log removed — doCheckout already logs this
+        toast(`📡 ${t.plate} checked out — ${P(t.fee||0)}`,"info");
+      })
+      .subscribe(status=>{
+        if(status==="SUBSCRIBED")console.log("✅ Transactions realtime connected");
+      });
+
+    return()=>{
+      clearInterval(autoRefresh);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
+      sb.removeChannel(slotSub);
+      sb.removeChannel(txnSub);
+      setRtConnected(false);
+      console.log("🔌 Realtime unsubscribed");
+    };
+  },[user]);
+
+  const perms   = user ? PERMS[user.role] : {};
+  const all     = Object.values(slots).flat();
+  const todayE  = txns.filter(e=>dOnly(e.checkout_at||e.checkout_time||e.checkin_at)===todayStr()&&e.status!=="voided");
+  const todayT  = todayE.reduce((s,e)=>s+Number(e.fee||0),0);
+  const totOcc  = all.filter(s=>s.occupied).length;
+  const searchSlots = (user?.role==="attendant"&&attLoc) ? (slots[attLoc]||[]) : all;
+  const sr = search.length>1
+    ? searchSlots.filter(s=>s.occupied&&(s.vehicle?.plate?.toLowerCase().includes(search.toLowerCase())||s.vehicle?.name?.toLowerCase().includes(search.toLowerCase()))).map(s=>({...s,locName:LOCS.find(l=>l.id===s.locId)?.name}))
+    : [];
+
+  function addLog(msg,color){
+    const entry={id:Date.now(),msg,color,time:new Date().toISOString()};
+    setActLog(p=>[entry,...p]);
+    // Save to DB for persistent audit trail
+    sb.from("activity_logs").insert({
+      msg,color,
+      created_at:entry.time,
+      user_name:user?.name||"—",
+      role:user?.role||"—"
+    }).then(({error})=>{if(error)console.warn("Log save failed:",error.message);});
+  }
+
+  async function doRevert(){
+    if(!revertTxn||reverting) return;
+    setReverting(true);
+    try{
+      const t=revertTxn;
+      const locSlots=slots[t.loc_id]||[];
+      // Original slot kung free; kung occupied na, unang free slot ng same type sa same location
+      let target=locSlots.find(s=>s.number===t.slot_number&&s.type===t.vtype&&!s.occupied);
+      let moved=false;
+      if(!target){
+        target=locSlots.find(s=>s.type===t.vtype&&!s.occupied);
+        moved=!!target;
+      }
+      if(!target){
+        toast("⚠️ Walang free slot ("+t.vtype+") sa "+(LOCS.find(l=>l.id===t.loc_id)?.name||t.loc_id)+" — hindi ma-revert.","err");
+        setReverting(false);return;
+      }
+      // 1. Delete the wrong transaction
+      const{error:delErr}=await sb.from("transactions").delete().eq("id",t.id);
+      if(delErr){toast("⚠️ Revert failed: "+delErr.message,"err");setReverting(false);return;}
+      // 2. Restore the slot
+      const{error:slErr}=await sb.from("slots").update({
+        occupied:true,
+        v_plate:t.plate,
+        v_name:(t.name&&t.name!=="—")?t.name:null,
+        v_vtype:t.vtype,
+        v_checkin:t.checkin_at||t.checkin_time,
+        v_ticket:t.ticket_no,
+        v_checkin_by:t.checkin_by||null
+      }).eq("id",target.id);
+      if(slErr){toast("⚠️ Transaction removed pero slot restore failed: "+slErr.message,"err");setReverting(false);return;}
+      // 3. Local state
+      setTxns(p=>p.filter(x=>x.id!==t.id));
+      setSlots(p=>{const c={...p};c[t.loc_id]=c[t.loc_id].map(s=>s.id===target.id?{...s,occupied:true,vehicle:{plate:t.plate,name:(t.name&&t.name!=="—")?t.name:null,vtype:t.vtype,checkin:t.checkin_at||t.checkin_time,ticketNo:t.ticket_no,checkinBy:t.checkin_by}}:s);return c;});
+      const locName2=LOCS.find(l=>l.id===t.loc_id)?.name||t.loc_id;
+      addLog(`↩️ REVERT CHECKOUT: ${t.plate} · ${locName2} Slot #${target.number}${moved?" (moved from #"+t.slot_number+")":""} · ${t.ticket_no} · ${P(t.fee||0)} removed · by ${user.name}`,"#8b5cf6");
+      toast("↩️ "+t.plate+" ibinalik sa "+locName2+" Slot #"+target.number+(moved?" (orig slot occupied)":"")+" — transaction removed.","ok");
+      setRevertTxn(null);
+    }catch(e){toast("⚠️ Revert error: "+e.message,"err");}
+    setReverting(false);
+  }
+
+  async function doApplyPwd(){
+    if(!revertTxn||reverting) return;
+    const t=revertTxn;
+    if(t.notes&&t.notes.includes("PWD_SC_EXEMPT")){toast("⚠️ May PWD/SC discount na ang transaction na ito.","err");return;}
+    setReverting(true);
+    try{
+      const hasLost=!!(t.notes&&t.notes.includes("LOST_TICKET"));
+      // Recompute via calcFeeManual — handles overnight windows correctly (first 3 REGULAR hrs free)
+      const rc=calcFeeManual(t.checkin_at||t.checkin_time,t.vtype,t.checkout_at||t.checkout_time);
+      const newFee=(rc.pwdFee||0)+(hasLost?50:0);
+      const refund=Math.max(0,Number(t.fee||0)-newFee);
+      const newNotes=[t.notes,"PWD_SC_EXEMPT"].filter(Boolean).join("+");
+      const{error:upErr}=await sb.from("transactions").update({fee:newFee,notes:newNotes}).eq("id",t.id);
+      if(upErr){toast("⚠️ Update failed: "+upErr.message,"err");setReverting(false);return;}
+      setTxns(p=>p.map(x=>x.id===t.id?{...x,fee:newFee,notes:newNotes}:x));
+      addLog(`♿ PWD/SC APPLIED: ${t.plate} · ${t.ticket_no} · fee ${P(t.fee||0)} → ${P(newFee)} · refund ${P(refund)} · by ${user.name}`,"#4f46e5");
+      toast("♿ PWD/SC applied — bagong fee: "+P(newFee)+" · I-refund sa customer: "+P(refund),"ok");
+      setRevertTxn(null);
+    }catch(e){toast("⚠️ Error: "+e.message,"err");}
+    setReverting(false);
+  }
+
+  async function doDeleteRecord(){
+    if(!revertTxn||reverting) return;
+    if(!delArm){setDelArm(true);return;}
+    setReverting(true);
+    try{
+      const t=revertTxn;
+      const{error:delErr}=await sb.from("transactions").delete().eq("id",t.id);
+      if(delErr){toast("⚠️ Delete failed: "+delErr.message,"err");setReverting(false);return;}
+      setTxns(p=>p.filter(x=>x.id!==t.id));
+      addLog(`🗑️ DELETE RECORD: ${t.plate} · ${t.ticket_no} · ${P(t.fee||0)} removed (duplicate/error) · by ${user.name}`,"#dc2626");
+      toast("🗑️ Record deleted — "+t.plate+" · "+t.ticket_no+" · "+P(t.fee||0)+" removed from earnings.","ok");
+      setRevertTxn(null);setDelArm(false);
+    }catch(e){toast("⚠️ Delete error: "+e.message,"err");}
+    setReverting(false);
+  }
+
+  async function doLogin(){
+    setLf(p=>({...p,loading:true,err:""}));
+    const{data,error}=await sb.from("users").select("*").eq("username",lf.username).eq("password",lf.password).maybeSingle();
+    if(error||!data){setLf(p=>({...p,loading:false,err:"Invalid username or password."}));return;}
+    try{ localStorage.setItem('tdmh_user', JSON.stringify(data)); }catch{}
+    setUser(data);setTab("overview");setLf(p=>({...p,loading:false}));
+  }
+
+  function doLogout(){
+    try{ localStorage.removeItem('tdmh_user'); }catch{}
+    if(user?.role==="attendant")setAttLoc(null);
+    setUser(null);
+    setTxns([]);
+    setActLog([]);
+    setSlots(initSlotsLocal());
+    setLf({username:"",password:"",err:"",loading:false});
+  }
+
+  function openSlot(locId,slot){
+    if(!perms.ci&&!perms.co)return;
+    setSel(slot);
+    if(slot.occupied){
+      if(!perms.co){toast("⛔ Attendants cannot check out vehicles. Please call a cashier.","error");return;}
+      setModal("checkout");
+    }
+    else{
+      if(!perms.ci){toast("⛔ Cashiers cannot check in vehicles. Please call an attendant.","error");return;}
+      setForm({plate:"",name:"",vtype:slot.type==="motorcycle"?"motorcycle":"car"});setModal("checkin");
+    }
+  }
+
+  async function doCheckin(){
+    if(!form.plate.trim())return;
+    const plateUpper=form.plate.toUpperCase().trim();
+    // duplicate plate check — exclude current slot
+    const allOccupied=Object.values(slots).flat().filter(s=>s.occupied);
+    const duplicate=allOccupied.find(s=>s.vehicle?.plate===plateUpper&&s.id!==sel.id);
+    if(duplicate){
+      const dupLoc=LOCS.find(l=>l.id===duplicate.locId);
+      toast(`⚠️ ${plateUpper} is already parked at ${dupLoc?.name} — Slot #${duplicate.number}`,"err");
+      return;
+    }
+    // Pre-open print window NOW (before async) to avoid popup blocker
+    const printWin=window.isNativeAndroid?null:window.open("","_blank","width=400,height=580,toolbar=0,menubar=0,scrollbars=1");
+    const l=sel.locId;const tix=nextTix();const now=new Date().toISOString();
+    const vehicle={plate:plateUpper,name:form.name.trim()||"—",vtype:form.vtype,checkin:now,ticketNo:tix,checkinBy:user.name};
+    const{error}=await sb.from("slots").update({
+      occupied:true,v_plate:vehicle.plate,v_name:vehicle.name,v_vtype:vehicle.vtype,
+      v_checkin:vehicle.checkin,v_ticket:vehicle.ticketNo,v_checkin_by:vehicle.checkinBy
+    }).eq("id",sel.id);
+    if(error){toast("Check-in failed: "+error.message,"err");if(printWin)printWin.close();return;}
+    // optimistic local update (realtime will also fire)
+    setSlots(p=>{const c={...p};c[l]=c[l].map(s=>s.id===sel.id?{...s,occupied:true,vehicle}:s);return c;});
+    const locName=LOCS.find(x=>x.id===l)?.name;
+    addLog(`✅ CHECK-IN: ${vehicle.plate} · ${form.vtype.toUpperCase()} · ${locName} Slot #${sel.number} · ${tix} · by ${user.name}`,"#10b981");
+    toast(`✅ ${vehicle.plate} checked in — ${tix}`,"ok");
+    const ciPayload={isCheckIn:true,ticketNo:tix,plate:vehicle.plate,name:vehicle.name,vtype:form.vtype,locName,slotNum:sel.number,checkin:now,cashierName:user.name};
+    setLastPrintPayload(ciPayload);
+    printThermal(ciPayload,printWin);
+    setModal(null);
+  }
+
+  async function doCheckout(){
+    if(processing) return;  // prevent double-click
+    setProcessing(true);
+    try{
+      const v=sel.vehicle;const{fee:baseFee,pwdFee:basePwdFee,dur,overnight}=calcFee(v.checkin,v.vtype);
+      // PWD/SC: first 3 REGULAR hrs FREE (Taytay ordinance) — overnight windows still charged
+      const pwdDisc=pwdSc?Math.max(0,baseFee-basePwdFee):0;
+      const fee=Math.max(0,baseFee-pwdDisc)+(lostTicket?50:0);
+      const l=sel.locId;const locName=LOCS.find(x=>x.id===l)?.name;
+      const origTix=v.ticketNo||"";
+      // Duplicate guard — check if this slot's check-in ticket already has a completed checkout
+      if(origTix){
+        // Check duplicate using ticket_no + checkin_time — more specific than ticket alone
+        // Prevents false positives when same plate returns same day with different ticket
+        const cinTime=v.checkin;
+        const{data:existing}=await sb.from("transactions").select("id")
+          .eq("ticket_no",origTix)
+          .eq("status","completed")
+          .eq("checkin_at",cinTime)
+          .maybeSingle();
+        if(existing){
+          // Already checked out — slot is stuck, auto-clear it
+          await sb.from("slots").update({occupied:false,v_plate:null,v_name:null,v_vtype:null,v_checkin:null,v_ticket:null,v_checkin_by:null}).eq("id",sel.id);
+          setSlots(p=>{const c={...p};c[l]=c[l].map(s=>s.id===sel.id?{...s,occupied:false,vehicle:null}:s);return c;});
+          addLog(`🔧 AUTO-CLEAR: ${v.plate} · ${locName} Slot #${sel.number} · ${origTix} already checked out · cleared by ${user.name}`,"#8b5cf6");
+          toast("⚠️ "+origTix+" already checked out — slot auto-cleared.","info");
+          setModal(null);setProcessing(false);return;
+        }
+      }
+      const txn={
+        ticket_no:null, // DB sequence auto-generates unique TKT number
+        plate:v.plate,name:v.name,driver_name:v.name,vtype:v.vtype,loc_id:l,
+        slot_number:sel.number,fee,dur,duration:dur,overnight,cashier:user.name,
+        checkin_by:v.checkinBy||"—",
+        checkin_time:v.checkin,checkin_at:v.checkin,
+        checkout_time:new Date().toISOString(),checkout_at:new Date().toISOString(),
+        status:"completed",
+        notes:[pwdSc?"PWD_SC_EXEMPT":null,lostTicket?"LOST_TICKET":null].filter(Boolean).join("+")||null
+      };
+      const{data:txnRow,error:txnErr}=await sb.from("transactions").insert(txn).select().single();
+      if(txnErr){toast("Checkout failed: "+txnErr.message,"err");setProcessing(false);return;}
+      await sb.from("slots").update({occupied:false,v_plate:null,v_name:null,v_vtype:null,v_checkin:null,v_ticket:null,v_checkin_by:null}).eq("id",sel.id);
+      setSlots(p=>{const c={...p};c[l]=c[l].map(s=>s.id===sel.id?{...s,occupied:false,vehicle:null}:s);return c;});
+      setTxns(p=>{if(p.find(x=>x.id===txnRow.id))return p;return[txnRow,...p];});
+      setReceipt({v,fee,dur,overnight,slot:sel,loc:LOCS.find(x=>x.id===l),ticketNo:txnRow.ticket_no});
+      const tix=txnRow.ticket_no; // Use DB-generated ticket number
+      addLog(`💰 CHECK-OUT: ${v.plate} · ${locName} Slot #${sel.number} · ${dur} · ${P(fee)} · ${tix} · in by ${v.checkinBy||'—'} · out by ${user.name}`,"#f59e0b");
+      toast(`💰 ${v.plate} checked out — ${P(fee)}`,"ok");
+      const coPayload={isCheckIn:false,ticketNo:tix,plate:v.plate,name:v.name,vtype:v.vtype,locName,slotNum:sel.number,checkin:v.checkin,fee,dur,overnight,cashierName:user.name,lostTicket,pwdSc,pwdDisc};
+      setLastPrintPayload(coPayload);
+      printThermal(coPayload);
+      setLostTicket(false);setPwdSc(false);
+      setModal("receipt");
+    }finally{
+      setProcessing(false);
+    }
+  }
+
+  async function doVoid(){
+    const v=sel.vehicle;const l=sel.locId;const locName=LOCS.find(x=>x.id===l)?.name;
+    if(!v){toast("No vehicle data on slot","err");return;}
+    if(!sel.id){toast("No slot ID","err");return;}
+    const{fee,dur,overnight}=calcFee(v.checkin,v.vtype);
+    const tix=v.ticketNo||''; // Void uses original check-in ticket
+    toast("Voiding... clearing slot #"+sel.number,"ok");
+    // Always clear the slot first
+    const{error:slotErr}=await sb.from("slots").update({occupied:false,v_plate:null,v_name:null,v_vtype:null,v_checkin:null,v_ticket:null,v_checkin_by:null}).eq("id",sel.id);
+    if(slotErr){toast("Slot clear failed: "+slotErr.message,"err");console.error("Slot error:",slotErr);return;}
+    // Update local state immediately
+    setSlots(p=>{const c={...p};c[l]=c[l].map(s=>s.id===sel.id?{...s,occupied:false,vehicle:null}:s);return c;});
+    setModal(null);
+    toast(`✅ Slot #${sel.number} cleared`,"ok");
+    // Then try to insert transaction record
+    const txn={
+      ticket_no:tix,plate:v.plate,name:v.name,driver_name:v.name,vtype:v.vtype,loc_id:l,
+      slot_number:sel.number,fee,dur,duration:dur,overnight,cashier:user.name,
+      checkin_by:v.checkinBy||"—",
+      checkin_time:v.checkin,checkin_at:v.checkin,
+      checkout_time:new Date().toISOString(),checkout_at:new Date().toISOString(),
+      status:"voided"
+    };
+    const{data:txnRow,error:txnErr}=await sb.from("transactions").insert(txn).select().single();
+    if(txnErr){console.error("Void txn error:",txnErr.message);toast("Warning: slot cleared but record not saved: "+txnErr.message,"err");}
+    else if(txnRow) setTxns(p=>{if(p.find(x=>x.id===txnRow.id))return p;return[txnRow,...p];});
+    addLog(`⚠️ VOID: ${v.plate} · ${locName} Slot #${sel.number} · ${dur} · exp ${P(fee)} · by ${user.name}`,"#ef4444");
+    printThermal({isVoid:true,isCheckIn:false,ticketNo:tix,plate:v.plate,name:v.name,vtype:v.vtype,locName,slotNum:sel.number,checkin:v.checkin,fee,dur,overnight,cashierName:user.name});
+  }
+
+  const visLocs=(user?.role==="attendant"&&attLoc)?LOCS.filter(l=>l.id===attLoc):LOCS;
+  const aLoc=attLoc?LOCS.find(l=>l.id===attLoc):null;
+
+  // ── LOGIN ────────────────────────────────────────────────────────────────
+  if(!user)return(
+    <><style>{CSS}</style><Toasts/>
+    <div className="lp"><div className="lb">
+      <div className="ll-logo">🏥</div>
+      <div className="lt"><h1>Taytay Doctors Multispecialty Hospital</h1><p>Parking Management System</p></div>
+      {lf.err&&<div className="lerr">⚠️ {lf.err}</div>}
+      <div className="lf2"><label className="ll2">Username</label><input className="li2" placeholder="Username" value={lf.username} onChange={e=>setLf(p=>({...p,username:e.target.value,err:""}))} onKeyDown={e=>e.key==="Enter"&&doLogin()} autoFocus/></div>
+      <div className="lf2"><label className="ll2">Password</label><input className="li2" type="password" placeholder="Password" value={lf.password} onChange={e=>setLf(p=>({...p,password:e.target.value,err:""}))} onKeyDown={e=>e.key==="Enter"&&doLogin()}/></div>
+      <button className="lbtn" onClick={doLogin} disabled={lf.loading}>{lf.loading&&<span className="spin"/>}{lf.loading?"Signing in…":"Sign In →"}</button>
+    </div></div></>
+  );
+
+  // ── ATTENDANT LOC SELECT ─────────────────────────────────────────────────
+  if(user.role==="attendant"&&!attLoc)return(
+    <><style>{CSS}</style><Toasts/>
+    <div className="app">
+      <div className="hdr">
+        <div className="hl"><div className="hlogo">🏥</div><div className="ht"><h1>Taytay Doctors Multispecialty Hospital</h1><p>Parking Management System</p></div></div>
+        <div className="hr2"><span className="rbdg rb-attendant">🅿️ attendant</span><button className="hbtn" onClick={doLogout}>Sign Out</button></div>
+      </div>
+      <div className="lsp"><div className="lsb">
+        <div style={{fontSize:32,marginBottom:10}}>🅿️</div>
+        <h2>Select Your Location</h2>
+        <p>Hi {user.name}! Choose the parking area for this shift.</p>
+        <div className="los">
+          {LOCS.map(l=>{const ls=slots[l.id]||[];const free=ls.filter(s=>!s.occupied).length;return(
+            <div className="lo" key={l.id} onClick={()=>{setAttLoc(l.id);setTab("overview");}}>
+              <span className="lo-ico">{l.icon}</span>
+              <div><div className="lo-nm">{l.name}</div><div className="lo-sub">{ls.length} slots · {free} available</div></div>
+              <span style={{color:"#94a3b8",fontSize:17,marginLeft:"auto"}}>→</span>
+            </div>
+          );})}
+        </div>
+      </div></div>
+    </div></>
+  );
+
+  // ── MAIN DASHBOARD ───────────────────────────────────────────────────────
+  // duplicate plate check helper for checkin modal
+  const dupPlate = form.plate.trim().length>0
+    ? Object.values(slots).flat().find(s=>s.occupied&&s.vehicle?.plate===form.plate.toUpperCase().trim()&&s.id!==sel?.id)
+    : null;
+  const dupLoc = dupPlate ? LOCS.find(l=>l.id===dupPlate.locId) : null;
+
+  return(
+    <><style>{CSS}</style><Toasts/>
+    <div className="app">
+
+      {/* HEADER */}
+      <div className="hdr">
+        <div className="hl">
+          <div className="hlogo">🏥</div>
+          <div className="ht">
+            <h1>Taytay Doctors Multispecialty Hospital</h1>
+            <p>{user.role==="attendant"&&aLoc?`📍 ${aLoc.name} · `:""}Parking System · {user.name}</p>
+          </div>
+        </div>
+        <div className="hr2">
+          {rtConnected&&<div className="rtind"><div className="rtdot"/>Live</div>}
+          {battery.level!==null&&<div className="rtind" style={{background:battery.level<=20?"rgba(239,68,68,.15)":"rgba(16,185,129,.15)",borderColor:battery.level<=20?"rgba(239,68,68,.3)":"rgba(16,185,129,.3)",color:battery.level<=20?"#fca5a5":"#6ee7b7"}}>
+            {battery.charging?"⚡":"🔋"} {battery.level}%
+          </div>}
+          <div className="hck">{clock.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
+          <span className={`rbdg rb-${user.role}`}>{user.role==="admin"?"👑":user.role==="cashier"?"💳":"🅿️"} {user.role}</span>
+          {user.role==="attendant"&&<button className="hbtn" onClick={()=>setAttLoc(null)} style={{background:"rgba(139,92,246,.2)",borderColor:"rgba(139,92,246,.4)",color:"#c4b5fd"}}>Change Location</button>}
+          <button className="hbtn" onClick={doLogout}>Sign Out</button>
+        </div>
+      </div>
+
+      {/* EARNINGS BANNER */}
+      {perms.earn&&(
+        <div className="eb">
+          <div className="ebl">
+            <h3>Today's Total Earnings</h3>
+            <div className="ebt">{P(todayT)}</div>
+            <div className="ebd">{new Date().toLocaleDateString("en-PH",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+          </div>
+          <div className="ebr">
+            {LOCS.map(l=>{const le=todayE.filter(e=>e.loc_id===l.id);return(
+              <div className="ebs" key={l.id}>
+                <div className="ebsl">{l.icon} {l.short}</div>
+                <div className="ebsv">{P(le.reduce((s,e)=>s+Number(e.fee||0),0))}</div>
+                <div className="ebsc">{le.length} transactions</div>
+              </div>
+            );})}
+            <div className="ebs"><div className="ebsl">Transactions</div><div className="ebsv">{todayE.length}</div><div className="ebsc">today</div></div>
+          </div>
+        </div>
+      )}
+
+      {/* STATS */}
+      <div className="sg">
+        <div className="sc" style={{"--c":"#4f46e5"}}><div className="sl2">Free Slots</div><div className="sv">{all.length-totOcc}</div><div className="ss">of {all.length}</div></div>
+        <div className="sc" style={{"--c":"#ef4444"}}><div className="sl2">Occupied</div><div className="sv">{totOcc}</div><div className="ss">{all.length>0?Math.round(totOcc/all.length*100):0}%</div></div>
+        <div className="sc" style={{"--c":"#4f46e5"}}><div className="sl2">Cars</div><div className="sv">{all.filter(s=>s.occupied&&s.vehicle?.vtype==="car").length}</div><div className="ss">parked</div></div>
+        <div className="sc" style={{"--c":"#8b5cf6"}}><div className="sl2">Motorcycles</div><div className="sv">{all.filter(s=>s.occupied&&s.vehicle?.vtype==="motorcycle").length}</div><div className="ss">parked</div></div>
+        <div className="sc" style={{"--c":"#10b981"}}><div className="sl2">Tricycles</div><div className="sv">{all.filter(s=>s.occupied&&s.vehicle?.vtype==="tricycle").length}</div><div className="ss">parked</div></div>
+        {perms.earn&&<div className="sc" style={{"--c":"#d97706"}}><div className="sl2">Today Earned</div><div className="sv" style={{fontSize:"clamp(12px,2vw,15px)"}}>{P(todayT)}</div><div className="ss">{todayE.length} transactions</div></div>}
+      </div>
+
+      {/* RATES */}
+      {perms.rates&&(
+        <div className="rc">
+          <h3>📋 Parking Rates</h3>
+          <div className="rgd">
+            {Object.entries(VT).map(([k,v])=>(
+              <div className="rit" key={k} style={{"--rc2":v.color}}>
+                <div className="rh"><span className="ri">{v.icon}</span><span className="rn">{v.label}</span></div>
+                <div className="rr"><span className="rk">First {v.fh} hours</span><span className="rv">₱{v.fr}</span></div>
+                <div className="rr"><span className="rk">Succeeding / hr</span><span className="rv">₱{v.sr}</span></div>
+                <div className="rr"><span className="rk">Overnight (10PM–7AM)</span><span className="rv">₱{v.ovr}</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TABS */}
+      <div className="tabs">
+        <button className={`tab ${tab==="overview"?"active":""}`} onClick={()=>setTab("overview")}>🗺️ Overview</button>
+        {perms.search&&<button className={`tab ${tab==="search"?"active":""}`} onClick={()=>setTab("search")}>🔍 Search</button>}
+        {perms.co&&<button className={`tab ${tab==="manual"?"active":""}`} onClick={()=>setTab("manual")}>🧾 Manual Receipt</button>}
+        {perms.earn&&<button className={`tab ${tab==="earnings"?"active":""}`} onClick={()=>setTab("earnings")}>💰 Earnings</button>}
+        {perms.rep&&<button className={`tab ${tab==="reports"?"active":""}`} onClick={()=>setTab("reports")}>📊 Reports</button>}
+        {perms.act&&<button className={`tab ${tab==="activity"?"active":""}`} onClick={()=>setTab("activity")}>📋 Activity{actLog.length>0&&<span className="tbdg">{actLog.length}</span>}</button>}
+        {perms.users&&<button className={`tab ${tab==="users"?"active":""}`} onClick={()=>setTab("users")}>👥 Users</button>}
+      </div>
+
+      {/* OVERVIEW */}
+      {tab==="overview"&&(
+        <div className="lg">
+          {visLocs.map(loc=>{
+            const ls=slots[loc.id]||[];const types=[...new Set(ls.map(s=>s.type))];
+            const occ=ls.filter(s=>s.occupied).length;const pct=ls.length>0?Math.round(occ/ls.length*100):0;const free=ls.length-occ;
+            const avCls=pct<60?"av-ok":pct<85?"av-warn":"av-full";const barC=pct<60?"#10b981":pct<85?"#f59e0b":"#ef4444";
+            const locT=todayE.filter(e=>e.loc_id===loc.id).reduce((s,e)=>s+Number(e.fee||0),0);
+            return(
+              <div className="lc" key={loc.id}>
+                <div className="lch">
+                  <div className="lchl"><span className="lcico">{loc.icon}</span><div><div className="lcnm">{loc.name}</div><div className="lcsub">{ls.length} slots{perms.earn?` · Today: ${P(locT)}`:""}</div></div></div>
+                  <div className={`avp ${avCls}`}>{free} free</div>
+                </div>
+                <div className="bw"><div className="blbl"><span>{occ} occupied</span><span>{pct}%</span></div><div className="btr"><div className="bfi" style={{width:`${pct}%`,background:barC}}/></div></div>
+                {types.map(type=>{
+                  const ts=ls.filter(s=>s.type===type);if(!ts.length)return null;const vt=VT[type]||VT.car;
+                  return(
+                    <div className="tsc" key={type}>
+                      <div className="tl"><div className="td" style={{background:vt.color}}/>{vt.icon} {vt.label} — {ts.filter(s=>!s.occupied).length} free / {ts.length}</div>
+                      <div className="spg">
+                        {ts.map(slot=>(
+                          <div key={slot.id} className={`sp ${slot.occupied?"occ":"free"} ${sel?.id===slot.id?"sel":""}`} onClick={()=>openSlot(loc.id,slot)} title={slot.occupied?`${slot.vehicle?.plate} · ${slot.vehicle?.name}`:`Slot #${slot.number} — Free`}>
+                            {slot.occupied&&<span className="spico">{vt.icon}</span>}<span className="spn">#{slot.number}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="lcleg"><div className="leg"><div className="lsq" style={{background:"#bbf7d0",border:"1px solid #86efac"}}/>Free</div><div className="leg"><div className="lsq" style={{background:"#fecaca",border:"1px solid #fca5a5"}}/>Occupied</div></div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* SEARCH */}
+      {tab==="search"&&(
+        <div className="pnl">
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:10}}>🔍 Search Plate / Name{user.role==="attendant"&&aLoc&&<span style={{fontSize:11,color:"var(--mu)",fontWeight:400,marginLeft:8}}>— {aLoc.name} only</span>}</div>
+            <div className="srow">
+              <input className="fi" placeholder="Type plate number or driver name…" value={search} onChange={e=>setSearch(e.target.value)} autoFocus/>
+              {search&&<button className="btn bg" style={{flex:"none",padding:"8px 12px"}} onClick={()=>setSearch("")}>✕</button>}
+            </div>
+          </div>
+          {search.length>1?(
+            sr.length>0?(
+              <div className="rl">
+                {sr.map(s=>{
+                  const vt=VT[s.vehicle.vtype];const bc=s.vehicle.vtype==="car"?"bdg-c":s.vehicle.vtype==="motorcycle"?"bdg-m":"bdg-t";
+                  const{fee,dur}=calcFee(s.vehicle.checkin,s.vehicle.vtype);
+                  return(
+                    <div className="ritem" key={s.id}>
+                      <div>
+                        <div className="rpl2">{s.vehicle.plate}</div>
+                        <div className="rsub">{s.vehicle.name} · {s.locName} · Slot #{s.number}</div>
+                        <div className="rsub" style={{marginTop:2}}>
+                          <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#7c3aed"}}>{s.vehicle.ticketNo||"—"}</span>
+                          {" · "}In: {fmtDT(s.vehicle.checkin)} · {dur} · ~{P(fee)}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                        <span className={`bdg ${bc}`}>{vt?.label}</span>
+                        {perms.co&&<button className="btn bd2" style={{padding:"6px 12px",flex:"none",fontSize:11}} onClick={()=>{setLostTicket(false);setPwdSc(false);setSel(s);setModal("checkout");}}>Check Out</button>}
+                        {perms.co&&<button className="btn" style={{padding:"6px 10px",flex:"none",fontSize:11,background:"#fee2e2",color:"#dc2626",border:"1px solid #fca5a5",borderRadius:9,fontWeight:700,cursor:"pointer"}} title="Lost ticket — auto adds ₱50" onClick={()=>{setLostTicket(true);setPwdSc(false);setSel(s);setModal("checkout");}}>🎫 Lost</button>}
+                        <button className="btn bg" style={{padding:"6px 10px",flex:"none",fontSize:11}} title="Reprint ticket" onClick={()=>printThermal({isCheckIn:true,ticketNo:s.vehicle.ticketNo||"—",plate:s.vehicle.plate,name:s.vehicle.name,vtype:s.vehicle.vtype,locName:s.locName,slotNum:s.number,checkin:s.vehicle.checkin,cashierName:user.name})}>🖨️</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ):<div className="emp"><div className="ei">🔍</div><p>No vehicles found matching "<b>{search}</b>"</p></div>
+          ):<div className="emp"><div className="ei">🚗</div><p>Type a plate number or driver name to search</p></div>}
+        </div>
+      )}
+
+      {/* EARNINGS */}
+      {tab==="manual"&&perms.co&&(()=>{
+        const locName=LOCS.find(l=>l.id===manualForm.locId)?.name||"";
+        const coInvalid=manualForm.checkout&&manualForm.checkin&&new Date(manualForm.checkout)<=new Date(manualForm.checkin);
+        const computed=manualForm.checkin&&manualForm.plate&&!coInvalid?calcFeeManual(manualForm.checkin,manualForm.vtype,manualForm.checkout||null):null;
+        async function doManualPrint(){
+          if(!manualForm.plate.trim()||!manualForm.checkin){return;}
+          if(coInvalid){toast("⚠️ Time Out must be after Time In","err");return;}
+          const{fee:baseFee2,pwdFee:pwdFee2,dur,overnight}=computed||{fee:0,pwdFee:0,dur:"0h 0m",overnight:false};
+          const pwdDisc2=pwdSc?Math.max(0,baseFee2-(pwdFee2||0)):0;
+          const fee2=Math.max(0,baseFee2-pwdDisc2)+(lostTicket?50:0);
+          const plate=manualForm.plate.toUpperCase().trim();
+          const checkinISO=new Date(manualForm.checkin).toISOString();
+          const checkoutISO=manualForm.checkout?new Date(manualForm.checkout).toISOString():new Date().toISOString();
+          // Save to DB as manual transaction
+          const txn={
+            ticket_no:null, // DB sequence generates ticket
+            plate,
+            name:manualForm.name||"—",
+            driver_name:manualForm.name||"—",
+            vtype:manualForm.vtype,
+            loc_id:manualForm.locId,
+            slot_number:manualForm.slotNum?parseInt(manualForm.slotNum):0,
+            fee:fee2,
+            dur,
+            duration:dur,
+            overnight,
+            cashier:user.name,
+            checkin_by:"Manual Entry",
+            checkin_time:checkinISO,
+            checkin_at:checkinISO,
+            checkout_time:checkoutISO,
+            checkout_at:checkoutISO,
+            status:"completed",
+            notes:"MANUAL_RECEIPT"+(pwdSc?"_PWD_SC_EXEMPT":"")+(lostTicket?"_LOST_TICKET":"")
+          };
+          const{data:txnRow,error:txnErr}=await sb.from("transactions").insert(txn).select().single();
+          if(txnErr){
+            toast("⚠️ DB save failed: "+txnErr.message+". Printing anyway…","err");
+          } else {
+            setTxns(p=>{if(p.find(x=>x.id===txnRow.id))return p;return[txnRow,...p];});
+          }
+          const tix=txnRow?.ticket_no||("MAN-"+Date.now().toString().slice(-6));
+          printThermal({isCheckIn:false,ticketNo:tix,plate,name:manualForm.name||"—",vtype:manualForm.vtype,locName,slotNum:manualForm.slotNum||"?",checkin:checkinISO,checkout:checkoutISO,fee:fee2,dur,overnight,cashierName:user.name,lostTicket,pwdSc,pwdDisc:pwdDisc2});
+          toast("🧾 Manual receipt printed — "+tix+(lostTicket?" (+₱50 Lost Ticket)":""),"ok");
+          addLog("🧾 MANUAL RECEIPT: "+plate+" · "+manualForm.vtype.toUpperCase()+" · "+(locName||"?")+" Slot #"+(manualForm.slotNum||"?")+" · "+P(fee2)+" · "+tix+" · by "+user.name,"#d97706");
+          // Reset form after successful print
+          setManualForm({plate:"",name:"",vtype:"car",locId:"compound",slotNum:"",checkin:"",checkout:""});
+          setLostTicket(false);setPwdSc(false);
+        }
+        return(
+          <div className="pnl">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:700}}>🧾 Manual Receipt Generator</div>
+                <div style={{fontSize:11,color:"var(--mu)",marginTop:2}}>Para sa mga kaso na hindi na makita sa system — i-enter ang detalye at i-print ang resibo.</div>
+              </div>
+            </div>
+            <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#166534",fontWeight:600}}>
+              ✅ Ang manual receipt ay nire-record sa database na may status na <strong>completed</strong> at notes na "Manual Receipt". Makikita ito sa Earnings at Reports.
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div className="fg">
+                <label className="fl">Plate Number *</label>
+                <input className="fi" placeholder="e.g. ABC 1234" value={manualForm.plate} onChange={e=>setManualForm(p=>({...p,plate:e.target.value.toUpperCase()}))} autoFocus/>
+              </div>
+              <div className="fg">
+                <label className="fl">Driver / Owner Name</label>
+                <input className="fi" placeholder="Optional" value={manualForm.name} onChange={e=>setManualForm(p=>({...p,name:e.target.value}))}/>
+              </div>
+              <div className="fg">
+                <label className="fl">Vehicle Type *</label>
+                <div className="rrow">{Object.entries(VT).map(([k,v])=><div key={k} className={`rbt ${manualForm.vtype===k?"active":""}`} onClick={()=>setManualForm(p=>({...p,vtype:k}))}>{v.icon} {v.label}</div>)}</div>
+              </div>
+              <div className="fg">
+                <label className="fl">Location</label>
+                <div className="rrow">{LOCS.map(l=><div key={l.id} className={`rbt ${manualForm.locId===l.id?"active":""}`} onClick={()=>setManualForm(p=>({...p,locId:l.id}))} style={{fontSize:10}}>{l.icon} {l.short}</div>)}</div>
+              </div>
+              <div className="fg">
+                <label className="fl">Slot Number</label>
+                <input className="fi" placeholder="e.g. 5" value={manualForm.slotNum} onChange={e=>setManualForm(p=>({...p,slotNum:e.target.value}))}/>
+              </div>
+              <div className="fg">
+                <label className="fl">Date & Time In *</label>
+                <input className="fi" type="datetime-local" value={manualForm.checkin} onChange={e=>setManualForm(p=>({...p,checkin:e.target.value}))}/>
+              </div>
+              <div className="fg">
+                <label className="fl">Date & Time Out <span style={{fontWeight:400,color:"var(--mu)"}}>(optional — blank = now)</span></label>
+                <input className="fi" type="datetime-local" value={manualForm.checkout} min={manualForm.checkin||undefined} onChange={e=>setManualForm(p=>({...p,checkout:e.target.value}))}/>
+                {coInvalid&&<div className="ferr">Time Out must be after Time In</div>}
+              </div>
+            </div>
+            <div className="fg">
+              <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",background:lostTicket?"#fee2e2":"#f6f7fc",border:"1.5px solid "+(lostTicket?"#fca5a5":"var(--bd)"),borderRadius:9,padding:"10px 13px",transition:"all .15s"}}>
+                <input type="checkbox" checked={lostTicket} onChange={e=>setLostTicket(e.target.checked)} style={{width:18,height:18,cursor:"pointer",accentColor:"#ef4444"}}/>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13,color:lostTicket?"#dc2626":"var(--tx)"}}>🎫 Lost Parking Ticket</div>
+                  <div style={{fontSize:11,color:lostTicket?"#dc2626":"var(--mu)"}}>Dagdag na ₱50.00 lost ticket fee</div>
+                </div>
+                {lostTicket&&<span style={{marginLeft:"auto",fontFamily:"'Space Mono',monospace",fontWeight:700,color:"#dc2626",fontSize:13}}>+₱50</span>}
+              </label>
+              <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",background:pwdSc?"#e0e7ff":"#f6f7fc",border:"1.5px solid "+(pwdSc?"#a5b4fc":"var(--bd)"),borderRadius:9,padding:"10px 13px",marginTop:8,transition:"all .15s"}}>
+                <input type="checkbox" checked={pwdSc} onChange={e=>setPwdSc(e.target.checked)} style={{width:18,height:18,cursor:"pointer",accentColor:"#4f46e5"}}/>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13,color:pwdSc?"#3730a3":"var(--tx)"}}>♿ PWD / Senior Citizen</div>
+                  <div style={{fontSize:11,color:pwdSc?"#3730a3":"var(--mu)"}}>First 3 hours FREE — Taytay ordinance (present valid ID)</div>
+                </div>
+              </label>
+            </div>
+            {computed&&(()=>{
+              const mvDisc=pwdSc?Math.max(0,computed.fee-(computed.pwdFee||0)):0;
+              const mvTotal=Math.max(0,computed.fee-mvDisc)+(lostTicket?50:0);
+              return(
+              <div className="fb" style={{marginBottom:12}}>
+                <div className="fbl">Computed Fee</div>
+                <div className="fbv">{P(mvTotal)}</div>
+                <div className="fbn">Duration: {computed.dur} · {computed.overnight?"🌙 Overnight Rate":"Regular Rate"}{pwdSc?" · ♿ PWD/SC: -"+P(mvDisc)+(computed.overnight?" (overnight windows charged)":" (first 3hrs free)"):""}{lostTicket?" · +₱50 Lost Ticket Fee":""}</div>
+              </div>
+              );
+            })()}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <button className="btn bg" onClick={()=>{setManualForm({plate:"",name:"",vtype:"car",locId:"compound",slotNum:"",checkin:"",checkout:""});setLostTicket(false);setPwdSc(false);}}>🗑️ Clear</button>
+              <button className="btn bp" style={{background:"#d97706",boxShadow:"0 3px 10px rgba(217,119,6,.3)"}} onClick={doManualPrint} disabled={!manualForm.plate.trim()||!manualForm.checkin}>🖨️ Print Manual Receipt</button>
+            </div>
+          </div>
+        );
+      })()}
+      {tab==="earnings"&&(
+        <div className="pnl">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:7}}>
+            <span style={{fontSize:14,fontWeight:700}}>💰 Today's Earnings</span>
+            <span style={{fontFamily:"'Space Mono',monospace",fontSize:16,fontWeight:700,color:"#d97706"}}>{P(todayT)}</span>
+          </div>
+          <div className="elg">
+            {LOCS.map(l=>{const le=todayE.filter(e=>e.loc_id===l.id);return(
+              <div className="elc" key={l.id} style={{"--lc":l.color}}>
+                <div className="elnm">{l.icon} {l.name}</div>
+                <div className="elv">{P(le.reduce((s,e)=>s+Number(e.fee||0),0))}</div>
+                <div className="elcnt">{le.length} transactions</div>
+              </div>
+            );})}
+          </div>
+          {todayE.length===0?<div className="emp"><div className="ei">💸</div><p>No transactions today yet</p></div>:(
+            <div style={{overflowX:"auto"}}><table className="etbl">
+              <thead><tr><th>Time</th><th>Ticket</th><th>Plate</th><th>Vehicle</th><th>Location</th><th>Duration</th><th>Checked In By</th><th>Checked Out By</th><th>Amount</th>{user?.role==="admin"&&<th></th>}</tr></thead>
+              <tbody>{[...todayE].sort((a,b)=>new Date(b.checkout_at||b.checkout_time||b.checkin_at)-new Date(a.checkout_at||a.checkout_time||a.checkin_at)).map((e,i)=>(
+                <tr key={i}>
+                  <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{fmtT(e.checkout_at||e.checkout_time||e.checkin_at)}</td>
+                  <td style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"#7c3aed"}}>{e.ticket_no||"—"}</td>
+                  <td><span className="epl">{e.plate}</span></td>
+                  <td>{VT[e.vtype]?.icon} {VT[e.vtype]?.label}</td>
+                  <td style={{fontSize:10}}>{LOCS.find(l=>l.id===e.loc_id)?.short}</td>
+                  <td style={{fontFamily:"'Space Mono',monospace",fontSize:10}}>{e.dur||e.duration||"—"}</td>
+                  <td style={{fontSize:10,color:"var(--mu)"}}>{(e.checkin_by||"—").split(" ")[0]}</td>
+                  <td style={{fontSize:10,color:"var(--mu)"}}>{(e.cashier||"—").split(" ")[0]}</td>
+                  <td><span className="eam">{P(e.fee||0)}</span>{e.overnight&&<span style={{fontSize:9,color:"#8b5cf6",marginLeft:3}}>🌙</span>}</td>
+                  {user?.role==="admin"&&<td>{e.status!=="voided"&&<button className="btn bg" title="Revert checkout — ibalik sa slot" style={{padding:"4px 8px",fontSize:11,background:"#f5f3ff",color:"#6d28d9",border:"1px solid #ddd6fe"}} onClick={()=>{setRevertTxn(e);setDelArm(false);}}>↩️</button>}</td>}
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </div>
+      )}
+
+      {/* REPORTS — no props needed, fetches own data */}
+      {tab==="reports"&&perms.rep&&<ReportsPanel currentUser={user} onFix={e=>{setRevertTxn(e);setDelArm(false);}}/>}
+
+      {/* ACTIVITY */}
+      {tab==="activity"&&<ActivityLog actLog={actLog}/>}
+
+      {/* USERS */}
+      {tab==="users"&&perms.users&&<UserManagement currentUser={user} toast={toast}/>}
+
+      {/* MODAL: VOID CONFIRMATION */}
+      {modal==="void"&&sel?.vehicle&&(()=>{
+        const{fee,dur}=calcFee(sel.vehicle.checkin,sel.vehicle.vtype);
+        const vt=VT[sel.vehicle.vtype];
+        return(
+          <div className="ov" onClick={e=>e.target===e.currentTarget&&setModal("checkout")}>
+            <div className="mo">
+              <div className="mh" style={{background:"#fef2f2",borderBottom:"1px solid #fca5a5"}}><h2>⚠️ Void Transaction</h2><p style={{color:"#dc2626"}}>This will mark the slot as vacant with no payment collected.</p></div>
+              <div className="mb">
+                <div className="ir"><span className="ik">Plate</span><span className="iv">{sel.vehicle.plate}</span></div>
+                <div className="ir"><span className="ik">Vehicle</span><span className="iv">{vt?.icon} {vt?.label}</span></div>
+                <div className="ir"><span className="ik">Duration</span><span className="iv">{dur}</span></div>
+                <div className="ir"><span className="ik">Expected Fee</span><span className="iv" style={{color:"#dc2626",fontWeight:700}}>{P(fee)}</span></div>
+                <div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 12px",fontSize:12,color:"#991b1b",marginTop:8}}>
+                  ⚠️ <strong>{P(fee)}</strong> will be recorded as a <strong>loss</strong> in reports. This action cannot be undone.
+                </div>
+              </div>
+              <div className="mf">
+                <button className="btn bg" onClick={()=>setModal("checkout")}>Back</button>
+                <button className="btn" style={{background:"#dc2626",color:"white",border:"none"}} onClick={doVoid}>Confirm Void</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MODAL: CHECK IN */}
+      {modal==="checkin"&&sel&&(
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+          <div className="mo">
+            <div className="mh"><h2>🚗 Vehicle Check In</h2><p>{LOCS.find(l=>l.id===sel.locId)?.name} · {sel.type==="motorcycle"?"Motorcycle":"Car"} Slot #{sel.number}</p></div>
+            <div className="mb">
+              <div className="fg">
+                <label className="fl">Plate Number *</label>
+                <input className="fi" placeholder="e.g. ABC 1234" value={form.plate} onChange={e=>setForm(p=>({...p,plate:e.target.value.toUpperCase()}))} autoFocus/>
+                {dupPlate&&<div style={{background:"#fef2f2",border:"1px solid #fca5a5",borderRadius:8,padding:"7px 10px",fontSize:11,color:"#dc2626",marginTop:5}}>⚠️ Already parked at <b>{dupLoc?.name}</b> — Slot #{dupPlate.number}</div>}
+              </div>
+              <div className="fg"><label className="fl">Driver / Owner Name</label><input className="fi" placeholder="Optional" value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))}/></div>
+              <div className="fg">
+                <label className="fl">Vehicle Type</label>
+                <div className="rrow">{Object.entries(VT).map(([k,v])=><div key={k} className={`rbt ${form.vtype===k?"active":""}`} onClick={()=>setForm(p=>({...p,vtype:k}))}>{v.icon} {v.label}</div>)}</div>
+              </div>
+              {form.vtype&&<div className="hb">💡 First {VT[form.vtype].fh}h: <b style={{color:"#d97706"}}>₱{VT[form.vtype].fr}</b> · /hr after: <b style={{color:"#d97706"}}>₱{VT[form.vtype].sr}</b> · Overnight: <b style={{color:"#d97706"}}>₱{VT[form.vtype].ovr}</b></div>}
+              <div className="phint">🖨️ Parking ticket will print automatically on your Bluetooth/POS printer.</div>
+            </div>
+            <div className="mf">
+              <button className="btn bg" onClick={()=>setModal(null)}>Cancel</button>
+              <button className="btn bp" onClick={doCheckin} disabled={!form.plate.trim()||!!dupPlate}>✓ Check In &amp; Print Ticket</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHECK OUT */}
+      {modal==="checkout"&&sel?.vehicle&&(()=>{
+        const{fee,pwdFee,dur,overnight}=calcFee(sel.vehicle.checkin,sel.vehicle.vtype);
+        const vt=VT[sel.vehicle.vtype];
+        // Live PWD/SC discount preview — first 3 regular hrs free; overnight windows still charged
+        const mPwdDisc=pwdSc?Math.max(0,fee-pwdFee):0;
+        const displayFee=Math.max(0,fee-mPwdDisc)+(lostTicket?50:0);
+        return(
+          <div className="ov" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+            <div className="mo">
+              <div className="mh"><h2>🏁 Vehicle Check Out</h2><p>{LOCS.find(l=>l.id===sel.locId)?.name} · Slot #{sel.number}</p></div>
+              <div className="mb">
+                <div className="ir"><span className="ik">Ticket #</span><span className="iv" style={{color:"#7c3aed"}}>{sel.vehicle.ticketNo||"—"}</span></div>
+                <div className="ir"><span className="ik">Plate</span><span className="iv">{sel.vehicle.plate}</span></div>
+                <div className="ir"><span className="ik">Name</span><span className="iv">{sel.vehicle.name}</span></div>
+                <div className="ir"><span className="ik">Type</span><span className="iv">{vt?.icon} {vt?.label}</span></div>
+                <div className="ir"><span className="ik">Checked In By</span><span className="iv" style={{color:"#7c3aed"}}>{sel.vehicle.checkinBy||"—"}</span></div>
+                <div className="ir"><span className="ik">Check-in Time</span><span className="iv">{fmtDT(sel.vehicle.checkin)}</span></div>
+                <div className="ir"><span className="ik">Duration</span><span className="iv">{dur}</span></div>
+                <div className="fg" style={{marginTop:8}}>
+                  <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",background:lostTicket?"#fee2e2":"#f6f7fc",border:"1.5px solid "+(lostTicket?"#fca5a5":"var(--bd)"),borderRadius:9,padding:"10px 13px",transition:"all .15s"}}>
+                    <input type="checkbox" checked={lostTicket} onChange={e=>{setLostTicket(e.target.checked);}} style={{width:18,height:18,cursor:"pointer",accentColor:"#ef4444"}}/>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:13,color:lostTicket?"#dc2626":"var(--tx)"}}>🎫 Lost Parking Ticket</div>
+                      <div style={{fontSize:11,color:lostTicket?"#dc2626":"var(--mu)"}}>Dagdag na ₱50.00 lost ticket fee</div>
+                    </div>
+                    {lostTicket&&<span style={{marginLeft:"auto",fontFamily:"'Space Mono',monospace",fontWeight:700,color:"#dc2626",fontSize:13}}>+₱50</span>}
+                  </label>
+              <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",background:pwdSc?"#e0e7ff":"#f6f7fc",border:"1.5px solid "+(pwdSc?"#a5b4fc":"var(--bd)"),borderRadius:9,padding:"10px 13px",marginTop:8,transition:"all .15s"}}>
+                <input type="checkbox" checked={pwdSc} onChange={e=>setPwdSc(e.target.checked)} style={{width:18,height:18,cursor:"pointer",accentColor:"#4f46e5"}}/>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13,color:pwdSc?"#3730a3":"var(--tx)"}}>♿ PWD / Senior Citizen</div>
+                  <div style={{fontSize:11,color:pwdSc?"#3730a3":"var(--mu)"}}>First 3 hours FREE — Taytay ordinance (present valid ID)</div>
+                </div>
+                {pwdSc&&mPwdDisc>0&&<span style={{marginLeft:"auto",fontFamily:"'Space Mono',monospace",fontWeight:700,color:"#3730a3",fontSize:13}}>-₱{mPwdDisc}</span>}
+              </label>
+                </div>
+                <div className="fb"><div className="fbl">Total Fee</div><div className="fbv">{P(displayFee)}</div><div className="fbn">{overnight?"🌙 Overnight rate (10PM–7AM)":"Regular rate applied"}{pwdSc&&!overnight?" · ♿ PWD/SC first 3hrs free":""}{pwdSc&&overnight?" · ♿ PWD/SC: first 3 regular hrs free (overnight windows charged)":""}{lostTicket?" · +₱50 Lost Ticket Fee":""}</div></div>
+                <div className="phint">🖨️ Payment receipt will print automatically.</div>
+              </div>
+              <div className="mf">
+                <button className="btn bg" onClick={()=>{setModal(null);setLostTicket(false);setPwdSc(false);}}>Cancel</button>
+                <button className="btn bg" style={{background:"#eef2ff",color:"#3730a3",border:"1px solid #c7d2fe",flex:"none",padding:"9px 11px"}} title="Reprint check-in ticket" onClick={()=>printThermal({isCheckIn:true,ticketNo:sel.vehicle.ticketNo||"—",plate:sel.vehicle.plate,name:sel.vehicle.name,vtype:sel.vehicle.vtype,locName:LOCS.find(l=>l.id===sel.locId)?.name,slotNum:sel.number,checkin:sel.vehicle.checkin,cashierName:user.name})}>🖨️ Reprint Ticket</button>
+                {(user?.role==="admin"||user?.role==="cashier")&&<button className="btn" style={{background:"#fee2e2",color:"#991b1b",border:"1px solid #fca5a5"}} onClick={()=>setModal("void")}>⚠️ Void</button>}
+                <button className="btn bd2" onClick={doCheckout} disabled={processing}>{processing&&<span className="spin"/>}{processing?"Processing…":"Confirm & Print Receipt"}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MODAL: REVERT CHECKOUT */}
+      {revertTxn&&(
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&!reverting&&setRevertTxn(null)}>
+          <div className="mo">
+            <div className="mh"><h2>🛠️ Fix Transaction</h2><p>Piliin ang tamang correction para sa maling checkout</p></div>
+            <div className="mb">
+              <div style={{background:"#f5f3ff",border:"1.5px solid #ddd6fe",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+                <div style={{fontFamily:"'Space Mono',monospace",fontWeight:900,fontSize:18}}>{revertTxn.plate}</div>
+                <div style={{fontSize:12,color:"var(--mu)",marginTop:4}}>
+                  {revertTxn.ticket_no} · {VT[revertTxn.vtype]?.icon} {VT[revertTxn.vtype]?.label} · {LOCS.find(l=>l.id===revertTxn.loc_id)?.name} Slot #{revertTxn.slot_number}
+                </div>
+                <div style={{fontSize:12,color:"var(--mu)",marginTop:2}}>Fee na mabubura: <b style={{color:"#dc2626"}}>{P(revertTxn.fee||0)}</b> · Out by {revertTxn.cashier||"—"}</div>
+              </div>
+              <div className="phint" style={{background:"#fff8e1",borderColor:"#fcd34d",color:"#92400e",marginBottom:8}}>↩️ <b>Revert to Slot</b> — namali ng out, nandyan pa ang sasakyan. Buburahin ang transaction at ibabalik sa slot (same ticket at time in). Kung occupied na ang slot, ililipat sa unang free slot.</div>
+              <div className="phint" style={{background:"#e0e7ff",borderColor:"#a5b4fc",color:"#3730a3"}}>♿ <b>Apply PWD/SC</b> — nakalimutan i-apply ang first-3-hrs-free discount. Ire-recompute ang fee, mananatili ang transaction, at i-re-refund ng cashier ang sobra sa customer.{revertTxn.overnight?" 🌙 Overnight: first 3 regular hrs pa rin ang libre — overnight windows babayaran.":""}</div>
+              <div style={{marginTop:8,background:"#fef2f2",border:"1.5px solid #fecaca",borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap"}}>
+                <div style={{fontSize:12,color:"#991b1b"}}>🗑️ <b>Duplicate o maling record?</b> Buburahin lang ang transaction — hindi gagalawin ang slot.</div>
+                <button className="btn" style={{background:delArm?"#dc2626":"#fee2e2",color:delArm?"#fff":"#991b1b",border:"1px solid "+(delArm?"#dc2626":"#fca5a5"),padding:"6px 12px",fontSize:12}} onClick={doDeleteRecord} disabled={reverting}>{delArm?"⚠️ Click ulit para burahin":"🗑️ Delete Record"}</button>
+              </div>
+            </div>
+            <div className="mf">
+              <button className="btn bg" onClick={()=>setRevertTxn(null)} disabled={reverting}>Cancel</button>
+              <button className="btn" style={{background:"#4f46e5",color:"#fff",border:"none"}} onClick={doApplyPwd} disabled={reverting||(revertTxn.notes&&revertTxn.notes.includes("PWD_SC_EXEMPT"))}>{reverting?"…":"♿ Apply PWD/SC"}</button>
+              <button className="btn" style={{background:"#6d28d9",color:"#fff",border:"none"}} onClick={doRevert} disabled={reverting}>{reverting&&<span className="spin"/>}{reverting?"Processing…":"↩️ Revert to Slot"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RECEIPT */}
+      {modal==="receipt"&&receipt&&(
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+          <div className="mo">
+            <div className="mh"><h2>✅ Check Out Complete</h2><p>Taytay Doctors Multispecialty Hospital</p></div>
+            <div className="mb">
+              <div className="rch"><div className="rct">Payment Receipt</div><div className="rcd">{new Date().toLocaleString("en-PH")}</div></div>
+              <div className="tkb"><div style={{fontSize:20}}>🎫</div><div><div className="tkl">Ticket Number</div><div className="tkn">{receipt.ticketNo}</div></div></div>
+              <div style={{marginTop:10}}>
+                <div className="ir"><span className="ik">Plate No.</span><span className="iv">{receipt.v.plate}</span></div>
+                <div className="ir"><span className="ik">Name</span><span className="iv">{receipt.v.name}</span></div>
+                <div className="ir"><span className="ik">Vehicle</span><span className="iv">{VT[receipt.v.vtype]?.icon} {VT[receipt.v.vtype]?.label}</span></div>
+                <div className="ir"><span className="ik">Location</span><span className="iv">{receipt.loc?.name}</span></div>
+                <div className="ir"><span className="ik">Slot #</span><span className="iv">{receipt.slot.number}</span></div>
+                <div className="ir"><span className="ik">Time In</span><span className="iv">{fmtDT(receipt.v.checkin)}</span></div>
+                <div className="ir"><span className="ik">Duration</span><span className="iv">{receipt.dur}</span></div>
+                <div className="ir"><span className="ik">Checked In By</span><span className="iv">{receipt.v.checkinBy||"—"}</span></div>
+                <div className="ir"><span className="ik">Checked Out By</span><span className="iv">{user.name}</span></div>
+              </div>
+              <div className="fb"><div className="fbl">Amount Paid</div><div className="fbv">{P(receipt.fee)}</div><div className="fbn">{receipt.overnight?"🌙 Overnight rate":"Regular hourly rate"}</div></div>
+            </div>
+            <div className="mf">
+              <button className="btn bg" onClick={()=>printThermal({isCheckIn:false,ticketNo:receipt.ticketNo,plate:receipt.v.plate,name:receipt.v.name,vtype:receipt.v.vtype,locName:receipt.loc?.name,slotNum:receipt.slot.number,checkin:receipt.v.checkin,fee:receipt.fee,dur:receipt.dur,overnight:receipt.overnight,cashierName:user.name})}>🖨️ Reprint</button>
+              <button className="btn bp" onClick={()=>setModal(null)}>Done ✓</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div></>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(TDMHParking));
+</script>
+
+<script type="application/javascript">
+// ─── PWA MANIFEST (injected inline) ─────────────────────────────────────────
+const manifest = {
+  name: "TDMH Parking System",
+  short_name: "TDMH Parking",
+  description: "Taytay Doctors Multispecialty Hospital — Parking Management System",
+  start_url: "/",
+  display: "standalone",
+  orientation: "any",
+  background_color: "#1b1c33",
+  theme_color: "#1b1c33",
+  icons: [
+    {
+      src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%230f172a'/><text y='.82em' font-size='380' x='66'>🏥</text></svg>",
+      sizes: "512x512",
+      type: "image/svg+xml",
+      purpose: "any maskable"
+    }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type:"application/json"});
+const manifestURL = URL.createObjectURL(blob);
+document.getElementById("pwa-manifest").setAttribute("href", manifestURL);
+
+// Service Worker disabled — blob: URL not supported in hosted environments
+
+// ─── INSTALL BANNER ──────────────────────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  showInstallBanner();
+});
+
+function showInstallBanner(){
+  if(document.getElementById("pwa-banner")) return;
+  const banner = document.createElement("div");
+  banner.id = "pwa-banner";
+  banner.innerHTML = `
+    <div style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:9999;background:#1b1c33;border:1px solid #334155;border-radius:14px;padding:13px 18px;display:flex;align-items:center;gap:13px;box-shadow:0 8px 32px rgba(0,0,0,.5);max-width:360px;width:calc(100vw - 32px);font-family:'Hanken Grotesk',sans-serif;animation:pwaSlide .35s ease">
+      <div style="font-size:28px;flex-shrink:0">🏥</div>
+      <div style="flex:1;min-width:0">
+        <div style="color:#eef2ff;font-size:13px;font-weight:700;line-height:1.3">Install TDMH Parking</div>
+        <div style="color:#64748b;font-size:11px;margin-top:2px">Add to home screen for quick access</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-shrink:0">
+        <button onclick="installPWA()" style="padding:8px 14px;border-radius:8px;border:none;background:linear-gradient(135deg,#4338ca,#4f46e5);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Install</button>
+        <button onclick="document.getElementById('pwa-banner').remove()" style="padding:8px 10px;border-radius:8px;border:1px solid #334155;background:transparent;color:#64748b;font-size:12px;cursor:pointer;font-family:inherit">✕</button>
+      </div>
+    </div>
+    <style>@keyframes pwaSlide{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}</style>
+  `;
+  document.body.appendChild(banner);
+}
+
+window.installPWA = async function(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const {outcome} = await deferredPrompt.userChoice;
+  console.log("PWA install:", outcome);
+  deferredPrompt = null;
+  const b = document.getElementById("pwa-banner");
+  if(b) b.remove();
+};
+
+window.addEventListener("appinstalled", () => {
+  console.log("✅ TDMH Parking installed as PWA");
+  const b = document.getElementById("pwa-banner");
+  if(b) b.remove();
+});
+</script>
+</body>
+</html>
