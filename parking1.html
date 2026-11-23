@@ -340,9 +340,10 @@ body{font-family:'Atkinson Hyperlegible',system-ui,-apple-system,sans-serif;back
 .rcd{font-size:12.5px;color:var(--mu);margin-top:2px}
 .emp{text-align:center;padding:32px 20px;color:var(--mu)}
 .emp .ei{font-size:40px;margin-bottom:8px}.emp p{font-size:14px}
-.rpl3{display:grid;grid-template-columns:255px 1fr;gap:14px;align-items:start}
+.rpl3{display:grid;grid-template-columns:255px minmax(0,1fr);gap:14px;align-items:start}
 @media(max-width:720px){.rpl3{grid-template-columns:1fr}}
-.rsb{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:15px;box-shadow:var(--sh);position:sticky;top:14px}
+.rsb{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:15px;box-shadow:var(--sh);position:sticky;top:14px;min-width:0}
+.di{min-width:0}
 .rsb h3{font-size:15px;font-weight:700;margin-bottom:13px}
 .rsec{margin-bottom:15px}
 .rst{font-size:13px;font-weight:700;color:var(--mu);margin-bottom:7px}
@@ -356,19 +357,20 @@ body{font-family:'Atkinson Hyperlegible',system-ui,-apple-system,sans-serif;back
 .rchk{display:flex;flex-direction:column;gap:7px}
 .rck{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:14px;color:var(--tx)}
 .rck input{width:18px;height:18px;cursor:pointer;accent-color:var(--ac)}
-.rmain{display:flex;flex-direction:column;gap:13px}
+.rmain{display:flex;flex-direction:column;gap:13px;min-width:0}
 .rkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-.rkpi{background:var(--s);border:1px solid var(--bd);border-left:6px solid var(--kc,#3949AB);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh)}
+.rkpi{background:var(--s);border:1px solid var(--bd);border-left:6px solid var(--kc,#3949AB);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh);min-width:0}
+.rkpi .kl,.rkpi .ks{overflow-wrap:break-word}
 .kl{font-size:13px;color:var(--mu);font-weight:700;margin-bottom:3px}
 .kv{font-size:clamp(19px,2.8vw,25px);font-weight:700;color:var(--kc,var(--tx));line-height:1.1;font-variant-numeric:tabular-nums}
 .ks{font-size:12.5px;color:var(--tx2);margin-top:3px}
-.rcc{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:15px;box-shadow:var(--sh)}
+.rcc{background:var(--s);border:1px solid var(--bd);border-radius:var(--r);padding:15px;box-shadow:var(--sh);min-width:0;overflow:hidden}
 .rcc h4{font-size:15px;font-weight:700;margin-bottom:12px}
 .cbg{display:flex;flex-direction:column;gap:5px}
 .cbr{display:grid;grid-template-columns:78px 1fr 66px;align-items:center;gap:8px}
 .cbl{font-size:13px;color:var(--tx2);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cbt{height:20px;background:var(--bg);border-radius:999px;overflow:hidden}
-.cbf{height:100%;border-radius:999px;display:flex;align-items:center;padding-left:9px;font-size:11.5px;font-weight:700;color:#fff;transition:width .6s ease;min-width:4px}
+.cbf{height:100%;border-radius:999px;display:flex;align-items:center;padding-left:9px;font-size:11.5px;font-weight:700;color:#fff;transition:width .6s ease;min-width:4px;white-space:nowrap;overflow:hidden}
 .cbv{font-size:13px;font-weight:700;color:var(--green);text-align:right;font-variant-numeric:tabular-nums}
 .dc2{display:flex;flex-direction:column;gap:5px}
 .dr{display:grid;grid-template-columns:84px 1fr 68px;align-items:center;gap:8px}
@@ -382,9 +384,9 @@ body{font-family:'Atkinson Hyperlegible',system-ui,-apple-system,sans-serif;back
 .dgleg{display:flex;flex-direction:column;gap:7px}
 .dli{display:flex;align-items:center;gap:8px;font-size:13px}
 .dld{width:11px;height:11px;border-radius:50%;flex-shrink:0}.dll{color:var(--tx2)}
-.hml{display:grid;grid-template-columns:42px repeat(7,1fr);gap:4px;margin-bottom:4px}
+.hml{display:grid;grid-template-columns:42px repeat(7,minmax(34px,1fr));gap:4px;margin-bottom:4px;min-width:340px}
 .hmd{font-size:12px;color:var(--mu);text-align:center;font-weight:700}
-.hmrow{display:grid;grid-template-columns:42px repeat(7,1fr);gap:4px;margin-bottom:4px}
+.hmrow{display:grid;grid-template-columns:42px repeat(7,minmax(34px,1fr));gap:4px;margin-bottom:4px;min-width:340px}
 .hmhl{font-size:11.5px;color:var(--mu);display:flex;align-items:center;justify-content:flex-end;padding-right:4px}
 .hmc{height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
 .rtbl{width:100%;border-collapse:collapse}
