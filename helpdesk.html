@@ -2060,6 +2060,8 @@ async function viewTicket(ticketId) {
   if (hasDerp) {
     footer += '<div style="font-size:11px;color:var(--red);padding:4px 8px;background:var(--red-a);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">🚫 Converted to DERP'
       + (derpLink ? ' — ' + derpLink.request_no : '') + '</div>'
+  } else if (String(t.retirement_reason || '').startsWith('DISPOSE_ONLY')) {
+    footer += '<div style="font-size:11px;color:var(--txt2);padding:4px 8px;background:var(--surf3);border-radius:8px;display:inline-flex;align-items:center;gap:4px;">🗑️ Disposed — no replacement</div>'
   }
 
   // Work actions (Start/Resolve/Hold/etc.) — ONLY the assigned technician, or a
@@ -2945,7 +2947,13 @@ async function convertToDerp(ticketId) {
   document.getElementById('confirmTitle').textContent = '🚫 Convert to DERP'
   document.getElementById('confirmMsg').innerHTML =
     '<div style="display:flex;flex-direction:column;gap:10px;">' +
-    '<p style="font-size:13px;color:var(--txt2);">Gagawa ito ng <strong>DERP request</strong> sa CSR para sa equipment na hindi na kayang ayusin. Isasara ang ticket na ito at ilalagay ang link sa DERP.</p>' +
+    '<div style="font-size:11px;font-weight:600;color:var(--txt2);">WHAT HAPPENS TO THE EQUIPMENT? *</div>' +
+    '<label class="derp-choice" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--bdr2);border-radius:10px;cursor:pointer;background:var(--surf2);">' +
+      '<input type="radio" name="derp_action" value="replace" checked onchange="onDerpActionToggle()" style="margin-top:3px;accent-color:var(--accent);">' +
+      '<div><div style="font-size:13px;font-weight:700;">🔄 Replace it</div><div style="font-size:11.5px;color:var(--txt2);">Creates a DERP request in CSR so a replacement is bought. The ticket closes and links to the DERP.</div></div></label>' +
+    '<label class="derp-choice" style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--bdr2);border-radius:10px;cursor:pointer;background:var(--surf2);">' +
+      '<input type="radio" name="derp_action" value="dispose" onchange="onDerpActionToggle()" style="margin-top:3px;accent-color:var(--red);">' +
+      '<div><div style="font-size:13px;font-weight:700;">🗑️ Dispose only, no replacement</div><div style="font-size:11.5px;color:var(--txt2);">For things nobody needs replaced. Nothing goes to CSR: the item is tagged for disposal and the ticket closes.</div></div></label>' +
     '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">DEPARTMENT * <span style="font-weight:400;color:var(--txt3);">(kung kaninong dept ang equipment)</span></label>' +
     '<select id="derp_dept" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">' +
     (S.departments || []).slice().sort((a,b)=>(a.dept_name||'').localeCompare(b.dept_name||'')).map(d =>
@@ -2954,12 +2962,13 @@ async function convertToDerp(ticketId) {
     '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">CONDITION *</label>' +
     '<select id="derp_condition" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">' +
     '<option value="beyond_repair">Beyond Repair — hindi na kayang ayusin</option>' +
-    '<option value="poor">Poor — sira na, mahal ang repair</option>' +
+    '<option value="poor" id="derp_opt_poor">Poor — sira na, mahal ang repair</option>' +
     '<option value="obsolete">Obsolete — luma na, walang parts</option>' +
     '<option value="end_of_life">End of Life — lampas na sa useful life</option>' +
     '</select></div>' +
     '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">FINDINGS / REASON *</label>' +
     '<textarea id="derp_findings" rows="3" placeholder="Ano ang nakita mo? (hal. burnt motherboard, walang available na parts, mas mahal ang repair kaysa bago)" style="width:100%;padding:8px;background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></textarea></div>' +
+    '<div id="derp_replace_box">' +
     (t.asset_id
       ? '<div style="font-size:11px;color:var(--txt2);background:var(--surf2);padding:8px 10px;border-radius:8px;border:1px solid var(--bdr2);">🏷️ May naka-link na asset — awtomatikong kukunin ang brand, model, at presyo nito para sa replacement request.</div>'
       : '<div style="background:var(--surf2);border:1px solid var(--bdr2);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;">' +
@@ -2972,12 +2981,28 @@ async function convertToDerp(ticketId) {
         '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">DAMI</label>' +
         '<input type="number" id="derp_item_qty" value="1" min="1" style="width:100px;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;"></div>' +
         '</div>') +
+    '</div>' +
+    '<div id="derp_dispose_box" style="display:none;background:var(--red-a);border:1px solid var(--red);border-radius:8px;padding:10px;flex-direction:column;gap:8px;">' +
+      (t.asset_id
+        ? '<div style="font-size:11.5px;color:var(--txt2);">🏷️ The linked asset will be tagged <strong>For Disposal</strong> in Inventory. The Inventory admin issues the disposal certificate once it is actually disposed.</div>'
+        : '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">ITEM BEING DISPOSED *</label>' +
+          '<input type="text" id="derp_disp_item" placeholder="hal. Old CRT monitor, sirang mouse" style="' + 'width:100%;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;' + '"></div>' +
+          '<div style="font-size:11.5px;color:var(--txt2);">No asset is linked, so a disposal certificate is recorded right away (Inventory → Disposals).</div>') +
+      '<div class="field"><label style="font-size:11px;font-weight:600;color:var(--txt2);display:block;margin-bottom:4px;">DISPOSAL METHOD</label>' +
+      '<select id="derp_disp_method" style="width:100%;padding:8px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:8px;color:var(--txt);font-family:inherit;font-size:13px;">' +
+        '<option value="condemned">Condemned (throw away / e-waste)</option><option value="sold">Sold as scrap</option><option value="donated">Donated</option><option value="archived">Archived / stored</option><option value="transferred_out">Returned to vendor / transferred out</option>' +
+      '</select></div>' +
+    '</div>' +
     '</div>'
   document.getElementById('confirmOkBtn').textContent = '🚫 Create DERP'
+  document.getElementById('confirmOkBtn').disabled = false
   document.getElementById('confirmOkBtn').onclick = async () => {
     const condition = document.getElementById('derp_condition')?.value
     const findings = document.getElementById('derp_findings')?.value.trim()
     if (!findings) { showToast('error','Required','Please describe your findings.'); return }
+    if (document.querySelector('input[name="derp_action"]:checked')?.value === 'dispose') {
+      return disposeOnlyFromTicket(t, condition, findings)
+    }
 
     // When no asset is linked, the technician tells us WHAT to replace.
     // Price is deliberately NOT asked — the system derives it from purchase history.
@@ -3129,6 +3154,106 @@ async function convertToDerp(ticketId) {
     }
   }
   openModal('confirmModal')
+}
+
+// Convert to DERP window: switch between "Replace it" and "Dispose only"
+function onDerpActionToggle() {
+  const dispose = document.querySelector('input[name="derp_action"]:checked')?.value === 'dispose'
+  const rb = document.getElementById('derp_replace_box'), db = document.getElementById('derp_dispose_box')
+  if (rb) rb.style.display = dispose ? 'none' : ''
+  if (db) db.style.display = dispose ? 'flex' : 'none'
+  // "Poor" means still repairable → only meaningful for the replace/repair path
+  const poor = document.getElementById('derp_opt_poor'), cond = document.getElementById('derp_condition')
+  if (poor) { poor.disabled = dispose; if (dispose && cond && cond.value === 'poor') cond.value = 'beyond_repair' }
+  const ok = document.getElementById('confirmOkBtn')
+  if (ok) ok.textContent = dispose ? '🗑️ Dispose (no replacement)' : '🚫 Create DERP'
+}
+
+// DISPOSE ONLY — equipment is finished and nobody needs a replacement.
+// Nothing is sent to CSR (no requests row, no source_ref_id, retirement_recommended stays false,
+// so fn_it_ticket_to_csr does nothing). The ticket is closed and marked with retirement_reason
+// 'DISPOSE_ONLY: …'. Linked asset → For Disposal (Inventory admin issues the certificate when it
+// is physically disposed). No linked asset → a disposal certificate is recorded right away.
+async function disposeOnlyFromTicket(t, condition, findings) {
+  const method = document.getElementById('derp_disp_method')?.value || 'condemned'
+  const itemName = (document.getElementById('derp_disp_item')?.value || '').trim()
+  if (!t.asset_id && !itemName) { showToast('error','Required','Anong item ang ide-dispose? Pakilagay.'); return }
+  const btn = document.getElementById('confirmOkBtn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving...' }
+  const now = new Date().toISOString()
+  const condLabel = (condition || '').replace(/_/g,' ')
+  const methodLabel = { condemned:'condemned', sold:'sold as scrap', donated:'donated', archived:'archived', transferred_out:'returned / transferred out' }[method] || method
+  try {
+    // 1) Close the ticket (no CSR link)
+    const { data: updRows, error: updErr } = await SB.from('it_tickets').update({
+      status: 'closed', closed_at: now, resolved_at: t.resolved_at || now,
+      retirement_reason: 'DISPOSE_ONLY: ' + findings,
+      updated_at: now
+    }).eq('id', t.id).select()
+    if (updErr) throw updErr
+    if (!updRows || !updRows.length) throw new Error('Ticket was not updated (check for open parts requests).')
+
+    // 2) Asset / disposal record
+    let certNo = null
+    if (t.asset_id) {
+      try {
+        await SB.from('assets').update({
+          status: 'for_disposal',
+          condition: (condition === 'obsolete' || condition === 'end_of_life') ? 'poor' : condition,
+          updated_at: now
+        }).eq('id', t.asset_id)
+        await SB.from('asset_history').insert({
+          asset_id: t.asset_id, action: 'derp_flagged', to_value: 'for_disposal',
+          performed_by: S.user.id, reference_type: 'it_ticket', reference_id: t.id,
+          notes: 'Dispose only, no replacement (' + methodLabel + ') — IT ticket ' + t.id + ': ' + findings
+        })
+      } catch (_) { /* non-critical */ }
+    } else {
+      try {
+        const { data: num } = await SB.rpc('generate_disposal_no')
+        certNo = num || ('DSP-' + Date.now())
+        const { error: cErr } = await SB.from('disposal_certificates').insert({
+          cert_no: certNo, asset_id: null, disposal_method: method,
+          reason: itemName + ' — ' + condLabel + ': ' + findings,
+          disposed_by: S.user.id, disposal_date: now.split('T')[0],
+          notes: 'Dispose only, no replacement. From IT ticket ' + t.id + (t.subject ? ' (' + t.subject + ')' : '')
+        })
+        if (cErr) { certNo = null; console.warn('disposal cert', cErr) }
+      } catch (_) { certNo = null }
+    }
+
+    // 3) Ticket thread
+    try {
+      await SB.from('it_ticket_replies').insert({
+        ticket_id: t.id, author_id: S.user.id, is_internal: false,
+        body: '🗑️ Dispose only, no replacement (' + condLabel + ', ' + methodLabel + ')' +
+          (itemName ? ' — ' + itemName : '') + (certNo ? '. Disposal certificate ' + certNo : '') + '.\n' + findings
+      })
+    } catch (_) {}
+
+    // 4) Tell the requester + department heads
+    try {
+      const ids = new Set()
+      if (t.requester_id) ids.add(t.requester_id)
+      if (t.dept_id) {
+        const { data: heads } = await SB.from('dept_heads').select('user_id').eq('dept_id', t.dept_id)
+        ;(heads || []).forEach(h => ids.add(h.user_id))
+      }
+      ids.delete(S.user.id)
+      if (ids.size) await sendNotification(Array.from(ids),
+        '🗑️ Equipment for disposal — ' + t.id,
+        'Hindi na maaayos ang equipment sa ticket ' + t.id + ' at ide-dispose na (' + methodLabel + '). Walang kapalit na bibilhin. ' + findings,
+        'info', 'it', 'it_ticket', t.id, null)
+    } catch (_) {}
+
+    if (btn) btn.disabled = false
+    closeModal('confirmModal')
+    showToast('success','Disposed ✅', 'Ticket closed — no replacement, nothing sent to CSR.' + (certNo ? ' Certificate ' + certNo + '.' : t.asset_id ? ' Asset tagged For Disposal.' : ''))
+    try { await loadTickets(); viewTicket(t.id) } catch (_) {}
+  } catch (e) {
+    showToast('error','Error', e.message || 'Not saved.')
+    if (btn) { btn.disabled = false; btn.textContent = '🗑️ Dispose (no replacement)' }
+  }
 }
 
 // ─── Feature 7: SLA Escalation ───
