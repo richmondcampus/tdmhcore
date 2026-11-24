@@ -442,6 +442,19 @@ tr:hover td{background:var(--surf2);}
 .tl-title{font-size:13px;font-weight:600;}
 .tl-sub{font-size:12px;color:var(--txt2);margin-top:2px;}
 
+/* Issuance Report: timeline */
+.irtl-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px;margin-bottom:14px;}
+.irtl-chip{background:var(--surf1);border:1px solid var(--bdr2);border-radius:10px;padding:9px 11px;}
+.irtl-chip .k{font-size:10.5px;color:var(--txt3);font-weight:600;letter-spacing:.2px;}
+.irtl-chip .v{font-size:17px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums;}
+.irtl-chip .m{font-size:10.5px;color:var(--txt3);margin-top:1px;}
+.irtl-chip.total{border-color:var(--accent);background:var(--accent-a);}
+.irtl-chip.slow .v{color:var(--red);}
+.irtl-gap{display:inline-block;font-size:11px;font-weight:600;color:var(--txt2);background:var(--surf3);border-radius:6px;padding:1px 7px;margin-left:6px;}
+.irtl-gap.slow{color:var(--red);background:var(--red-a);}
+.irtl-btn{padding:3px 9px;font-size:11.5px;border-radius:7px;border:1px solid var(--bdr2);background:var(--surf2);color:var(--txt);cursor:pointer;white-space:nowrap;}
+.irtl-btn:hover{border-color:var(--accent);color:var(--accent);}
+
 /* Approval stepper */
 .stepper{display:flex;align-items:center;gap:0;margin:20px 0;}
 .step{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;}
@@ -758,6 +771,16 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
 </div>
 
 <!-- Confirm Modal -->
+<div class="modal-overlay" id="issTimelineModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h3 id="issTimelineTitle">⏱ Timeline</h3>
+      <button class="modal-close" onclick="closeModal('issTimelineModal')">✕</button>
+    </div>
+    <div class="modal-body" id="issTimelineBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="confirmModal">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header">
@@ -11639,9 +11662,21 @@ async function renderIssuanceReport() {
   const reqIds = [...new Set(issuances.map(i => i.request_id).filter(Boolean))]
   const reqById = {}
   if (reqIds.length) {
-    const reqs = await lookupByIds('requests', 'id,request_no,dept_id', reqIds)
+    const reqs = await lookupByIds('requests', 'id,request_no,dept_id,created_at,requested_by,po_approved_at,po_approved_by', reqIds)
     reqs.forEach(r => reqById[r.id] = r)
   }
+
+  // Timeline data: approvals of each request + purchase orders (After PO issuances)
+  const apprByReq = {}, poById = {}
+  try {
+    const poIds = [...new Set(issuances.map(i => i.po_id).filter(Boolean))]
+    const [apprs, pos] = await Promise.all([
+      sbInChunks('approvals', 'id,request_id,level,decision,decided_at,approver_id,remarks', 'request_id', reqIds, 150),
+      sbInChunks('purchase_orders', 'id,po_number,request_id,supplier_name,created_at,sent_at,received_at,received_by,partial_delivery,status', 'id', poIds, 150)
+    ])
+    apprs.forEach(a => (apprByReq[a.request_id] = apprByReq[a.request_id] || []).push(a))
+    pos.forEach(po => poById[po.id] = po)
+  } catch (e) { console.warn('[issuance timeline]', e) }
 
   const itemsByIss = {}
   allItems.forEach(it => { (itemsByIss[it.issuance_id] = itemsByIss[it.issuance_id] || []).push(it) })
@@ -11656,10 +11691,11 @@ async function renderIssuanceReport() {
     const issuer = state.users.find(u => u.id === iss.issued_by)
     const confirmed = !!(iss.confirmed_at || iss.online_confirmed_at)
     const items = itemsByIss[iss.id] || []
+    const tl = buildIssTimeline(iss, req, req ? (apprByReq[req.id] || []) : [], iss.po_id ? poById[iss.po_id] : null)
     if (items.length === 0) {
-      rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, null, riById, siById, 0))
+      rows.push(Object.assign(buildRptRow(iss, req, dept, receiver, issuer, confirmed, null, riById, siById, 0), { _tl: tl }))
     } else {
-      items.forEach((it, idx) => rows.push(buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById, idx)))
+      items.forEach((it, idx) => rows.push(Object.assign(buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById, idx), { _tl: tl })))
     }
   })
   issRptState.rows = rows
@@ -11697,7 +11733,7 @@ async function renderIssuanceReport() {
   html += '<input type="text" id="ir_search" placeholder="🔍 Item, ISS/CSR no., receiver..." value="'+escStk(issRptState.filters.search)+'" oninput="issRptState.filters.search=this.value;applyIssRptFilters()" style="flex:1;min-width:200px;padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;">'
   html += deptAutocompleteHtml('ir_dept', 'acPickIrDept')
   html += '<select id="ir_scenario" onchange="issRptState.filters.scenario=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="">All Types</option><option value="from_stock">📦 From Stock</option><option value="after_po">🚚 After PO</option></select>'
-  html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="confirmed"' + (issRptState.filters.status==='confirmed'?' selected':'') + '>✅ Confirmed (tapos na)</option><option value="pending"' + (issRptState.filters.status==='pending'?' selected':'') + '>⏳ Pending</option><option value=""' + (issRptState.filters.status===''?' selected':'') + '>Lahat</option></select>'
+  html += '<select id="ir_status" onchange="issRptState.filters.status=this.value;applyIssRptFilters()" style="padding:8px 12px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:13px;"><option value="confirmed"' + (issRptState.filters.status==='confirmed'?' selected':'') + '>✅ Confirmed (tapos na)</option><option value="pending"' + (issRptState.filters.status==='pending'?' selected':'') + '>⏳ Pending</option><option value="cancelled"' + (issRptState.filters.status==='cancelled'?' selected':'') + '>🚫 Cancelled</option><option value=""' + (issRptState.filters.status===''?' selected':'') + '>Lahat</option></select>'
   html += '<span style="font-size:11px;color:var(--txt3);">📅</span>'
   html += '<input type="date" id="ir_from" value="'+escStk(issRptState.filters.from)+'" onchange="issRptState.filters.from=this.value;issRptState._widened=true;renderIssuanceReport()" style="padding:7px 10px;background:var(--surf1);border:1px solid var(--bdr2);border-radius:9px;color:var(--txt);font-size:12px;">'
   html += '<span style="font-size:11px;color:var(--txt3);">→</span>'
@@ -11705,18 +11741,173 @@ async function renderIssuanceReport() {
   html += '<button class="btn btn-ghost btn-sm" onclick="clearIssRptFilters()" style="font-size:12px;">✕ Clear</button>'
   html += '</div>'
 
+  html += '<div id="irTlSummary"></div>'
   html += '<div style="font-size:12px;color:var(--txt2);margin-bottom:8px;"><span id="ir_count">'+rows.length+' item rows</span></div>'
   html += '<div class="table-wrap"><table><thead><tr>'
-  html += '<th>Issuance No.</th><th>Date</th><th>Request No.</th><th>Department</th><th>Item</th><th>Qty</th><th>Unit</th><th>From Stock</th><th>Received By</th><th>Issued By</th><th>Status</th><th>Confirmation</th>'
+  html += '<th>Issuance No.</th><th>Date Requested</th><th>Date Prepared</th><th>Date Received</th><th>Request No.</th><th>Department</th><th>Item</th><th>Qty</th><th>Unit</th><th>From Stock</th><th>Received By</th><th>Issued By</th><th>Status</th><th>Confirmation</th><th>Total Time</th><th>Timeline</th>'
   html += '</tr></thead><tbody id="irTableBody"></tbody></table></div>'
 
   content.innerHTML = html
   applyIssRptFilters()
 }
 
+function _phTime(ts) {
+  if (!ts) return ''
+  try { return new Date(ts).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }) } catch(_) { return '' }
+}
+// 'YYYY-MM-DD HH:MM' (24-hour, Manila) for Excel / CSV
+function _phDateTime(ts) {
+  if (!ts) return ''
+  try { return new Date(ts).toLocaleString('en-CA', { timeZone: 'Asia/Manila', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(',', '') } catch(_) { return String(ts).replace('T', ' ').slice(0, 16) }
+}
 function _phDate(ts) {
   if (!ts) return ''
   try { return new Date(ts).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }) } catch(_) { return String(ts).split('T')[0] }
+}
+
+// ── Issuance timeline ──────────────────────────────────────────
+// Every recorded step from the request to the department receiving the items, with how long
+// each step took. Only steps that the system really records are used (SMS / supply-check /
+// online-link confirmations are never recorded, so they are left out).
+const IR_STAGES = [
+  ['filed_dh',   'Request → Dept Head'],
+  ['dh_csr',     'Dept Head → CSR'],
+  ['csr_po',     'CSR → PO sent'],
+  ['po_deliver', 'PO → Delivery'],
+  ['to_issue',   'Wait → Issued'],
+  ['issue_recv', 'Issued → Received'],
+  ['total',      'Total (Request → Received)']
+]
+const IR_SLOW_MS = { filed_dh: 24*3600e3, dh_csr: 24*3600e3, csr_po: 3*24*3600e3, po_deliver: 14*24*3600e3, to_issue: 2*24*3600e3, issue_recv: 24*3600e3, total: 7*24*3600e3 }
+function irName(id) { const u = id && state.users.find(x => x.id === id); return u ? u.full_name : '' }
+function irTs(v) { const t = v ? new Date(v).getTime() : NaN; return isNaN(t) ? null : t }
+function irGap(a, b) { return (a != null && b != null && b >= a) ? b - a : null }
+function irDur(ms) {
+  if (ms == null) return '—'
+  const m = Math.round(ms / 60000)
+  if (m < 60) return m + ' min'
+  if (m < 24 * 60) { const h = Math.floor(m / 60), r = m % 60; return h + 'h' + (r ? ' ' + r + 'm' : '') }
+  const d = ms / 86400000
+  return (d < 10 ? d.toFixed(1) : Math.round(d)) + ' days'
+}
+function irWhen(ts) {
+  if (ts == null) return ''
+  try { return new Date(ts).toLocaleString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) } catch (_) { return new Date(ts).toISOString() }
+}
+function buildIssTimeline(iss, req, apprs, po) {
+  // Approvals can be saved twice for the same step — keep one per level/decision/minute.
+  const seen = new Set(), ap = []
+  ;(apprs || []).filter(a => a.decided_at).sort((a, b) => irTs(a.decided_at) - irTs(b.decided_at)).forEach(a => {
+    const k = a.level + '|' + a.decision + '|' + String(a.decided_at).slice(0, 16)
+    if (!seen.has(k)) { seen.add(k); ap.push(a) }
+  })
+  const dh = ap.find(a => a.level === 1 && a.decision === 'approved')
+  const csr = ap.find(a => a.level === 2 && a.decision === 'approved')
+  const returned = ap.filter(a => a.decision === 'returned')
+  const t = {
+    filed: irTs(req?.created_at),
+    dh: irTs(dh?.decided_at),
+    csr: irTs(csr?.decided_at),
+    po: po ? (irTs(po.sent_at) ?? irTs(po.created_at) ?? irTs(req?.po_approved_at)) : null,
+    delivered: irTs(po?.received_at),
+    issued: irTs(iss.issued_at),
+    received: irTs(iss.confirmed_at || iss.online_confirmed_at),
+    cancelled: irTs(iss.cancelled_at)
+  }
+  const beforeIssue = t.delivered ?? t.csr ?? t.dh ?? t.filed
+  const d = {
+    filed_dh: irGap(t.filed, t.dh),
+    dh_csr: irGap(t.dh ?? t.filed, t.csr),
+    csr_po: po ? irGap(t.csr ?? t.dh ?? t.filed, t.po) : null,
+    po_deliver: po ? irGap(t.po, t.delivered) : null,
+    to_issue: irGap(beforeIssue, t.issued),
+    issue_recv: irGap(t.issued, t.received),
+    total: iss.cancelled_at ? null : irGap(t.filed ?? t.issued, t.received)
+  }
+  const steps = []
+  if (req) steps.push({ icon: '📝', title: 'Request filed', at: t.filed, by: irName(req.requested_by), note: req.request_no || '' })
+  else steps.push({ icon: '⚡', title: 'Blank issuance (no request)', at: null, by: '', note: 'Issued directly by CSR' })
+  if (dh) steps.push({ icon: '✅', title: 'Approved by Department Head', at: t.dh, by: irName(dh.approver_id), gap: d.filed_dh, gapKey: 'filed_dh' })
+  else if (req) steps.push({ icon: '·', title: 'Department Head approval', at: null, by: '', note: 'No approval recorded (skipped or auto-approved)', muted: true })
+  if (csr) steps.push({ icon: '✅', title: 'Approved by CSR / Supply Officer', at: t.csr, by: irName(csr.approver_id), gap: d.dh_csr, gapKey: 'dh_csr' })
+  returned.forEach((a, i) => steps.push({ icon: '↩', title: 'Returned' + (returned.length > 1 ? ' (' + (i + 1) + ' of ' + returned.length + ')' : ''), at: irTs(a.decided_at), by: irName(a.approver_id), note: a.remarks || '', warn: true }))
+  if (po) {
+    steps.push({ icon: '🧾', title: 'PO sent to supplier', at: t.po, by: irName(req?.po_approved_by), note: [po.po_number, po.supplier_name].filter(Boolean).join(' · '), gap: d.csr_po, gapKey: 'csr_po' })
+    steps.push({ icon: '🚚', title: po.partial_delivery ? 'Delivery arrived at CSR (partial)' : 'Delivery arrived at CSR', at: t.delivered, by: irName(po.received_by), note: t.delivered ? '' : 'Not yet delivered', gap: d.po_deliver, gapKey: 'po_deliver', muted: !t.delivered })
+  }
+  steps.push({ icon: '📤', title: 'Issued by CSR', at: t.issued, by: irName(iss.issued_by) || irName(iss.prepared_by), note: iss.issuance_no || '', gap: d.to_issue, gapKey: 'to_issue' })
+  if (t.received) {
+    const how = iss.confirmation_method === 'photo' ? 'Photo' : (iss.online_confirmed_at || iss.confirmation_method === 'online_link') ? 'Online link' : (iss.confirmation_method || '')
+    steps.push({ icon: '📥', title: 'Received by department', at: t.received, by: iss.receiver_name || irName(iss.received_by), note: [how ? 'Confirmed by ' + how : '', iss.confirmed_by_name ? 'recorded by ' + iss.confirmed_by_name : ''].filter(Boolean).join(', '), gap: d.issue_recv, gapKey: 'issue_recv', done: true })
+  } else if (!t.cancelled) steps.push({ icon: '⏳', title: 'Not yet received', at: null, by: '', note: t.issued ? 'Waiting ' + irDur(Date.now() - t.issued) : '', muted: true })
+  if (t.cancelled) steps.push({ icon: '🚫', title: 'Cancelled', at: t.cancelled, by: irName(iss.cancelled_by), note: iss.cancel_reason || '', bad: true })
+  return { t, d, steps, returnedCount: returned.length, po, dhBy: irName(dh?.approver_id), csrBy: irName(csr?.approver_id) }
+}
+const irHrs = ms => ms == null ? null : Math.round(ms / 36000) / 100
+const irXl = ts => ts == null ? null : _phDateTime(ts)
+const IR_TL_EXPORT = [
+  ['Dept Head Approved', tl => irXl(tl.t?.dh)],
+  ['Dept Head', tl => tl.dhBy || null],
+  ['CSR Approved', tl => irXl(tl.t?.csr)],
+  ['CSR Approver', tl => tl.csrBy || null],
+  ['Times Returned', tl => tl.returnedCount || null],
+  ['PO No.', tl => tl.po?.po_number || null],
+  ['Supplier', tl => tl.po?.supplier_name || null],
+  ['PO Sent', tl => irXl(tl.t?.po)],
+  ['Delivered to CSR', tl => irXl(tl.t?.delivered)],
+  ['Cancelled', tl => irXl(tl.t?.cancelled)],
+  ['Request→Dept Head (hrs)', tl => irHrs(tl.d?.filed_dh)],
+  ['Dept Head→CSR (hrs)', tl => irHrs(tl.d?.dh_csr)],
+  ['CSR→PO Sent (hrs)', tl => irHrs(tl.d?.csr_po)],
+  ['PO→Delivery (hrs)', tl => irHrs(tl.d?.po_deliver)],
+  ['Wait→Issued (hrs)', tl => irHrs(tl.d?.to_issue)],
+  ['Issued→Received (hrs)', tl => irHrs(tl.d?.issue_recv)],
+  ['TOTAL Request→Received (days)', tl => tl.d?.total == null ? null : Math.round(tl.d.total / 8640000) / 10]
+]
+// Average / median per step for the issuances currently shown (one count per issuance)
+function renderIssTlSummary(list) {
+  const el = document.getElementById('irTlSummary'); if (!el) return
+  const seen = new Set(), tls = []
+  ;(list || []).forEach(r => { if (r._tl && !seen.has(r.issuance_no)) { seen.add(r.issuance_no); tls.push(r._tl) } })
+  if (!tls.length) { el.innerHTML = ''; return }
+  let h = '<div style="font-size:11px;font-weight:700;color:var(--txt2);letter-spacing:.4px;margin:2px 0 8px;">⏱ AVERAGE TIME PER STEP <span style="font-weight:500;color:var(--txt3);">· ' + tls.length + ' issuance' + (tls.length > 1 ? 's' : '') + ' in this view · median in small text</span></div><div class="irtl-sum">'
+  IR_STAGES.forEach(([k, label]) => {
+    const v = tls.map(t => t.d[k]).filter(x => x != null).sort((a, b) => a - b)
+    if (!v.length) return
+    const avg = v.reduce((a, b) => a + b, 0) / v.length, med = v[Math.floor(v.length / 2)]
+    h += '<div class="irtl-chip' + (k === 'total' ? ' total' : '') + (avg > IR_SLOW_MS[k] ? ' slow' : '') + '" title="' + v.length + ' issuances with this step"><div class="k">' + label + '</div><div class="v">' + irDur(avg) + '</div><div class="m">median ' + irDur(med) + ' · ' + v.length + '</div></div>'
+  })
+  el.innerHTML = h + '</div>'
+}
+function openIssTimeline(issNo) {
+  const row = (issRptState.rows || []).find(r => r.issuance_no === issNo)
+  if (!row || !row._tl) return
+  const tl = row._tl
+  document.getElementById('issTimelineTitle').textContent = '⏱ ' + issNo + (row.department ? ' · ' + row.department : '')
+  let b = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">'
+  b += '<span class="badge" style="font-size:12px;">' + escStk(row.request_no || '') + '</span>'
+  b += '<span class="badge" style="font-size:12px;">' + (row.scenario === 'after_po' ? '🚚 After PO' : row.scenario === 'from_stock' ? '📦 From Stock' : escStk(row.scenario || '')) + '</span>'
+  if (tl.d.total != null) b += '<span class="badge" style="font-size:12px;background:var(--accent-a);color:var(--accent);">Total: ' + irDur(tl.d.total) + '</span>'
+  b += '</div><div class="timeline">'
+  tl.steps.forEach(st => {
+    const cls = st.bad ? 'rejected' : st.done ? 'done' : st.muted ? '' : 'active'
+    const col = st.warn ? 'var(--amber)' : st.bad ? 'var(--red)' : st.muted ? 'var(--txt3)' : ''
+    b += '<div class="timeline-item"><div class="tl-dot ' + cls + '"' + (st.warn ? ' style="background:var(--amber-a,rgba(240,200,56,.15));border-color:var(--amber);"' : '') + '>' + st.icon + '</div><div class="tl-content">'
+    b += '<div class="tl-title"' + (col ? ' style="color:' + col + ';"' : '') + '>' + escStk(st.title)
+    if (st.gap != null) b += '<span class="irtl-gap' + (st.gap > (IR_SLOW_MS[st.gapKey] || Infinity) ? ' slow' : '') + '" title="Time since the previous step">+' + irDur(st.gap) + '</span>'
+    b += '</div><div class="tl-sub">' + [st.at != null ? irWhen(st.at) : '', st.by ? escStk(st.by) : ''].filter(Boolean).join(' · ') + '</div>'
+    if (st.note) b += '<div style="font-size:12px;color:var(--txt2);margin-top:3px;">' + escStk(st.note) + '</div>'
+    b += '</div></div>'
+  })
+  b += '</div>'
+  // Items in this issuance
+  const items = (issRptState.rows || []).filter(r => r.issuance_no === issNo && r.item && r.item !== '—')
+  if (items.length) {
+    b += '<div style="margin-top:18px;font-size:11px;font-weight:700;color:var(--txt2);letter-spacing:.4px;">ITEMS (' + items.length + ')</div><div style="font-size:12.5px;margin-top:6px;line-height:1.7;">'
+    b += items.map(r => '• ' + escStk(r.item) + ' — ' + escStk(String(r.qty)) + ' ' + escStk(r.unit || '')).join('<br>') + '</div>'
+  }
+  document.getElementById('issTimelineBody').innerHTML = b
+  openModal('issTimelineModal')
 }
 
 function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, siById, itemIdx) {
@@ -11736,6 +11927,13 @@ function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, si
     _itemIdx: itemIdx || 0,
     date: _phDate(iss.issued_at),
     dateReceived: _phDate(iss.confirmed_at || iss.online_confirmed_at),
+    dateRequested: _phDate(req?.created_at),
+    timeRequested: _phTime(req?.created_at),
+    dtRequested: _phDateTime(req?.created_at),
+    timeIssued: _phTime(iss.issued_at),
+    timeReceived: _phTime(iss.confirmed_at || iss.online_confirmed_at),
+    dtIssued: _phDateTime(iss.issued_at),
+    dtReceived: _phDateTime(iss.confirmed_at || iss.online_confirmed_at),
     request_no: iss.request_id ? (req?.request_no || '') : 'Blank (walang request)',
     department: dept?.dept_name || '',
     dept_id: (iss.dept_id || req?.dept_id) || '',
@@ -11746,7 +11944,8 @@ function buildRptRow(iss, req, dept, receiver, issuer, confirmed, it, riById, si
     from_stock: it ? (it.from_stock ? 'Oo' : 'Hindi') : '',
     received_by: receiver?.full_name || iss.receiver_name || '',
     issued_by: issuer?.full_name || '',
-    status: confirmed ? 'Confirmed' : 'Pending',
+    status: iss.cancelled_at ? 'Cancelled' : confirmed ? 'Confirmed' : 'Pending',
+    _cancelled: !!iss.cancelled_at,
     confirmation: confirmed ? (iss.confirmation_method || (iss.online_confirmed_at ? 'online_link' : 'photo')) : '',
     scenario: iss.scenario || '',
     _confirmed: confirmed
@@ -11758,8 +11957,9 @@ function getFilteredIssRptRows() {
   let list = issRptState.rows.slice()
   if (f.dept) list = list.filter(r => r.dept_id === f.dept)
   if (f.scenario) list = list.filter(r => r.scenario === f.scenario)
-  if (f.status === 'confirmed') list = list.filter(r => r._confirmed)
-  else if (f.status === 'pending') list = list.filter(r => !r._confirmed)
+  if (f.status === 'confirmed') list = list.filter(r => r._confirmed && !r._cancelled)
+  else if (f.status === 'pending') list = list.filter(r => !r._confirmed && !r._cancelled)
+  else if (f.status === 'cancelled') list = list.filter(r => r._cancelled)
   if (f.from) list = list.filter(r => r.date && r.date >= f.from)
   if (f.to) list = list.filter(r => r.date && r.date <= f.to)
   if (f.search && f.search.trim()) {
@@ -11780,16 +11980,21 @@ function applyIssRptFilters() {
   const tbody = document.getElementById('irTableBody')
   if (tbody) {
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang record.</td></tr>'
+      tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:24px;color:var(--txt3);font-size:13px;">Walang tugmang record.</td></tr>'
     } else {
       tbody.innerHTML = list.map(r => {
-        const statusBadge = r._confirmed
+        const statusBadge = r._cancelled
+          ? '<span style="color:var(--red,#d33);">🚫 Cancelled</span>'
+          : r._confirmed
           ? '<span style="color:var(--green,#12a62f);">✅ Confirmed</span>'
           : '<span style="color:var(--amber,#f0c838);">⏳ Pending</span>'
+        const tl = r._tl || {}, first = (r._itemIdx || 0) === 0
         const confLabel = r.confirmation === 'photo' ? '📷 Photo' : r.confirmation === 'online_link' ? '🔗 Online' : (r.confirmation || '—')
         return '<tr>'
           + '<td class="td-mono">'+escStk(r.issuance_no)+'</td>'
-          + '<td style="white-space:nowrap;">'+escStk(r.date)+'</td>'
+          + '<td style="white-space:nowrap;">'+(r.dateRequested ? escStk(r.dateRequested)+'<div style="font-size:11px;color:var(--txt3);">'+escStk(r.timeRequested||'')+'</div>' : '<span style="color:var(--txt3);" title="Blank issuance, no request">—</span>')+'</td>'
+          + '<td style="white-space:nowrap;">'+escStk(r.date)+'<div style="font-size:11px;color:var(--txt3);">'+escStk(r.timeIssued||'')+'</div></td>'
+          + '<td style="white-space:nowrap;">'+(r._confirmed ? escStk(r.dateReceived||'')+'<div style="font-size:11px;color:var(--txt3);">'+escStk(r.timeReceived||'')+'</div>' : '<span style="color:var(--txt3);">—</span>')+'</td>'
           + '<td class="td-mono" style="font-size:11px;">'+escStk(r.request_no)+'</td>'
           + '<td>'+escStk(r.department||'—')+'</td>'
           + '<td><strong>'+escStk(r.item)+'</strong></td>'
@@ -11800,12 +12005,15 @@ function applyIssRptFilters() {
           + '<td>'+escStk(r.issued_by||'—')+'</td>'
           + '<td style="white-space:nowrap;">'+statusBadge+'</td>'
           + '<td style="white-space:nowrap;">'+confLabel+'</td>'
+          + '<td style="white-space:nowrap;font-variant-numeric:tabular-nums;">'+(first && tl.d && tl.d.total != null ? '<strong>'+irDur(tl.d.total)+'</strong>' : (first ? '<span style="color:var(--txt3);">—</span>' : ''))+'</td>'
+          + '<td>'+(first ? '<button class="irtl-btn" onclick="openIssTimeline(\''+escStk(r.issuance_no)+'\')">⏱ Timeline</button>' : '')+'</td>'
           + '</tr>'
       }).join('')
     }
   }
   const cnt = document.getElementById('ir_count')
   if (cnt) cnt.textContent = list.length + ' item row' + (list.length !== 1 ? 's' : '')
+  renderIssTlSummary(list)
 }
 
 function clearIssRptFilters() {
@@ -11819,12 +12027,14 @@ async function exportIssuanceReport(fmt) {
   const list = getFilteredIssRptRows()
   if (!list.length) { showToast('info','No Data','Walang record na i-e-export.'); return }
 
-  const headers = ['Issuance No.','Date Prepared','Date Received','Request No.','Department','Item','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario']
+  const headers = ['Issuance No.','Date & Time Requested','Date & Time Prepared','Date & Time Received','Request No.','Department','Item','Qty','Unit','From Stock','Received By','Issued By','Status','Confirmation','Scenario',
+    ...IR_TL_EXPORT.map(c => c[0])]
   const dataRows = list.map(r => [
-    r.issuance_no, r.date, (r._confirmed ? (r.dateReceived||r.date) : ''), r.request_no, r.department, r.item, r.qty, r.unit,
+    r.issuance_no, r.dtRequested || '', r.dtIssued || r.date, (r._confirmed ? (r.dtReceived || r.dateReceived || '') : ''), r.request_no, r.department, r.item, r.qty, r.unit,
     r.from_stock, r.received_by, r.issued_by, r.status,
     r.confirmation === 'photo' ? 'Photo' : r.confirmation === 'online_link' ? 'Online Link' : (r.confirmation||''),
-    r.scenario === 'from_stock' ? 'From Stock' : r.scenario === 'after_po' ? 'After PO' : (r.scenario||'')
+    r.scenario === 'from_stock' ? 'From Stock' : r.scenario === 'after_po' ? 'After PO' : (r.scenario||''),
+    ...IR_TL_EXPORT.map(c => { const v = c[1](r._tl || {}); return v == null ? '' : v })
   ])
   const stamp = new Date().toISOString().split('T')[0]
 
@@ -11843,7 +12053,7 @@ async function exportIssuanceReport(fmt) {
     XLSX.writeFile(wb, 'TDMH_Issuance_Report_' + stamp + '.xlsx')
     showToast('success','Exported','Excel downloaded — ' + list.length + ' rows.')
   } else {
-    const csv = [headers, ...dataRows].map(r => r.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')).join('\n')
+    const csv = [headers, ...dataRows].map(r => r.map(v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"').join(',')).join('\n')
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
