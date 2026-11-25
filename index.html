@@ -468,12 +468,45 @@ body.dv-open{overflow:hidden;}
 .doc-sub{font-size:12px;color:var(--txt2);margin-bottom:10px;}
 .doc-path{font-size:11.5px;color:var(--accent);cursor:pointer;margin:1px 0 2px;}
 .doc-path:hover{text-decoration:underline;}
-.folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-bottom:14px;}
-.folder-card{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--bdr2);border-radius:12px;background:var(--surf1);cursor:pointer;transition:border-color .15s,transform .15s;}
-.folder-card:hover{border-color:var(--accent);transform:translateY(-1px);}
-.folder-ico{font-size:24px;line-height:1;}
-.folder-name{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.folder-meta{font-size:11px;color:var(--txt3);margin-top:1px;}
+.folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-bottom:16px;}
+.folder-card{display:flex;align-items:center;gap:12px;width:100%;padding:16px;border:1.5px solid var(--bdr2);border-radius:14px;background:var(--surf1);color:var(--txt);font:inherit;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s;}
+.folder-card:hover,.folder-card:focus-visible{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.06);outline:none;}
+.folder-ico{font-size:32px;line-height:1;}
+.folder-name{font-size:15.5px;font-weight:700;line-height:1.25;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.folder-meta{font-size:12.5px;color:var(--txt2);margin-top:2px;}
+.folder-open{flex-shrink:0;font-size:12.5px;font-weight:700;color:var(--accent);background:var(--accent-a);padding:6px 10px;border-radius:999px;}
+.doc-back{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;margin:0 0 12px;border-radius:12px;border:1.5px solid var(--accent);background:var(--accent-a);color:var(--accent);font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+.doc-back:hover{background:var(--accent);color:#fff;}
+.doc-here{display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:8px;border-radius:14px;background:var(--surf2);border:1px solid var(--bdr2);}
+.doc-here-ico{font-size:34px;line-height:1;}
+.doc-here-label{font-size:11.5px;font-weight:700;color:var(--txt3);letter-spacing:.3px;}
+.doc-here-name{font-family:"Source Serif 4",Georgia,serif;font-size:22px;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}
+.doc-here-meta{font-size:13px;color:var(--txt2);margin-top:2px;}
+.doc-recent{border:1px solid var(--bdr2);border-radius:14px;padding:12px 14px;margin:4px 0 16px;background:var(--surf1);}
+.doc-recent-title{font-size:12px;font-weight:700;color:var(--txt2);letter-spacing:.3px;margin-bottom:6px;}
+.doc-recent-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--bdr1,var(--bdr2));}
+.doc-recent-row:first-of-type{border-top:none;}
+.doc-recent-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.docs-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px;align-items:start;}
+.doc-tree{position:sticky;top:12px;max-height:calc(100vh - 120px);overflow:auto;border:1px solid var(--bdr2);border-radius:14px;background:var(--surf1);padding:10px 6px;}
+.tree-title{font-size:12px;font-weight:700;color:var(--txt2);letter-spacing:.3px;padding:2px 10px 8px;}
+.tree-row{display:flex;align-items:center;gap:6px;padding:8px 8px;margin:1px 0;border-radius:9px;cursor:pointer;font-size:14px;}
+.tree-row:hover{background:var(--surf2);}
+.tree-row.active{background:var(--accent-a);color:var(--accent);font-weight:700;}
+.tree-caret{width:18px;flex-shrink:0;text-align:center;color:var(--txt3);font-size:13px;}
+.tree-ico{flex-shrink:0;}
+.tree-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tree-count{flex-shrink:0;font-size:11px;color:var(--txt3);background:var(--surf3);border-radius:999px;padding:1px 7px;}
+.tree-empty{font-size:12.5px;color:var(--txt3);padding:6px 12px;}
+.doc-tree-btn{display:none;}
+@media (max-width:900px){
+  .docs-layout{grid-template-columns:1fr;}
+  .doc-tree{display:none;position:static;max-height:none;margin-bottom:12px;}
+  .doc-tree.open{display:block;}
+  .doc-tree-btn{display:inline-flex;}
+  .folder-grid{grid-template-columns:1fr;}
+  .doc-back{width:100%;justify-content:center;}
+}
 .dv-confirm{display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#14123a;border-top:1px solid rgba(255,255,255,.12);}
 .dv-confirm-text{font-size:13px;opacity:.9;}
 .dv-confirm-btns{display:flex;gap:8px;margin-left:auto;}
@@ -1620,7 +1653,22 @@ const DOC_CATS={
   guideline:{icon:'📐',label:'Guideline',color:'var(--blue,var(--accent))'},
   general:{icon:'📁',label:'General',color:'var(--txt2)'}
 }
-S.docs=S.docs||{folder:null,search:'',cat:'',folders:[],items:[]}
+S.docs=S.docs||{folder:null,search:'',cat:'',folders:[],items:[],treeOpen:false,expanded:{},restored:false}
+// Small per-user memory in this browser (last folder, recently opened). Optional: ignored if storage is blocked.
+function docsMemKey(k){return 'tdmh_docs_'+k+'_'+((S.user&&S.user.id)||'x')}
+function docsMemGet(k,def){try{const v=localStorage.getItem(docsMemKey(k));return v==null?def:JSON.parse(v)}catch(_){return def}}
+function docsMemSet(k,v){try{localStorage.setItem(docsMemKey(k),JSON.stringify(v))}catch(_){}}
+function docsRecordRecent(id){if(!id)return;const r=docsMemGet('recent',[]).filter(x=>x!==id);r.unshift(id);docsMemSet('recent',r.slice(0,5))}
+// Browser / phone Back button: step back through folders (and close the viewer) instead of leaving Core
+function docsPushState(folder){try{history.pushState({tdmh:'docs',folder:folder||null},'')}catch(_){}}
+window.addEventListener('popstate',e=>{
+  const st=e.state||{}
+  if(document.body.classList.contains('dv-open')){DV._fromPop=true;closeHubViewer();DV._fromPop=false;return}
+  if(st.tdmh==='docs'){
+    if(S.page!=='documents'){S.docs.folder=st.folder||null;S.docs._noPush=true;showPage('documents');return}
+    if((S.docs.folder||null)!==(st.folder||null)){S.docs.folder=st.folder||null;S.docs.search='';docsMemSet('folder',S.docs.folder);renderDocumentsView()}
+  }
+})
 function docFolderById(id){return(S.docs.folders||[]).find(f=>f.id===id)||null}
 function docFolderPath(id){
   const out=[];let f=docFolderById(id),guard=0
@@ -1640,7 +1688,30 @@ function docFolderOptions(selected,excludeTreeOf){
   opts.forEach(o=>{h+='<option value="'+o.id+'"'+(o.id===selected?' selected':'')+'>📁 '+esc(o.label)+'</option>'})
   return h
 }
-function openDocFolder(id){S.docs.folder=id||null;S.docs.search='';renderDocumentsView()}
+function openDocFolder(id){
+  id=id||null
+  const changed=(S.docs.folder||null)!==id
+  S.docs.folder=id;S.docs.search='';S.docs.treeOpen=false
+  const si=document.getElementById('docSearch');if(si)si.value=''
+  docsMemSet('folder',id)
+  if(changed)docsPushState(id)
+  renderDocumentsView()
+  const top=document.getElementById('docTopAnchor');if(top&&top.scrollIntoView)top.scrollIntoView({behavior:'smooth',block:'start'})
+}
+function docsBack(){
+  const cur=docFolderById(S.docs.folder)
+  openDocFolder(cur?cur.parent_id:null)
+}
+function docsToggleTree(){S.docs.treeOpen=!S.docs.treeOpen;renderDocTree()}
+function docsToggleNode(id,ev){if(ev)ev.stopPropagation();S.docs.expanded[id]=!docsIsExpanded(id);renderDocTree()}
+function docsIsExpanded(id){
+  if(S.docs.expanded[id]!=null)return S.docs.expanded[id]
+  return docFolderPath(S.docs.folder).some(f=>f.id===id)  // ancestors of the open folder start expanded
+}
+function docsCount(id){
+  const tree=docDescendants(id)
+  return S.docs.items.filter(d=>d.folder_id&&tree.has(d.folder_id)).length
+}
 
 async function renderDocuments(){
   const content=document.getElementById('mainContent')
@@ -1650,14 +1721,19 @@ async function renderDocuments(){
   ])
   S.docs.items=docs||[]
   S.docs.folders=fErr?[]:(folders||[])
+  // First visit this session: go back to the folder this person had open last time
+  if(!S.docs.restored){S.docs.restored=true;const last=docsMemGet('folder',null);if(last&&docFolderById(last))S.docs.folder=last}
   if(S.docs.folder&&!docFolderById(S.docs.folder))S.docs.folder=null
+  if(S.docs._noPush)S.docs._noPush=false
+  else{try{history.replaceState({tdmh:'docs',folder:S.docs.folder||null},'')}catch(_){}}
   let html='<div class="page-header"><p class="page-desc">Forms, policies, and files. 🔒 = view only in Core.</p><div style="display:flex;gap:8px;flex-wrap:wrap;">'
   if(canPostDocs())html+='<button class="btn btn-ghost" onclick="openFolderForm()">＋ New Folder</button><button class="btn btn-primary" onclick="openDocumentForm()">＋ Upload Document</button>'
   html+='</div></div>'
   html+='<div class="doc-toolbar"><input type="search" id="docSearch" class="doc-search" placeholder="🔍 Search all folders: title, description, file name" value="'+esc(S.docs.search)+'" oninput="S.docs.search=this.value;clearTimeout(S._docT);S._docT=setTimeout(renderDocumentsView,180)">'
   html+='<select id="docCat" class="doc-cat" onchange="S.docs.cat=this.value;renderDocumentsView()"><option value="">All categories</option>'
   Object.entries(DOC_CATS).forEach(([k,m])=>{html+='<option value="'+k+'"'+(S.docs.cat===k?' selected':'')+'>'+m.icon+' '+m.label+'</option>'})
-  html+='</select></div><div id="docView"></div>'
+  html+='</select><button class="btn btn-ghost doc-tree-btn" onclick="docsToggleTree()">📂 Mga Folder</button></div>'
+  html+='<div id="docTopAnchor"></div><div class="docs-layout"><aside class="doc-tree" id="docTree"></aside><div id="docView"></div></div>'
   content.innerHTML=html
   renderDocumentsView()
 }
@@ -1690,12 +1766,37 @@ function renderDocumentsView(){
     h+=hits.length?'<div style="display:flex;flex-direction:column;gap:6px;">'+hits.map(d=>docCard(d,true)).join('')+'</div>':(fhits.length?'':'<div class="empty-state"><div class="empty-icon">🔍</div><h3>Nothing found</h3><p>Try another word.</p></div>')
     box.innerHTML=h;return
   }
-  // Breadcrumb
   const path=docFolderPath(S.docs.folder)
-  h+='<div class="doc-crumbs"><a onclick="openDocFolder(null)">📂 Documents</a>'
-  path.forEach((f,i)=>{h+='<span class="sep">›</span>'+(i===path.length-1?'<strong>'+esc(f.name)+'</strong>':'<a onclick="openDocFolder(\''+f.id+'\')">'+esc(f.name)+'</a>')})
-  h+='</div>'
   const cur=docFolderById(S.docs.folder)
+  const subsHere=(S.docs.folders||[]).filter(f=>(f.parent_id||null)===(S.docs.folder||null)).length
+  const filesHere=docs.filter(d=>(d.folder_id||null)===(S.docs.folder||null)).length
+  // 1) Big back button
+  if(cur){
+    const parent=docFolderById(cur.parent_id)
+    h+='<button type="button" class="doc-back" onclick="docsBack()">⬅ Bumalik sa '+esc(parent?parent.name:'Lahat ng Documents')+'</button>'
+  }
+  // 3) "You are here"
+  h+='<div class="doc-here"><div class="doc-here-ico">'+(cur?'📂':'🗂️')+'</div><div style="min-width:0;"><div class="doc-here-label">Nandito ka:</div><div class="doc-here-name">'+esc(cur?cur.name:'Lahat ng Documents')+'</div>'
+  h+='<div class="doc-here-meta">'+filesHere+' file'+(filesHere!==1?'s':'')+(subsHere?' · '+subsHere+' folder'+(subsHere!==1?'s':''):'')+'</div></div></div>'
+  // Breadcrumb (smaller, for people who like it)
+  if(cur){
+    h+='<div class="doc-crumbs"><a onclick="openDocFolder(null)">🗂️ Documents</a>'
+    path.forEach((f,i)=>{h+='<span class="sep">›</span>'+(i===path.length-1?'<strong>'+esc(f.name)+'</strong>':'<a onclick="openDocFolder(\''+f.id+'\')">'+esc(f.name)+'</a>')})
+    h+='</div>'
+  }
+  // 8) Recently opened (top level only)
+  if(!cur){
+    const rec=docsMemGet('recent',[]).map(id=>S.docs.items.find(d=>d.id===id)).filter(Boolean)
+    if(rec.length){
+      h+='<div class="doc-recent"><div class="doc-recent-title">🕘 Kamakailang binuksan</div>'
+      rec.forEach(d=>{
+        const key=hubFileRef('hub_documents',d)
+        h+='<div class="doc-recent-row"><div style="min-width:0;flex:1;"><div class="doc-recent-name">'+esc(d.title)+'</div><div class="doc-path" onclick="openDocFolder('+(d.folder_id?'\''+d.folder_id+'\'':'null')+')">📂 '+esc(docFolderPathText(d.folder_id))+'</div></div>'
+        h+=(S._hubFiles[key]&&S._hubFiles[key].viewable?'<button class="btn btn-secondary btn-sm" onclick="openHubFile(\''+key+'\')">Buksan</button>':'')+'</div>'
+      })
+      h+='</div>'
+    }
+  }
   if(cur&&canManageHub(cur.created_by)){
     h+='<div class="doc-folder-actions"><button class="btn btn-ghost btn-sm" onclick="openFolderForm(\''+cur.id+'\')">✏ Rename</button><button class="btn btn-ghost btn-sm" onclick="openMoveFolder(\''+cur.id+'\')">↪ Move folder</button><button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteFolder(\''+cur.id+'\')">🗑 Delete folder</button></div>'
   }
@@ -1703,7 +1804,8 @@ function renderDocumentsView(){
   const here=docs.filter(d=>(d.folder_id||null)===(S.docs.folder||null))
   if(subs.length){h+='<div class="folder-grid">';subs.forEach(f=>{h+=folderCard(f,false)});h+='</div>'}
   if(!here.length&&!subs.length){
-    h+='<div class="empty-state"><div class="empty-icon">📁</div><h3>'+(cur?'This folder is empty':'No documents')+'</h3><p>'+(canPostDocs()?'Use ＋ New Folder or ＋ Upload Document above.':'Nothing has been uploaded here yet.')+'</p></div>'
+    h+='<div class="empty-state"><div class="empty-icon">📭</div><h3>'+(cur?'Walang laman ang folder na ito':'Wala pang documents')+'</h3><p>'+(canPostDocs()?'Pindutin ang ＋ New Folder o ＋ Upload Document sa itaas.':'Wala pang naka-upload dito.')+'</p>'
+      +(cur?'<button type="button" class="doc-back" style="margin:14px auto 0;" onclick="docsBack()">⬅ Bumalik</button>':'')+'</div>'
   }else if(here.length){
     const groups={}
     here.forEach(d=>{(groups[d.category]=groups[d.category]||[]).push(d)})
@@ -1714,16 +1816,38 @@ function renderDocumentsView(){
     })
   }
   box.innerHTML=h
+  renderDocTree()
+}
+
+// 6) Folder list on the side (desktop) / behind the "📂 Mga Folder" button (phone)
+function renderDocTree(){
+  const el=document.getElementById('docTree');if(!el)return
+  el.classList.toggle('open',!!S.docs.treeOpen)
+  const all=S.docs.folders||[]
+  const kids=p=>all.filter(f=>(f.parent_id||null)===p).sort((a,b)=>a.name.localeCompare(b.name))
+  const node=(f,depth)=>{
+    const ch=kids(f.id),open=ch.length&&docsIsExpanded(f.id),active=S.docs.folder===f.id
+    let h='<div class="tree-row'+(active?' active':'')+'" style="padding-left:'+(8+depth*14)+'px;" onclick="openDocFolder(\''+f.id+'\')">'
+    h+=ch.length?'<span class="tree-caret" onclick="docsToggleNode(\''+f.id+'\',event)" title="'+(open?'Isara':'Buksan')+'">'+(open?'▾':'▸')+'</span>':'<span class="tree-caret"></span>'
+    h+='<span class="tree-ico">'+(active?'📂':'📁')+'</span><span class="tree-name">'+esc(f.name)+'</span><span class="tree-count">'+docsCount(f.id)+'</span></div>'
+    if(open)ch.forEach(c=>{h+=node(c,depth+1)})
+    return h
+  }
+  let h='<div class="tree-title">📂 Mga Folder</div>'
+  h+='<div class="tree-row'+(!S.docs.folder?' active':'')+'" style="padding-left:8px;" onclick="openDocFolder(null)"><span class="tree-caret"></span><span class="tree-ico">🗂️</span><span class="tree-name">Lahat ng Documents</span></div>'
+  const top=kids(null)
+  h+=top.length?top.map(f=>node(f,1)).join(''):'<div class="tree-empty">Wala pang folder.</div>'
+  el.innerHTML=h
 }
 
 function folderCard(f,showPath){
   const tree=docDescendants(f.id)
   const files=S.docs.items.filter(d=>d.folder_id&&tree.has(d.folder_id)).length
   const subs=(S.docs.folders||[]).filter(x=>x.parent_id===f.id).length
-  let h='<div class="folder-card" onclick="openDocFolder(\''+f.id+'\')" title="Open folder">'
-  h+='<div class="folder-ico">📁</div><div style="min-width:0;flex:1;"><div class="folder-name">'+esc(f.name)+'</div>'
-  if(showPath&&f.parent_id)h+='<div class="folder-meta">in '+esc(docFolderPathText(f.parent_id))+'</div>'
-  h+='<div class="folder-meta">'+files+' file'+(files!==1?'s':'')+(subs?' · '+subs+' folder'+(subs!==1?'s':''):'')+'</div></div></div>'
+  let h='<button type="button" class="folder-card" onclick="openDocFolder(\''+f.id+'\')" title="Buksan ang folder na ito">'
+  h+='<div class="folder-ico">📁</div><div style="min-width:0;flex:1;text-align:left;"><div class="folder-name">'+esc(f.name)+'</div>'
+  if(showPath&&f.parent_id)h+='<div class="folder-meta">nasa '+esc(docFolderPathText(f.parent_id))+'</div>'
+  h+='<div class="folder-meta">'+files+' file'+(files!==1?'s':'')+(subs?' · '+subs+' folder'+(subs!==1?'s':''):'')+'</div></div><span class="folder-open">Buksan ›</span></button>'
   return h
 }
 
@@ -2852,6 +2976,8 @@ window.addEventListener('beforeprint',()=>{if(document.body.classList.contains('
 
 async function openHubFile(key){
   const f=S._hubFiles[key];if(!f)return
+  if(f.table==='hub_documents')docsRecordRecent(f.id)
+  if(!document.body.classList.contains('dv-open')){try{history.pushState({tdmh:'viewer'},'');DV._hist=true}catch(_){}}
   const ov=hubViewerEl(),run=++DV.run
   DV.file=f;DV.zoom=1;DV.pdf=null
   const now=new Date()
@@ -2924,6 +3050,7 @@ function dvWatermark(ctx,w,h){
   ctx.restore()
 }
 function closeHubViewer(){
+  if(DV._hist){DV._hist=false;if(!DV._fromPop&&history.state&&history.state.tdmh==='viewer'){try{history.back()}catch(_){}}}
   if(DV.confirm){const r=DV.confirm;DV.confirm=null;setTimeout(()=>r(false),0)}
   DV.run++;DV.pdf=null
   const ov=document.getElementById('docViewer')
