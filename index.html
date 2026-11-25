@@ -456,6 +456,24 @@ body.dv-open{overflow:hidden;}
   body.dv-open::after{content:"Printing is turned off for view-only documents.";visibility:visible;position:fixed;top:40%;left:0;right:0;text-align:center;font:600 18px Arial,sans-serif;color:#000;}
 }
 .hub-hint{font-size:12px;margin-top:6px;line-height:1.5;}
+/* Documents: folders */
+.doc-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.doc-search{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--bdr2);border-radius:10px;background:var(--surf1);color:var(--txt);font:inherit;font-size:13px;}
+.doc-cat{padding:9px 10px;border:1px solid var(--bdr2);border-radius:10px;background:var(--surf1);color:var(--txt);font:inherit;font-size:13px;}
+.doc-crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:4px;font-size:13.5px;margin:4px 0 10px;}
+.doc-crumbs a{color:var(--accent);cursor:pointer;font-weight:600;}
+.doc-crumbs a:hover{text-decoration:underline;}
+.doc-crumbs .sep{color:var(--txt3);margin:0 2px;}
+.doc-folder-actions{display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 12px;}
+.doc-sub{font-size:12px;color:var(--txt2);margin-bottom:10px;}
+.doc-path{font-size:11.5px;color:var(--accent);cursor:pointer;margin:1px 0 2px;}
+.doc-path:hover{text-decoration:underline;}
+.folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-bottom:14px;}
+.folder-card{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--bdr2);border-radius:12px;background:var(--surf1);cursor:pointer;transition:border-color .15s,transform .15s;}
+.folder-card:hover{border-color:var(--accent);transform:translateY(-1px);}
+.folder-ico{font-size:24px;line-height:1;}
+.folder-name{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.folder-meta{font-size:11px;color:var(--txt3);margin-top:1px;}
 .dv-confirm{display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#14123a;border-top:1px solid rgba(255,255,255,.12);}
 .dv-confirm-text{font-size:13px;opacity:.9;}
 .dv-confirm-btns{display:flex;gap:8px;margin-left:auto;}
@@ -1590,52 +1608,209 @@ async function deleteMemo(id){
   })
 }
 
+// ═══ DOCUMENTS: folders + sub-folders ═══
+// Anyone who may upload (admins, supervisors, department heads) can create folders.
+// Only the creator or an admin can rename, move or delete a folder (same rule as files);
+// a folder can only be deleted when it is empty. The database enforces all of this too.
+const DOC_CATS={
+  policy:{icon:'📜',label:'Policy',color:'var(--green)'},
+  form:{icon:'📝',label:'Form',color:'var(--accent)'},
+  template:{icon:'📋',label:'Template',color:'var(--violet)'},
+  manual:{icon:'📕',label:'Manual',color:'var(--amber)'},
+  guideline:{icon:'📐',label:'Guideline',color:'var(--blue,var(--accent))'},
+  general:{icon:'📁',label:'General',color:'var(--txt2)'}
+}
+S.docs=S.docs||{folder:null,search:'',cat:'',folders:[],items:[]}
+function docFolderById(id){return(S.docs.folders||[]).find(f=>f.id===id)||null}
+function docFolderPath(id){
+  const out=[];let f=docFolderById(id),guard=0
+  while(f&&guard++<50){out.unshift(f);f=docFolderById(f.parent_id)}
+  return out
+}
+function docFolderPathText(id){const p=docFolderPath(id);return p.length?p.map(f=>f.name).join(' › '):'Documents (top level)'}
+function docDescendants(id){
+  const out=new Set([id]);let added=true
+  while(added){added=false;(S.docs.folders||[]).forEach(f=>{if(f.parent_id&&out.has(f.parent_id)&&!out.has(f.id)){out.add(f.id);added=true}})}
+  return out
+}
+function docFolderOptions(selected,excludeTreeOf){
+  const skip=excludeTreeOf?docDescendants(excludeTreeOf):new Set()
+  const opts=(S.docs.folders||[]).filter(f=>!skip.has(f.id)).map(f=>({id:f.id,label:docFolderPathText(f.id)})).sort((a,b)=>a.label.localeCompare(b.label))
+  let h='<option value=""'+(!selected?' selected':'')+'>📂 Documents (top level)</option>'
+  opts.forEach(o=>{h+='<option value="'+o.id+'"'+(o.id===selected?' selected':'')+'>📁 '+esc(o.label)+'</option>'})
+  return h
+}
+function openDocFolder(id){S.docs.folder=id||null;S.docs.search='';renderDocumentsView()}
+
 async function renderDocuments(){
   const content=document.getElementById('mainContent')
-  const{data}=await SB.from('hub_documents').select('*').eq('is_active',true).order('created_at',{ascending:false}).limit(200)
-  const docs=data||[]
-  const catMeta={
-    policy:{icon:'📜',label:'Policy',color:'var(--green)'},
-    form:{icon:'📝',label:'Form',color:'var(--accent)'},
-    template:{icon:'📋',label:'Template',color:'var(--violet)'},
-    manual:{icon:'📕',label:'Manual',color:'var(--amber)'},
-    guideline:{icon:'📐',label:'Guideline',color:'var(--blue,var(--accent))'},
-    general:{icon:'📁',label:'General',color:'var(--txt2)'}
+  const[{data:docs},{data:folders,error:fErr}]=await Promise.all([
+    SB.from('hub_documents').select('*').eq('is_active',true).order('created_at',{ascending:false}).limit(2000),
+    SB.from('hub_folders').select('*').order('name')
+  ])
+  S.docs.items=docs||[]
+  S.docs.folders=fErr?[]:(folders||[])
+  if(S.docs.folder&&!docFolderById(S.docs.folder))S.docs.folder=null
+  let html='<div class="page-header"><p class="page-desc">Forms, policies, and files. 🔒 = view only in Core.</p><div style="display:flex;gap:8px;flex-wrap:wrap;">'
+  if(canPostDocs())html+='<button class="btn btn-ghost" onclick="openFolderForm()">＋ New Folder</button><button class="btn btn-primary" onclick="openDocumentForm()">＋ Upload Document</button>'
+  html+='</div></div>'
+  html+='<div class="doc-toolbar"><input type="search" id="docSearch" class="doc-search" placeholder="🔍 Search all folders: title, description, file name" value="'+esc(S.docs.search)+'" oninput="S.docs.search=this.value;clearTimeout(S._docT);S._docT=setTimeout(renderDocumentsView,180)">'
+  html+='<select id="docCat" class="doc-cat" onchange="S.docs.cat=this.value;renderDocumentsView()"><option value="">All categories</option>'
+  Object.entries(DOC_CATS).forEach(([k,m])=>{html+='<option value="'+k+'"'+(S.docs.cat===k?' selected':'')+'>'+m.icon+' '+m.label+'</option>'})
+  html+='</select></div><div id="docView"></div>'
+  content.innerHTML=html
+  renderDocumentsView()
+}
+
+function docCard(d,showPath){
+  const m=DOC_CATS[d.category]||DOC_CATS.general
+  let h='<div class="card" style="display:flex;align-items:center;gap:12px;padding:14px;">'
+  h+='<div style="font-size:22px;">'+m.icon+'</div><div style="flex:1;min-width:0;">'
+  h+='<div style="font-size:14px;font-weight:600;">'+(d.view_only!==false?'🔒 ':'')+esc(d.title)+'</div>'
+  if(showPath)h+='<div class="doc-path" onclick="openDocFolder('+(d.folder_id?'\''+d.folder_id+'\'':'null')+')">📂 '+esc(docFolderPathText(d.folder_id))+'</div>'
+  if(d.description)h+='<div style="font-size:12px;color:var(--txt2);">'+esc(d.description)+'</div>'
+  h+='<div style="font-size:11px;color:var(--txt3);margin-top:2px;">'+m.icon+' '+m.label+' · 👤 '+esc(d.uploaded_by_name||'—')+' · '+formatDate(d.created_at)+'</div>'
+  h+='</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">'+hubFileButtons(hubFileRef('hub_documents',d))
+  if(canManageHub(d.uploaded_by))h+='<button class="btn btn-ghost btn-sm" title="Move to another folder" onclick="openMoveDocument(\''+d.id+'\')">↪ Move</button>'
+  h+='</div>'
+  if(canManageHub(d.uploaded_by))h+='<button class="btn btn-danger btn-sm" style="flex-shrink:0;" onclick="deleteDocument(\''+d.id+'\')">🗑</button>'
+  return h+'</div>'
+}
+
+function renderDocumentsView(){
+  const box=document.getElementById('docView');if(!box)return
+  const q=(S.docs.search||'').trim().toLowerCase(),cat=S.docs.cat
+  const docs=S.docs.items.filter(d=>!cat||d.category===cat)
+  let h=''
+  if(q){
+    const hits=docs.filter(d=>[d.title,d.description,d.file_name,docFolderPathText(d.folder_id)].some(v=>String(v||'').toLowerCase().includes(q)))
+    const fhits=(S.docs.folders||[]).filter(f=>f.name.toLowerCase().includes(q))
+    h+='<div class="doc-sub">'+hits.length+' file'+(hits.length!==1?'s':'')+(fhits.length?' and '+fhits.length+' folder'+(fhits.length!==1?'s':''):'')+' matching "'+esc(S.docs.search)+'"</div>'
+    if(fhits.length){h+='<div class="folder-grid">';fhits.forEach(f=>{h+=folderCard(f,true)});h+='</div>'}
+    h+=hits.length?'<div style="display:flex;flex-direction:column;gap:6px;">'+hits.map(d=>docCard(d,true)).join('')+'</div>':(fhits.length?'':'<div class="empty-state"><div class="empty-icon">🔍</div><h3>Nothing found</h3><p>Try another word.</p></div>')
+    box.innerHTML=h;return
   }
-  let html='<div class="page-header"><p class="page-desc">Forms, policies, and files. 🔒 = view only in Core.</p>'
-  if(canPostDocs())html+='<button class="btn btn-primary" onclick="openDocumentForm()">＋ Upload Document</button>'
-  html+='</div>'
-  if(docs.length===0){
-    html+='<div class="empty-state"><div class="empty-icon">📁</div><h3>No documents</h3><p>No documents uploaded yet.</p></div>'
-  }else{
+  // Breadcrumb
+  const path=docFolderPath(S.docs.folder)
+  h+='<div class="doc-crumbs"><a onclick="openDocFolder(null)">📂 Documents</a>'
+  path.forEach((f,i)=>{h+='<span class="sep">›</span>'+(i===path.length-1?'<strong>'+esc(f.name)+'</strong>':'<a onclick="openDocFolder(\''+f.id+'\')">'+esc(f.name)+'</a>')})
+  h+='</div>'
+  const cur=docFolderById(S.docs.folder)
+  if(cur&&canManageHub(cur.created_by)){
+    h+='<div class="doc-folder-actions"><button class="btn btn-ghost btn-sm" onclick="openFolderForm(\''+cur.id+'\')">✏ Rename</button><button class="btn btn-ghost btn-sm" onclick="openMoveFolder(\''+cur.id+'\')">↪ Move folder</button><button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteFolder(\''+cur.id+'\')">🗑 Delete folder</button></div>'
+  }
+  const subs=(S.docs.folders||[]).filter(f=>(f.parent_id||null)===(S.docs.folder||null))
+  const here=docs.filter(d=>(d.folder_id||null)===(S.docs.folder||null))
+  if(subs.length){h+='<div class="folder-grid">';subs.forEach(f=>{h+=folderCard(f,false)});h+='</div>'}
+  if(!here.length&&!subs.length){
+    h+='<div class="empty-state"><div class="empty-icon">📁</div><h3>'+(cur?'This folder is empty':'No documents')+'</h3><p>'+(canPostDocs()?'Use ＋ New Folder or ＋ Upload Document above.':'Nothing has been uploaded here yet.')+'</p></div>'
+  }else if(here.length){
     const groups={}
-    docs.forEach(d=>{(groups[d.category]=groups[d.category]||[]).push(d)})
-    Object.keys(groups).forEach(cat=>{
-      const m=catMeta[cat]||catMeta.general
-      html+='<div style="font-size:12px;font-weight:700;color:'+m.color+';text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">'+m.icon+' '+m.label+'</div>'
-      html+='<div style="display:flex;flex-direction:column;gap:6px;">'
-      groups[cat].forEach(d=>{
-        html+='<div class="card" style="display:flex;align-items:center;gap:12px;padding:14px;">'
-        html+='<div style="font-size:22px;">'+m.icon+'</div>'
-        html+='<div style="flex:1;min-width:0;">'
-        html+='<div style="font-size:14px;font-weight:600;">'+(d.view_only!==false?'🔒 ':'')+esc(d.title)+'</div>'
-        if(d.description)html+='<div style="font-size:12px;color:var(--txt2);">'+esc(d.description)+'</div>'
-        html+='<div style="font-size:11px;color:var(--txt3);margin-top:2px;">👤 '+esc(d.uploaded_by_name||'—')+' · '+formatDate(d.created_at)+'</div>'
-        html+='</div>'
-        html+='<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">'+hubFileButtons(hubFileRef('hub_documents',d))+'</div>'
-        if(canManageHub(d.uploaded_by))html+='<button class="btn btn-danger btn-sm" style="flex-shrink:0;" onclick="deleteDocument(\''+d.id+'\')">🗑</button>'
-        html+='</div>'
-      })
-      html+='</div>'
+    here.forEach(d=>{(groups[d.category]=groups[d.category]||[]).push(d)})
+    Object.keys(groups).forEach(c=>{
+      const m=DOC_CATS[c]||DOC_CATS.general
+      h+='<div style="font-size:12px;font-weight:700;color:'+m.color+';text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">'+m.icon+' '+m.label+'</div>'
+      h+='<div style="display:flex;flex-direction:column;gap:6px;">'+groups[c].map(d=>docCard(d,false)).join('')+'</div>'
     })
   }
-  content.innerHTML=html
+  box.innerHTML=h
+}
+
+function folderCard(f,showPath){
+  const tree=docDescendants(f.id)
+  const files=S.docs.items.filter(d=>d.folder_id&&tree.has(d.folder_id)).length
+  const subs=(S.docs.folders||[]).filter(x=>x.parent_id===f.id).length
+  let h='<div class="folder-card" onclick="openDocFolder(\''+f.id+'\')" title="Open folder">'
+  h+='<div class="folder-ico">📁</div><div style="min-width:0;flex:1;"><div class="folder-name">'+esc(f.name)+'</div>'
+  if(showPath&&f.parent_id)h+='<div class="folder-meta">in '+esc(docFolderPathText(f.parent_id))+'</div>'
+  h+='<div class="folder-meta">'+files+' file'+(files!==1?'s':'')+(subs?' · '+subs+' folder'+(subs!==1?'s':''):'')+'</div></div></div>'
+  return h
+}
+
+// New folder (no id) or rename (id)
+function openFolderForm(id){
+  if(!canPostDocs()){showToast('error','Not allowed','Only admins, supervisors and department heads can make folders.');return}
+  const f=id?docFolderById(id):null
+  if(f&&!canManageHub(f.created_by)){showToast('error','Not allowed','Only the person who made this folder or an admin can rename it.');return}
+  document.getElementById('modalTitle').textContent=f?'✏ Rename Folder':'📁 New Folder'
+  let html='<div class="field"><label>Folder name *</label><input type="text" id="fd_name" maxlength="80" placeholder="e.g. GSD, Housekeeping, HR Forms" value="'+esc(f?f.name:'')+'"></div>'
+  if(!f)html+='<div class="field"><label>Put it inside</label><select id="fd_parent">'+docFolderOptions(S.docs.folder,null)+'</select></div>'
+  document.getElementById('modalBody').innerHTML=html
+  document.getElementById('modalFooter').innerHTML='<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button><button class="btn btn-primary" id="fdSaveBtn" onclick="saveFolder('+(f?'\''+f.id+'\'':'')+')">'+(f?'Save':'＋ Create')+'</button>'
+  openModal('mainModal')
+  setTimeout(()=>{const el=document.getElementById('fd_name');if(el){el.focus();el.select()}},60)
+}
+function folderErr(e){
+  const m=String(e&&e.message||e)
+  if(/hub_folders_unique_name|duplicate key/i.test(m))return'There is already a folder with that name in the same place.'
+  if(/row-level security|violates row-level/i.test(m))return'You are not allowed to change this folder.'
+  return m
+}
+async function saveFolder(id){
+  const name=(document.getElementById('fd_name')?.value||'').trim()
+  if(!name){showToast('error','Kulang','Folder name is required.');return}
+  const btn=document.getElementById('fdSaveBtn');if(btn)btn.disabled=true
+  let res
+  if(id)res=await SB.from('hub_folders').update({name}).eq('id',id).select('id')
+  else{
+    const parent=document.getElementById('fd_parent')?.value||null
+    res=await SB.from('hub_folders').insert({name,parent_id:parent,created_by:S.user.id,created_by_name:S.user.full_name}).select('id')
+    if(!res.error&&res.data&&res.data[0])S.docs.folder=res.data[0].id
+  }
+  if(res.error||!res.data||!res.data.length){showToast('error','Not saved',res.error?folderErr(res.error):'You are not allowed to change this folder.');if(btn)btn.disabled=false;return}
+  closeModal('mainModal')
+  showToast('success',id?'Renamed':'Folder created','📁 '+name)
+  renderDocuments()
+}
+function openMoveFolder(id){
+  const f=docFolderById(id);if(!f)return
+  if(!canManageHub(f.created_by)){showToast('error','Not allowed','Only the person who made this folder or an admin can move it.');return}
+  document.getElementById('modalTitle').textContent='↪ Move Folder: '+f.name
+  document.getElementById('modalBody').innerHTML='<div class="field"><label>Move into</label><select id="mv_dest">'+docFolderOptions(f.parent_id,f.id)+'</select></div><div style="font-size:12px;color:var(--txt3);">Its sub-folders and files move with it.</div>'
+  document.getElementById('modalFooter').innerHTML='<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button><button class="btn btn-primary" onclick="moveFolder(\''+id+'\')">↪ Move</button>'
+  openModal('mainModal')
+}
+async function moveFolder(id){
+  const dest=document.getElementById('mv_dest')?.value||null
+  const{data,error}=await SB.from('hub_folders').update({parent_id:dest}).eq('id',id).select('id')
+  if(error||!data||!data.length){showToast('error','Not moved',error?folderErr(error):'You are not allowed to move this folder.');return}
+  closeModal('mainModal');showToast('success','Moved','📁 Folder moved to '+docFolderPathText(dest)+'.')
+  renderDocuments()
+}
+function deleteFolder(id){
+  const f=docFolderById(id);if(!f)return
+  if((S.docs.folders||[]).some(x=>x.parent_id===id)||S.docs.items.some(d=>d.folder_id===id)){
+    showToast('error','Folder not empty','Move or delete the files and sub-folders inside "'+f.name+'" first.');return
+  }
+  confirm2('Delete the empty folder "'+f.name+'"?',async()=>{
+    const{data,error}=await SB.from('hub_folders').delete().eq('id',id).select('id')
+    if(error||!data||!data.length){showToast('error','Not deleted',error?folderErr(error):'Only the person who made this folder or an admin can delete it.');return}
+    showToast('success','Deleted','📁 Folder removed.')
+    S.docs.folder=f.parent_id||null
+    renderDocuments()
+  })
+}
+function openMoveDocument(id){
+  const d=S.docs.items.find(x=>x.id===id);if(!d)return
+  if(!canManageHub(d.uploaded_by)){showToast('error','Not allowed','Only the person who uploaded this file or an admin can move it.');return}
+  document.getElementById('modalTitle').textContent='↪ Move: '+d.title
+  document.getElementById('modalBody').innerHTML='<div class="field"><label>Move to folder</label><select id="mv_doc_dest">'+docFolderOptions(d.folder_id,null)+'</select></div>'
+  document.getElementById('modalFooter').innerHTML='<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button><button class="btn btn-primary" onclick="moveDocument(\''+id+'\')">↪ Move</button>'
+  openModal('mainModal')
+}
+async function moveDocument(id){
+  const dest=document.getElementById('mv_doc_dest')?.value||null
+  const{data,error}=await SB.from('hub_documents').update({folder_id:dest}).eq('id',id).select('id')
+  if(error||!data||!data.length){showToast('error','Not moved',error?error.message:'Only the person who uploaded this file or an admin can move it.');return}
+  closeModal('mainModal');showToast('success','Moved','📄 Moved to '+docFolderPathText(dest)+'.')
+  renderDocuments()
 }
 
 function openDocumentForm(){
   if(!canPostDocs()){showToast('error','Not allowed','Only admins, supervisors and department heads can upload.');return}
   document.getElementById('modalTitle').textContent='📁 Upload Document'
   let html='<div class="field"><label>Title *</label><input type="text" id="d_title" placeholder="Document name"></div>'
+  html+='<div class="field"><label>Folder</label><select id="d_folder">'+docFolderOptions(S.docs&&S.docs.folder,null)+'</select></div>'
   html+='<div class="field"><label>Category</label><select id="d_cat">'
   ;[['policy','📜 Policy'],['form','📝 Form'],['template','📋 Template'],['manual','📕 Manual'],['guideline','📐 Guideline'],['general','📁 General']].forEach(c=>{html+='<option value="'+c[0]+'">'+c[1]+'</option>'})
   html+='</select></div>'
@@ -1664,6 +1839,7 @@ async function saveDocument(){
     const{error}=await SB.from('hub_documents').insert({
       title,description:desc||null,category:cat,
       file_url:null,file_name:up.name,file_path:up.path,original_path:up.original_path||null,
+      folder_id:document.getElementById('d_folder')?.value||null,
       view_only:!document.getElementById('d_download')?.checked,
       uploaded_by:S.user.id,uploaded_by_name:S.user.full_name
     })
