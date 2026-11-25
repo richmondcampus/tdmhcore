@@ -3136,11 +3136,9 @@ function formatDate(iso) {
 async function sendEmail(to, type, ticket, claimer) {
   if (!to) return
   try {
-    await fetch(EMAIL_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, type, ticket, claimer })
-    })
+    // invoke() sends the signed-in user's session, which Core's mail relay requires
+    const { data, error } = await SB.functions.invoke('send-email', { body: { to, type, ticket, claimer } })
+    if (error || data?.error) console.warn('[Email]', data?.error || error.message)
   } catch(e) { console.warn('[Email]', e.message) }
 }
 
