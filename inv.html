@@ -429,7 +429,7 @@ table.t input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent)}
         <div style="position:relative"><input class="inp" id="lgPass" type="password" autocomplete="current-password" required style="padding-right:44px">
           <button type="button" class="ibtn" id="lgEye" style="position:absolute;right:4px;top:4px" aria-label="Show password" data-i="eye"></button></div></div>
       <button class="btn btn-primary" style="width:100%;min-height:44px;margin-top:6px" id="lgBtn">Sign in</button>
-      <p class="hint" style="margin-top:14px">Forgot your password? Ask IT or your department head to reset it — you'll get a temporary one.</p>
+      <p class="hint" style="margin-top:14px"><button type="button" class="btn btn-sm btn-ghost" id="lgForgot" style="padding:0;min-height:0;color:var(--accent)">Forgot your password?</button> We’ll email you a link to set a new one.</p>
       <div class="row" style="margin-top:24px;justify-content:space-between">
         <a href="/" class="hint" style="text-decoration:none">← TDMH Core</a>
         <button type="button" class="btn btn-sm btn-ghost" id="lgDisplay" data-i="palette">Display</button>
@@ -785,8 +785,18 @@ async function boot() {
   $('#lgForm').onsubmit = login;
   $('#sbOut').onclick = async () => { await sb.auth.signOut(); location.hash = ''; location.reload(); };
   $('#ham').onclick = () => $('#sb').classList.toggle('open');
-  const { data } = await sb.auth.getSession();
-  if (data.session) await enter(); else showLogin();
+  $('#lgForgot').onclick = forgotPassword;
+  const reset = new URLSearchParams(location.search).get('reset');
+  if (reset) {
+    history.replaceState(null, '', location.pathname + location.hash);
+    await sb.auth.signOut().catch(() => {});
+    const { error } = await sb.auth.verifyOtp({ token_hash: reset, type: 'recovery' });
+    if (error) { showLogin(); const er = $('#lgErr'); er.textContent = 'That reset link has expired or was already used. Ask for a new one below.'; er.classList.remove('hide'); }
+    else { await enter({ recovering: true }); }
+  } else {
+    const { data } = await sb.auth.getSession();
+    if (data.session) await enter(); else showLogin();
+  }
   sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT') showLogin(); });
 }
 function showLogin() { $('#app').classList.add('hide'); $('#login').classList.remove('hide'); setTimeout(() => $('#lgUser').focus(), 50); }
@@ -795,15 +805,31 @@ async function login(e) {
   const btn = $('#lgBtn'), er = $('#lgErr'); er.classList.add('hide'); btn.disabled = true; btn.textContent = 'Signing in…';
   try {
     const u = $('#lgUser').value.trim(), p = $('#lgPass').value;
-    const { data: email } = await sb.rpc('inv_login_email', { p_login: u });
-    if (!email) throw new Error('We couldn’t find that username.');
+    let res = await sb.rpc('inv_login_email', { p_login: u });
+    if (res.error) { await new Promise(r => setTimeout(r, 800)); res = await sb.rpc('inv_login_email', { p_login: u }); }
+    if (res.error) throw new Error('Can’t reach the inventory server right now (' + (res.error.message || 'network error') + '). Check the connection and try again.');
+    const email = res.data;
+    if (!email) throw new Error('We couldn’t find that username. You can also sign in with your email.');
     const { error } = await sb.auth.signInWithPassword({ email, password: p });
     if (error) throw new Error(/invalid/i.test(error.message) ? 'Wrong username or password.' : /banned/i.test(error.message) ? 'This account is blocked. Contact IT.' : error.message);
     await enter();
   } catch (x) { er.textContent = x.message; er.classList.remove('hide'); }
   finally { btn.disabled = false; btn.textContent = 'Sign in'; }
 }
-async function enter() {
+function forgotPassword() {
+  modal({ title: 'Reset your password', ok: 'Send reset link',
+    body: `<p style="margin-bottom:14px">Enter your username or email. We’ll send a link to the email on your account from tdmhcore@taytaydoctorshospital.com.</p>
+      <div class="err hide" id="fgErr"></div>
+      <div class="field"><label>Username or email</label><input class="inp" id="fgUser" value="${esc($('#lgUser').value.trim())}" autocomplete="username"></div>`,
+    onOk: async el => {
+      const login = $('#fgUser', el).value.trim(); if (!login) { toast('Enter your username or email.', 'bad'); return false; }
+      const r = await fetch(SB_URL + '/functions/v1/inv-reset', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SB_KEY }, body: JSON.stringify({ login }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { const e = $('#fgErr', el); e.textContent = j.error || 'Couldn’t send the email. Try again.'; e.classList.remove('hide'); return false; }
+      modal({ title: 'Check your email', ok: null, cancel: 'Close', body: `<p>${esc(j.message || 'We sent a reset link to the email on your account.')}</p><p class="hint" style="margin-top:10px">The link works once and expires in 1 hour. Look in Spam if it isn’t in your inbox after a few minutes.</p>` });
+    } });
+}
+async function enter(opt = {}) {
   const { data, error } = await sb.rpc('inv_me');
   if (error || !data) { await sb.auth.signOut(); showLogin(); const er = $('#lgErr'); er.textContent = 'This account has no inventory access or is blocked.'; er.classList.remove('hide'); return; }
   S.me = data.profile; S.perms = new Set(data.permissions || []); S.depts = data.departments || [];
@@ -817,12 +843,13 @@ async function enter() {
   buildNav(); buildDeptSel(); initBell(); initQuickSearch(); initKeys();
   window.addEventListener('hashchange', route);
   route();
-  if (S.me.must_change_password) forcePassword();
+  if (opt.recovering) forcePassword('Set a new password', 'Choose a new password for your account.');
+  else if (S.me.must_change_password) forcePassword();
 }
-function forcePassword() {
+function forcePassword(title = 'Set your own password', intro = 'You’re using a temporary password. Choose a new one to continue.') {
   modal({
-    title: 'Set your own password', ok: 'Save password', cancel: null,
-    body: `<p style="margin-bottom:14px">You’re using a temporary password. Choose a new one to continue.</p>
+    title, ok: 'Save password', cancel: null,
+    body: `<p style="margin-bottom:14px">${intro}</p>
       <div class="field"><label>New password</label><input class="inp" type="password" id="np1" autocomplete="new-password"></div>
       <div class="field"><label>Type it again</label><input class="inp" type="password" id="np2" autocomplete="new-password"></div>
       <p class="hint">At least 8 characters.</p>`,
