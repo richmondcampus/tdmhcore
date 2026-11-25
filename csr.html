@@ -933,7 +933,6 @@ function handleAuthLost() {
 }
 
 const SMS_URL = SUPA_URL + '/functions/v1/send-sms'
-const EMAIL_URL = SUPA_URL + '/functions/v1/send-email'
 
 // ═══════════════════════════════════════════
 // STATE
@@ -6567,11 +6566,9 @@ async function autoCreateITSetupTicket(assetNo, assetName, deptId) {
 function openPOSendOptions(poId) {
   document.getElementById('approvalModalTitle').textContent = '📤 Send Purchase Order'
   document.getElementById('approvalModalDesc').innerHTML =
-    '<p style="color:var(--txt2);font-size:13px;margin-bottom:12px;">Choose how to send this PO to the supplier.</p>' +
+    '<p style="color:var(--txt2);font-size:13px;margin-bottom:12px;">Print the PO slip to give to the supplier.</p>' +
     '<div style="display:flex;flex-direction:column;gap:8px;">' +
     '<button class="btn btn-secondary" onclick="printPO(\'' + poId + '\');closeModal(\'approvalModal\')">🖨️ Print PO Slip (A4)</button>' +
-    '<button class="btn btn-secondary" onclick="emailPO(\'' + poId + '\');closeModal(\'approvalModal\')">✉️ Email to Supplier</button>' +
-    '<button class="btn btn-primary" onclick="printPO(\'' + poId + '\');emailPO(\'' + poId + '\');closeModal(\'approvalModal\')">🖨️ + ✉️ Both</button>' +
     '</div>'
   document.getElementById('approvalRemarks').style.display = 'none'
   document.getElementById('remarksReq').style.display = 'none'
@@ -6624,25 +6621,6 @@ async function printPO(poId) {
     await SB.from('purchase_orders').update({ status: 'sent', sent_at: new Date().toISOString(), sent_by: state.user.id }).eq('id', poId)
     renderPurchaseOrders()
   }
-}
-
-async function emailPO(poId) {
-  const { data: po } = await SB.from('purchase_orders').select('*').eq('id', poId).single()
-  const supplier = poState.suppliers.find(s => s.id === po.supplier_id)
-  if (!supplier || !supplier.email) {
-    showToast('warning', 'No Email', 'Supplier has no email on file. Update supplier details first.')
-    return
-  }
-  try {
-    await sendEmail(
-      supplier.email,
-      'Purchase Order ' + po.po_number + ' — TDMH',
-      'Dear ' + (supplier.contact_person || supplier.name) + ',\n\nPlease find attached Purchase Order ' + po.po_number + ' from Taytay Doctors Multispecialty Hospital.\n\nAmount: ₱' + Number(po.total_amount||0).toLocaleString() + '\nExpected Delivery: ' + (po.expected_delivery ? formatDate(po.expected_delivery) : 'TBD') + '\nPayment Terms: ' + (po.payment_terms||'COD') + '\n\nFor inquiries, please contact our Supply Office.\n\nThank you.'
-    )
-    await SB.from('purchase_orders').update({ status: 'sent', sent_at: new Date().toISOString(), sent_by: state.user.id }).eq('id', poId)
-    showToast('success', 'Email Sent', 'PO emailed to ' + supplier.email)
-    renderPurchaseOrders()
-  } catch(e) { showToast('error', 'Email Error', e.message) }
 }
 
 // ─────────────────────────────
@@ -13236,15 +13214,6 @@ async function sendSMS(phones, message) {
       body: JSON.stringify({ phones, message })
     })
   } catch(e) { console.warn('[SMS]', e.message) }
-}
-
-async function sendEmail(to, subject, body) {
-  try {
-    await fetch(EMAIL_URL, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject, body })
-    })
-  } catch(e) { console.warn('[Email]', e.message) }
 }
 
 // Pop-ups do NOT close when clicking outside anymore (staff kept losing edits from a
