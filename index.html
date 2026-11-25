@@ -2138,8 +2138,21 @@ function openFolderForm(id){
   openModal('mainModal')
   setTimeout(()=>{const el=document.getElementById('fd_name');if(el){el.focus();el.select()}},60)
 }
+// The chosen folder was deleted (e.g. in another tab or by someone else) after this page loaded
+function isGoneFolderErr(e){const m=String(e&&e.message||e);return(e&&e.code==='23503')||/foreign key|_parent_id_fkey|_folder_id_fkey/i.test(m)}
+const GONE_FOLDER_MSG='Wala na ang folder na pinili mo (baka na-delete na). Ni-refresh ko ang listahan ng folders, pumili ulit.'
+// Reload the folder list and rebuild any open folder dropdown (fd_parent / d_folder / mv_dest / mv_doc_dest)
+async function refreshFoldersAfterGone(){
+  const{data}=await SB.from('hub_folders').select('*').order('name')
+  S.docs.folders=data||[]
+  if(S.docs.folder&&!docFolderById(S.docs.folder)){S.docs.folder=null;docsMemSet('folder',null)}
+  ;['fd_parent','d_folder','mv_doc_dest'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=docFolderOptions(S.docs.folder,null)})
+  const mv=document.getElementById('mv_dest');if(mv)mv.innerHTML=docFolderOptions(null,null)
+  if(S.page==='documents'&&document.getElementById('docView'))renderDocumentsView()
+}
 function folderErr(e){
   const m=String(e&&e.message||e)
+  if(isGoneFolderErr(e))return GONE_FOLDER_MSG
   if(/hub_folders_unique_name|duplicate key/i.test(m))return'There is already a folder with that name in the same place.'
   if(/row-level security|violates row-level/i.test(m))return'You are not allowed to change this folder.'
   return m
@@ -2155,7 +2168,11 @@ async function saveFolder(id){
     res=await SB.from('hub_folders').insert({name,parent_id:parent,created_by:S.user.id,created_by_name:S.user.full_name}).select('id')
     if(!res.error&&res.data&&res.data[0])S.docs.sel='folder:'+res.data[0].id
   }
-  if(res.error||!res.data||!res.data.length){showToast('error','Not saved',res.error?folderErr(res.error):'You are not allowed to change this folder.');if(btn)btn.disabled=false;return}
+  if(res.error||!res.data||!res.data.length){
+    showToast('error','Not saved',res.error?folderErr(res.error):'You are not allowed to change this folder.')
+    if(res.error&&isGoneFolderErr(res.error))await refreshFoldersAfterGone()
+    if(btn)btn.disabled=false;return
+  }
   closeModal('mainModal')
   showToast('success',id?'Renamed':'Folder created','📁 '+name)
   renderDocuments()
@@ -2171,7 +2188,7 @@ function openMoveFolder(id){
 async function moveFolder(id){
   const dest=document.getElementById('mv_dest')?.value||null
   const{data,error}=await SB.from('hub_folders').update({parent_id:dest}).eq('id',id).select('id')
-  if(error||!data||!data.length){showToast('error','Not moved',error?folderErr(error):'You are not allowed to move this folder.');return}
+  if(error||!data||!data.length){showToast('error','Not moved',error?folderErr(error):'You are not allowed to move this folder.');if(error&&isGoneFolderErr(error))await refreshFoldersAfterGone();return}
   closeModal('mainModal');showToast('success','Moved','📁 Folder moved to '+docFolderPathText(dest)+'.')
   renderDocuments()
 }
@@ -2199,7 +2216,7 @@ function openMoveDocument(id){
 async function moveDocument(id){
   const dest=document.getElementById('mv_doc_dest')?.value||null
   const{data,error}=await SB.from('hub_documents').update({folder_id:dest}).eq('id',id).select('id')
-  if(error||!data||!data.length){showToast('error','Not moved',error?error.message:'Only the person who uploaded this file or an admin can move it.');return}
+  if(error||!data||!data.length){showToast('error','Not moved',error?folderErr(error):'Only the person who uploaded this file or an admin can move it.');if(error&&isGoneFolderErr(error))await refreshFoldersAfterGone();return}
   closeModal('mainModal');showToast('success','Moved','📄 Moved to '+docFolderPathText(dest)+'.')
   renderDocuments()
 }
@@ -2247,6 +2264,7 @@ async function saveDocument(){
     showPage('documents')
   }catch(e){
     if(e&&e.cancelled)showToast('info','Not published','The document was not saved. Fix the file and try again.')
+    else if(isGoneFolderErr(e)){showToast('error','Folder',GONE_FOLDER_MSG);await refreshFoldersAfterGone()}
     else showToast('error','Error',e.message||'Upload failed.')
     if(btn){btn.disabled=false;btn.textContent='⬆ Upload'}
   }
@@ -3331,6 +3349,67 @@ function closeHubViewer(){
   if(ov){ov.classList.remove('open');document.getElementById('dvScroll').innerHTML=''}
   document.body.classList.remove('dv-open')
 }
+
+
+// ═══ Auto-refresh when someone comes back ═══
+// Lists go stale when a page is left open (e.g. a folder deleted elsewhere). When the person comes back
+// (returns to the tab, or moves/clicks after 2+ minutes of no activity), Home, Announcements, Memos and
+// Documents quietly reload their data. Never while anything could be lost: it waits if a window/form is
+// open, a document is being viewed, a menu is open, the person is typing, or something typed on the page
+// is not saved yet — then refreshes after that window closes. Search text, folder and filters are kept.
+const AUTO_REFRESH_AFTER_MS=2*60*1000
+const AUTO_REFRESH_PAGES={my_work:1,announcements:1,memos:1,documents:1}
+let _coreHiddenAt=null,_coreLastAct=Date.now(),_corePendingRefresh=false,_coreRefreshing=false
+function coreBusy(){
+  if(document.querySelector('.modal-overlay.open'))return'window open'
+  if(document.body.classList.contains('dv-open'))return'viewing a document'
+  if(document.getElementById('fxMenu'))return'menu open'
+  const a=document.activeElement
+  // (a field inside a window that was just closed can keep focus while hidden — ignore hidden fields)
+  if(a&&a!==document.body&&a.offsetParent!==null&&(/^(input|textarea|select)$/i.test(a.tagName)||a.isContentEditable)&&a.type!=='search')return'typing'
+  const main=document.getElementById('mainContent')
+  if(main){
+    for(const el of main.querySelectorAll('input,textarea')){
+      if(el.type==='search'||el.id==='docSearch')continue
+      if(el.type==='checkbox'||el.type==='radio'){if(el.checked!==el.defaultChecked)return'unsaved changes';continue}
+      if(el.type==='file'){if(el.files&&el.files.length)return'unsaved changes';continue}
+      if(el.value!==el.defaultValue)return'unsaved changes'
+    }
+    if(main.querySelector('[contenteditable="true"]'))return'editing'
+  }
+  return null
+}
+async function coreAutoRefresh(){
+  if(!S.user||!AUTO_REFRESH_PAGES[S.page]||_coreRefreshing)return
+  if(coreBusy()){_corePendingRefresh=true;return}
+  _corePendingRefresh=false;_coreRefreshing=true
+  const y=window.scrollY,page=S.page
+  try{
+    if(page==='documents')await renderDocuments()
+    else if(page==='memos')await renderMemos()
+    else if(page==='announcements')await renderAnnouncements()
+    else showPage(page)
+  }catch(e){console.warn('[auto-refresh]',e)}
+  finally{_coreRefreshing=false}
+  requestAnimationFrame(()=>window.scrollTo(0,y))
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){_coreHiddenAt=Date.now();return}
+  const away=_coreHiddenAt?Date.now()-_coreHiddenAt:0
+  _coreHiddenAt=null;_coreLastAct=Date.now()
+  if(away>=AUTO_REFRESH_AFTER_MS)coreAutoRefresh()
+})
+;['pointermove','pointerdown','keydown','wheel','touchstart'].forEach(ev=>window.addEventListener(ev,()=>{
+  const idle=Date.now()-_coreLastAct;_coreLastAct=Date.now()
+  if(idle>=AUTO_REFRESH_AFTER_MS&&!document.hidden)coreAutoRefresh()
+},{passive:true,capture:true}))
+// A refresh that had to wait runs as soon as the window / document viewer is closed
+;(function(){
+  const _cm=closeModal
+  closeModal=function(id){_cm(id);if(_corePendingRefresh)setTimeout(coreAutoRefresh,80)}
+  const _cv=closeHubViewer
+  closeHubViewer=function(){_cv.apply(this,arguments);if(_corePendingRefresh)setTimeout(coreAutoRefresh,80)}
+})()
 
 </script>
 </body>
