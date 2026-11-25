@@ -2488,6 +2488,12 @@ const HUB_CONVERTIBLE=HUB_OFFICE
 function hubIsPdf(f){return f.type==='application/pdf'||/\.pdf$/i.test(f.name)}
 function hubIsImage(f){return /^image\//.test(f.type)||/\.(jpe?g|png|webp|gif|bmp|heic)$/i.test(f.name)}
 function hubSafe(s){return String(s||'file').replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,80)}
+// Safe storage name that never loses its extension, even for very long titles
+function hubSafeFile(name){
+  const m=String(name||'file').match(/^(.*?)(\.[A-Za-z0-9]{1,5})?$/)
+  const ext=(m&&m[2]||'').toLowerCase()
+  return hubSafe(m&&m[1]||'file').slice(0,80-ext.length)+ext
+}
 
 // Read a photo into a canvas (fixes orientation via createImageBitmap when available), max 2200px
 async function hubImageToJpeg(file){
@@ -2549,7 +2555,7 @@ async function hubUpload(bucket,prefix,base,btn,label){
     name=(label||files[0].name.replace(/\.[^.]+$/,''))+'.pdf';type='application/pdf'
   }else if(d.kind==='pdf')type='application/pdf'
   if(btn)btn.textContent='Uploading...'
-  const path=hubSafe(base)+'_'+hubSafe(name)
+  const path=hubSafe(base)+'_'+hubSafeFile(name)
   const{error}=await SB.storage.from(bucket).upload(path,blob,{contentType:type,upsert:true})
   if(error)throw error
   return{path,name}
@@ -2607,7 +2613,7 @@ async function hubConvertOffice(bucket,file,base,btn,label){
   const ext=(file.name.match(/\.[^.]+$/)||[''])[0].toLowerCase()
   const original=hubSafe(base)+'_'+hubSafe(file.name.replace(/\.[^.]+$/,''))+ext
   const pdfName=(label||file.name.replace(/\.[^.]+$/,''))+'.pdf'
-  const target=hubSafe(base)+'_'+hubSafe(pdfName)
+  const target=hubSafe(base)+'_'+hubSafeFile(pdfName)
   if(btn)btn.textContent='Uploading original...'
   const o=await SB.storage.from('hub-originals').upload(original,file,{contentType:file.type||'application/octet-stream',upsert:true})
   if(o.error)throw o.error
