@@ -456,7 +456,109 @@ body.dv-open{overflow:hidden;}
   body.dv-open::after{content:"Printing is turned off for view-only documents.";visibility:visible;position:fixed;top:40%;left:0;right:0;text-align:center;font:600 18px Arial,sans-serif;color:#000;}
 }
 .hub-hint{font-size:12px;margin-top:6px;line-height:1.5;}
-/* Documents: folders */
+/* Documents: Windows File Explorer style */
+.fx{border:1px solid var(--bdr2);border-radius:14px;background:var(--surf1);overflow:hidden;display:flex;flex-direction:column;min-height:560px;box-shadow:0 2px 10px rgba(0,0,0,.04);}
+.fx-top{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--bdr2);background:var(--surf2);}
+.fx-navbtns{display:flex;gap:2px;flex-shrink:0;}
+.fx-nb{width:36px;height:34px;border:none;border-radius:8px;background:transparent;color:var(--txt);font-size:17px;font-weight:600;cursor:pointer;line-height:1;}
+.fx-nb:hover:not(:disabled){background:var(--surf3);}
+.fx-nb:disabled{opacity:.32;cursor:default;}
+.fx-addr{flex:1;min-width:0;display:flex;align-items:center;gap:2px;height:34px;padding:0 8px;border:1px solid var(--bdr2);border-radius:8px;background:var(--surf1);overflow-x:auto;white-space:nowrap;scrollbar-width:none;}
+.fx-addr::-webkit-scrollbar{display:none;}
+.fx-crumb{padding:4px 7px;border-radius:6px;font-size:13.5px;cursor:pointer;}
+.fx-crumb:hover{background:var(--surf3);}
+.fx-crumb.cur{font-weight:700;cursor:default;}
+.fx-crumb.cur:hover{background:transparent;}
+.fx-sep{color:var(--txt3);font-size:13px;padding:0 1px;}
+.fx-searchbox{width:240px;flex-shrink:0;}
+.fx-searchbox input{width:100%;height:34px;padding:0 10px;border:1px solid var(--bdr2);border-radius:8px;background:var(--surf1);color:var(--txt);font:inherit;font-size:13px;}
+.fx-cmd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:6px 10px;border-bottom:1px solid var(--bdr2);}
+.fx-cmd-l,.fx-cmd-r{display:flex;align-items:center;gap:2px;flex-wrap:wrap;}
+.fx-cb{height:32px;padding:0 10px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--txt);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;}
+.fx-cb:hover:not(:disabled){background:var(--surf3);}
+.fx-cb:disabled{opacity:.38;cursor:default;}
+.fx-cb.primary{font-weight:700;color:var(--accent);}
+.fx-cb.on{background:var(--accent-a);border-color:var(--accent-b,var(--accent));color:var(--accent);font-weight:700;}
+.fx-div{width:1px;height:22px;background:var(--bdr2);margin:0 6px;}
+.fx-cat{height:32px;padding:0 8px;border:1px solid var(--bdr2);border-radius:7px;background:var(--surf1);color:var(--txt);font:inherit;font-size:13px;margin-right:6px;}
+.fx-views{display:flex;gap:2px;}
+.fx-body{flex:1;display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0;}
+.fx-pane{border-right:1px solid var(--bdr2);padding:8px 6px;overflow:auto;max-height:70vh;background:var(--surf1);}
+.fx-pt{font-size:11.5px;font-weight:700;color:var(--txt3);padding:10px 8px 4px;}
+.fx-tr{display:flex;align-items:center;gap:6px;height:32px;padding-right:8px;border-radius:7px;cursor:pointer;font-size:13.5px;}
+.fx-tr:hover{background:var(--surf2);}
+.fx-tr.active{background:var(--accent-a);box-shadow:inset 3px 0 0 var(--accent);}
+.fx-caret{width:16px;flex-shrink:0;text-align:center;color:var(--txt3);font-size:14px;line-height:1;}
+.fx-caret:hover{color:var(--txt);}
+.fx-trn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fx-tr-empty{font-size:12.5px;color:var(--txt3);padding:6px 28px;}
+.fx-main{position:relative;padding:12px;overflow:auto;max-height:70vh;outline:none;}
+.fx-main.drop{background:var(--accent-a);box-shadow:inset 0 0 0 2px var(--accent);}
+.fx-main.drop::after{content:"⬆ Bitawan dito para i-upload";position:absolute;left:50%;top:40%;transform:translateX(-50%);padding:10px 16px;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;}
+.fx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px;align-content:start;min-height:100%;}
+.fx-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px 10px;border:1px solid transparent;border-radius:9px;cursor:default;user-select:none;text-align:center;}
+.fx-tile:hover{background:var(--surf2);}
+.fx-tile.sel{background:var(--accent-a);border-color:var(--accent-b,var(--accent));}
+.fx-tname{font-size:13px;line-height:1.3;max-width:100%;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.fx-tloc{font-size:11px;color:var(--txt3);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fx-more{position:absolute;top:4px;right:4px;width:26px;height:26px;border:none;border-radius:6px;background:transparent;color:var(--txt2);font-size:16px;line-height:1;cursor:pointer;opacity:0;}
+.fx-tile:hover .fx-more,.fx-tile.sel .fx-more,.fx-row:hover .fx-more,.fx-row.sel .fx-more{opacity:1;}
+.fx-more:hover{background:var(--surf3);}
+.fx-table .fx-more{position:static;opacity:.35;}
+/* folder icon (Windows-like yellow folder) */
+.fx-folder{position:relative;display:inline-block;width:20px;height:15px;margin-top:3px;border-radius:2px 3px 3px 3px;background:linear-gradient(#FFD45E,#F4B82E);flex-shrink:0;}
+.fx-folder::before{content:"";position:absolute;left:0;top:-3px;width:9px;height:4px;border-radius:2px 3px 0 0;background:#E9A824;}
+.fx-folder.big{width:64px;height:48px;margin-top:8px;border-radius:4px 6px 6px 6px;box-shadow:0 2px 0 #E0A21E inset,0 3px 8px rgba(196,140,20,.25);}
+.fx-folder.big::before{top:-8px;width:26px;height:10px;border-radius:4px 6px 0 0;}
+.fx-folder.sm{width:17px;height:13px;}
+.fx-folder.sm::before{width:8px;height:4px;}
+/* file icon (page with folded corner and a coloured type label) */
+.fx-file{position:relative;display:inline-flex;align-items:flex-end;justify-content:center;width:18px;height:22px;border:1px solid #c9ccd6;border-radius:2px;background:#fff;flex-shrink:0;}
+.fx-file::after{content:"";position:absolute;top:-1px;right:-1px;border-style:solid;border-width:0 6px 6px 0;border-color:var(--surf1) var(--surf1) #c9ccd6 #c9ccd6;}
+.fx-file b{font-size:6px;font-weight:800;color:#fff;padding:0 2px;margin-bottom:3px;border-radius:2px;letter-spacing:.2px;line-height:1.5;}
+.fx-file i{position:absolute;left:-7px;bottom:-4px;font-size:9px;font-style:normal;}
+.fx-file.big{width:52px;height:64px;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.fx-file.big::after{border-width:0 15px 15px 0;}
+.fx-file.big b{font-size:11px;padding:1px 5px;margin-bottom:8px;}
+.fx-file.big i{left:-8px;bottom:-6px;font-size:16px;}
+.fx-file.pdf b{background:#D93025;}.fx-file.doc b{background:#2B579A;}.fx-file.xls b{background:#1E7145;}.fx-file.ppt b{background:#C43E1C;}.fx-file.gen b{background:#6b7280;}
+/* details view */
+.fx-table{width:100%;border-collapse:collapse;font-size:13px;}
+.fx-table th{position:sticky;top:-12px;background:var(--surf1);text-align:left;font-size:12px;font-weight:600;color:var(--txt2);padding:8px 10px;border-bottom:1px solid var(--bdr2);white-space:nowrap;}
+.fx-table td{padding:7px 10px;border-bottom:1px solid transparent;}
+.fx-row{cursor:default;user-select:none;}
+.fx-row:hover td{background:var(--surf2);}
+.fx-row.sel td{background:var(--accent-a);}
+.fx-namecell{display:flex;align-items:center;gap:10px;min-width:0;}
+.fx-namecell span:last-child{overflow-wrap:anywhere;}
+.fx-dim{color:var(--txt2);white-space:nowrap;}
+.fx-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:300px;text-align:center;color:var(--txt2);}
+.fx-empty-t{font-size:16px;font-weight:700;color:var(--txt);}
+.fx-empty-s{font-size:13px;}
+.fx-backbig{margin-top:12px;padding:12px 22px;border-radius:12px;border:1.5px solid var(--accent);background:var(--accent-a);color:var(--accent);font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+.fx-status{display:flex;align-items:center;gap:16px;padding:6px 12px;border-top:1px solid var(--bdr2);background:var(--surf2);font-size:12px;color:var(--txt2);flex-wrap:wrap;}
+.fx-st-sel b{color:var(--txt);}
+.fx-st-hint{margin-left:auto;color:var(--txt3);}
+.fx-menu{position:fixed;z-index:3000;min-width:200px;padding:5px;border:1px solid var(--bdr2);border-radius:10px;background:var(--surf1);box-shadow:0 10px 30px rgba(0,0,0,.18);}
+.fx-menu button{display:block;width:100%;text-align:left;padding:9px 12px;border:none;border-radius:7px;background:transparent;color:var(--txt);font:inherit;font-size:13.5px;cursor:pointer;}
+.fx-menu button:hover:not(:disabled){background:var(--accent-a);}
+.fx-menu button:disabled{opacity:.38;cursor:default;}
+.fx-only-phone{display:none;}
+@media (pointer:coarse){.fx-more{opacity:1;}}
+@media (max-width:900px){
+  .fx-body{grid-template-columns:1fr;}
+  .fx-pane{display:none;border-right:none;border-bottom:1px solid var(--bdr2);max-height:none;}
+  .fx-pane.open{display:block;}
+  .fx-only-phone{display:inline-block;}
+  .fx-hide-phone{display:none;}
+  .fx-top{flex-wrap:wrap;}
+  .fx-addr{order:3;flex-basis:100%;}
+  .fx-searchbox{flex:1;width:auto;}
+  .fx-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));}
+  .fx-main{max-height:none;}
+  .fx-st-hint{margin-left:0;}
+}
+/* (old) Documents: folders */
 .doc-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
 .doc-search{flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--bdr2);border-radius:10px;background:var(--surf1);color:var(--txt);font:inherit;font-size:13px;}
 .doc-cat{padding:9px 10px;border:1px solid var(--bdr2);border-radius:10px;background:var(--surf1);color:var(--txt);font:inherit;font-size:13px;}
@@ -1641,10 +1743,13 @@ async function deleteMemo(id){
   })
 }
 
-// ═══ DOCUMENTS: folders + sub-folders ═══
-// Anyone who may upload (admins, supervisors, department heads) can create folders.
-// Only the creator or an admin can rename, move or delete a folder (same rule as files);
-// a folder can only be deleted when it is empty. The database enforces all of this too.
+// ═══ DOCUMENTS: Windows File Explorer style ═══
+// Looks and works like Windows File Explorer so staff feel at home:
+//  ← → ↑ buttons, clickable address bar, search box, command bar, navigation pane (Quick access + folder tree),
+//  Large icons / Details views, status bar, click = select, double-click = open, right-click = menu,
+//  Enter / Delete / F2 / Backspace / Alt+← shortcuts, drag files in to upload. Phones: tap = open, ⋮ = menu.
+// Anyone who may upload (admins, supervisors, department heads) can create folders; only the creator or an
+// admin can rename / move / delete (enforced in the database too). A folder can only be deleted when empty.
 const DOC_CATS={
   policy:{icon:'📜',label:'Policy',color:'var(--green)'},
   form:{icon:'📝',label:'Form',color:'var(--accent)'},
@@ -1653,29 +1758,22 @@ const DOC_CATS={
   guideline:{icon:'📐',label:'Guideline',color:'var(--blue,var(--accent))'},
   general:{icon:'📁',label:'General',color:'var(--txt2)'}
 }
-S.docs=S.docs||{folder:null,search:'',cat:'',folders:[],items:[],treeOpen:false,expanded:{},restored:false}
-// Small per-user memory in this browser (last folder, recently opened). Optional: ignored if storage is blocked.
+S.docs=S.docs||{folder:null,search:'',cat:'',folders:[],items:[],treeOpen:false,expanded:{},restored:false,sel:null,seq:0,maxSeq:0,recent:false}
+const FX_TOUCH=(()=>{try{return matchMedia('(pointer:coarse)').matches}catch(_){return false}})()
+// Small per-user memory in this browser (last folder, view, recently opened). Ignored if storage is blocked.
 function docsMemKey(k){return 'tdmh_docs_'+k+'_'+((S.user&&S.user.id)||'x')}
 function docsMemGet(k,def){try{const v=localStorage.getItem(docsMemKey(k));return v==null?def:JSON.parse(v)}catch(_){return def}}
 function docsMemSet(k,v){try{localStorage.setItem(docsMemKey(k),JSON.stringify(v))}catch(_){}}
-function docsRecordRecent(id){if(!id)return;const r=docsMemGet('recent',[]).filter(x=>x!==id);r.unshift(id);docsMemSet('recent',r.slice(0,5))}
-// Browser / phone Back button: step back through folders (and close the viewer) instead of leaving Core
-function docsPushState(folder){try{history.pushState({tdmh:'docs',folder:folder||null},'')}catch(_){}}
-window.addEventListener('popstate',e=>{
-  const st=e.state||{}
-  if(document.body.classList.contains('dv-open')){DV._fromPop=true;closeHubViewer();DV._fromPop=false;return}
-  if(st.tdmh==='docs'){
-    if(S.page!=='documents'){S.docs.folder=st.folder||null;S.docs._noPush=true;showPage('documents');return}
-    if((S.docs.folder||null)!==(st.folder||null)){S.docs.folder=st.folder||null;S.docs.search='';docsMemSet('folder',S.docs.folder);renderDocumentsView()}
-  }
-})
+function docsRecordRecent(id){if(!id)return;const r=docsMemGet('recent',[]).filter(x=>x!==id);r.unshift(id);docsMemSet('recent',r.slice(0,10))}
+
+// ── Folder helpers
 function docFolderById(id){return(S.docs.folders||[]).find(f=>f.id===id)||null}
 function docFolderPath(id){
   const out=[];let f=docFolderById(id),guard=0
   while(f&&guard++<50){out.unshift(f);f=docFolderById(f.parent_id)}
   return out
 }
-function docFolderPathText(id){const p=docFolderPath(id);return p.length?p.map(f=>f.name).join(' › '):'Documents (top level)'}
+function docFolderPathText(id){const p=docFolderPath(id);return p.length?'Documents › '+p.map(f=>f.name).join(' › '):'Documents'}
 function docDescendants(id){
   const out=new Set([id]);let added=true
   while(added){added=false;(S.docs.folders||[]).forEach(f=>{if(f.parent_id&&out.has(f.parent_id)&&!out.has(f.id)){out.add(f.id);added=true}})}
@@ -1684,35 +1782,50 @@ function docDescendants(id){
 function docFolderOptions(selected,excludeTreeOf){
   const skip=excludeTreeOf?docDescendants(excludeTreeOf):new Set()
   const opts=(S.docs.folders||[]).filter(f=>!skip.has(f.id)).map(f=>({id:f.id,label:docFolderPathText(f.id)})).sort((a,b)=>a.label.localeCompare(b.label))
-  let h='<option value=""'+(!selected?' selected':'')+'>📂 Documents (top level)</option>'
+  let h='<option value=""'+(!selected?' selected':'')+'>🗂️ Documents (top level)</option>'
   opts.forEach(o=>{h+='<option value="'+o.id+'"'+(o.id===selected?' selected':'')+'>📁 '+esc(o.label)+'</option>'})
   return h
 }
-function openDocFolder(id){
-  id=id||null
-  const changed=(S.docs.folder||null)!==id
-  S.docs.folder=id;S.docs.search='';S.docs.treeOpen=false
-  const si=document.getElementById('docSearch');if(si)si.value=''
-  docsMemSet('folder',id)
-  if(changed)docsPushState(id)
-  renderDocumentsView()
-  const top=document.getElementById('docTopAnchor');if(top&&top.scrollIntoView)top.scrollIntoView({behavior:'smooth',block:'start'})
-}
-function docsBack(){
-  const cur=docFolderById(S.docs.folder)
-  openDocFolder(cur?cur.parent_id:null)
-}
-function docsToggleTree(){S.docs.treeOpen=!S.docs.treeOpen;renderDocTree()}
-function docsToggleNode(id,ev){if(ev)ev.stopPropagation();S.docs.expanded[id]=!docsIsExpanded(id);renderDocTree()}
+function docsCount(id){const t=docDescendants(id);return S.docs.items.filter(d=>d.folder_id&&t.has(d.folder_id)).length}
 function docsIsExpanded(id){
   if(S.docs.expanded[id]!=null)return S.docs.expanded[id]
-  return docFolderPath(S.docs.folder).some(f=>f.id===id)  // ancestors of the open folder start expanded
+  return docFolderPath(S.docs.folder).some(f=>f.id===id)
 }
-function docsCount(id){
-  const tree=docDescendants(id)
-  return S.docs.items.filter(d=>d.folder_id&&tree.has(d.folder_id)).length
-}
+function docsToggleNode(id,ev){if(ev)ev.stopPropagation();S.docs.expanded[id]=!docsIsExpanded(id);renderDocTree()}
+function docsToggleTree(){S.docs.treeOpen=!S.docs.treeOpen;renderDocTree()}
 
+// ── Navigation + browser / phone Back button
+function docsState(){return{tdmh:'docs',folder:S.docs.folder||null,recent:!!S.docs.recent,seq:S.docs.seq}}
+function docsPushState(){S.docs.seq++;S.docs.maxSeq=S.docs.seq;try{history.pushState(docsState(),'')}catch(_){}}
+window.addEventListener('popstate',e=>{
+  const st=e.state||{}
+  if(document.body.classList.contains('dv-open')){DV._fromPop=true;closeHubViewer();DV._fromPop=false;return}
+  fxCloseMenu()
+  if(st.tdmh==='docs'){
+    S.docs.seq=st.seq||0
+    S.docs.folder=st.folder||null;S.docs.recent=!!st.recent;S.docs.search='';S.docs.sel=null
+    docsMemSet('folder',S.docs.folder)
+    if(S.page!=='documents'){S.docs._noPush=true;showPage('documents');return}
+    const si=document.getElementById('docSearch');if(si)si.value=''
+    renderDocumentsView()
+  }
+})
+function openDocFolder(id){docsGo(id)}
+function docsGo(id){
+  id=id||null
+  const changed=(S.docs.folder||null)!==id||S.docs.recent||S.docs.search
+  S.docs.folder=id;S.docs.recent=false;S.docs.search='';S.docs.sel=null;S.docs.treeOpen=false
+  const si=document.getElementById('docSearch');if(si)si.value=''
+  docsMemSet('folder',id)
+  if(changed)docsPushState()
+  renderDocumentsView()
+}
+function docsGoRecent(){S.docs.recent=true;S.docs.folder=null;S.docs.search='';S.docs.sel=null;S.docs.treeOpen=false;docsPushState();renderDocumentsView()}
+function docsBack(){if(S.docs.seq>0)history.back();else docsUp()}
+function docsForward(){if(S.docs.seq<S.docs.maxSeq)history.forward()}
+function docsUp(){if(S.docs.recent){docsGo(null);return}const cur=docFolderById(S.docs.folder);if(cur)docsGo(cur.parent_id)}
+
+// ── Page
 async function renderDocuments(){
   const content=document.getElementById('mainContent')
   const[{data:docs},{data:folders,error:fErr}]=await Promise.all([
@@ -1721,137 +1834,298 @@ async function renderDocuments(){
   ])
   S.docs.items=docs||[]
   S.docs.folders=fErr?[]:(folders||[])
-  // First visit this session: go back to the folder this person had open last time
+  S.docs.view=S.docs.view||docsMemGet('view',FX_TOUCH?'icons':'icons')
   if(!S.docs.restored){S.docs.restored=true;const last=docsMemGet('folder',null);if(last&&docFolderById(last))S.docs.folder=last}
   if(S.docs.folder&&!docFolderById(S.docs.folder))S.docs.folder=null
   if(S.docs._noPush)S.docs._noPush=false
-  else{try{history.replaceState({tdmh:'docs',folder:S.docs.folder||null},'')}catch(_){}}
-  let html='<div class="page-header"><p class="page-desc">Forms, policies, and files. 🔒 = view only in Core.</p><div style="display:flex;gap:8px;flex-wrap:wrap;">'
-  if(canPostDocs())html+='<button class="btn btn-ghost" onclick="openFolderForm()">＋ New Folder</button><button class="btn btn-primary" onclick="openDocumentForm()">＋ Upload Document</button>'
-  html+='</div></div>'
-  html+='<div class="doc-toolbar"><input type="search" id="docSearch" class="doc-search" placeholder="🔍 Search all folders: title, description, file name" value="'+esc(S.docs.search)+'" oninput="S.docs.search=this.value;clearTimeout(S._docT);S._docT=setTimeout(renderDocumentsView,180)">'
-  html+='<select id="docCat" class="doc-cat" onchange="S.docs.cat=this.value;renderDocumentsView()"><option value="">All categories</option>'
-  Object.entries(DOC_CATS).forEach(([k,m])=>{html+='<option value="'+k+'"'+(S.docs.cat===k?' selected':'')+'>'+m.icon+' '+m.label+'</option>'})
-  html+='</select><button class="btn btn-ghost doc-tree-btn" onclick="docsToggleTree()">📂 Mga Folder</button></div>'
-  html+='<div id="docTopAnchor"></div><div class="docs-layout"><aside class="doc-tree" id="docTree"></aside><div id="docView"></div></div>'
-  content.innerHTML=html
+  else{try{history.replaceState(docsState(),'')}catch(_){}}
+  let h='<div class="fx" id="fx">'
+  h+='<div class="fx-top">'
+  h+='<div class="fx-navbtns"><button type="button" class="fx-nb" id="fxBack" onclick="docsBack()" title="Back (Bumalik) · Alt+←">←</button>'
+  h+='<button type="button" class="fx-nb" id="fxFwd" onclick="docsForward()" title="Forward · Alt+→">→</button>'
+  h+='<button type="button" class="fx-nb" id="fxUp" onclick="docsUp()" title="Up one level (Pataas)">↑</button>'
+  h+='<button type="button" class="fx-nb fx-only-phone" onclick="docsToggleTree()" title="Folders">📂</button>'
+  h+='<button type="button" class="fx-nb fx-hide-phone" onclick="renderDocuments()" title="Refresh">⟳</button></div>'
+  h+='<div class="fx-addr" id="fxAddr"></div>'
+  h+='<div class="fx-searchbox"><input type="search" id="docSearch" placeholder="🔍 Search Documents" value="'+esc(S.docs.search)+'" oninput="S.docs.search=this.value;S.docs.sel=null;clearTimeout(S._docT);S._docT=setTimeout(renderDocumentsView,180)"></div>'
+  h+='</div>'
+  h+='<div class="fx-cmd" id="fxCmd"></div>'
+  h+='<div class="fx-body"><aside class="fx-pane" id="docTree"></aside>'
+  h+='<div class="fx-main" id="docView" tabindex="0" onclick="if(event.target===this||event.target.classList.contains(\'fx-grid\')){S.docs.sel=null;renderDocumentsView()}" oncontextmenu="fxCtx(event,null)" ondragover="fxDragOver(event)" ondragleave="fxDragLeave(event)" ondrop="fxDrop(event)"></div></div>'
+  h+='<div class="fx-status" id="fxStatus"></div>'
+  h+='</div>'
+  content.innerHTML=h
   renderDocumentsView()
 }
 
-function docCard(d,showPath){
-  const m=DOC_CATS[d.category]||DOC_CATS.general
-  let h='<div class="card" style="display:flex;align-items:center;gap:12px;padding:14px;">'
-  h+='<div style="font-size:22px;">'+m.icon+'</div><div style="flex:1;min-width:0;">'
-  h+='<div style="font-size:14px;font-weight:600;">'+(d.view_only!==false?'🔒 ':'')+esc(d.title)+'</div>'
-  if(showPath)h+='<div class="doc-path" onclick="openDocFolder('+(d.folder_id?'\''+d.folder_id+'\'':'null')+')">📂 '+esc(docFolderPathText(d.folder_id))+'</div>'
-  if(d.description)h+='<div style="font-size:12px;color:var(--txt2);">'+esc(d.description)+'</div>'
-  h+='<div style="font-size:11px;color:var(--txt3);margin-top:2px;">'+m.icon+' '+m.label+' · 👤 '+esc(d.uploaded_by_name||'—')+' · '+formatDate(d.created_at)+'</div>'
-  h+='</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;">'+hubFileButtons(hubFileRef('hub_documents',d))
-  if(canManageHub(d.uploaded_by))h+='<button class="btn btn-ghost btn-sm" title="Move to another folder" onclick="openMoveDocument(\''+d.id+'\')">↪ Move</button>'
-  h+='</div>'
-  if(canManageHub(d.uploaded_by))h+='<button class="btn btn-danger btn-sm" style="flex-shrink:0;" onclick="deleteDocument(\''+d.id+'\')">🗑</button>'
-  return h+'</div>'
+// Items shown in the main pane for the current place
+function fxItems(){
+  const cat=S.docs.cat,q=(S.docs.search||'').trim().toLowerCase()
+  const docs=S.docs.items.filter(d=>!cat||d.category===cat)
+  const mkFolder=f=>({kind:'folder',id:f.id,name:f.name,date:f.updated_at||f.created_at,type:'File folder',by:f.created_by_name||'',owner:f.created_by,loc:docFolderPathText(f.parent_id),obj:f})
+  const mkFile=d=>{const m=DOC_CATS[d.category]||DOC_CATS.general;return{kind:'file',id:d.id,name:d.title,date:d.created_at,type:m.label+(d.view_only!==false?' · View only':''),by:d.uploaded_by_name||'',owner:d.uploaded_by,loc:docFolderPathText(d.folder_id),obj:d}}
+  if(q){
+    const f=(S.docs.folders||[]).filter(x=>x.name.toLowerCase().includes(q)).map(mkFolder)
+    const d=docs.filter(x=>[x.title,x.description,x.file_name].some(v=>String(v||'').toLowerCase().includes(q))).map(mkFile)
+    return f.concat(d)
+  }
+  if(S.docs.recent)return docsMemGet('recent',[]).map(id=>docs.find(d=>d.id===id)).filter(Boolean).map(mkFile)
+  const here=S.docs.folder||null
+  const f=(S.docs.folders||[]).filter(x=>(x.parent_id||null)===here).sort((a,b)=>a.name.localeCompare(b.name)).map(mkFolder)
+  const d=docs.filter(x=>(x.folder_id||null)===here).sort((a,b)=>a.title.localeCompare(b.title)).map(mkFile)
+  return f.concat(d)
+}
+function fxFindItem(k){return(S.docs._items||[]).find(i=>i.kind+':'+i.id===k)||null}
+function fxExt(d){
+  const p=String(d.file_path||d.file_name||'')
+  return((p.match(/\.([a-z0-9]{2,5})$/i)||['','file'])[1]).toUpperCase()
+}
+function fxIcon(it,big){
+  if(it.kind==='folder')return'<span class="fx-folder'+(big?' big':'')+'"></span>'
+  const ext=fxExt(it.obj),cls=ext==='PDF'?'pdf':/^DOC/.test(ext)?'doc':/^XLS|CSV/.test(ext)?'xls':/^PPT/.test(ext)?'ppt':'gen'
+  return'<span class="fx-file '+cls+(big?' big':'')+'"><b>'+esc(ext)+'</b>'+(it.obj.view_only!==false?'<i title="View only">🔒</i>':'')+'</span>'
+}
+function fxWhen(iso){
+  if(!iso)return''
+  try{return new Date(iso).toLocaleString('en-PH',{timeZone:'Asia/Manila',month:'numeric',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}catch(_){return iso}
 }
 
 function renderDocumentsView(){
   const box=document.getElementById('docView');if(!box)return
-  const q=(S.docs.search||'').trim().toLowerCase(),cat=S.docs.cat
-  const docs=S.docs.items.filter(d=>!cat||d.category===cat)
+  const items=fxItems();S.docs._items=items
+  const q=(S.docs.search||'').trim()
+  // Address bar
+  const addr=document.getElementById('fxAddr')
+  if(addr){
+    let a=''
+    if(q)a='<span class="fx-crumb cur">🔍 Search results for "'+esc(q)+'"</span>'
+    else if(S.docs.recent)a='<span class="fx-crumb" onclick="docsGo(null)">🗂️ Documents</span><span class="fx-sep">›</span><span class="fx-crumb cur">🕘 Recent</span>'
+    else{
+      const path=docFolderPath(S.docs.folder)
+      a='<span class="fx-crumb'+(path.length?'':' cur')+'" onclick="docsGo(null)">🗂️ Documents</span>'
+      path.forEach((f,i)=>{a+='<span class="fx-sep">›</span><span class="fx-crumb'+(i===path.length-1?' cur':'')+'" onclick="docsGo(\''+f.id+'\')">'+esc(f.name)+'</span>'})
+    }
+    addr.innerHTML=a
+  }
+  const back=document.getElementById('fxBack'),fwd=document.getElementById('fxFwd'),up=document.getElementById('fxUp')
+  if(back)back.disabled=!(S.docs.seq>0||S.docs.folder||S.docs.recent)
+  if(fwd)fwd.disabled=!(S.docs.seq<S.docs.maxSeq)
+  if(up)up.disabled=!(S.docs.folder||S.docs.recent)
+  renderFxCmd()
+  // Main pane
   let h=''
-  if(q){
-    const hits=docs.filter(d=>[d.title,d.description,d.file_name,docFolderPathText(d.folder_id)].some(v=>String(v||'').toLowerCase().includes(q)))
-    const fhits=(S.docs.folders||[]).filter(f=>f.name.toLowerCase().includes(q))
-    h+='<div class="doc-sub">'+hits.length+' file'+(hits.length!==1?'s':'')+(fhits.length?' and '+fhits.length+' folder'+(fhits.length!==1?'s':''):'')+' matching "'+esc(S.docs.search)+'"</div>'
-    if(fhits.length){h+='<div class="folder-grid">';fhits.forEach(f=>{h+=folderCard(f,true)});h+='</div>'}
-    h+=hits.length?'<div style="display:flex;flex-direction:column;gap:6px;">'+hits.map(d=>docCard(d,true)).join('')+'</div>':(fhits.length?'':'<div class="empty-state"><div class="empty-icon">🔍</div><h3>Nothing found</h3><p>Try another word.</p></div>')
-    box.innerHTML=h;return
-  }
-  const path=docFolderPath(S.docs.folder)
-  const cur=docFolderById(S.docs.folder)
-  const subsHere=(S.docs.folders||[]).filter(f=>(f.parent_id||null)===(S.docs.folder||null)).length
-  const filesHere=docs.filter(d=>(d.folder_id||null)===(S.docs.folder||null)).length
-  // 1) Big back button
-  if(cur){
-    const parent=docFolderById(cur.parent_id)
-    h+='<button type="button" class="doc-back" onclick="docsBack()">⬅ Bumalik sa '+esc(parent?parent.name:'Lahat ng Documents')+'</button>'
-  }
-  // 3) "You are here"
-  h+='<div class="doc-here"><div class="doc-here-ico">'+(cur?'📂':'🗂️')+'</div><div style="min-width:0;"><div class="doc-here-label">Nandito ka:</div><div class="doc-here-name">'+esc(cur?cur.name:'Lahat ng Documents')+'</div>'
-  h+='<div class="doc-here-meta">'+filesHere+' file'+(filesHere!==1?'s':'')+(subsHere?' · '+subsHere+' folder'+(subsHere!==1?'s':''):'')+'</div></div></div>'
-  // Breadcrumb (smaller, for people who like it)
-  if(cur){
-    h+='<div class="doc-crumbs"><a onclick="openDocFolder(null)">🗂️ Documents</a>'
-    path.forEach((f,i)=>{h+='<span class="sep">›</span>'+(i===path.length-1?'<strong>'+esc(f.name)+'</strong>':'<a onclick="openDocFolder(\''+f.id+'\')">'+esc(f.name)+'</a>')})
+  if(!items.length){
+    const cur=docFolderById(S.docs.folder)
+    h='<div class="fx-empty"><div style="font-size:40px;">'+(q?'🔍':S.docs.recent?'🕘':'📭')+'</div><div class="fx-empty-t">'+(q?'Walang nahanap':S.docs.recent?'Wala pang binuksang file':'Walang laman ang folder na ito')+'</div>'
+    h+='<div class="fx-empty-s">'+(q?'Subukan ang ibang salita.':S.docs.recent?'Lalabas dito ang mga file na binuksan mo.':(canPostDocs()?'Pindutin ang ＋ New folder o ⬆ Upload sa itaas, o i-drag ang file dito.':'Wala pang naka-upload dito.'))+'</div>'
+    if(cur||S.docs.recent)h+='<button type="button" class="fx-backbig" onclick="docsUp()">⬅ Bumalik</button>'
+    h+='</div>'
+  }else if(S.docs.view==='details'){
+    h='<table class="fx-table"><thead><tr><th>Name</th><th>Date modified</th><th>Type</th><th class="fx-hide-phone">Uploaded by</th>'+(q||S.docs.recent?'<th class="fx-hide-phone">Location</th>':'')+'<th style="width:36px;"></th></tr></thead><tbody>'
+    items.forEach(it=>{
+      const k=it.kind+':'+it.id
+      h+='<tr class="fx-row'+(S.docs.sel===k?' sel':'')+'" '+fxHandlers(k)+'><td><div class="fx-namecell">'+fxIcon(it,false)+'<span>'+esc(it.name)+'</span></div></td>'
+      h+='<td class="fx-dim">'+esc(fxWhen(it.date))+'</td><td class="fx-dim">'+esc(it.type)+'</td><td class="fx-dim fx-hide-phone">'+esc(it.by)+'</td>'
+      if(q||S.docs.recent)h+='<td class="fx-dim fx-hide-phone">'+esc(it.loc)+'</td>'
+      h+='<td><button type="button" class="fx-more" title="More" onclick="event.stopPropagation();fxCtx(event,\''+k+'\')">⋮</button></td></tr>'
+    })
+    h+='</tbody></table>'
+  }else{
+    h='<div class="fx-grid">'
+    items.forEach(it=>{
+      const k=it.kind+':'+it.id
+      h+='<div class="fx-tile'+(S.docs.sel===k?' sel':'')+'" '+fxHandlers(k)+' title="'+esc(it.name)+'">'+fxIcon(it,true)
+      h+='<div class="fx-tname">'+esc(it.name)+'</div>'
+      if(q||S.docs.recent)h+='<div class="fx-tloc">'+esc(it.loc)+'</div>'
+      h+='<button type="button" class="fx-more" title="More" onclick="event.stopPropagation();fxCtx(event,\''+k+'\')">⋮</button></div>'
+    })
     h+='</div>'
   }
-  // 8) Recently opened (top level only)
-  if(!cur){
-    const rec=docsMemGet('recent',[]).map(id=>S.docs.items.find(d=>d.id===id)).filter(Boolean)
-    if(rec.length){
-      h+='<div class="doc-recent"><div class="doc-recent-title">🕘 Kamakailang binuksan</div>'
-      rec.forEach(d=>{
-        const key=hubFileRef('hub_documents',d)
-        h+='<div class="doc-recent-row"><div style="min-width:0;flex:1;"><div class="doc-recent-name">'+esc(d.title)+'</div><div class="doc-path" onclick="openDocFolder('+(d.folder_id?'\''+d.folder_id+'\'':'null')+')">📂 '+esc(docFolderPathText(d.folder_id))+'</div></div>'
-        h+=(S._hubFiles[key]&&S._hubFiles[key].viewable?'<button class="btn btn-secondary btn-sm" onclick="openHubFile(\''+key+'\')">Buksan</button>':'')+'</div>'
-      })
-      h+='</div>'
-    }
-  }
-  if(cur&&canManageHub(cur.created_by)){
-    h+='<div class="doc-folder-actions"><button class="btn btn-ghost btn-sm" onclick="openFolderForm(\''+cur.id+'\')">✏ Rename</button><button class="btn btn-ghost btn-sm" onclick="openMoveFolder(\''+cur.id+'\')">↪ Move folder</button><button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="deleteFolder(\''+cur.id+'\')">🗑 Delete folder</button></div>'
-  }
-  const subs=(S.docs.folders||[]).filter(f=>(f.parent_id||null)===(S.docs.folder||null))
-  const here=docs.filter(d=>(d.folder_id||null)===(S.docs.folder||null))
-  if(subs.length){h+='<div class="folder-grid">';subs.forEach(f=>{h+=folderCard(f,false)});h+='</div>'}
-  if(!here.length&&!subs.length){
-    h+='<div class="empty-state"><div class="empty-icon">📭</div><h3>'+(cur?'Walang laman ang folder na ito':'Wala pang documents')+'</h3><p>'+(canPostDocs()?'Pindutin ang ＋ New Folder o ＋ Upload Document sa itaas.':'Wala pang naka-upload dito.')+'</p>'
-      +(cur?'<button type="button" class="doc-back" style="margin:14px auto 0;" onclick="docsBack()">⬅ Bumalik</button>':'')+'</div>'
-  }else if(here.length){
-    const groups={}
-    here.forEach(d=>{(groups[d.category]=groups[d.category]||[]).push(d)})
-    Object.keys(groups).forEach(c=>{
-      const m=DOC_CATS[c]||DOC_CATS.general
-      h+='<div style="font-size:12px;font-weight:700;color:'+m.color+';text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px;">'+m.icon+' '+m.label+'</div>'
-      h+='<div style="display:flex;flex-direction:column;gap:6px;">'+groups[c].map(d=>docCard(d,false)).join('')+'</div>'
-    })
-  }
   box.innerHTML=h
+  // Status bar
+  const st=document.getElementById('fxStatus')
+  if(st){
+    const nF=items.filter(i=>i.kind==='folder').length,nD=items.length-nF
+    const sel=fxFindItem(S.docs.sel)
+    st.innerHTML='<span>'+items.length+' item'+(items.length!==1?'s':'')+(items.length?' ('+nF+' folder'+(nF!==1?'s':'')+', '+nD+' file'+(nD!==1?'s':'')+')':'')+'</span>'
+      +(sel?'<span class="fx-st-sel">1 item selected: <b>'+esc(sel.name)+'</b></span>':'')
+      +'<span class="fx-st-hint">'+(FX_TOUCH?'I-tap para buksan · ⋮ para sa iba pa':'Double-click para buksan · Right-click para sa iba pa')+'</span>'
+  }
   renderDocTree()
 }
+function fxHandlers(k){
+  const kk='\''+k+'\''
+  return FX_TOUCH
+    ?'onclick="event.stopPropagation();fxOpen('+kk+')" oncontextmenu="fxCtx(event,'+kk+')"'
+    :'onclick="event.stopPropagation();fxSelect('+kk+')" ondblclick="event.stopPropagation();fxOpen('+kk+')" oncontextmenu="fxCtx(event,'+kk+')"'
+}
+function fxSelect(k){S.docs.sel=k;renderDocumentsView();const v=document.getElementById('docView');if(v)v.focus({preventScroll:true})}
 
-// 6) Folder list on the side (desktop) / behind the "📂 Mga Folder" button (phone)
+// ── Command bar
+function fxActions(it){
+  if(!it)return[]
+  const mine=canManageHub(it.owner),a=[]
+  if(it.kind==='folder'){
+    a.push(['open','📂 Open',true])
+    a.push(['rename','✏️ Rename',mine],['move','↪ Move',mine],['delete','🗑 Delete',mine])
+  }else{
+    const key=hubFileRef('hub_documents',it.obj),f=S._hubFiles[key]
+    a.push(['open',f.viewOnly?'🔒 Open':'📄 Open',f.viewable||!f.viewOnly])
+    a.push(['download','⬇ Download',!f.viewOnly||(mine&&!!f.original)])
+    a.push(['rename','✏️ Rename',mine],['move','↪ Move',mine])
+    if(f.viewable)a.push(['viewonly',f.viewOnly?'🔓 Allow download':'🔒 Make view-only',mine])
+    a.push(['delete','🗑 Delete',mine])
+    if(S.docs.search||S.docs.recent)a.push(['location','📂 Open file location',true])
+  }
+  return a
+}
+function renderFxCmd(){
+  const el=document.getElementById('fxCmd');if(!el)return
+  const sel=fxFindItem(S.docs.sel)
+  let h='<div class="fx-cmd-l">'
+  if(canPostDocs())h+='<button type="button" class="fx-cb primary" onclick="openFolderForm()">＋ New folder</button><button type="button" class="fx-cb primary" onclick="openDocumentForm()">⬆ Upload</button>'+(FX_TOUCH?'':'<span class="fx-div"></span>')
+  // Phones open with one tap and use the ⋮ menu, so the selection buttons are only shown on computers
+  const acts=FX_TOUCH?[]:(sel?fxActions(sel):[['open','📂 Open',false],['rename','✏️ Rename',false],['move','↪ Move',false],['delete','🗑 Delete',false]])
+  acts.forEach(([id,label,on])=>{h+='<button type="button" class="fx-cb" '+(on?'onclick="fxDo(\''+id+'\',\''+S.docs.sel+'\')"':'disabled')+'>'+label+'</button>'})
+  h+='</div><div class="fx-cmd-r">'
+  h+='<select class="fx-cat" onchange="S.docs.cat=this.value;S.docs.sel=null;renderDocumentsView()" title="Category"><option value="">All categories</option>'
+  Object.entries(DOC_CATS).forEach(([k,m])=>{h+='<option value="'+k+'"'+(S.docs.cat===k?' selected':'')+'>'+m.icon+' '+m.label+'</option>'})
+  h+='</select><div class="fx-views"><button type="button" class="fx-cb'+(S.docs.view!=='details'?' on':'')+'" onclick="fxSetView(\'icons\')" title="Large icons">▦ Icons</button><button type="button" class="fx-cb'+(S.docs.view==='details'?' on':'')+'" onclick="fxSetView(\'details\')" title="Details">☰ Details</button></div></div>'
+  el.innerHTML=h
+}
+function fxSetView(v){S.docs.view=v;docsMemSet('view',v);renderDocumentsView()}
+
+// ── Actions (command bar, context menu, keyboard)
+function fxOpen(k){fxDo('open',k)}
+function fxDo(act,k){
+  fxCloseMenu()
+  const it=fxFindItem(k);if(!it)return
+  if(it.kind==='folder'){
+    if(act==='open')return docsGo(it.id)
+    if(act==='rename')return openFolderForm(it.id)
+    if(act==='move')return openMoveFolder(it.id)
+    if(act==='delete')return deleteFolder(it.id)
+    return
+  }
+  const key=hubFileRef('hub_documents',it.obj),f=S._hubFiles[key]
+  if(act==='open'){if(f.viewable)return openHubFile(key);return downloadHubFile(key)}
+  if(act==='download')return downloadHubFile(key)
+  if(act==='rename')return openRenameDoc(it.id)
+  if(act==='move')return openMoveDocument(it.id)
+  if(act==='viewonly')return toggleHubViewOnly(key)
+  if(act==='delete')return deleteDocument(it.id)
+  if(act==='location'){docsGo(it.obj.folder_id||null);S.docs.sel=k;renderDocumentsView()}
+}
+// Right-click / ⋮ menu
+function fxCtx(ev,k){
+  ev.preventDefault();ev.stopPropagation()
+  fxCloseMenu()
+  let acts
+  if(k){S.docs.sel=k;renderDocumentsView();acts=fxActions(fxFindItem(k))}
+  else acts=[]
+  if(!k){
+    if(canPostDocs())acts.push(['newfolder','📁 New folder',true],['upload','⬆ Upload',true])
+    acts.push(['view',S.docs.view==='details'?'▦ View: Large icons':'☰ View: Details',true],['refresh','⟳ Refresh',true])
+  }
+  const m=document.createElement('div');m.className='fx-menu';m.id='fxMenu'
+  m.innerHTML=acts.map(([id,label,on])=>'<button type="button" '+(on?'':'disabled ')+'data-a="'+id+'">'+label+'</button>').join('')
+  m.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b||b.disabled)return
+    const a=b.dataset.a;fxCloseMenu()
+    if(a==='newfolder')return openFolderForm()
+    if(a==='upload')return openDocumentForm()
+    if(a==='view')return fxSetView(S.docs.view==='details'?'icons':'details')
+    if(a==='refresh')return renderDocuments()
+    fxDo(a,k)
+  })
+  document.body.appendChild(m)
+  const x=ev.clientX||(ev.touches&&ev.touches[0]&&ev.touches[0].clientX)||window.innerWidth/2
+  const y=ev.clientY||(ev.touches&&ev.touches[0]&&ev.touches[0].clientY)||window.innerHeight/2
+  const r=m.getBoundingClientRect()
+  m.style.left=Math.max(6,Math.min(x,window.innerWidth-r.width-6))+'px'
+  m.style.top=Math.max(6,Math.min(y,window.innerHeight-r.height-6))+'px'
+}
+function fxCloseMenu(){const m=document.getElementById('fxMenu');if(m)m.remove()}
+document.addEventListener('click',e=>{if(!e.target.closest||!e.target.closest('#fxMenu'))fxCloseMenu()})
+window.addEventListener('scroll',fxCloseMenu,true)
+window.addEventListener('resize',fxCloseMenu)
+// Keyboard: Enter open · Delete · F2 rename · Backspace / Alt+← back · Alt+→ forward · Alt+↑ up · Esc
+document.addEventListener('keydown',e=>{
+  if(S.page!=='documents'||!document.getElementById('fx'))return
+  if(document.body.classList.contains('dv-open'))return
+  const modal=document.querySelector('.modal-overlay.open,.modal-overlay.show,.modal-overlay.active');if(modal&&modal.offsetParent!==null)return
+  const tag=(e.target.tagName||'').toLowerCase();if(tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable)return
+  const k=e.key
+  if(k==='Escape'){fxCloseMenu();if(S.docs.sel){S.docs.sel=null;renderDocumentsView()}return}
+  if(e.altKey&&k==='ArrowLeft'){e.preventDefault();return docsBack()}
+  if(e.altKey&&k==='ArrowRight'){e.preventDefault();return docsForward()}
+  if(e.altKey&&k==='ArrowUp'){e.preventDefault();return docsUp()}
+  if(k==='Backspace'){e.preventDefault();return docsBack()}
+  if(!S.docs.sel)return
+  const acts=Object.fromEntries(fxActions(fxFindItem(S.docs.sel)).map(a=>[a[0],a[2]]))
+  if(k==='Enter'&&acts.open){e.preventDefault();return fxDo('open',S.docs.sel)}
+  if(k==='Delete'&&acts.delete){e.preventDefault();return fxDo('delete',S.docs.sel)}
+  if(k==='F2'&&acts.rename){e.preventDefault();return fxDo('rename',S.docs.sel)}
+})
+// Drag files from the computer into the window = upload into this folder
+function fxDragOver(e){if(!canPostDocs()||!e.dataTransfer||![...(e.dataTransfer.types||[])].includes('Files'))return;e.preventDefault();document.getElementById('docView').classList.add('drop')}
+function fxDragLeave(e){const v=document.getElementById('docView');if(v&&!v.contains(e.relatedTarget))v.classList.remove('drop')}
+function fxDrop(e){
+  const v=document.getElementById('docView');if(v)v.classList.remove('drop')
+  if(!canPostDocs()||!e.dataTransfer||!e.dataTransfer.files||!e.dataTransfer.files.length)return
+  e.preventDefault()
+  const files=e.dataTransfer.files
+  openDocumentForm()
+  setTimeout(()=>{
+    const inp=document.getElementById('d_file');if(!inp)return
+    try{const dt=new DataTransfer();[...files].forEach(f=>dt.items.add(f));inp.files=dt.files}catch(_){}
+    const t=document.getElementById('d_title');if(t&&!t.value)t.value=files[0].name.replace(/\.[^.]+$/,'')
+    hubFileHint('d')
+  },30)
+}
+
+// ── Navigation pane (Quick access + folder tree)
 function renderDocTree(){
   const el=document.getElementById('docTree');if(!el)return
   el.classList.toggle('open',!!S.docs.treeOpen)
   const all=S.docs.folders||[]
   const kids=p=>all.filter(f=>(f.parent_id||null)===p).sort((a,b)=>a.name.localeCompare(b.name))
   const node=(f,depth)=>{
-    const ch=kids(f.id),open=ch.length&&docsIsExpanded(f.id),active=S.docs.folder===f.id
-    let h='<div class="tree-row'+(active?' active':'')+'" style="padding-left:'+(8+depth*14)+'px;" onclick="openDocFolder(\''+f.id+'\')">'
-    h+=ch.length?'<span class="tree-caret" onclick="docsToggleNode(\''+f.id+'\',event)" title="'+(open?'Isara':'Buksan')+'">'+(open?'▾':'▸')+'</span>':'<span class="tree-caret"></span>'
-    h+='<span class="tree-ico">'+(active?'📂':'📁')+'</span><span class="tree-name">'+esc(f.name)+'</span><span class="tree-count">'+docsCount(f.id)+'</span></div>'
+    const ch=kids(f.id),open=ch.length&&docsIsExpanded(f.id),active=!S.docs.recent&&!S.docs.search&&S.docs.folder===f.id
+    let h='<div class="fx-tr'+(active?' active':'')+'" style="padding-left:'+(6+depth*16)+'px;" onclick="docsGo(\''+f.id+'\')" title="'+esc(f.name)+'">'
+    h+=ch.length?'<span class="fx-caret" onclick="docsToggleNode(\''+f.id+'\',event)">'+(open?'⌄':'›')+'</span>':'<span class="fx-caret"></span>'
+    h+='<span class="fx-folder sm"></span><span class="fx-trn">'+esc(f.name)+'</span></div>'
     if(open)ch.forEach(c=>{h+=node(c,depth+1)})
     return h
   }
-  let h='<div class="tree-title">📂 Mga Folder</div>'
-  h+='<div class="tree-row'+(!S.docs.folder?' active':'')+'" style="padding-left:8px;" onclick="openDocFolder(null)"><span class="tree-caret"></span><span class="tree-ico">🗂️</span><span class="tree-name">Lahat ng Documents</span></div>'
+  let h='<div class="fx-pt">Quick access</div>'
+  h+='<div class="fx-tr'+(S.docs.recent&&!S.docs.search?' active':'')+'" style="padding-left:6px;" onclick="docsGoRecent()"><span class="fx-caret"></span><span>🕘</span><span class="fx-trn">Recent</span></div>'
+  h+='<div class="fx-pt">This site</div>'
+  h+='<div class="fx-tr'+(!S.docs.folder&&!S.docs.recent&&!S.docs.search?' active':'')+'" style="padding-left:6px;" onclick="docsGo(null)"><span class="fx-caret"></span><span>🗂️</span><span class="fx-trn"><b>Documents</b></span></div>'
   const top=kids(null)
-  h+=top.length?top.map(f=>node(f,1)).join(''):'<div class="tree-empty">Wala pang folder.</div>'
+  h+=top.length?top.map(f=>node(f,1)).join(''):'<div class="fx-tr-empty">Wala pang folder</div>'
   el.innerHTML=h
 }
 
-function folderCard(f,showPath){
-  const tree=docDescendants(f.id)
-  const files=S.docs.items.filter(d=>d.folder_id&&tree.has(d.folder_id)).length
-  const subs=(S.docs.folders||[]).filter(x=>x.parent_id===f.id).length
-  let h='<button type="button" class="folder-card" onclick="openDocFolder(\''+f.id+'\')" title="Buksan ang folder na ito">'
-  h+='<div class="folder-ico">📁</div><div style="min-width:0;flex:1;text-align:left;"><div class="folder-name">'+esc(f.name)+'</div>'
-  if(showPath&&f.parent_id)h+='<div class="folder-meta">nasa '+esc(docFolderPathText(f.parent_id))+'</div>'
-  h+='<div class="folder-meta">'+files+' file'+(files!==1?'s':'')+(subs?' · '+subs+' folder'+(subs!==1?'s':''):'')+'</div></div><span class="folder-open">Buksan ›</span></button>'
-  return h
+// Rename a file (title) — uploader or admin
+function openRenameDoc(id){
+  const d=S.docs.items.find(x=>x.id===id);if(!d)return
+  if(!canManageHub(d.uploaded_by)){showToast('error','Not allowed','Only the person who uploaded this file or an admin can rename it.');return}
+  document.getElementById('modalTitle').textContent='✏️ Rename'
+  document.getElementById('modalBody').innerHTML='<div class="field"><label>File name *</label><input type="text" id="rn_doc" maxlength="200" value="'+esc(d.title)+'"></div>'
+  document.getElementById('modalFooter').innerHTML='<button class="btn btn-ghost" onclick="closeModal(\'mainModal\')">Cancel</button><button class="btn btn-primary" onclick="renameDoc(\''+id+'\')">Save</button>'
+  openModal('mainModal')
+  setTimeout(()=>{const el=document.getElementById('rn_doc');if(el){el.focus();el.select()}},60)
+}
+async function renameDoc(id){
+  const title=(document.getElementById('rn_doc')?.value||'').trim()
+  if(!title){showToast('error','Kulang','Name is required.');return}
+  const{data,error}=await SB.from('hub_documents').update({title}).eq('id',id).select('id')
+  if(error||!data||!data.length){showToast('error','Not saved',error?error.message:'Only the person who uploaded this file or an admin can rename it.');return}
+  closeModal('mainModal');showToast('success','Renamed','📄 '+title)
+  renderDocuments()
 }
 
-// New folder (no id) or rename (id)
 function openFolderForm(id){
   if(!canPostDocs()){showToast('error','Not allowed','Only admins, supervisors and department heads can make folders.');return}
   const f=id?docFolderById(id):null
@@ -1879,7 +2153,7 @@ async function saveFolder(id){
   else{
     const parent=document.getElementById('fd_parent')?.value||null
     res=await SB.from('hub_folders').insert({name,parent_id:parent,created_by:S.user.id,created_by_name:S.user.full_name}).select('id')
-    if(!res.error&&res.data&&res.data[0])S.docs.folder=res.data[0].id
+    if(!res.error&&res.data&&res.data[0])S.docs.sel='folder:'+res.data[0].id
   }
   if(res.error||!res.data||!res.data.length){showToast('error','Not saved',res.error?folderErr(res.error):'You are not allowed to change this folder.');if(btn)btn.disabled=false;return}
   closeModal('mainModal')
