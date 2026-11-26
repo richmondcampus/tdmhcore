@@ -303,42 +303,37 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
 .page-header h2{font-size:28px;line-height:1.15}
 .page-header p{margin-top:4px}
 
-/* Core switch faceplate (inserted above the stat read-out, decorative).
-   48 ports = the tickets on the read-out: lit blue open, amber in progress, green resolved today,
-   dim grey the rest; critical ports flash red. Activity lights flicker like a real switch. */
-.it-switch{--p-open:#8EA2FF;--p-prog:#FBBF24;--p-done:#4ADE80;--p-crit:#F87171;--p-idle:rgba(232,234,246,.32);
-  position:relative;display:flex;align-items:center;gap:20px;margin-top:2px;padding:14px 30px;
-  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 40%),var(--console);color:var(--on-console);border:1px solid var(--ink)}
-.it-switch::before,.it-switch::after{content:"";position:absolute;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;
-  background:radial-gradient(circle at 35% 35%,#8a8fb0,#2a2e4a 70%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
-.it-switch::before{left:10px}.it-switch::after{right:10px}
-.it-sw-id{min-width:132px;font-family:var(--it-mono);font-size:10.5px;letter-spacing:.06em;line-height:1.55;color:rgba(232,234,246,.62)}
-.it-sw-id b{display:block;color:#fff;font-size:12px;font-weight:600;letter-spacing:.08em}
-.it-sw-id .pwr{display:inline-block;width:6px;height:6px;margin-right:6px;background:var(--p-done);box-shadow:0 0 6px var(--p-done)}
-.it-ports{flex:1;display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:7px 6px}
-.it-port{position:relative;aspect-ratio:1.25/1;background:#04050c;border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 2px 3px rgba(0,0,0,.7)}
-.it-port::after{content:"";position:absolute;left:32%;right:32%;bottom:-1px;height:26%;background:var(--console);border:1px solid rgba(255,255,255,.16);border-bottom:0}
-.it-port i{position:absolute;top:2px;width:4px;height:4px;z-index:2;background:rgba(255,255,255,.07)}
-/* Plugged ports carry a colour-coded patch cable, like a real rack */
-.it-port[data-s]::before{content:"";position:absolute;left:18%;right:18%;top:28%;bottom:0;z-index:1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 70%,#000),color-mix(in srgb,var(--c) 40%,#000));box-shadow:inset 0 1px 0 color-mix(in srgb,var(--c) 85%,#fff)}
-.it-port[data-s="idle"]::before{background:#3a3e58;box-shadow:inset 0 1px 0 #555a78}
-.it-port i.l{left:2px}.it-port i.a{right:2px}
-.it-port[data-s] i.l{background:var(--c);box-shadow:0 0 5px var(--c)}
-.it-port[data-s] i.a{background:var(--c);box-shadow:0 0 4px var(--c);animation:it-act var(--d,1.3s) steps(1) var(--w,0s) infinite}
-.it-port[data-s="open"]{--c:var(--p-open)}.it-port[data-s="prog"]{--c:var(--p-prog)}
-.it-port[data-s="done"]{--c:var(--p-done)}.it-port[data-s="idle"]{--c:var(--p-idle)}
-.it-port[data-s="idle"] i.a{animation:none;opacity:.5}
-.it-port[data-s="crit"]{--c:var(--p-crit);border-color:color-mix(in srgb,var(--p-crit) 60%,transparent)}
-.it-port[data-s="crit"] i.l{animation:it-blink .9s steps(1) infinite}
-.it-sw-legend{display:grid;gap:3px;font-family:var(--it-mono);font-size:10.5px;color:rgba(232,234,246,.7);white-space:nowrap}
-.it-sw-legend span::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;background:var(--c);box-shadow:0 0 5px var(--c);vertical-align:1px}
-.it-switch + .stat-grid{border-top:0}
+/* Login: the TDMH Agents pixel office beside the sign-in card */
+#loginScreen{gap:32px;flex-wrap:wrap;padding:32px 24px;align-content:center}
+.it-agents{flex:1 1 560px;max-width:780px;background:#171717;color:#e7e7e7;border:1.5px solid var(--ink);box-shadow:8px 8px 0 var(--ink);padding:16px;position:relative;z-index:1}
+.it-agents-stage{border-radius:10px;overflow:hidden;background:#e6dcc5}
+.it-agents-stage canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+.it-agents-legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.it-agents-legend .chip{display:flex;align-items:center;gap:8px;min-width:0;padding:7px 10px;background:#232323;border-radius:6px;font-size:13px}
+.it-agents-legend .sw{width:10px;height:10px;border-radius:2px;flex:none}
+.it-agents-legend b{font-weight:700}
+.it-agents-legend .st{margin-left:auto;color:#a8a8a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.it-agents-log{margin-top:14px}
+.it-agents-log .hd{display:flex;align-items:center;gap:12px;font-size:14px}
+.it-agents-log .clock{font-family:var(--it-mono);color:#8b8b8b;font-size:13px}
+.it-agents-log button{margin-left:auto;font:inherit;font-size:13px;font-weight:700;color:#e7e7e7;background:transparent;border:1px solid #555;border-radius:6px;padding:5px 14px;cursor:pointer;transition:transform .32s var(--spring),border-color .2s}
+.it-agents-log button:hover{border-color:#bbb}
+.it-agents-log button:active{transform:scale(.95);transition-duration:.08s}
+.it-agents-log ol{list-style:none;margin-top:8px;font-family:var(--it-mono);font-size:12.5px;line-height:1.75;color:#cfcfcf;min-height:6.5em}
+.it-agents-log li:first-child{color:#7ef0c4}
+#loginScreen .login-card{flex:0 1 400px}
+@media(max-width:768px){
+  #loginScreen{padding:16px 12px;gap:18px}
+  .it-agents{flex-basis:100%;padding:10px;box-shadow:5px 5px 0 var(--ink)}
+  #loginScreen .login-card{order:-1}            /* sign-in first on phones */
+  .it-agents-legend,.it-agents-log{display:none}
+}
+@media(min-width:769px) and (max-width:1100px){ .it-agents{flex-basis:100%} }
+
 @keyframes it-act{0%,100%{opacity:1}35%{opacity:.15}52%{opacity:1}70%{opacity:.25}}
-/* Login: the same faceplate runs behind the sign-in card */
-#loginScreen .it-switch{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin:0;border-left:0;border-right:0;padding:18px 34px}
-#loginScreen .it-ports{grid-template-columns:repeat(32,minmax(0,1fr))}
 
 /* ── The IT room (dashboard, IT staff only) ────────────────────── */
+.it-room[hidden]{display:none}
 .it-room{margin:0 0 24px;border:1px solid var(--bdr2);background:var(--surf1);overflow:hidden}
 .it-room-hd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--ink)}
 .it-room-hd h3{font-size:21px}
@@ -457,19 +452,51 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
   .page-header h2{font-size:24px}
   .stat-grid .stat-card{border-bottom:1px solid var(--bdr2)!important}
   .stat-value{font-size:36px!important}
-  .it-switch{flex-direction:column;align-items:stretch;gap:10px;padding:12px 24px}
-  .it-ports{grid-template-columns:repeat(16,minmax(0,1fr));gap:5px 4px}
-  .it-sw-legend{display:none}
-  .it-sw-id{min-width:0}
-  #loginScreen .it-ports{grid-template-columns:repeat(16,minmax(0,1fr))}
 }
 @media (prefers-reduced-motion:reduce){
   .card-hover:hover,.kb-card:hover{transform:none}
-  .sidebar-logo-mark::after,.badge-critical::before,.it-port i{animation:none!important}
+  .sidebar-logo-mark::after,.badge-critical::before{animation:none!important}
   .it-digit > span{transition:none}
   .modal{transition:none!important}
   .it-tick circle,.it-tick path{animation:none;stroke-dashoffset:0}
 }
+/* Login extras: IT on duty, quick fixes before filing, reminder of the day */
+.it-login-col{flex:0 1 400px;display:flex;flex-direction:column;gap:14px;min-width:0}
+#loginScreen .it-login-col .login-card{flex:none;max-width:none}
+.it-duty{display:flex;align-items:center;gap:10px;margin-top:18px;padding:10px 12px;background:var(--surf2);border:1px solid var(--bdr);font-size:12.5px;color:var(--txt2)}
+.it-duty[hidden]{display:none}
+.it-duty .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-a);flex:none}
+.it-duty .w{min-width:0}.it-duty b{display:block;color:var(--txt);font-size:13.5px}
+.it-duty .t{margin-left:auto;text-align:right;line-height:1.5;font-family:var(--it-mono);font-size:11px;color:var(--txt3);white-space:nowrap}
+.it-fix{background:var(--surf1);border:1px solid var(--bdr2);box-shadow:var(--shadow2);padding:18px 20px 8px}
+.it-fix h3{font-family:'Source Serif 4',Georgia,serif;font-size:17px;font-weight:600;color:var(--txt)}
+.it-fix > p{font-size:12.5px;color:var(--txt3);margin:2px 0 8px}
+.it-fix details{border-top:1px solid var(--bdr)}
+.it-fix summary{display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;list-style:none;font-size:13.5px;font-weight:700;color:var(--txt)}
+.it-fix summary::-webkit-details-marker{display:none}
+.it-fix summary::after{content:"+";margin-left:auto;font-family:var(--it-mono);font-weight:400;color:var(--txt3);transition:transform .2s}
+.it-fix details[open] summary::after{transform:rotate(45deg)}
+.it-fix summary .ic{flex:none;display:inline-flex;color:var(--accent)}
+.it-fix ol{margin:0 0 12px 28px;font-size:13px;line-height:1.6;color:var(--txt2)}
+.it-fix summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.it-tip{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;background:var(--console);color:var(--on-console);border:1px solid var(--ink)}
+.it-tip .k{font-family:var(--it-mono);font-size:10.5px;color:#7ef0c4;white-space:nowrap;padding-top:3px}
+.it-tip p{font-size:13.5px;line-height:1.5;flex:1;min-width:0}
+.it-tip p b{color:#fff}
+/* Requester dashboard: the same reminder, with a button for another one */
+#mainContent > .it-tip{margin:0 0 20px;align-items:center}
+.it-tip button{flex:none;font:inherit;font-size:12px;font-weight:700;color:var(--on-console);background:transparent;border:1px solid rgba(232,234,246,.35);border-radius:3px;padding:6px 12px;cursor:pointer;transition:transform .32s var(--spring,cubic-bezier(.34,1.56,.64,1))}
+.it-tip button:hover{border-color:rgba(232,234,246,.8)}
+.it-tip button:active{transform:scale(.95);transition-duration:.08s}
+.it-tip button:focus-visible{outline:2px solid #7ef0c4;outline-offset:2px}
+.it-tip p.swap{animation:it-tipin .35s cubic-bezier(.22,1,.36,1)}
+@keyframes it-tipin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(max-width:768px){
+  #loginScreen .it-login-col{order:-1;flex-basis:100%}
+  #mainContent > .it-tip{flex-wrap:wrap}
+  #mainContent > .it-tip p{flex-basis:calc(100% - 110px)}
+}
+@media (prefers-reduced-motion:reduce){ .it-tip p.swap{animation:none} }
 </style>
 </head>
 <body>
@@ -477,7 +504,15 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
 
 <!-- LOGIN -->
 <div id="loginScreen">
-  <div class="it-switch" id="itLoginSwitch" aria-hidden="true"></div>
+  <section class="it-agents" aria-label="TDMH Agents: a playful animation of the systems IT looks after">
+    <div class="it-agents-stage"><canvas id="itAgentsCanvas" width="960" height="512" aria-hidden="true"></canvas></div>
+    <div class="it-agents-legend" id="itAgentsLegend"></div>
+    <div class="it-agents-log">
+      <div class="hd"><span>Activity log</span><span class="clock" id="itAgentsClock"></span><button type="button" id="itAgentsPause">Pause</button></div>
+      <ol id="itAgentsLog"></ol>
+    </div>
+  </section>
+  <div class="it-login-col">
   <div class="login-card">
     <div class="login-logo">
       <div class="login-logo-mark">🖥️</div>
@@ -501,7 +536,18 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
     <div style="text-align:center;margin-top:12px;">
       <a href="https://tdmhcore.io/reset?from=it" style="font-size:12px;color:var(--txt2);text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--txt2)'">Forgot password?</a>
     </div>
+    <div class="it-duty" id="itDuty" hidden></div>
     <p style="font-size:11px;color:var(--txt3);text-align:center;margin-top:16px;">Taytay Doctors Multispecialty Hospital · IT Department</p>
+  </div>
+    <section class="it-fix" aria-labelledby="itFixHd">
+      <h3 id="itFixHd">Bago mag-ticket</h3>
+      <p>Subukan muna ito. Kung hindi pa rin gumana, mag-sign in at mag-file ng ticket.</p>
+      <details><summary><span class="ic" data-ic="monitor"></span>Ayaw mag-print</summary><ol><li>I-off ang printer, hintayin ang 10 segundo, tapos i-on ulit.</li><li>Tingnan kung may papel at walang naipit.</li><li>I-print ulit mula sa PC.</li></ol></details>
+      <details><summary><span class="ic" data-ic="pulse"></span>Walang internet</summary><ol><li>Tanggalin ang LAN cable nang 10 segundo, tapos ibalik.</li><li>Kung Wi-Fi, i-off at i-on ang Wi-Fi ng PC.</li><li>I-restart ang PC.</li></ol></details>
+      <details><summary><span class="ic" data-ic="users"></span>Ayaw mag-login sa Agimat</summary><ol><li>Siguraduhing naka-off ang Caps Lock.</li><li>Isara lahat ng browser window, tapos buksan ulit.</li><li>Kung "locked" ang account, mag-ticket na.</li></ol></details>
+      <details><summary><span class="ic" data-ic="calendar"></span>Mabagal ang PC</summary><ol><li>I-save ang ginagawa at isara ang mga hindi ginagamit na program.</li><li>I-restart ang PC (hindi lang i-lock).</li></ol></details>
+    </section>
+    <section class="it-tip" aria-label="Paalala ngayon"><span class="k">Paalala ngayon</span><p id="itLoginTip"></p></section>
   </div>
 </div>
 
@@ -3950,7 +3996,6 @@ async function insertWithRetry(table, payload, maxRetries) {
   if (!window.TDMHIcons) return
   var MAP = { '📊':'chart', '🎫':'tag', '🔓':'inbox', '📋':'clipboard', '🗂️':'folder', '🗂':'folder', '👤':'users', '📈':'pulse',
               '⏱️':'calendar', '⏱':'calendar', '🔍':'search', '📚':'scroll', '📖':'memo', '🖥️':'monitor', '🖥':'monitor' }
-  var PORTS = 48
   var reduce = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches }
 
   function icons() {
@@ -3960,54 +4005,6 @@ async function insertWithRetry(table, payload, maxRetries) {
       if (name) { el.innerHTML = TDMHIcons.svg(name, 18); el.dataset.txIc = name }
       else { el.classList.add('tx-keep'); el.dataset.txIc = 'keep' }
     })
-  }
-
-  function portsHtml(states) {
-    return states.map(function (st) {
-      if (!st) return '<span class="it-port"><i class="l"></i><i class="a"></i></span>'
-      var d = (0.7 + Math.random() * 1.6).toFixed(2), w = (Math.random() * 2).toFixed(2)
-      return '<span class="it-port" data-s="' + st + '" style="--d:' + d + 's;--w:-' + w + 's"><i class="l"></i><i class="a"></i></span>'
-    }).join('')
-  }
-  function statOf(re) {
-    var out = null
-    document.querySelectorAll('#mainContent > .stat-grid .stat-card').forEach(function (c) {
-      var l = c.querySelector('.stat-label'), v = c.querySelector('.stat-value')
-      if (l && v && re.test(l.textContent)) out = Number(v.getAttribute('aria-label') || v.textContent.trim()) || 0
-    })
-    return out
-  }
-  // The core switch: one port per ticket on the read-out (dashboard only)
-  function switchPanel() {
-    var grid = document.querySelector('#mainContent > .stat-grid')
-    if (!grid || document.querySelector('#mainContent > .it-switch')) return
-    var open = statOf(/open/i), prog = statOf(/progress/i), done = statOf(/resolved/i), total = statOf(/total/i)
-    if (open === null) return
-    prog = prog || 0; done = done || 0
-    if (total === null) total = open + prog + done
-    var crit = 0, m = (document.getElementById('mainContent').textContent || '').match(/(\d+)\s+CRITICAL ticket/)
-    if (m) crit = Math.min(Number(m[1]) || 0, open)
-    var scale = total > PORTS ? PORTS / total : 1, n = function (x) { return Math.round(x * scale) }
-    var states = [], push = function (st, k) { for (var i = 0; i < k && states.length < PORTS; i++) states.push(st) }
-    push('crit', n(crit)); push('open', n(open) - n(crit)); push('prog', n(prog)); push('done', n(done))
-    push('idle', n(Math.max(total - open - prog - done, 0)))
-    while (states.length < PORTS) states.push(null)
-    var used = states.filter(Boolean).length
-    var el = document.createElement('div')
-    el.className = 'it-switch'; el.setAttribute('aria-hidden', 'true')
-    el.innerHTML = '<div class="it-sw-id"><b>TDMH-IT CORE</b><span class="pwr"></span>' + used + ' of ' + PORTS + ' ports lit' + (scale < 1 ? '<br>1 port ≈ ' + (1 / scale).toFixed(1) + ' tickets' : '<br>1 port = 1 ticket') + '</div>' +
-      '<div class="it-ports">' + portsHtml(states) + '</div>' +
-      '<div class="it-sw-legend"><span style="--c:var(--p-open)">open</span><span style="--c:var(--p-prog)">in progress</span><span style="--c:var(--p-done)">resolved today</span>' + (crit ? '<span style="--c:var(--p-crit)">critical</span>' : '') + '</div>'
-    grid.parentNode.insertBefore(el, grid)
-  }
-  // Login: the faceplate behind the card, with random traffic
-  function loginSwitch() {
-    var el = document.getElementById('itLoginSwitch')
-    if (!el || el.dataset.done) return
-    el.dataset.done = '1'
-    var pick = ['open', 'open', 'prog', 'done', 'done', 'done', 'idle', null, null, null], states = []
-    for (var i = 0; i < 64; i++) states.push(pick[Math.floor(Math.random() * pick.length)])
-    el.innerHTML = '<div class="it-sw-id"><b>TDMH-IT CORE</b><span class="pwr"></span>link up</div><div class="it-ports">' + portsHtml(states) + '</div>'
   }
 
   // 03 Rolling number: digits roll into place, 100 ms apart
@@ -4144,6 +4141,8 @@ async function insertWithRetry(table, payload, maxRetries) {
     return g
   }
 
+  // Requesters see the room as decoration: names only, no ticket data
+  var DECOR = { decor: true, user: {}, working: true, active: 0, done: 0, current: null }
   function roomSvg(tickets, users) {
     var W = 1200, H = 560, VPX = 600, VPY = 120
     var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The IT room: supervisor desk at the back, two staff desks in front">'
@@ -4205,26 +4204,32 @@ async function insertWithRetry(table, payload, maxRetries) {
   }
   function room() {
     if (typeof S === 'undefined' || !S || !S.user || !Array.isArray(S.tickets)) return
-    if (['technician', 'supervisor', 'admin'].indexOf(S.user.it_role) < 0) return
+    var staff = ['technician', 'supervisor', 'admin'].indexOf(S.user.it_role) >= 0
     var grid = document.querySelector('#mainContent > .stat-grid')
-    if (!grid || document.querySelector('#mainContent > .it-room')) return
+    var head = document.querySelector('#mainContent > .page-header h2')
+    if (!grid || !head || !/Kamusta/.test(head.textContent) || document.querySelector('#mainContent > .it-room')) return
     var el = document.createElement('section')
     el.className = 'it-room'
-    el.innerHTML = '<header class="it-room-hd"><h3>The IT room</h3><p>Live from the queue · drag to turn the floor</p></header>' +
-      '<div class="it-room-stage">' + roomSvg(S.tickets, S.users) + '</div>'
+    el.innerHTML = (staff
+      ? '<header class="it-room-hd"><h3>The IT room</h3><p>Live from the queue · drag to turn the floor</p></header>'
+      : '<header class="it-room-hd"><h3>Ang IT room</h3><p>Dito inaayos ang mga ticket ninyo</p></header>') +
+      '<div class="it-room-stage">' + (staff ? roomSvg(S.tickets, S.users) : '') + '</div>'
+    if (!staff) el.hidden = true      // shown only once the 3D room is ready; no 2D fallback for requesters
     var stage = el.querySelector('.it-room-stage')
     stage.__itData = {
       people: ROOM.map(function (p) { return { name: p.name, title: p.title, shirt: p.shirt3, hair: 0x1b1b22, skin: p.skin3 } }),
-      st: ROOM.map(function (p) { return deskState(p, S.tickets, S.users) }),
-      queue: S.tickets.filter(function (t) { return !t.assigned_to && DONE.indexOf(t.status) < 0 })
+      st: ROOM.map(function (p) { return staff ? deskState(p, S.tickets, S.users) : DECOR }),
+      queue: staff ? S.tickets.filter(function (t) { return !t.assigned_to && DONE.indexOf(t.status) < 0 }) : [],
+      decor: !staff, lite: !staff
     }
-    grid.parentNode.insertBefore(el, grid.nextSibling)
+    if (staff) grid.parentNode.insertBefore(el, grid.nextSibling)
+    else document.getElementById('mainContent').appendChild(el)     // requesters: at the bottom, after their tickets
     tickClock()
     if (!clockTimer) clockTimer = setInterval(tickClock, 30000)
     if (window.ITRoom3D) window.ITRoom3D.mount(stage)      // 3D when the browser can; the 2D room stays otherwise
   }
 
-  function all() { icons(); roll(); switchPanel(); room(); loginSwitch(); ticks() }
+  function all() { icons(); roll(); room(); ticks() }
   all()
   var queued = false
   new MutationObserver(function () { if (queued) return; queued = true; requestAnimationFrame(function () { queued = false; all() }) })
@@ -4236,20 +4241,26 @@ async function insertWithRetry(table, payload, maxRetries) {
  * Rooms: IT Supervisor office at the back facing the Helpdesk floor; Server room with the core switch.
  * People sit at their own desks; screens and tags show live queue data passed in by the design script.
  * If WebGL or three.js is unavailable, the 2D room stays in place. */
-let THREE
-try { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js') } catch (e) { THREE = null }
+// three.js is downloaded only when a room is about to show (not on the login page)
+let THREE = null, loading = null
+const loadThree = () => loading || (loading = import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js').then(m => (THREE = m)).catch(() => null))
 
-function mount(stage) {
-  if (!THREE || !stage || stage.__it3d || !stage.__itData) return
+async function mount(stage) {
+  if (!stage || stage.__it3d || !stage.__itData) return
+  const D = stage.__itData
+  // lite (requesters): older PCs don't get the room at all
+  if (D.lite && ((navigator.hardwareConcurrency || 8) <= 2 || (navigator.deviceMemory || 8) < 4)) return
   const test = document.createElement('canvas')
   if (!(test.getContext('webgl2') || test.getContext('webgl'))) return
   stage.__it3d = true
-  const D = stage.__itData
+  if (!THREE) await loadThree()
+  if (!THREE || !stage.isConnected) { stage.__it3d = false; return }
+  const section = stage.closest('.it-room'); if (section) section.hidden = false
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
-  renderer.shadowMap.enabled = true
+  const renderer = new THREE.WebGLRenderer({ antialias: !D.lite, alpha: false })
+  renderer.setPixelRatio(D.lite ? 1 : Math.min(window.devicePixelRatio || 1, 2))
+  renderer.shadowMap.enabled = !D.lite
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.setClearColor(0x0d1020)
@@ -4351,7 +4362,7 @@ function mount(stage) {
     ;[[-1.05, .55], [1.05, .55], [-1.05, 1.35], [1.05, 1.35]].forEach(([lx, lz]) => box(.08, .72, .08, wood, lx, .38, lz, g))
     box(.7, .03, .22, M(0xe8eaf6), 0, .815, .72, g)          // keyboard
     const c = st.current
-    const col = !st.user ? 0x3a3f5e : c ? (c.priority === 'critical' ? 0xf87171 : st.working ? 0xfbbf24 : 0x8ea2ff) : 0x4ade80
+    const col = st.decor ? 0x8ea2ff : !st.user ? 0x3a3f5e : c ? (c.priority === 'critical' ? 0xf87171 : st.working ? 0xfbbf24 : 0x8ea2ff) : 0x4ade80
     const scr = monitors === 2 ? [monitor(g, -.5, 1.2, col, .8), monitor(g, .5, 1.2, col, .8)] : [monitor(g, 0, 1.2, col)]
     scr.forEach((m, i) => anim.push(t => { m.material[5].emissiveIntensity = 1.0 + Math.sin(t * 3 + i) * .12 }))
     const headWorld = new THREE.Vector3(); 
@@ -4399,7 +4410,7 @@ function mount(stage) {
     const c = q.priority === 'critical' ? 0xf87171 : q.priority === 'high' ? 0xfbbf24 : q.priority === 'low' ? 0xc9cfe3 : 0xfff1a6
     const n = box(.42, .42, .04, M(c), -1.15 + (i % 6) * .46, 2.45 - Math.floor(i / 6) * .55, .08, board, false); n.rotation.z = ((i * 37) % 9 - 4) * .02
   })
-  labels.push({ text: 'IT QUEUE · ' + D.queue.length + ' unassigned', pos: new THREE.Vector3(10.3, FY + 3.2, 5), cls: 'tag' })
+  labels.push({ text: D.decor ? 'TDMH IT' : 'IT QUEUE · ' + D.queue.length + ' unassigned', pos: new THREE.Vector3(10.3, FY + 3.2, 5), cls: 'tag' })
   // coffee corner
   box(2.4, .95, .8, wood, -10.4, FY + .47, 8.2); box(.5, .6, .45, dark, -10.9, FY + 1.25, 8.2)
   box(.12, .14, .12, M(0xffffff), -10.2, FY + 1.02, 8.1)
@@ -4425,7 +4436,10 @@ function mount(stage) {
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
   labels.forEach(L => {
     const el = document.createElement('div')
-    if (L.person) {
+    if (L.person && L.st.decor) {
+      el.className = 'it-3d-tag person'
+      el.innerHTML = '<b>' + esc(L.p.name) + '</b><small>' + esc(L.p.title) + '</small>'
+    } else if (L.person) {
       const st = L.st, c = st.current
       const dot = !st.user ? 'off' : st.working ? 'busy' : st.active ? 'queued' : 'free'
       const line = !st.user ? 'no account yet' : c ? esc(c.id) + ' · ' + esc((c.status || '').replace('_', ' ')) : 'available'
@@ -4450,10 +4464,12 @@ function mount(stage) {
 
   // drag to turn
   let dragging = false, lastX = 0
-  renderer.domElement.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; renderer.domElement.setPointerCapture(e.pointerId) })
-  renderer.domElement.addEventListener('pointermove', e => { if (!dragging) return; targetAz = Math.max(Math.PI / 4 - 1, Math.min(Math.PI / 4 + 1, targetAz - (e.clientX - lastX) * .006)); lastX = e.clientX })
+  let liveUntil = performance.now() + 4000
+  const wake = () => { liveUntil = performance.now() + 1500; if (!raf && visible) raf = requestAnimationFrame(frame) }
+  renderer.domElement.addEventListener('pointerdown', e => { wake(); dragging = true; lastX = e.clientX; renderer.domElement.setPointerCapture(e.pointerId) })
+  renderer.domElement.addEventListener('pointermove', e => { if (!dragging) return; wake(); targetAz = Math.max(Math.PI / 4 - 1, Math.min(Math.PI / 4 + 1, targetAz - (e.clientX - lastX) * .006)); lastX = e.clientX })
   ;['pointerup', 'pointercancel'].forEach(n => renderer.domElement.addEventListener(n, () => { dragging = false }))
-  renderer.domElement.addEventListener('dblclick', () => { targetAz = Math.PI / 4 })
+  renderer.domElement.addEventListener('dblclick', () => { wake(); targetAz = Math.PI / 4 })
 
   // loop: only while on screen and the tab is visible; stops when the dashboard re-renders
   let visible = true, raf = 0, last = 0
@@ -4464,6 +4480,7 @@ function mount(stage) {
     raf = 0
     if (!stage.isConnected) { io.disconnect(); renderer.dispose(); scene.traverse(o => { o.geometry && o.geometry.dispose() }); return }
     if (!visible || document.hidden) return
+    if (D.lite && now > liveUntil && !dragging && Math.abs(targetAz - az) < .001) return   // lite: hold still until dragged
     raf = requestAnimationFrame(frame)
     if (now - last < 33) return; last = now                      // ~30 fps is plenty
     const t = reduce ? 0 : clock.getElapsedTime()
@@ -4479,6 +4496,251 @@ function mount(stage) {
 
 window.ITRoom3D = { mount }
 document.querySelectorAll('.it-room-stage').forEach(mount)
+</script>
+<script>
+/* ════ TDMH Agents — pixel office on the IT Helpdesk login. DESIGN ONLY. ════
+ * A playful animation of the systems IT looks after: each "agent" works at its desk, walks over to
+ * sync with another system, checks the backup rack or joins a standup. Nothing here is real data. */
+(function () {
+  var cv = document.getElementById('itAgentsCanvas'); if (!cv) return
+  var ctx = cv.getContext('2d'), U = 4, W = 240, H = 128
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  var DESKS = [
+    { name: 'Helpdesk',  x: 50,  y: 58 }, { name: 'Inventory', x: 118, y: 58 }, { name: 'Queuing', x: 186, y: 58 },
+    { name: 'Claims',    x: 50,  y: 104 }, { name: 'Parking',  x: 118, y: 104 }, { name: 'Events',  x: 186, y: 104 }
+  ]
+  var AGENTS = [
+    { name: 'Helpdesk',  color: '#3b82f6', hair: '#2b1d14', tasks: ['Reply sa Nurse Station', 'Reset password ng HR', 'Ayusin printer ng Billing', 'Close ticket sa ER'] },
+    { name: 'Inventory', color: '#10b981', hair: '#1b1b22', tasks: ['Draft ng PO', 'Stock count ng toner', 'Receive delivery', 'Tag bagong monitor'] },
+    { name: 'Queuing',   color: '#e8573a', hair: '#3a2416', tasks: ['Reset kiosk sa OPD', 'Update TV playlist', 'Clear old numbers', 'Check printer ng kiosk'] },
+    { name: 'Claims',    color: '#8b7cf6', hair: '#1b1b22', tasks: ['Grade RTH claim', 'Sync sa PhilHealth sheet', 'Review DRG notes', 'Export scorecard'] },
+    { name: 'Parking',   color: '#c9822a', hair: '#2b1d14', tasks: ['Close shift report', 'Check PWD discount', 'Print daily summary', 'Reconcile cash'] },
+    { name: 'Events',    color: '#e0558d', hair: '#20123a', tasks: ['Send QR invites', 'RSVP reminder', 'Check-in sync', 'Print guest list'] }
+  ]
+  var SPOTS = { board: { x: 88, y: 34, say: 'Standup muna' }, rack: { x: 219, y: 82, say: 'Check backup' }, window: { x: 24, y: 34, say: 'Kape muna' } }
+  var CORRIDOR = 84
+  // Day and night follow the real clock: lights go down from 6PM to 6AM, only the screens glow
+  var isNight = function () { var h = window.__itHour != null ? window.__itHour : new Date().getHours(); return h >= 18 || h < 6 }
+  var spotOf = function (d) { return { x: d.x - 27, y: d.y - 1 } }
+  var paused = reduce, logEl = document.getElementById('itAgentsLog'), legEl = document.getElementById('itAgentsLegend')
+  var rnd = function (a, b) { return a + Math.random() * (b - a) }
+  var pick = function (a) { return a[Math.floor(Math.random() * a.length)] }
+  var hhmm = function () { var d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') }
+
+  AGENTS.forEach(function (a, i) {
+    var s = spotOf(DESKS[i]); a.home = i; a.x = s.x; a.y = s.y; a.done = Math.floor(rnd(1, 5)); a.path = []; a.phase = Math.random() * 10
+    a.state = 'work'; a.until = rnd(2, 9); a.task = pick(a.tasks); a.say = ''; a.sayUntil = 0; a.status = 'nagtatrabaho'
+  })
+
+  function log(text) {
+    if (!logEl) return
+    var li = document.createElement('li'); li.textContent = hhmm() + ' ' + text
+    logEl.insertBefore(li, logEl.firstChild)
+    while (logEl.children.length > 6) logEl.removeChild(logEl.lastChild)
+  }
+  function legend() {
+    if (!legEl) return
+    legEl.innerHTML = AGENTS.map(function (a) {
+      return '<div class="chip"><span class="sw" style="background:' + a.color + '"></span><b>' + a.name + '</b><span class="st">' + a.status + ' · ' + a.done + ' done</span></div>'
+    }).join('')
+  }
+  function goTo(a, tx, ty) {
+    a.path = [{ x: a.x, y: CORRIDOR }, { x: tx, y: CORRIDOR }, { x: tx, y: ty }]
+  }
+  function say(a, text, t, secs) { a.say = text; a.sayUntil = t + (secs || 3.5) }
+
+  function think(a, t) {
+    if (a.state === 'work' && t > a.until) {
+      a.done++; log(a.name + ': tapos na "' + a.task + '"')
+      var r = Math.random()
+      if (r < 0.45) {
+        var others = DESKS.filter(function (_, i) { return i !== a.home }), d = pick(others), s = spotOf(d)
+        a.state = 'go'; a.target = 'visit'; a.status = 'sync kay ' + d.name; say(a, 'Sync kay ' + d.name, t); goTo(a, s.x + 8, s.y)
+      } else {
+        var k = pick(['board', 'rack', 'window']), sp = SPOTS[k]
+        a.state = 'go'; a.target = 'visit'; a.status = 'naglalakad'; say(a, sp.say, t); goTo(a, sp.x + rnd(-3, 3), sp.y)
+      }
+      legend()
+    } else if (a.state === 'stay' && t > a.until) {
+      var h = spotOf(DESKS[a.home]); a.state = 'go'; a.target = 'home'; a.status = 'naglalakad'; say(a, 'Balik sa desk', t); goTo(a, h.x, h.y); legend()
+    }
+  }
+  function move(a, dt, t) {
+    if (a.state !== 'go') return
+    var p = a.path[0]; if (!p) return
+    var dx = p.x - a.x, dy = p.y - a.y, dist = Math.hypot(dx, dy), sp = 26 * dt
+    if (dist <= sp) { a.x = p.x; a.y = p.y; a.path.shift() } else { a.x += dx / dist * sp; a.y += dy / dist * sp }
+    if (!a.path.length) {
+      if (a.target === 'home') { a.state = 'work'; a.until = t + rnd(6, 12); a.task = pick(a.tasks); a.status = 'nagtatrabaho' }
+      else { a.state = 'stay'; a.until = t + rnd(3, 6) }
+      legend()
+    }
+  }
+
+  // ── drawing (1 logical pixel = U canvas pixels)
+  function r(x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(Math.round(x * U), Math.round(y * U), Math.round(w * U), Math.round(h * U)) }
+  function text(s, x, y, size, color, align) { ctx.font = '600 ' + size * U + 'px "Atkinson Hyperlegible",system-ui,sans-serif'; ctx.fillStyle = color; ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle'; ctx.fillText(s, x * U, y * U) }
+  function room(t) {
+    r(0, 0, W, 26, '#5b6b86'); r(0, 23, W, 3, '#4a5873')
+    r(0, 26, W, H - 26, '#e6dcc5'); for (var y = 34; y < H; y += 9) r(0, y, W, .35, '#d2c5a8')
+    // window, whiteboard, sign, alarm panel
+    var nite = isNight(), sky = nite ? '#1c2550' : '#a9cdee'
+    r(18, 5, 9, 13, sky); r(28, 5, 9, 13, sky); r(18, 5, 19, 1, nite ? '#2c3870' : '#8fb4d8')
+    if (nite) { r(31, 7, 3, 3, '#f6f0c8'); r(32, 7, 2, 2, '#1c2550'); r(20, 8, .6, .6, '#fff'); r(24, 13, .6, .6, '#fff'); r(29, 14, .6, .6, '#cfd6ff') }
+    r(52, 3, 44, 18, '#ffffff'); r(56, 6, 20, 1.2, '#3b82f6'); r(56, 9, 26, 1.2, '#e8573a'); r(56, 12, 14, 1.2, '#10b981'); r(80, 5, 13, 11, '#fbc87a')
+    r(124, 5, 46, 13, '#2c2f36'); text('TDMH AGENTS', 147, 11.6, 4.2, '#7ef0c4', 'center')
+    r(212, 10, 16, 16, '#3a3d45'); r(215, 13, 10, 4, '#2c2f36'); r(216, 14, 3, 2, '#e5484d'); r(218, 19, 5, 4, '#f2f2f2')
+    // plants
+    ;[[10, 30], [12, 104]].forEach(function (p) { r(p[0], p[1], 9, 6, '#3f8f2a'); r(p[0] + 3, p[1] - 3, 3, 3, '#58b03a'); r(p[0] + 1, p[1] + 6, 7, 7, '#a8432b') })
+    // server rack
+    r(225, 52, 10, 66, '#24262c')
+    for (var i = 0; i < 6; i++) { r(227, 55 + i * 10.5, 6, 7, '#3b3f49'); if (Math.sin(t * 3 + i * 1.7) > -.3) r(228, 57 + i * 10.5, 1.4, 1.4, '#3ddc97') }
+  }
+  function desk(d, active, color, t) {
+    // monitor
+    r(d.x - 8, d.y - 13, 16, 10, '#2f3238'); r(d.x - 7, d.y - 12, 14, 8, active ? color : '#45484f')
+    if (active) { r(d.x - 5, d.y - 10, 6, 1, '#ffffff'); r(d.x - 5, d.y - 8, 8, 1, 'rgba(255,255,255,.8)'); if (Math.floor(t * 2) % 2) r(d.x - 5, d.y - 6, 3, 1, '#ffffff') }
+    r(d.x - 1, d.y - 3, 2, 3, '#2f3238')
+    // desk
+    r(d.x - 25, d.y, 50, 4, '#a8794a'); r(d.x - 6, d.y + 1, 12, 1, '#d9d2c3')
+    r(d.x - 25, d.y + 4, 50, 11, '#8a6038'); r(d.x - 23, d.y + 6, 46, 7, '#6e4b2c')
+    text(d.name, d.x, d.y + 9.6, 4, '#f3e6cf', 'center')
+  }
+  function agent(a, t, part) {
+    var walking = a.state === 'go', bob = walking ? (Math.floor(t * 8 + a.phase) % 2) : 0
+    var x = a.x - 3.5, y = a.y - 13 - bob * .5
+    if (part !== 'bubble') {
+    r(x + 1, y, 5, 2, a.hair); r(x + 1, y + 2, 5, 3, '#f1c79b'); r(x + 2, y + 3, 1, 1, '#222'); r(x + 4, y + 3, 1, 1, '#222')
+    r(x, y + 5, 7, 5, a.color); r(x - .5, y + 6, 1, 3, a.color); r(x + 6.5, y + 6, 1, 3, a.color)
+    if (walking) { r(x + 1, y + 10, 2, 3 - bob, '#222'); r(x + 4, y + 10, 2, 2 + bob, '#222') } else { r(x + 1, y + 10, 2, 3, '#222'); r(x + 4, y + 10, 2, 3, '#222') }
+    }
+    if (part !== 'body' && a.say && t < a.sayUntil) {
+      ctx.font = '500 ' + 4.2 * U + 'px "Atkinson Hyperlegible",system-ui,sans-serif'
+      var w = ctx.measureText(a.say).width / U + 6, bx = Math.min(Math.max(a.x - w / 2, 1), W - w - 1), by = y - 10
+      r(bx - .5, by - .5, w + 1, 8, '#2c2f36'); r(bx, by, w, 7, '#ffffff'); r(a.x - 1, by + 7, 2, 2, '#ffffff')
+      text(a.say, bx + 3, by + 3.7, 4.2, '#2c2f36')
+    }
+  }
+
+  var last = 0, t = 0
+  function frame(now) {
+    requestAnimationFrame(frame)
+    if (!cv.offsetParent || document.hidden) { last = now; return }   // login hidden (signed in) or tab hidden
+    var dt = Math.min(.1, (now - last) / 1000 || 0); last = now
+    if (!paused) { t += dt; AGENTS.forEach(function (a) { think(a, t); move(a, dt, t) }) }
+    draw()
+  }
+  function draw() {
+    ctx.imageSmoothingEnabled = false
+    room(t)
+    DESKS.forEach(function (d, i) { var a = AGENTS[i]; desk(d, a.state === 'work', a.color, t) })
+    var order = AGENTS.slice().sort(function (p, q) { return p.y - q.y })
+    order.forEach(function (a) { agent(a, t, 'body') })
+    if (isNight()) night(t)
+    order.forEach(function (a) { agent(a, t, 'bubble') })
+  }
+  function glow(x, y, rad, color, alpha) {
+    var g = ctx.createRadialGradient(x * U, y * U, 0, x * U, y * U, rad * U)
+    g.addColorStop(0, color); g.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.globalAlpha = alpha; ctx.fillStyle = g; ctx.fillRect((x - rad) * U, (y - rad) * U, rad * 2 * U, rad * 2 * U); ctx.globalAlpha = 1
+  }
+  function night(t) {
+    ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = '#3a4374'; ctx.fillRect(0, 0, cv.width, cv.height)
+    ctx.globalCompositeOperation = 'screen'
+    DESKS.forEach(function (d, i) { if (AGENTS[i].state === 'work') { glow(d.x, d.y - 8, 20, AGENTS[i].color, .55); glow(d.x, d.y - 8, 7, '#ffffff', .25) } })
+    glow(147, 11, 22, '#7ef0c4', .35); glow(230, 85, 16, '#3ddc97', .3); glow(32, 9, 10, '#f6f0c8', .25)
+    ctx.restore()
+    DESKS.forEach(function (d, i) { if (AGENTS[i].state === 'work') { r(d.x - 7, d.y - 12, 14, 8, AGENTS[i].color); r(d.x - 5, d.y - 10, 6, 1, '#ffffff'); r(d.x - 5, d.y - 8, 8, 1, 'rgba(255,255,255,.8)') } })
+    text('TDMH AGENTS', 147, 11.6, 4.2, '#7ef0c4', 'center')
+  }
+  var btn = document.getElementById('itAgentsPause')
+  function setBtn() { if (btn) { btn.textContent = paused ? 'Play' : 'Pause'; btn.setAttribute('aria-pressed', String(paused)) } }
+  if (btn) btn.onclick = function () { paused = !paused; setBtn() }
+  var clk = document.getElementById('itAgentsClock')
+  function tickClock() { if (clk) clk.textContent = hhmm() }
+  setInterval(tickClock, 15000); tickClock()
+  setBtn(); legend()
+  ;['Helpdesk: tapos na "Reply sa Nurse Station"', 'Events: tapos na "RSVP reminder"', 'Inventory: tapos na "Draft ng PO"'].reverse().forEach(log)
+  draw(); requestAnimationFrame(frame)
+})()
+</script>
+<script>
+/* ════ Reminders and IT on duty. DESIGN ONLY: reads S.user and the clock, never changes data. ════
+ * Login: IT on duty (from the schedule below), icons on the quick fixes, the reminder of the day.
+ * Requester dashboard: a random reminder above the category shortcuts, with a button for another one. */
+(function () {
+  // Edit here: who is on duty and when (24-hour clock). Leave local empty to hide it.
+  var DUTY = [
+    { from: 7,  to: 15, who: 'Jovan Garrido',  hours: '7AM–3PM' },
+    { from: 15, to: 23, who: 'Emman Lobarbio', hours: '3PM–11PM' },
+    { from: 23, to: 31, who: 'Richmond Campus (on call)', hours: '11PM–7AM' }
+  ]
+  var LOCAL = ''
+  var TIPS = [
+    'I-lock ang PC kapag aalis sa mesa: pindutin ang <b>Windows + L</b>.',
+    'Huwag ibigay ang password kahit kanino, pati sa IT. Hindi namin ito hihingin.',
+    'May email o text na nagmamadali at may link? Huwag i-click. Ipakita muna sa IT.',
+    'Huwag isulat ang password sa papel na nakadikit sa monitor.',
+    'Huwag magsaksak ng sariling USB sa PC ng ospital.',
+    'Mag-logout sa Agimat at sa ibang system bago iwan ang shared na PC.',
+    'Huwag mag-install ng program sa PC nang hindi nagpapaalam sa IT.',
+    'Huwag i-forward sa personal na email o chat ang records ng pasyente.',
+    'I-shutdown ang PC bago umuwi, maliban kung sinabi ng IT na iwan itong bukas.',
+    'Bago ilipat o palitan ang PC, printer o ibang gamit, sabihan muna ang IT.',
+    'I-restart muna ang PC bago mag-ticket. Maraming problema ang naaayos nito.',
+    'Mag-attach ng picture o screenshot ng error sa ticket para mas mabilis naming maayos.',
+    'Isulat sa ticket kung saang PC o lugar ang problema (hal. <b>Billing PC 2</b>) para diretso kaming makapunta.',
+    'Isang problema, isang ticket. Mas madali itong sundan at matapos.',
+    'Piliin lang ang <b>Critical</b> kung apektado ang pasyente o hindi makapagtrabaho ang buong unit.',
+    'Tingnan ang <b>My Tickets</b> para makita ang sagot at status ng IT sa request mo.'
+  ]
+  var hourNow = function () { return window.__itHour != null ? window.__itHour : new Date().getHours() }
+
+  function login() {
+    var duty = document.getElementById('itDuty')
+    if (duty) {
+      var h = hourNow(), hh = h < 7 ? h + 24 : h
+      var d = DUTY.find(function (x) { return hh >= x.from && hh < x.to })
+      if (d) {
+        duty.innerHTML = '<span class="dot"></span><span class="w">IT on duty ngayon<b></b></span><span class="t"></span>'
+        duty.querySelector('b').textContent = d.who
+        duty.querySelector('.t').innerHTML = d.hours + (LOCAL ? '<br>local ' + LOCAL : '')
+        duty.hidden = false
+      }
+    }
+    document.querySelectorAll('.it-fix .ic[data-ic]').forEach(function (el) {
+      if (window.TDMHIcons && !el.firstChild) el.innerHTML = TDMHIcons.svg(el.dataset.ic, 16)
+    })
+    var tip = document.getElementById('itLoginTip')
+    if (tip) {
+      var day = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 864e5)
+      tip.innerHTML = TIPS[day % TIPS.length]
+    }
+  }
+
+  // Requester dashboard (not IT staff): a random reminder after the stat cards
+  var last = -1
+  function nextTip() { var i; do { i = Math.floor(Math.random() * TIPS.length) } while (i === last && TIPS.length > 1); last = i; return TIPS[i] }
+  function dashboard() {
+    if (typeof S === 'undefined' || !S || !S.user) return
+    if (['technician', 'supervisor', 'admin'].indexOf(S.user.it_role) >= 0) return
+    var grid = document.querySelector('#mainContent > .stat-grid')
+    var head = document.querySelector('#mainContent > .page-header h2')
+    if (!grid || !head || !/Kamusta/.test(head.textContent) || document.querySelector('#mainContent > .it-tip')) return
+    var el = document.createElement('section')
+    el.className = 'it-tip'; el.setAttribute('aria-label', 'Paalala')
+    el.innerHTML = '<span class="k">Paalala</span><p aria-live="polite">' + nextTip() + '</p><button type="button">Iba pang paalala</button>'
+    el.querySelector('button').onclick = function () {
+      var p = el.querySelector('p'); p.classList.remove('swap'); void p.offsetWidth; p.innerHTML = nextTip(); p.classList.add('swap')
+    }
+    grid.parentNode.insertBefore(el, grid.nextSibling)
+  }
+
+  login()
+  var main = document.getElementById('mainContent')
+  if (main) new MutationObserver(dashboard).observe(main, { childList: true })
+  dashboard()
+})()
 </script>
 </body>
 </html>
