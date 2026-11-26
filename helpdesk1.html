@@ -251,8 +251,8 @@ input[type="password"]::-ms-reveal,input[type="password"]::-ms-clear{display:non
 <link rel="stylesheet" href="core.css?v=6">
 <style id="tx-helpdesk">
 /* ════════════════════════════════════════════════════════════════════════════
- * IT Helpdesk — "Signal" theme on TDMH Core chart paper. DESIGN ONLY.
- * The hospital modules draw an ECG; the IT department draws a digital signal.
+ * IT Helpdesk — "Core switch" theme on TDMH Core chart paper. DESIGN ONLY.
+ * The hospital modules draw an ECG; the IT department shows its network switch.
  * Same paper, ink and serif as the hub; IT gets a monospace voice, LED status
  * lights, a square-wave trace and a few tactile motions:
  *   button press 95% + spring back · rolling numbers · ease-out card expand · success tick
@@ -303,16 +303,40 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
 .page-header h2{font-size:28px;line-height:1.15}
 .page-header p{margin-top:4px}
 
-/* Signal trace (inserted above the stat read-out, decorative) */
-.it-signal{position:relative;display:block;height:64px;border:1px solid var(--bdr2);border-bottom:0;margin-top:2px;overflow:hidden;
-  background-color:var(--surf1);
-  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),
-                   linear-gradient(var(--grid2) 1px,transparent 1px),linear-gradient(90deg,var(--grid2) 1px,transparent 1px);
-  background-size:40px 40px,40px 40px,8px 8px,8px 8px}
-.it-signal svg{position:absolute;inset:6px 0 0;width:100%;height:calc(100% - 6px);color:var(--accent)}
-.it-signal-cap{position:absolute;left:14px;top:8px;z-index:1;font-family:var(--it-mono);font-size:10.5px;letter-spacing:.06em;color:var(--txt3);background:var(--veil);padding:1px 6px}
-.it-signal-cap b{color:var(--green);font-weight:600}
-.it-signal + .stat-grid{border-top:1px solid var(--bdr2)}
+/* Core switch faceplate (inserted above the stat read-out, decorative).
+   48 ports = the tickets on the read-out: lit blue open, amber in progress, green resolved today,
+   dim grey the rest; critical ports flash red. Activity lights flicker like a real switch. */
+.it-switch{--p-open:#8EA2FF;--p-prog:#FBBF24;--p-done:#4ADE80;--p-crit:#F87171;--p-idle:rgba(232,234,246,.32);
+  position:relative;display:flex;align-items:center;gap:20px;margin-top:2px;padding:14px 30px;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 40%),var(--console);color:var(--on-console);border:1px solid var(--ink)}
+.it-switch::before,.it-switch::after{content:"";position:absolute;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;
+  background:radial-gradient(circle at 35% 35%,#8a8fb0,#2a2e4a 70%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.it-switch::before{left:10px}.it-switch::after{right:10px}
+.it-sw-id{min-width:132px;font-family:var(--it-mono);font-size:10.5px;letter-spacing:.06em;line-height:1.55;color:rgba(232,234,246,.62)}
+.it-sw-id b{display:block;color:#fff;font-size:12px;font-weight:600;letter-spacing:.08em}
+.it-sw-id .pwr{display:inline-block;width:6px;height:6px;margin-right:6px;background:var(--p-done);box-shadow:0 0 6px var(--p-done)}
+.it-ports{flex:1;display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:7px 6px}
+.it-port{position:relative;aspect-ratio:1.25/1;background:#04050c;border:1px solid rgba(255,255,255,.16);box-shadow:inset 0 2px 3px rgba(0,0,0,.7)}
+.it-port::after{content:"";position:absolute;left:32%;right:32%;bottom:-1px;height:26%;background:var(--console);border:1px solid rgba(255,255,255,.16);border-bottom:0}
+.it-port i{position:absolute;top:2px;width:4px;height:4px;z-index:2;background:rgba(255,255,255,.07)}
+/* Plugged ports carry a colour-coded patch cable, like a real rack */
+.it-port[data-s]::before{content:"";position:absolute;left:18%;right:18%;top:28%;bottom:0;z-index:1;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 70%,#000),color-mix(in srgb,var(--c) 40%,#000));box-shadow:inset 0 1px 0 color-mix(in srgb,var(--c) 85%,#fff)}
+.it-port[data-s="idle"]::before{background:#3a3e58;box-shadow:inset 0 1px 0 #555a78}
+.it-port i.l{left:2px}.it-port i.a{right:2px}
+.it-port[data-s] i.l{background:var(--c);box-shadow:0 0 5px var(--c)}
+.it-port[data-s] i.a{background:var(--c);box-shadow:0 0 4px var(--c);animation:it-act var(--d,1.3s) steps(1) var(--w,0s) infinite}
+.it-port[data-s="open"]{--c:var(--p-open)}.it-port[data-s="prog"]{--c:var(--p-prog)}
+.it-port[data-s="done"]{--c:var(--p-done)}.it-port[data-s="idle"]{--c:var(--p-idle)}
+.it-port[data-s="idle"] i.a{animation:none;opacity:.5}
+.it-port[data-s="crit"]{--c:var(--p-crit);border-color:color-mix(in srgb,var(--p-crit) 60%,transparent)}
+.it-port[data-s="crit"] i.l{animation:it-blink .9s steps(1) infinite}
+.it-sw-legend{display:grid;gap:3px;font-family:var(--it-mono);font-size:10.5px;color:rgba(232,234,246,.7);white-space:nowrap}
+.it-sw-legend span::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;background:var(--c);box-shadow:0 0 5px var(--c);vertical-align:1px}
+.it-switch + .stat-grid{border-top:0}
+@keyframes it-act{0%,100%{opacity:1}35%{opacity:.15}52%{opacity:1}70%{opacity:.25}}
+/* Login: the same faceplate runs behind the sign-in card */
+#loginScreen .it-switch{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin:0;border-left:0;border-right:0;padding:18px 34px}
+#loginScreen .it-ports{grid-template-columns:repeat(32,minmax(0,1fr))}
 
 /* ── Stat cards: the hub's read-out strip, with rolling numbers ── */
 .stat-grid{gap:0!important;border:1px solid var(--bdr2);background-color:var(--surf1)}
@@ -380,7 +404,6 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
 .login-card .sub{color:var(--txt2)}
 .login-err{border-radius:2px}
 .login-logo-text h1{font-family:'Source Serif 4',Georgia,serif;font-size:19px;font-weight:600}
-#loginScreen .tx-login-trace{height:90px}
 
 /* Rounded corners written inline by the page become square paper too (circles stay round) */
 #mainContent [style*="border-radius:6px"],#mainContent [style*="border-radius:7px"],#mainContent [style*="border-radius:8px"],
@@ -395,11 +418,15 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
   .page-header h2{font-size:24px}
   .stat-grid .stat-card{border-bottom:1px solid var(--bdr2)!important}
   .stat-value{font-size:36px!important}
-  .it-signal{height:48px}
+  .it-switch{flex-direction:column;align-items:stretch;gap:10px;padding:12px 24px}
+  .it-ports{grid-template-columns:repeat(16,minmax(0,1fr));gap:5px 4px}
+  .it-sw-legend{display:none}
+  .it-sw-id{min-width:0}
+  #loginScreen .it-ports{grid-template-columns:repeat(16,minmax(0,1fr))}
 }
 @media (prefers-reduced-motion:reduce){
   .card-hover:hover,.kb-card:hover{transform:none}
-  .sidebar-logo-mark::after,.badge-critical::before{animation:none}
+  .sidebar-logo-mark::after,.badge-critical::before,.it-port i{animation:none!important}
   .it-digit > span{transition:none}
   .modal{transition:none!important}
   .it-tick circle,.it-tick path{animation:none;stroke-dashoffset:0}
@@ -411,7 +438,7 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
 
 <!-- LOGIN -->
 <div id="loginScreen">
-  <svg class="tx-login-trace" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter" vector-effect="non-scaling-stroke" points="0,80 60,80 60,40 84,40 84,80 98,80 98,40 106,40 106,80 112,80 112,40 120,40 120,80 130,80 210,80 210,40 222,40 222,80 228,80 228,40 236,40 236,80 246,80 246,40 270,40 270,80 276,80 316,80 316,40 340,40 340,80 346,80 346,40 354,40 354,80 360,80 360,40 368,40 368,80 382,80 462,80 462,40 470,40 470,80 476,80 476,40 484,40 484,80 498,80 498,40 510,40 510,80 520,80 520,40 544,40 544,80 550,80 630,80 630,40 646,40 646,80 660,80 660,40 672,40 672,80 678,80 678,40 690,40 690,80 700,80 740,80 740,40 748,40 748,80 762,80 762,40 770,40 770,80 784,80 784,40 796,40 796,80 806,80 806,40 830,40 830,80 840,80 840,40 864,40 864,80 878,80 938,80 938,40 954,40 954,80 960,80 960,40 972,40 972,80 986,80 986,40 998,40 998,80 1004,80 1004,40 1020,40 1020,80 1034,80 1094,80 1094,40 1118,40 1118,80 1128,80 1128,40 1136,40 1136,80 1142,80 1142,40 1166,40 1166,80 1172,80 1172,40 1188,40 1188,80 1194,80 1200,80"></polyline></svg>
+  <div class="it-switch" id="itLoginSwitch" aria-hidden="true"></div>
   <div class="login-card">
     <div class="login-logo">
       <div class="login-logo-mark">🖥️</div>
@@ -3877,13 +3904,13 @@ async function insertWithRetry(table, payload, maxRetries) {
 <script>
 /* ════ IT Helpdesk "Signal" theme — DESIGN ONLY. Reads the page, never changes data or behaviour. ════
  * - sidebar and logo emoji become TDMH Core line icons
- * - a decorative digital-signal trace sits above the stat read-out
+ * - a core-switch faceplate above the stat read-out: one lit port per ticket
  * - stat numbers roll into place (03), success toasts draw a tick (06)  */
 (function () {
   if (!window.TDMHIcons) return
   var MAP = { '📊':'chart', '🎫':'tag', '🔓':'inbox', '📋':'clipboard', '🗂️':'folder', '🗂':'folder', '👤':'users', '📈':'pulse',
               '⏱️':'calendar', '⏱':'calendar', '🔍':'search', '📚':'scroll', '📖':'memo', '🖥️':'monitor', '🖥':'monitor' }
-  var SIGNAL = '0,80 60,80 60,40 84,40 84,80 98,80 98,40 106,40 106,80 112,80 112,40 120,40 120,80 130,80 210,80 210,40 222,40 222,80 228,80 228,40 236,40 236,80 246,80 246,40 270,40 270,80 276,80 316,80 316,40 340,40 340,80 346,80 346,40 354,40 354,80 360,80 360,40 368,40 368,80 382,80 462,80 462,40 470,40 470,80 476,80 476,40 484,40 484,80 498,80 498,40 510,40 510,80 520,80 520,40 544,40 544,80 550,80 630,80 630,40 646,40 646,80 660,80 660,40 672,40 672,80 678,80 678,40 690,40 690,80 700,80 740,80 740,40 748,40 748,80 762,80 762,40 770,40 770,80 784,80 784,40 796,40 796,80 806,80 806,40 830,40 830,80 840,80 840,40 864,40 864,80 878,80 938,80 938,40 954,40 954,80 960,80 960,40 972,40 972,80 986,80 986,40 998,40 998,80 1004,80 1004,40 1020,40 1020,80 1034,80 1094,80 1094,40 1118,40 1118,80 1128,80 1128,40 1136,40 1136,80 1142,80 1142,40 1166,40 1166,80 1172,80 1172,40 1188,40 1188,80 1194,80 1200,80'
+  var PORTS = 48
   var reduce = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches }
 
   function icons() {
@@ -3895,18 +3922,52 @@ async function insertWithRetry(table, payload, maxRetries) {
     })
   }
 
-  function signal() {
-    var grid = document.querySelector('#mainContent > .stat-grid')   // only the first read-out on a page
-    if (grid) (function (grid) {
-      if (document.querySelector('#mainContent > .it-signal')) return
-      var wrap = document.createElement('div')
-      wrap.className = 'it-signal'; wrap.setAttribute('aria-hidden', 'true')
-      var now = new Date()
-      wrap.innerHTML = '<span class="it-signal-cap"><b>●</b> LINK UP · ' + now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) + '</span>' +
-        '<svg class="cx-trace" viewBox="0 0 1200 120" preserveAspectRatio="none"><polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter" vector-effect="non-scaling-stroke" points="' + SIGNAL + '"></polyline></svg>'
-      grid.parentNode.insertBefore(wrap, grid)
-      try { window.TDMHEcg && TDMHEcg.scan(wrap) } catch (e) {}
-    })(grid)
+  function portsHtml(states) {
+    return states.map(function (st) {
+      if (!st) return '<span class="it-port"><i class="l"></i><i class="a"></i></span>'
+      var d = (0.7 + Math.random() * 1.6).toFixed(2), w = (Math.random() * 2).toFixed(2)
+      return '<span class="it-port" data-s="' + st + '" style="--d:' + d + 's;--w:-' + w + 's"><i class="l"></i><i class="a"></i></span>'
+    }).join('')
+  }
+  function statOf(re) {
+    var out = null
+    document.querySelectorAll('#mainContent > .stat-grid .stat-card').forEach(function (c) {
+      var l = c.querySelector('.stat-label'), v = c.querySelector('.stat-value')
+      if (l && v && re.test(l.textContent)) out = Number(v.getAttribute('aria-label') || v.textContent.trim()) || 0
+    })
+    return out
+  }
+  // The core switch: one port per ticket on the read-out (dashboard only)
+  function switchPanel() {
+    var grid = document.querySelector('#mainContent > .stat-grid')
+    if (!grid || document.querySelector('#mainContent > .it-switch')) return
+    var open = statOf(/open/i), prog = statOf(/progress/i), done = statOf(/resolved/i), total = statOf(/total/i)
+    if (open === null) return
+    prog = prog || 0; done = done || 0
+    if (total === null) total = open + prog + done
+    var crit = 0, m = (document.getElementById('mainContent').textContent || '').match(/(\d+)\s+CRITICAL ticket/)
+    if (m) crit = Math.min(Number(m[1]) || 0, open)
+    var scale = total > PORTS ? PORTS / total : 1, n = function (x) { return Math.round(x * scale) }
+    var states = [], push = function (st, k) { for (var i = 0; i < k && states.length < PORTS; i++) states.push(st) }
+    push('crit', n(crit)); push('open', n(open) - n(crit)); push('prog', n(prog)); push('done', n(done))
+    push('idle', n(Math.max(total - open - prog - done, 0)))
+    while (states.length < PORTS) states.push(null)
+    var used = states.filter(Boolean).length
+    var el = document.createElement('div')
+    el.className = 'it-switch'; el.setAttribute('aria-hidden', 'true')
+    el.innerHTML = '<div class="it-sw-id"><b>TDMH-IT CORE</b><span class="pwr"></span>' + used + ' of ' + PORTS + ' ports lit' + (scale < 1 ? '<br>1 port ≈ ' + (1 / scale).toFixed(1) + ' tickets' : '<br>1 port = 1 ticket') + '</div>' +
+      '<div class="it-ports">' + portsHtml(states) + '</div>' +
+      '<div class="it-sw-legend"><span style="--c:var(--p-open)">open</span><span style="--c:var(--p-prog)">in progress</span><span style="--c:var(--p-done)">resolved today</span>' + (crit ? '<span style="--c:var(--p-crit)">critical</span>' : '') + '</div>'
+    grid.parentNode.insertBefore(el, grid)
+  }
+  // Login: the faceplate behind the card, with random traffic
+  function loginSwitch() {
+    var el = document.getElementById('itLoginSwitch')
+    if (!el || el.dataset.done) return
+    el.dataset.done = '1'
+    var pick = ['open', 'open', 'prog', 'done', 'done', 'done', 'idle', null, null, null], states = []
+    for (var i = 0; i < 64; i++) states.push(pick[Math.floor(Math.random() * pick.length)])
+    el.innerHTML = '<div class="it-sw-id"><b>TDMH-IT CORE</b><span class="pwr"></span>link up</div><div class="it-ports">' + portsHtml(states) + '</div>'
   }
 
   // 03 Rolling number: digits roll into place, 100 ms apart
@@ -3943,7 +4004,7 @@ async function insertWithRetry(table, payload, maxRetries) {
     })
   }
 
-  function all() { icons(); signal(); roll(); ticks() }
+  function all() { icons(); roll(); switchPanel(); loginSwitch(); ticks() }
   all()
   var queued = false
   new MutationObserver(function () { if (queued) return; queued = true; requestAnimationFrame(function () { queued = false; all() }) })
