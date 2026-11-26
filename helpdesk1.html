@@ -962,14 +962,24 @@ async function loadUsers() {
   S.users = data || []
 }
 async function loadTickets(filter = {}) {
-  let q = SB.from('it_tickets').select('*').order('created_at', { ascending: false })
-  if (filter.requester_id) q = q.eq('requester_id', filter.requester_id)
-  if (filter.dept_ids && filter.dept_ids.length) q = q.in('dept_id', filter.dept_ids)
-  if (filter.assigned_to) q = q.eq('assigned_to', filter.assigned_to)
-  if (filter.status) q = q.eq('status', filter.status)
-  if (filter.open) q = q.not('status', 'in', '("resolved","closed","cancelled")')
-  const { data } = await q
-  return data || []
+  // Supabase returns at most 1,000 rows per request, so read in pages until a short page comes back.
+  const build = () => {
+    let q = SB.from('it_tickets').select('*').order('created_at', { ascending: false }).order('id', { ascending: true })
+    if (filter.requester_id) q = q.eq('requester_id', filter.requester_id)
+    if (filter.dept_ids && filter.dept_ids.length) q = q.in('dept_id', filter.dept_ids)
+    if (filter.assigned_to) q = q.eq('assigned_to', filter.assigned_to)
+    if (filter.status) q = q.eq('status', filter.status)
+    if (filter.open) q = q.not('status', 'in', '("resolved","closed","cancelled")')
+    return q
+  }
+  const PAGE = 1000, all = []
+  for (let from = 0; from < 100000; ) {
+    const { data, error } = await build().range(from, from + PAGE - 1)
+    if (error || !data || !data.length) break
+    all.push(...data); from += data.length
+    if (data.length < PAGE) break                        // a short page is the last one
+  }
+  return all
 }
 
 // Which tickets already have a DERP? Sourced from the DERP requests themselves,
@@ -1048,13 +1058,15 @@ const PAGE_TITLES = {
 }
 
 function showPage(page) {
+  // Same ticket list again (e.g. a live update): keep it on screen so search, filters and scroll survive
+  const refreshingList = page === S.page && !!document.getElementById('ticketListWrap')
   S.page = page
   document.getElementById('topbarTitle').textContent = PAGE_TITLES[page] || page
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'))
   const navEl = document.getElementById('nav_' + page)
   if (navEl) navEl.classList.add('active')
   closeSidebar()
-  document.getElementById('mainContent').innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
+  if (!refreshingList) document.getElementById('mainContent').innerHTML = '<div class="empty-state"><div class="empty-icon">' + hourglass() + '</div></div>'
   const pages = {
     dashboard: renderDashboard, my_tickets: renderMyTickets,
     open_tickets: renderOpenTickets, all_tickets: renderAllTickets,
@@ -1295,8 +1307,14 @@ function buildTicketTable(tickets) {
   return { table: tableHTML, cards: cardsHTML }
 }
 
+const TICKET_FILTER_IDS = ['tsearch','tcat','tpri','tstat','ttech','tdate_from','tdate_to']
 function renderTicketList(tickets, title) {
   const content = document.getElementById('mainContent')
+  // A live refresh re-renders the same list: carry over what the user typed or picked
+  const keep = content._listTitle === title
+    ? TICKET_FILTER_IDS.map(id => [id, document.getElementById(id)?.value || '']).filter(([, v]) => v)
+    : []
+  const isITUser = ['technician','supervisor','admin'].includes(S.user.it_role)
   let html = '<div class="page-header"><h2>' + title + '</h2>'
   html += (canCreateTicket() ? '<button class="btn btn-primary" onclick="openTicketForm()">🖥️ New Ticket</button>' : '') + '</div>'
   html += '<div class="filter-bar">'
@@ -1308,7 +1326,7 @@ function renderTicketList(tickets, title) {
   ;['critical','high','medium','low'].forEach(p => { html += '<option value="' + p + '">' + p.charAt(0).toUpperCase()+p.slice(1) + '</option>' })
   html += '</select>'
   html += '<select id="tstat" onchange="filterTicketList()"><option value="">All Status</option>'
-  ;['open','assigned','in_progress','pending_user','resolved','closed','reopened','cancelled'].forEach(s => {
+  ;['open','assigned','in_progress','pending_user','on_hold','resolved','closed','reopened','cancelled'].forEach(s => {
     html += '<option value="' + s + '">' + formatStatus(s) + '</option>'
   })
   html += '</select>'
@@ -1322,10 +1340,21 @@ function renderTicketList(tickets, title) {
   html += '<span style="color:var(--txt3);">→</span>'
   html += '<input type="date" id="tdate_to" onchange="filterTicketList()" title="Hanggang" style="min-width:130px;">'
   html += '</div>'
+  // IT staff: My Tickets lists the tickets they filed; the ones they handle are in Assigned to Me
+  if (S.page === 'my_tickets' && isITUser && !(S.myHeadedDeptIds || []).length) {
+    html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--accent-a);border:1px solid var(--accent-b);font-size:13px;color:var(--txt2);">'
+    html += '<span>Ito ang mga ticket na <b>ikaw ang nag-file</b>. Ang mga ticket na hawak mo ay nasa <b>Assigned to Me</b>.</span>'
+    html += '<button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="showPage(\'assigned_me\')">Buksan ang Assigned to Me</button></div>'
+  }
   const built = buildTicketTable(tickets)
   html += '<div id="ticketListWrap">' + built.table + '<div class="mobile-cards" id="ticketsMobileCards">' + built.cards + '</div></div>'
   content.innerHTML = html
   content._tickets = tickets
+  content._listTitle = title
+  if (keep.length) {
+    keep.forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.value = v })
+    filterTicketList()
+  }
 }
 
 function filterTicketList() {
@@ -1754,19 +1783,25 @@ async function submitTicket() {
 async function renderKanban() {
   const content = document.getElementById('mainContent')
   const tickets = await loadTickets()
+  // The board is for work in motion: every active status has a column (none can go missing),
+  // and Resolved shows only the last 7 days. Closed and cancelled stay in All Tickets.
+  const weekAgo = Date.now() - 7 * 864e5
   const cols = [
-    { id:'open',         label:'🔓 Open',        color:'var(--accent)', bg:'var(--accent-a)' },
+    { id:'open',         label:'🔓 Open',        color:'var(--accent)', bg:'var(--accent-a)', has: t => ['open','reopened'].includes(t.status) },
     { id:'assigned',     label:'👤 Assigned',     color:'var(--violet)', bg:'var(--violet-a)' },
     { id:'in_progress',  label:'🔄 In Progress',  color:'var(--amber)',  bg:'var(--amber-a)' },
     { id:'pending_user', label:'⏳ Pending User', color:'var(--amber)',  bg:'var(--amber-a)' },
-    { id:'resolved',     label:'✅ Resolved',     color:'var(--green)',  bg:'var(--green-a)' },
+    { id:'on_hold',      label:'⏸️ On Hold',      color:'var(--txt2)',   bg:'var(--surf3)' },
+    { id:'resolved',     label:'✅ Resolved · 7 days', color:'var(--green)', bg:'var(--green-a)',
+      has: t => t.status === 'resolved' && new Date(t.resolved_at || t.updated_at).getTime() >= weekAgo },
   ]
+  const HOLD = { provider:'Provider', service_center:'Service center', purchase:'Purchase', parts:'Parts', user:'Waiting for user', other:'Iba pa' }
   let html = '<div class="page-header"><h2>📋 Kanban Board</h2>'
   html += (canCreateTicket() ? '<button class="btn btn-primary btn-sm" onclick="openTicketForm()">🖥️ New Ticket</button>' : '') + '</div>'
   html += '<style>.kanban-board{display:flex;gap:12px;overflow-x:auto;padding-bottom:16px;min-height:400px;}.kanban-col{min-width:260px;width:260px;flex-shrink:0;}.kanban-col-header{padding:10px 12px;border-radius:10px 10px 0 0;font-size:12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;}.kanban-col-body{background:var(--surf2);border-radius:0 0 10px 10px;padding:8px;min-height:160px;border:1px solid var(--bdr);border-top:none;}.kanban-card{background:var(--surf1);border:1px solid var(--bdr);border-radius:10px;padding:12px;margin-bottom:8px;cursor:pointer;}.kanban-card:hover{border-color:var(--bdr2);box-shadow:var(--shadow);}.kanban-card.priority-critical{border-left:3px solid var(--red);}.kanban-card.priority-high{border-left:3px solid var(--amber);}</style>'
   html += '<div class="kanban-board">'
   cols.forEach(col => {
-    const colTickets = tickets.filter(t => t.status === col.id)
+    const colTickets = tickets.filter(col.has || (t => t.status === col.id))
     html += '<div class="kanban-col"><div class="kanban-col-header" style="background:' + col.bg + ';color:' + col.color + ';">'
     html += col.label + '<span style="background:' + col.color + ';color:#fff;border-radius:20px;padding:1px 8px;font-size:11px;">' + colTickets.length + '</span></div>'
     html += '<div class="kanban-col-body">'
@@ -1786,6 +1821,12 @@ async function renderKanban() {
       html += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;line-height:1.3;">' + t.subject + '</div>'
       if (cat) html += '<div style="font-size:11px;color:var(--txt2);margin-bottom:6px;">' + cat.icon + ' ' + cat.name + '</div>'
       if (t.asset_no) html += '<div style="font-size:11px;color:var(--txt3);margin-bottom:6px;">🏷️ ' + t.asset_no + '</div>'
+      if (t.status === 'reopened') html += '<div style="margin-bottom:6px;"><span class="badge badge-reopened" style="font-size:10px;padding:2px 6px;">REOPENED</span></div>'
+      if (t.status === 'on_hold') {
+        const asg = S.users.find(u => u.id === t.assigned_to)
+        const since = Math.floor((Date.now() - new Date(t.hold_started_at || t.updated_at)) / 864e5)
+        html += '<div style="font-size:11px;color:var(--txt2);margin-bottom:6px;">⏸️ ' + (HOLD[t.hold_reason] || t.hold_reason || 'On hold') + ' · ' + since + ' days' + (asg ? ' · ' + asg.full_name.split(' ')[0] : '') + '</div>'
+      }
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">'
       html += '<span style="font-size:10px;color:' + (slaBreached?'var(--red)':'var(--txt3)') + ';">' + (slaBreached?'⚠️ ':'')+age+'h</span>'
       html += '<div style="display:flex;gap:4px;">'
@@ -1795,6 +1836,7 @@ async function renderKanban() {
         html += '<button class="btn btn-success btn-sm" style="padding:3px 9px;font-size:11px;" onclick="event.stopPropagation();quickResolveIT(\'' + t.id + '\')">Done ✅</button>'
       html += '</div></div></div>'
     })
+    if (col.id === 'resolved') html += '<div style="text-align:center;padding:8px 0 2px;"><button class="btn btn-ghost btn-sm" onclick="showPage(\'all_tickets\')">Tingnan lahat sa All Tickets</button></div>'
     html += '</div></div>'
   })
   html += '</div>'
