@@ -2311,7 +2311,7 @@ async function renderUserMgmt(){
   const content = document.getElementById('mainContent')
   content.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><p>Loading users...</p></div>'
   const { data, error } = await SB.from('users')
-    .select('id,employee_no,full_name,email,phone,dept_id,position,csr_role,maintenance_role,it_role,inventory_role,vts_role,ecg_role,is_active,sms_csr,sms_maintenance,sms_it')
+    .select('id,employee_no,full_name,email,phone,dept_id,position,csr_role,maintenance_role,it_role,inventory_role,vts_role,ecg_role,is_active,sms_csr,sms_maintenance,sms_it,sms_vts')
     .order('full_name')
   if(error){ content.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Error</h3><p>'+esc(error.message)+'</p></div>'; return }
   UM.users = data || []
@@ -2502,7 +2502,7 @@ function openUserForm(userId){
   html += '<div style="font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;">📱 SMS Notifications</div>'
   html += '<div style="font-size:11px;color:var(--txt3);margin-bottom:10px;">Untick any system they should not get SMS from. Default: all on.</div>'
   html += '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-  ;[['uf_sms_csr','CSR', u?.sms_csr], ['uf_sms_maintenance','Maintenance', u?.sms_maintenance], ['uf_sms_it','IT Helpdesk', u?.sms_it]].forEach(([id,label,val]) => {
+  ;[['uf_sms_csr','CSR', u?.sms_csr], ['uf_sms_maintenance','Maintenance', u?.sms_maintenance], ['uf_sms_it','IT Helpdesk', u?.sms_it], ['uf_sms_vts','VTS', u?.sms_vts]].forEach(([id,label,val]) => {
     const chk = (val === false) ? '' : ' checked'
     html += '<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;"><input type="checkbox" id="' + id + '"' + chk + ' style="cursor:pointer;width:16px;height:16px;"> ' + label + '</label>'
   })
@@ -2909,7 +2909,8 @@ async function saveUser(userId){
     vts_role: g('uf_vts') || null,
     sms_csr: document.getElementById('uf_sms_csr') ? document.getElementById('uf_sms_csr').checked : true,
     sms_maintenance: document.getElementById('uf_sms_maintenance') ? document.getElementById('uf_sms_maintenance').checked : true,
-    sms_it: document.getElementById('uf_sms_it') ? document.getElementById('uf_sms_it').checked : true
+    sms_it: document.getElementById('uf_sms_it') ? document.getElementById('uf_sms_it').checked : true,
+    sms_vts: document.getElementById('uf_sms_vts') ? document.getElementById('uf_sms_vts').checked : true
   }
   if(editing){
     payload.user_id = userId
@@ -2932,7 +2933,7 @@ async function saveUser(userId){
       // change always sticks even if the edge function misses it).
       try {
         await SB.from('users').update({
-          sms_csr: payload.sms_csr, sms_maintenance: payload.sms_maintenance, sms_it: payload.sms_it,
+          sms_csr: payload.sms_csr, sms_maintenance: payload.sms_maintenance, sms_it: payload.sms_it, sms_vts: payload.sms_vts,
           dept_id: payload.dept_id || null,
           vts_role: payload.vts_role
         }).eq('id', targetUserId)
