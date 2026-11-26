@@ -338,6 +338,45 @@ html[data-theme="dark"] { --led-glow:.8;  --console:#0A0C18; --on-console:#E8EAF
 #loginScreen .it-switch{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);margin:0;border-left:0;border-right:0;padding:18px 34px}
 #loginScreen .it-ports{grid-template-columns:repeat(32,minmax(0,1fr))}
 
+/* ── The IT room (dashboard, IT staff only) ────────────────────── */
+.it-room{margin:0 0 24px;border:1px solid var(--bdr2);background:var(--surf1);overflow:hidden}
+.it-room-hd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--ink)}
+.it-room-hd h3{font-size:21px}
+.it-room-hd p{font-family:var(--it-mono);font-size:11px;letter-spacing:.03em;color:var(--txt3)}
+.it-room svg{display:block;width:100%;height:auto}
+.it-room .r-led{animation:it-act 1.6s steps(1) infinite}
+.it-room .r-cursor{animation:it-blink 1s steps(1) infinite}
+.it-room .r-steam{animation:it-steam 2.8s ease-in-out infinite;opacity:0}
+.it-room .r-steam.s2{animation-delay:1.4s}
+.it-room .r-type{animation:it-bob .9s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+.it-room .r-idle{animation:it-breathe 4s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+.it-room .r-eye{animation:it-blinkeye 5s steps(1) infinite;transform-box:fill-box;transform-origin:center}
+.it-room .r-saver{animation:it-drift 6s ease-in-out infinite alternate}
+/* 3D room: canvas + projected labels (dark diorama in both themes) */
+.it-room-stage{position:relative}
+.it-room-stage.it-3d{height:560px;background:#0d1020}
+.it-room-stage.it-3d canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:pan-y}
+.it-room-stage.it-3d canvas:active{cursor:grabbing}
+.it-3d-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.it-3d-tag{position:absolute;left:0;top:0;will-change:transform;translate:-50% -100%;white-space:nowrap;font-family:var(--it-mono);color:#E8EAF6}
+.it-3d-tag.room{translate:0 -50%;font-size:12px;font-weight:600;letter-spacing:.12em;padding:4px 9px;background:rgba(13,16,32,.82);border:1px solid rgba(232,234,246,.25)}
+.it-3d-tag.tag{font-size:11px;letter-spacing:.08em;padding:3px 8px;background:rgba(13,16,32,.85);border:1px solid rgba(95,212,255,.45);color:#bfeaff}
+.it-3d-tag.person{display:grid;grid-template-columns:auto auto;align-items:center;column-gap:7px;padding:6px 9px 7px;background:rgba(13,16,32,.9);border:1px solid rgba(232,234,246,.3);box-shadow:3px 3px 0 rgba(0,0,0,.35)}
+.it-3d-tag.person b{font-family:'Source Serif 4',Georgia,serif;font-size:14px;font-weight:600}
+.it-3d-tag.person small{grid-column:1/-1;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(232,234,246,.55)}
+.it-3d-tag.person em{grid-column:1/-1;font-style:normal;font-size:11px;color:rgba(232,234,246,.85)}
+.it-3d-tag .d{width:8px;height:8px;justify-self:end}
+.it-3d-tag .d.busy{background:#FBBF24;box-shadow:0 0 8px #FBBF24}.it-3d-tag .d.queued{background:#8EA2FF;box-shadow:0 0 8px #8EA2FF}
+.it-3d-tag .d.free{background:#4ADE80;box-shadow:0 0 8px #4ADE80}.it-3d-tag .d.off{background:#5b6080}
+@media (max-width:768px){.it-room-stage.it-3d{height:420px}.it-3d-tag.person small,.it-3d-tag.person em{display:none}.it-3d-tag.person{padding:4px 7px}.it-3d-tag.room{font-size:10px;padding:3px 6px}}
+
+@keyframes it-steam{0%{opacity:0;transform:translateY(4px)}30%{opacity:.8}100%{opacity:0;transform:translateY(-10px)}}
+@keyframes it-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(1.5px)}}
+@keyframes it-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.012)}}
+@keyframes it-blinkeye{0%,96%,100%{transform:scaleY(1)}97%,99%{transform:scaleY(.1)}}
+@keyframes it-drift{from{transform:translateX(-14px)}to{transform:translateX(14px)}}
+@media (prefers-reduced-motion:reduce){.it-room *{animation:none!important}}
+
 /* ── Stat cards: the hub's read-out strip, with rolling numbers ── */
 .stat-grid{gap:0!important;border:1px solid var(--bdr2);background-color:var(--surf1)}
 .stat-grid .stat-card{position:relative;border:0!important;border-right:1px solid var(--bdr2)!important;border-radius:0;background:var(--surf1);padding:16px 22px 18px;overflow:hidden}
@@ -3905,6 +3944,7 @@ async function insertWithRetry(table, payload, maxRetries) {
 /* ════ IT Helpdesk "Signal" theme — DESIGN ONLY. Reads the page, never changes data or behaviour. ════
  * - sidebar and logo emoji become TDMH Core line icons
  * - a core-switch faceplate above the stat read-out: one lit port per ticket
+ * - the IT room under it: supervisor at the back, staff in front, live from the queue
  * - stat numbers roll into place (03), success toasts draw a tick (06)  */
 (function () {
   if (!window.TDMHIcons) return
@@ -4004,12 +4044,441 @@ async function insertWithRetry(table, payload, maxRetries) {
     })
   }
 
-  function all() { icons(); roll(); switchPanel(); loginSwitch(); ticks() }
+  /* ── The IT room ─────────────────────────────────────────────────────────
+   * Dashboard (IT staff only): the supervisor's desk at the back, facing the two staff desks.
+   * Each screen shows what that person is working on, read from the tickets already on the page. */
+  var ROOM = [
+    { key: 'lead',  match: /richmond/i,     name: 'Richmond', title: 'IT Supervisor', shirt: 'var(--accent)', shirt3: 0x3d4fd6, skin3: 0xc68b59 },
+    { key: 'left',  match: /jovan/i,        name: 'Jovan',    title: 'IT Staff',      shirt: '#2f9e6b', shirt3: 0x2f9e6b, skin3: 0xb07a4f },
+    { key: 'right', match: /emman|eman\b/i, name: 'Emman',    title: 'IT Staff',      shirt: '#c7752a', shirt3: 0xc7752a, skin3: 0xa8714a }
+  ]
+  var DONE = ['resolved', 'closed', 'cancelled']
+  function xe(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] }) }
+  function cut(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s }
+  function sameDay(iso) { if (!iso) return false; var d = new Date(iso), n = new Date(); return d.toDateString() === n.toDateString() }
+
+  function deskState(person, tickets, users) {
+    var u = (users || []).find(function (x) { return person.match.test(x.full_name || '') })
+    var mine = u ? tickets.filter(function (t) { return t.assigned_to === u.id }) : []
+    var active = mine.filter(function (t) { return DONE.indexOf(t.status) < 0 })
+    var prog = active.filter(function (t) { return t.status === 'in_progress' })
+    var byNew = function (a, b) { return String(b.updated_at || b.created_at).localeCompare(String(a.updated_at || a.created_at)) }
+    var current = prog.sort(byNew)[0] || active.sort(byNew)[0] || null
+    return { user: u, active: active.length, prog: prog.length, done: mine.filter(function (t) { return sameDay(t.resolved_at) }).length, current: current, working: !!prog.length }
+  }
+
+  function bubble(cx, y, w, text, tone) {
+    return '<g class="r-bubble"><rect x="' + (cx - w / 2) + '" y="' + y + '" width="' + w + '" height="30" fill="var(--surf1)" stroke="var(--ink)" stroke-width="1.5"/>' +
+      '<path d="M' + (cx - 7) + ',' + (y + 30) + ' l7,9 l7,-9" fill="var(--surf1)" stroke="var(--ink)" stroke-width="1.5"/><rect x="' + (cx - 6) + '" y="' + (y + 28) + '" width="12" height="3" fill="var(--surf1)"/>' +
+      '<circle cx="' + (cx - w / 2 + 14) + '" cy="' + (y + 15) + '" r="4" fill="' + tone + '"/>' +
+      '<text x="' + (cx - w / 2 + 26) + '" y="' + (y + 19.5) + '" font-size="12.5" fill="var(--txt)" style="font-family:var(--it-mono)">' + xe(text) + '</text></g>'
+  }
+
+  function screen(x, y, w, h, st) {
+    var s = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="var(--console)" stroke="var(--ink)" stroke-width="2"/>' +
+            '<rect x="' + (x + 6) + '" y="' + (y + 6) + '" width="' + (w - 12) + '" height="' + (h - 12) + '" fill="#0b1030"/>'
+    var tx = x + 14, mono = ' style="font-family:var(--it-mono)"'
+    if (st.current) {
+      var c = st.current, col = c.priority === 'critical' ? '#F87171' : c.priority === 'high' ? '#FBBF24' : '#8EA2FF'
+      s += '<text x="' + tx + '" y="' + (y + 26) + '" font-size="12" fill="' + col + '"' + mono + '>' + xe(c.id) + '</text>' +
+           '<text x="' + tx + '" y="' + (y + 46) + '" font-size="12" fill="#E8EAF6"' + mono + '>' + xe(cut(c.subject, 22)) + '</text>' +
+           '<text x="' + tx + '" y="' + (y + 64) + '" font-size="11" fill="rgba(232,234,246,.55)"' + mono + '>' + xe((c.status || '').replace('_', ' ')) + '</text>' +
+           '<rect class="r-cursor" x="' + tx + '" y="' + (y + 72) + '" width="8" height="12" fill="#4ADE80"/>'
+    } else {
+      s += '<g class="r-saver"><text x="' + (x + w / 2) + '" y="' + (y + h / 2 + 4) + '" text-anchor="middle" font-size="12" fill="#4ADE80"' + mono + '>ALL CLEAR ✓</text></g>'
+    }
+    return s
+  }
+
+  function staffDesk(cx, p, st) {
+    var g = '<g class="r-desk">'
+    // desk + monitor (screen faces us, over the shoulder)
+    g += '<rect x="' + (cx - 190) + '" y="458" width="380" height="16" fill="var(--surf3)" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<rect x="' + (cx - 180) + '" y="474" width="360" height="90" fill="var(--surf2)" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<rect x="' + (cx + 4) + '" y="436" width="14" height="22" fill="#1d2140"/><rect x="' + (cx - 16) + '" y="454" width="54" height="5" fill="#1d2140"/>'
+    g += screen(cx - 70, 330, 172, 108, st)
+    // mug: steaming when the person has nothing in progress
+    g += '<g transform="translate(' + (cx + 130) + ',432)"><rect x="0" y="0" width="22" height="26" fill="var(--surf1)" stroke="var(--ink)" stroke-width="1.5"/><path d="M22,6 h6 v12 h-6" fill="none" stroke="var(--ink)" stroke-width="1.5"/>' +
+         (st.working ? '' : '<path class="r-steam" d="M6,-6 q-5,-8 0,-16 q5,-8 0,-16" fill="none" stroke="var(--txt3)" stroke-width="1.5"/><path class="r-steam s2" d="M15,-6 q-5,-8 0,-16 q5,-8 0,-16" fill="none" stroke="var(--txt3)" stroke-width="1.5"/>') + '</g>'
+    // person from behind: head, shoulders, chair
+    var hx = cx - 92
+    g += '<g class="' + (st.working ? 'r-type' : 'r-idle') + '">'
+    g += '<path d="M' + (hx - 56) + ',560 v-48 q0,-30 56,-34 q56,4 56,34 v48 z" fill="' + p.shirt + '" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<rect x="' + (hx - 11) + '" y="462" width="22" height="18" fill="#b07a4f"/>'
+    g += '<circle cx="' + hx + '" cy="446" r="27" fill="#1b1b22" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<path d="M' + (hx - 24) + ',452 q24,20 48,0" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="2"/></g>'
+    g += '<rect x="' + (hx - 66) + '" y="512" width="132" height="60" rx="10" fill="#1d2140" stroke="var(--bdr2)" stroke-width="1.5"/>'
+    g += '<text x="' + hx + '" y="536" text-anchor="middle" font-size="11.5" fill="#E8EAF6" letter-spacing="1" style="font-family:var(--it-mono)">' + xe((p.name + ' · ' + p.title).toUpperCase()) + '</text>'
+    g += '</g>'
+    var label = !st.user ? 'no account yet' : st.active ? st.active + ' active · ' + st.done + ' done today' : 'available · ' + st.done + ' done today'
+    g += bubble(cx + 16, 284, Math.max(190, label.length * 7.6 + 40), label, !st.user ? 'var(--txt3)' : st.working ? 'var(--amber)' : st.active ? 'var(--accent)' : 'var(--green)')
+    return g
+  }
+
+  function leadDesk(cx, p, st) {
+    var g = '<g class="r-lead">'
+    // chair back, person facing us, two monitors (backs to us), desk with nameplate
+    g += '<rect x="' + (cx - 58) + '" y="168" width="116" height="118" rx="12" fill="#1d2140" stroke="var(--bdr2)" stroke-width="1.5"/>'
+    g += '<g class="' + (st.working ? 'r-type' : 'r-idle') + '">'
+    g += '<path d="M' + (cx - 50) + ',282 v-30 q0,-26 50,-30 q50,4 50,30 v30 z" fill="' + p.shirt + '" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<path d="M' + (cx - 9) + ',224 l9,14 l9,-14" fill="var(--surf1)"/>'
+    g += '<rect x="' + (cx - 9) + '" y="208" width="18" height="16" fill="#b07a4f"/>'
+    g += '<circle cx="' + cx + '" cy="190" r="24" fill="#c68b59" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<path d="M' + (cx - 25) + ',186 q2,-26 25,-27 q24,1 25,27 q-6,-12 -25,-13 q-18,1 -25,13z" fill="#1b1b22"/>'
+    g += '<circle class="r-eye" cx="' + (cx - 8) + '" cy="192" r="2.4" fill="#1b1b22"/><circle class="r-eye" cx="' + (cx + 8) + '" cy="192" r="2.4" fill="#1b1b22"/>'
+    g += '<path d="M' + (cx - 7) + ',201 q7,6 14,0" fill="none" stroke="#1b1b22" stroke-width="1.6" stroke-linecap="round"/></g>'
+    ;[-1, 1].forEach(function (side) {
+      var mx = cx + side * 92 - 44
+      g += '<rect x="' + mx + '" y="214" width="88" height="56" fill="var(--console)" stroke="var(--ink)" stroke-width="2"/>'
+      g += '<circle cx="' + (mx + 44) + '" cy="242" r="5" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1.5"/>'
+      g += '<rect x="' + (mx + 38) + '" y="270" width="12" height="12" fill="#1d2140"/>'
+    })
+    g += '<rect x="' + (cx - 170) + '" y="282" width="340" height="14" fill="var(--surf3)" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<rect x="' + (cx - 160) + '" y="296" width="320" height="58" fill="var(--surf2)" stroke="var(--ink)" stroke-width="1.5"/>'
+    g += '<rect x="' + (cx - 118) + '" y="312" width="236" height="26" fill="#1d2140"/>'
+    g += '<text x="' + cx + '" y="329.5" text-anchor="middle" font-size="11.5" fill="#E8EAF6" letter-spacing="1" style="font-family:var(--it-mono)">' + xe((p.name + ' · ' + p.title).toUpperCase()) + '</text>'
+    g += '<g transform="translate(' + (cx + 120) + ',262)"><rect width="18" height="20" fill="var(--surf1)" stroke="var(--ink)" stroke-width="1.5"/></g>'
+    g += '</g>'
+    var label = !st.user ? 'no account yet' : st.active + ' active · ' + st.done + ' done today'
+    g += bubble(cx, 118, Math.max(200, label.length * 7.6 + 40), label, st.working ? 'var(--amber)' : 'var(--accent)')
+    return g
+  }
+
+  function roomSvg(tickets, users) {
+    var W = 1200, H = 560, VPX = 600, VPY = 120
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The IT room: supervisor desk at the back, two staff desks in front">'
+    // wall and chart-paper floor in perspective
+    s += '<rect width="' + W + '" height="300" fill="var(--surf2)"/>'
+    s += '<rect y="300" width="' + W + '" height="' + (H - 300) + '" fill="var(--surf1)"/>'
+    for (var x = -900; x <= 2100; x += 150) {
+      var xt = VPX + (x - VPX) * ((300 - VPY) / (H - VPY))
+      s += '<line x1="' + x + '" y1="' + H + '" x2="' + xt.toFixed(1) + '" y2="300" stroke="var(--grid)" stroke-width="1.5"/>'
+    }
+    ;[322, 352, 392, 446, 516].forEach(function (y) { s += '<line x1="0" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="var(--grid)" stroke-width="1.5"/>' })
+    s += '<line x1="0" x2="' + W + '" y1="300" y2="300" stroke="var(--ink)" stroke-width="2"/>'
+    // server rack (the core switch lives here)
+    s += '<g><rect x="36" y="70" width="112" height="230" fill="var(--console)" stroke="var(--ink)" stroke-width="2"/>'
+    for (var u = 0; u < 7; u++) {
+      var uy = 84 + u * 30
+      s += '<rect x="46" y="' + uy + '" width="92" height="22" fill="#0b1030" stroke="rgba(255,255,255,.12)"/>'
+      for (var l = 0; l < 6; l++) s += '<rect class="r-led" x="' + (54 + l * 13) + '" y="' + (uy + 9) + '" width="5" height="4" fill="' + ['#4ADE80', '#8EA2FF', '#FBBF24'][(u + l) % 3] + '" style="animation-delay:-' + ((u * 7 + l * 3) % 17) / 10 + 's"/>'
+    }
+    s += '<text x="92" y="64" text-anchor="middle" font-size="11" fill="var(--txt3)" letter-spacing="1" style="font-family:var(--it-mono)">CORE-SW</text></g>'
+    // whiteboard: one sticky note per unassigned ticket
+    var queue = tickets.filter(function (t) { return !t.assigned_to && DONE.indexOf(t.status) < 0 })
+    s += '<g><rect x="184" y="40" width="300" height="168" fill="var(--surf1)" stroke="var(--ink)" stroke-width="2"/>'
+    s += '<line x1="196" x2="472" y1="214" y2="214" stroke="var(--ink)" stroke-width="3"/>'
+    s += '<text x="200" y="64" font-size="13" fill="var(--txt)" letter-spacing="1" style="font-family:var(--it-mono)">IT QUEUE</text>'
+    s += '<text x="468" y="64" text-anchor="end" font-size="12" fill="var(--txt3)" style="font-family:var(--it-mono)">' + queue.length + ' unassigned</text>'
+    if (!queue.length) s += '<text x="334" y="134" text-anchor="middle" font-size="14" fill="var(--green)" style="font-family:var(--it-mono)">nothing waiting ✓</text>'
+    queue.slice(0, 10).forEach(function (t, i) {
+      var nx = 200 + (i % 5) * 54, ny = 78 + Math.floor(i / 5) * 60, rot = ((i * 37) % 9) - 4
+      var fill = t.priority === 'critical' ? '#F8A3A3' : t.priority === 'high' ? '#FCD58A' : t.priority === 'low' ? '#D7DCEB' : '#FFF1A6'
+      s += '<g transform="rotate(' + rot + ' ' + (nx + 22) + ' ' + (ny + 22) + ')"><rect x="' + nx + '" y="' + ny + '" width="44" height="44" fill="' + fill + '" stroke="rgba(20,22,58,.35)"/>' +
+           '<text x="' + (nx + 22) + '" y="' + (ny + 26) + '" text-anchor="middle" font-size="10" fill="#14163A" style="font-family:var(--it-mono)">' + xe(String(t.id).slice(-4)) + '</text></g>'
+    })
+    if (queue.length > 10) s += '<text x="468" y="200" text-anchor="end" font-size="11" fill="var(--txt3)" style="font-family:var(--it-mono)">+' + (queue.length - 10) + ' more</text>'
+    s += '</g>'
+    // window and clock
+    s += '<g><rect x="800" y="44" width="150" height="150" fill="#cfe3f5" stroke="var(--ink)" stroke-width="2"/><path d="M800,160 l20,-26 l18,10 l22,-34 l24,22 l18,-12 l26,24 l22,-8 v58 h-150z" fill="#9fb7cf"/>' +
+         '<line x1="875" x2="875" y1="44" y2="194" stroke="var(--ink)" stroke-width="2"/><line x1="800" x2="950" y1="119" y2="119" stroke="var(--ink)" stroke-width="2"/></g>'
+    s += '<g id="itRoomClock"><circle cx="1070" cy="100" r="40" fill="var(--surf1)" stroke="var(--ink)" stroke-width="2"/>'
+    for (var k = 0; k < 12; k++) { var a = k * Math.PI / 6; s += '<line x1="' + (1070 + Math.sin(a) * 32) + '" y1="' + (100 - Math.cos(a) * 32) + '" x2="' + (1070 + Math.sin(a) * 36) + '" y2="' + (100 - Math.cos(a) * 36) + '" stroke="var(--ink)" stroke-width="2"/>' }
+    s += '<line class="r-hh" x1="1070" y1="100" x2="1070" y2="78" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><line class="r-mh" x1="1070" y1="100" x2="1070" y2="70" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/><circle cx="1070" cy="100" r="3" fill="#1d2140"/></g>'
+    // plant
+    s += '<g><path d="M1128,300 l6,-44 h40 l6,44z" fill="var(--surf3)" stroke="var(--ink)" stroke-width="1.5"/>' +
+         '<path d="M1154,256 q-34,-30 -22,-74 q20,26 22,74z M1154,256 q4,-52 30,-66 q6,40 -30,66z M1154,256 q-10,-40 4,-86 q14,44 -4,86z" fill="#2f9e6b" stroke="var(--ink)" stroke-width="1.2"/></g>'
+    var st = {}
+    ROOM.forEach(function (p) { st[p.key] = deskState(p, tickets, users) })
+    s += leadDesk(600, ROOM[0], st.lead)
+    s += staffDesk(300, ROOM[1], st.left)
+    s += staffDesk(900, ROOM[2], st.right)
+    return s + '</svg>'
+  }
+
+  var clockTimer = null
+  function tickClock() {
+    var c = document.getElementById('itRoomClock'); if (!c) { clearInterval(clockTimer); clockTimer = null; return }
+    var d = new Date(), m = d.getMinutes(), h = (d.getHours() % 12) + m / 60
+    c.querySelector('.r-hh').setAttribute('transform', 'rotate(' + (h * 30) + ' 1070 100)')
+    c.querySelector('.r-mh').setAttribute('transform', 'rotate(' + (m * 6) + ' 1070 100)')
+  }
+  function room() {
+    if (typeof S === 'undefined' || !S || !S.user || !Array.isArray(S.tickets)) return
+    if (['technician', 'supervisor', 'admin'].indexOf(S.user.it_role) < 0) return
+    var grid = document.querySelector('#mainContent > .stat-grid')
+    if (!grid || document.querySelector('#mainContent > .it-room')) return
+    var el = document.createElement('section')
+    el.className = 'it-room'
+    el.innerHTML = '<header class="it-room-hd"><h3>The IT room</h3><p>Live from the queue · drag to turn the floor</p></header>' +
+      '<div class="it-room-stage">' + roomSvg(S.tickets, S.users) + '</div>'
+    var stage = el.querySelector('.it-room-stage')
+    stage.__itData = {
+      people: ROOM.map(function (p) { return { name: p.name, title: p.title, shirt: p.shirt3, hair: 0x1b1b22, skin: p.skin3 } }),
+      st: ROOM.map(function (p) { return deskState(p, S.tickets, S.users) }),
+      queue: S.tickets.filter(function (t) { return !t.assigned_to && DONE.indexOf(t.status) < 0 })
+    }
+    grid.parentNode.insertBefore(el, grid.nextSibling)
+    tickClock()
+    if (!clockTimer) clockTimer = setInterval(tickClock, 30000)
+    if (window.ITRoom3D) window.ITRoom3D.mount(stage)      // 3D when the browser can; the 2D room stays otherwise
+  }
+
+  function all() { icons(); roll(); switchPanel(); room(); loginSwitch(); ticks() }
   all()
   var queued = false
   new MutationObserver(function () { if (queued) return; queued = true; requestAnimationFrame(function () { queued = false; all() }) })
     .observe(document.body, { childList: true, subtree: true })
 })()
+</script>
+<script type="module">
+/* ════ The IT room in 3D — DESIGN ONLY (isometric diorama, three.js). ════
+ * Rooms: IT Supervisor office at the back facing the Helpdesk floor; Server room with the core switch.
+ * People sit at their own desks; screens and tags show live queue data passed in by the design script.
+ * If WebGL or three.js is unavailable, the 2D room stays in place. */
+let THREE
+try { THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js') } catch (e) { THREE = null }
+
+function mount(stage) {
+  if (!THREE || !stage || stage.__it3d || !stage.__itData) return
+  const test = document.createElement('canvas')
+  if (!(test.getContext('webgl2') || test.getContext('webgl'))) return
+  stage.__it3d = true
+  const D = stage.__itData
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.setClearColor(0x0d1020)
+  const scene = new THREE.Scene()
+  scene.fog = new THREE.Fog(0x0d1020, 60, 120)
+
+  // ── helpers
+  const mats = {}
+  const M = (hex, o = {}) => { const k = hex + JSON.stringify(o); return mats[k] || (mats[k] = new THREE.MeshStandardMaterial(Object.assign({ color: hex, roughness: .78, metalness: .05, flatShading: true }, o))) }
+  const box = (w, h, d, mat, x = 0, y = 0, z = 0, parent = scene, shadow = true) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z)
+    m.castShadow = shadow; m.receiveShadow = true; parent.add(m); return m
+  }
+  const glowLine = (pts, color, y, parent = scene) => {
+    const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], y, p[1])))
+    const l = new THREE.LineLoop(g, new THREE.LineBasicMaterial({ color })); parent.add(l); return l
+  }
+  const anim = []   // per-frame callbacks (t)
+
+  // ── platform
+  const FY = 0.6                                  // floor top
+  box(26, 0.6, 20, M(0x22263c), 0, 0.3, 0)
+  box(26.4, 0.12, 20.4, M(0x2c3150), 0, 0.06, 0, scene, false)
+  glowLine([[-13, -10], [13, -10], [13, 10], [-13, 10]], 0x3a4170, 0.61)
+
+  // ── rooms: floor slab, double neon outline, low back/side walls
+  const rooms = [
+    { key: 'lead',   label: 'IT SUPERVISOR',  x0: -12, x1: -1, z0: -9, z1: -1, floor: 0x37458a, neon: 0x8ea2ff, at: [-2.4, -1.7] },
+    { key: 'server', label: 'SERVER ROOM',    x0: 1,   x1: 12, z0: -9, z1: -1, floor: 0x24507a, neon: 0x5fd4ff, at: [10, -1.7] },
+    { key: 'floor',  label: 'HELPDESK FLOOR', x0: -12, x1: 12, z0: 1,  z1: 9,  floor: 0x1f7a72, neon: 0x5ff0c8, at: [-9.6, 8.3] }
+  ]
+  const labels = []
+  rooms.forEach(r => {
+    const w = r.x1 - r.x0, d = r.z1 - r.z0, cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2
+    box(w, 0.08, d, M(r.floor, { roughness: .9 }), cx, FY + 0.04, cz, scene, false)
+    // tile grid
+    const grid = new THREE.GridHelper(Math.max(w, d), Math.max(w, d), r.neon, r.neon)
+    grid.material.transparent = true; grid.material.opacity = 0.08
+    grid.scale.set(w / Math.max(w, d), 1, d / Math.max(w, d)); grid.position.set(cx, FY + 0.085, cz); scene.add(grid)
+    glowLine([[r.x0 + .25, r.z0 + .25], [r.x1 - .25, r.z0 + .25], [r.x1 - .25, r.z1 - .25], [r.x0 + .25, r.z1 - .25]], r.neon, FY + 0.1)
+    glowLine([[r.x0 + .55, r.z0 + .55], [r.x1 - .55, r.z0 + .55], [r.x1 - .55, r.z1 - .55], [r.x0 + .55, r.z1 - .55]], 0xffffff, FY + 0.1)
+    // walls on the far sides only, so we can see in
+    box(w, 1.1, 0.18, M(0x3a3f5e), cx, FY + 0.55, r.z0 + 0.09)
+    if (r.x0 === -12) box(0.18, 1.1, d, M(0x343956), r.x0 + 0.09, FY + 0.55, cz)
+    labels.push({ text: r.label, pos: new THREE.Vector3(r.at[0], FY + 0.2, r.at[1]), cls: 'room' })
+  })
+
+  // ── furniture
+  const wood = M(0xc2915e), dark = M(0x1d2140), metal = M(0x8b90a8, { metalness: .4, roughness: .4 })
+  function plant(x, z, s = 1) {
+    const g = new THREE.Group(); g.position.set(x, FY, z); scene.add(g)
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(.28 * s, .22 * s, .45 * s, 8), M(0xd7dbe8)); pot.position.y = .22 * s; pot.castShadow = true; g.add(pot)
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(.42 * s, 1.1 * s, 6), M(0x2f9e6b)); leaf.position.y = .95 * s; leaf.castShadow = true; g.add(leaf)
+  }
+  function monitor(parent, x, z, color, w = .95) {
+    box(.08, .35, .08, dark, x, .95, z, parent)
+    const mats6 = [dark, dark, dark, dark, dark, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.15, flatShading: true })]
+    const scr = new THREE.Mesh(new THREE.BoxGeometry(w, .56, .06), mats6); scr.position.set(x, 1.32, z); scr.castShadow = true; parent.add(scr)
+    return scr
+  }
+  // A seated voxel person facing +z inside `parent`
+  function person(parent, shirt, hair, skin, working) {
+    const P = new THREE.Group(); parent.add(P)
+    const pants = M(0x2b2f45)
+    box(.36, .16, .52, pants, 0, .56, .14, P); box(.36, .46, .16, pants, 0, .3, .4, P)
+    box(.52, .62, .3, M(shirt), 0, .95, -.02, P)
+    const head = new THREE.Group(); head.position.set(0, 1.48, -.02); P.add(head)
+    box(.42, .42, .42, M(skin), 0, 0, 0, head)
+    box(.45, .14, .45, M(hair), 0, .24, -.01, head); box(.45, .3, .1, M(hair), 0, .06, -.19, head)
+    box(.06, .06, .02, M(0x111111), -.1, .02, .215, head, false); box(.06, .06, .02, M(0x111111), .1, .02, .215, head, false)
+    const arms = [-1, 1].map(sx => {
+      const a = new THREE.Group(); a.position.set(sx * .33, 1.2, 0); P.add(a)
+      box(.14, .52, .14, M(shirt), 0, -.24, 0, a); box(.13, .12, .13, M(skin), 0, -.52, 0, a)
+      a.rotation.x = -1.05; return a
+    })
+    let mug = null
+    if (!working) { mug = box(.14, .16, .14, M(0xffffff), 0, -.62, .02, arms[1], false); mug.visible = true }
+    const seed = Math.random() * 10
+    anim.push(t => {
+      if (working) {
+        arms[0].rotation.x = -1.05 + Math.sin(t * 14 + seed) * .07
+        arms[1].rotation.x = -1.05 + Math.cos(t * 13 + seed) * .07
+        head.rotation.x = .08 + Math.sin(t * 1.3 + seed) * .03
+      } else {
+        const sip = (Math.sin(t * .9 + seed) + 1) / 2         // slow coffee sips
+        arms[1].rotation.x = -1.05 - sip * 1.1
+        head.rotation.y = Math.sin(t * .5 + seed) * .35
+        head.rotation.x = -sip * .12
+      }
+    })
+    return { P, head }
+  }
+  // Chair + person + desk + monitor(s), facing +z, then rotated into place
+  function workstation(x, z, rotY, p, st, monitors = 1) {
+    const g = new THREE.Group(); g.position.set(x, FY, z); g.rotation.y = rotY; g.scale.setScalar(1.25); scene.add(g)
+    box(.62, .08, .62, dark, 0, .45, 0, g); box(.62, .7, .08, dark, 0, .82, -.3, g); box(.08, .4, .08, metal, 0, .22, 0, g)
+    const who = person(g, p.shirt, p.hair, p.skin, st.working)
+    box(2.3, .08, 1.05, wood, 0, .76, .95, g)
+    ;[[-1.05, .55], [1.05, .55], [-1.05, 1.35], [1.05, 1.35]].forEach(([lx, lz]) => box(.08, .72, .08, wood, lx, .38, lz, g))
+    box(.7, .03, .22, M(0xe8eaf6), 0, .815, .72, g)          // keyboard
+    const c = st.current
+    const col = !st.user ? 0x3a3f5e : c ? (c.priority === 'critical' ? 0xf87171 : st.working ? 0xfbbf24 : 0x8ea2ff) : 0x4ade80
+    const scr = monitors === 2 ? [monitor(g, -.5, 1.2, col, .8), monitor(g, .5, 1.2, col, .8)] : [monitor(g, 0, 1.2, col)]
+    scr.forEach((m, i) => anim.push(t => { m.material[5].emissiveIntensity = 1.0 + Math.sin(t * 3 + i) * .12 }))
+    const headWorld = new THREE.Vector3(); 
+    labels.push({ person: true, p, st, get pos() { who.head.getWorldPosition(headWorld); return headWorld.clone().add(new THREE.Vector3(0, 1.1, 0)) } })
+    return g
+  }
+
+  // IT Supervisor office: desk facing the floor (+z), shelf, couch, plant
+  workstation(-6.5, -5.2, 0, D.people[0], D.st[0], 2)
+  box(2.6, 1.8, .5, wood, -9.8, FY + .9, -8.4); [0.45, 0.95, 1.45].forEach(h => box(2.5, .05, .45, M(0x9c7048), -9.8, FY + h, -8.4))
+  ;[[-10.6, 0x8ea2ff], [-10.2, 0xfbbf24], [-9.7, 0x4ade80], [-9.2, 0xf87171]].forEach(([bx, c]) => box(.22, .38, .3, M(c), bx, FY + .67, -8.35))
+  box(2.2, .45, .9, M(0x5b6cc4), -3, FY + .22, -7.9); box(2.2, .6, .25, M(0x5b6cc4), -3, FY + .6, -8.3)
+  plant(-11.2, -1.8)
+
+  // Server room: racks with blinking LEDs, and the core switch glowing in the middle
+  const leds = []
+  for (let i = 0; i < 4; i++) {
+    const rx = 2.6 + i * 1.3, rz = -7.9
+    box(1, 2.4, 1, dark, rx, FY + 1.2, rz)
+    for (let u = 0; u < 8; u++) for (let l = 0; l < 3; l++) {
+      const c = [0x4ade80, 0x8ea2ff, 0xfbbf24][(u + l + i) % 3]
+      const led = new THREE.Mesh(new THREE.BoxGeometry(.09, .05, .02), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1.6 }))
+      led.position.set(rx - .3 + l * .14, FY + .35 + u * .26, rz + .51); scene.add(led); leds.push({ led, s: Math.random() * 6, f: 2 + Math.random() * 5 })
+    }
+  }
+  const core = new THREE.Group(); core.position.set(7.5, FY, -4.3); scene.add(core)
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.7, .25, 24), M(0x2c3150)); base.position.y = .12; base.receiveShadow = true; core.add(base)
+  const orbMat = new THREE.MeshStandardMaterial({ color: 0x5fd4ff, emissive: 0x2fb8ff, emissiveIntensity: 1.4, transparent: true, opacity: .92, flatShading: true })
+  const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(.75, 1), orbMat); orb.position.y = 1.35; core.add(orb)
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.15, .04, 6, 40), new THREE.MeshStandardMaterial({ color: 0x8ea2ff, emissive: 0x8ea2ff, emissiveIntensity: 1.3 }))
+  ring.position.y = 1.35; ring.rotation.x = Math.PI / 2.4; core.add(ring)
+  const coreLight = new THREE.PointLight(0x5fd4ff, 18, 9, 2); coreLight.position.set(0, 1.6, 0); core.add(coreLight)
+  labels.push({ text: 'CORE SWITCH', pos: new THREE.Vector3(7.5, FY + 2.6, -4.3), cls: 'tag' })
+  anim.push(t => { orb.rotation.y = t * .6; orb.rotation.x = t * .25; ring.rotation.z = t * .8; orb.position.y = 1.35 + Math.sin(t * 1.4) * .08; coreLight.intensity = 16 + Math.sin(t * 2) * 4 })
+  plant(11.2, -1.8, .9)
+
+  // Helpdesk floor: staff desks face the supervisor (−z); queue board; coffee corner
+  workstation(-4.5, 4.4, Math.PI, D.people[1], D.st[1])
+  workstation(4.5, 4.4, Math.PI, D.people[2], D.st[2])
+  // queue board: one sticky note per unassigned ticket
+  const board = new THREE.Group(); board.position.set(10.6, FY, 5); board.rotation.y = Math.PI / 2; scene.add(board)
+  box(3.2, 1.9, .12, M(0xf3f4f8), 0, 1.9, 0, board); box(3.4, 2.1, .08, dark, 0, 1.9, -.07, board)
+  box(.08, 1, .08, metal, -1.3, .5, 0, board); box(.08, 1, .08, metal, 1.3, .5, 0, board)
+  D.queue.slice(0, 12).forEach((q, i) => {
+    const c = q.priority === 'critical' ? 0xf87171 : q.priority === 'high' ? 0xfbbf24 : q.priority === 'low' ? 0xc9cfe3 : 0xfff1a6
+    const n = box(.42, .42, .04, M(c), -1.15 + (i % 6) * .46, 2.45 - Math.floor(i / 6) * .55, .08, board, false); n.rotation.z = ((i * 37) % 9 - 4) * .02
+  })
+  labels.push({ text: 'IT QUEUE · ' + D.queue.length + ' unassigned', pos: new THREE.Vector3(10.3, FY + 3.2, 5), cls: 'tag' })
+  // coffee corner
+  box(2.4, .95, .8, wood, -10.4, FY + .47, 8.2); box(.5, .6, .45, dark, -10.9, FY + 1.25, 8.2)
+  box(.12, .14, .12, M(0xffffff), -10.2, FY + 1.02, 8.1)
+  plant(11.2, 8.4); plant(-11.3, 1.9, .8)
+
+  // ── lights
+  scene.add(new THREE.HemisphereLight(0xc7d0ff, 0x1a1d33, 1.15))
+  const sun = new THREE.DirectionalLight(0xfff1dd, 2.1); sun.position.set(-14, 22, 12); sun.castShadow = true
+  sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 60 }); sun.shadow.bias = -.0008
+  scene.add(sun)
+
+  // ── isometric camera (drag sideways to turn the floor a little)
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 200)
+  let az = Math.PI / 4, targetAz = az
+  const target = new THREE.Vector3(-0.6, 1.2, -1.6)
+  function placeCamera() { const r = 40; camera.position.set(target.x + Math.sin(az) * r * .82, 26, target.z + Math.cos(az) * r * .82); camera.lookAt(target) }
+
+  // ── DOM: canvas + label layer
+  stage.innerHTML = ''
+  stage.classList.add('it-3d')
+  stage.appendChild(renderer.domElement)
+  const layer = document.createElement('div'); layer.className = 'it-3d-labels'; stage.appendChild(layer)
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+  labels.forEach(L => {
+    const el = document.createElement('div')
+    if (L.person) {
+      const st = L.st, c = st.current
+      const dot = !st.user ? 'off' : st.working ? 'busy' : st.active ? 'queued' : 'free'
+      const line = !st.user ? 'no account yet' : c ? esc(c.id) + ' · ' + esc((c.status || '').replace('_', ' ')) : 'available'
+      el.className = 'it-3d-tag person'
+      el.innerHTML = '<b>' + esc(L.p.name) + '</b><span class="d ' + dot + '"></span><small>' + esc(L.p.title) + '</small><em>' + line + '</em>'
+      el.title = (c ? c.id + ': ' + (c.subject || '') + '\n' : '') + (st.user ? st.active + ' active, ' + st.done + ' done today' : '')
+    } else { el.className = 'it-3d-tag ' + L.cls; el.textContent = L.text }
+    layer.appendChild(el); L.el = el
+  })
+
+  function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight
+    renderer.setSize(w, h, false)
+    const aspect = w / h, view = w < 640 ? 13 : (aspect > 2 ? 8.8 : 10.2)
+    Object.assign(camera, { left: -view * aspect, right: view * aspect, top: view, bottom: -view }); camera.updateProjectionMatrix()
+  }
+  const v = new THREE.Vector3()
+  function placeLabels() {
+    const w = stage.clientWidth, h = stage.clientHeight
+    labels.forEach(L => { v.copy(L.pos).project(camera); L.el.style.transform = 'translate(' + ((v.x + 1) / 2 * w).toFixed(1) + 'px,' + ((1 - v.y) / 2 * h).toFixed(1) + 'px)' })
+  }
+
+  // drag to turn
+  let dragging = false, lastX = 0
+  renderer.domElement.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; renderer.domElement.setPointerCapture(e.pointerId) })
+  renderer.domElement.addEventListener('pointermove', e => { if (!dragging) return; targetAz = Math.max(Math.PI / 4 - 1, Math.min(Math.PI / 4 + 1, targetAz - (e.clientX - lastX) * .006)); lastX = e.clientX })
+  ;['pointerup', 'pointercancel'].forEach(n => renderer.domElement.addEventListener(n, () => { dragging = false }))
+  renderer.domElement.addEventListener('dblclick', () => { targetAz = Math.PI / 4 })
+
+  // loop: only while on screen and the tab is visible; stops when the dashboard re-renders
+  let visible = true, raf = 0, last = 0
+  const io = new IntersectionObserver(es => { visible = es[0].isIntersecting; if (visible && !raf) raf = requestAnimationFrame(frame) })
+  io.observe(stage)
+  const clock = new THREE.Clock()
+  function frame(now) {
+    raf = 0
+    if (!stage.isConnected) { io.disconnect(); renderer.dispose(); scene.traverse(o => { o.geometry && o.geometry.dispose() }); return }
+    if (!visible || document.hidden) return
+    raf = requestAnimationFrame(frame)
+    if (now - last < 33) return; last = now                      // ~30 fps is plenty
+    const t = reduce ? 0 : clock.getElapsedTime()
+    az += (targetAz - az) * .12; placeCamera()
+    if (!reduce) { anim.forEach(f => f(t)); leds.forEach(L => { L.led.material.emissiveIntensity = Math.sin(t * L.f + L.s) > -.2 ? 1.6 : .15 }) }
+    renderer.render(scene, camera); placeLabels()
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && !raf) raf = requestAnimationFrame(frame) })
+  new ResizeObserver(() => { resize(); placeCamera(); renderer.render(scene, camera); placeLabels() }).observe(stage)
+  resize(); placeCamera(); anim.forEach(f => f(0)); renderer.render(scene, camera); placeLabels()
+  raf = requestAnimationFrame(frame)
+}
+
+window.ITRoom3D = { mount }
+document.querySelectorAll('.it-room-stage').forEach(mount)
 </script>
 </body>
 </html>
