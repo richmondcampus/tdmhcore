@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>SMS Ledger — TDMH Core</title>
+<script src="core-theme.js?v=6"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+/* ── Base. Colours, type and "chart paper" components come from core.css (loaded after this block). ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{font-size:14px;line-height:1.55}
+button{font:inherit;color:inherit}
+.num{font-variant-numeric:lining-nums tabular-nums}
+.serif{font-family:'Source Serif 4',Georgia,serif}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:14px;padding:0 24px;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{width:34px;height:34px;display:grid;place-items:center;background:var(--ink);color:var(--on-ink)}
+.brand-mark .ic{width:18px;height:18px}
+.brand h1{font-size:20px;line-height:1.1}
+.brand p{font-size:12px;color:var(--txt3)}
+.topbar .sp{flex:1}
+.who{font-size:13px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tbtn{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border:1px solid var(--bdr2);background:var(--surf1);color:var(--txt);cursor:pointer;border-radius:2px;font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  transition:transform .18s cubic-bezier(.3,.7,.4,1.5),box-shadow .18s ease,border-color .2s}
+.tbtn:hover{transform:translate(-2px,-2px);border-color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.tbtn .ic{width:16px;height:16px}
+.tbtn .tx-swatch{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+
+.wrap{max-width:1240px;margin:0 auto;padding:22px 24px 72px}
+
+/* Hero: the hub's ECG strip, fed with SMS data */
+.cx-strip{background-color:var(--surf1)}
+.cx-head .amt{font-style:italic;color:var(--accent)}
+.cx-trace-wrap{position:relative}
+.cx-trace-cap{position:absolute;right:22px;top:2px;font-size:12px;color:var(--txt3);background:var(--veil);padding:0 6px}
+.hx-actions{display:flex;gap:10px;flex-wrap:wrap;padding-bottom:4px}
+.hx-act{display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.hx-act .ic{width:16px;height:16px}
+.hx-act:disabled{opacity:.6;cursor:default;transform:none!important;box-shadow:none!important}
+.cx-cell{cursor:default}
+.cx-cell .cx-n{font-size:46px}
+.cx-cell .cx-n small{font-size:22px}
+
+/* Range toolbar */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:22px 0 14px}
+.seg{display:inline-grid;grid-auto-flow:column;gap:2px;padding:3px;background:var(--surf1);border:1px solid var(--bdr2)}
+.seg button{white-space:nowrap;border:0;background:transparent;color:var(--txt2);height:34px;padding:0 12px;cursor:pointer;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;transition:background-color .2s,color .2s}
+.seg button:hover{color:var(--txt)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--on-ink)}
+.dates{display:inline-flex;align-items:center;gap:8px;color:var(--txt3);font-size:13px}
+input[type=date],input[type=search],select,input[type=email],input[type=password]{height:40px;padding:0 10px;border:1px solid var(--bdr2);background:var(--surf1);color:var(--txt);border-radius:2px;font-size:13.5px;outline:none}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-a)}
+.toolbar .count{margin-left:auto;font-size:13px;color:var(--txt3)}
+
+/* System strip = the hub's system tiles; a click filters the page */
+.hx-systems{display:grid;margin-bottom:22px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))!important}
+.hx-sys{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;cursor:pointer;color:var(--txt)}
+.hx-sys .hx-sys-num{font-size:34px;line-height:1}
+.hx-sys .hx-sys-num small{font-size:16px;color:var(--txt3);margin-left:2px}
+.hx-sys[aria-pressed="true"]{background:var(--surf2)!important}
+.hx-sys[aria-pressed="true"]::after{transform:scaleX(1)}
+.hx-sys .share{position:absolute;right:18px;bottom:16px;font-size:12px;color:var(--txt3)}
+.hx-sys-top{display:flex;justify-content:space-between;width:100%}
+.hx-sys-row{display:flex;align-items:center;gap:10px}
+.hx-chip{display:flex}
+
+/* Bento tiles */
+.hx-bento{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;margin-bottom:20px}
+.hx-wide{grid-column:span 2}
+.hx-full{grid-column:1/-1}
+.hx-tile{background:var(--surf1);min-width:0}
+.hx-tile-hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hx-tile-hd p{font-size:13px;color:var(--txt3)}
+.tile-body{padding:14px 8px 6px}
+@media (max-width:960px){.hx-bento{grid-template-columns:1fr}.hx-wide,.hx-full{grid-column:auto}}
+
+/* Chart */
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--txt2);padding:0 8px 6px}
+.sw{display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px}
+.viz{position:relative}
+.viz svg{display:block;width:100%;height:auto}
+.viz .hit{cursor:crosshair}
+.tip{position:absolute;pointer-events:none;background:var(--surf1);border:1.5px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:8px 10px;font-size:12.5px;white-space:nowrap;display:none;z-index:5}
+.tip b{font-family:'Source Serif 4',Georgia,serif;font-weight:600;font-size:14px}
+.tip .row{display:flex;align-items:center;gap:6px;margin-top:2px;color:var(--txt2)}
+.tip .row span:last-child{margin-left:auto;padding-left:14px;color:var(--txt)}
+
+/* Recipients */
+.rcpt{display:flex;align-items:center;gap:12px;padding:10px 8px}
+.rcpt+.rcpt{border-top:1px solid var(--bdr)}
+.rcpt-rank{width:26px;font-family:'Source Serif 4',Georgia,serif;font-size:20px;color:var(--txt3);text-align:right}
+.rcpt-main{flex:1;min-width:0}
+.rcpt-name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcpt-no{font-size:12.5px;color:var(--txt3)}
+.rcpt-bar{height:3px;background:var(--surf3);margin-top:6px}
+.rcpt-bar i{display:block;height:100%;background:var(--accent)}
+.rcpt-val{text-align:right;font-size:13px;color:var(--txt2);white-space:nowrap}
+.rcpt-val b{display:block;font-family:'Source Serif 4',Georgia,serif;font-size:18px;font-weight:500;color:var(--txt)}
+
+/* Ledger tables */
+.ledger{overflow-x:auto;padding:0 8px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;padding:10px 8px;white-space:nowrap}
+td{padding:10px 8px;border-bottom:1px solid var(--bdr);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+td.money{font-family:'Source Serif 4',Georgia,serif;font-size:15px}
+.over{color:var(--amber);font-weight:700}
+.sys-cell{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.sys-cell .ic{width:16px;height:16px;color:var(--txt3)}
+.muted{color:var(--txt3)}
+.msg{max-width:460px;white-space:pre-wrap;word-break:break-word;color:var(--txt2);font-size:13px}
+.when{white-space:nowrap;font-size:13px}
+.when small{display:block;color:var(--txt3)}
+.badge.legacy{color:var(--txt3)} .badge.sent{color:var(--green)} .badge.bad{color:var(--red)} .badge.wait{color:var(--accent)}
+
+.logtools{display:flex;gap:10px;flex-wrap:wrap;padding:14px 8px 10px}
+.logtools input[type=search]{flex:1;min-width:220px}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:10px 8px 4px;font-size:13px;color:var(--txt3)}
+.pager .tbtn{height:34px}
+.pager .tbtn:disabled{opacity:.45;cursor:default;transform:none;box-shadow:none;border-color:var(--bdr2)}
+.empty{padding:28px 8px;color:var(--txt3);font-size:14px}
+
+.fineprint{max-width:80ch;font-size:13px;line-height:1.65;color:var(--txt3);border-top:1px dashed var(--bdr2);padding-top:14px}
+
+/* Sign-in */
+#loginScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:100%;max-width:380px;background:var(--surf1);padding:32px}
+.login-card h2{margin:14px 0 4px}
+.login-card .sub{color:var(--txt2);font-size:14px;margin-bottom:20px}
+.login-card label{display:block;margin:12px 0 6px}
+.login-card input{width:100%}
+.login-card .tbtn{width:100%;justify-content:center;margin-top:18px;height:44px;background:var(--accent);color:var(--on-accent);border-color:var(--ink)}
+.login-err{color:var(--red);font-size:13px;min-height:20px;margin-top:10px}
+
+.loading{min-height:60vh;display:grid;place-items:center;color:var(--txt3)}
+[hidden]{display:none!important}
+@media (max-width:720px){
+  .topbar{padding:0 14px}.wrap{padding:16px 14px 60px}
+  .who{display:none}
+  .topbar .brand p{display:none}
+  .seg{max-width:100%;overflow-x:auto}
+  .cx-cell .cx-n{font-size:38px}
+  .toolbar .count{margin-left:0;width:100%}
+}
+</style>
+<link rel="stylesheet" href="core.css?v=6">
+</head>
+<body>
+
+<div id="loginScreen" hidden>
+  <svg class="tx-login-trace" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" points="0,60 120,60 130,54 140,60 160,60 166,68 174,12 182,76 190,60 214,60 230,48 246,60 400,60 410,54 420,60 440,60 446,68 454,12 462,76 470,60 494,60 510,48 526,60 680,60 690,54 700,60 720,60 726,68 734,12 742,76 750,60 774,60 790,48 806,60 960,60 970,54 980,60 1000,60 1006,68 1014,12 1022,76 1030,60 1054,60 1070,48 1086,60 1200,60"></polyline></svg>
+  <div class="login-card" id="gate" hidden>
+    <div class="brand"><span class="brand-mark" data-ic="pulse"></span><div><h1>SMS Ledger</h1><p>TDMH Core</p></div></div>
+    <h2>Sign in</h2>
+    <p class="sub">Use your TDMH Core account.</p>
+    <label class="field-label" for="gEmail">Email</label><input type="email" id="gEmail" autocomplete="username">
+    <label class="field-label" for="gPass">Password</label><input type="password" id="gPass" autocomplete="current-password">
+    <button class="tbtn" id="gGo" type="button">Sign in</button>
+    <div class="login-err" id="gErr" role="alert"></div>
+  </div>
+  <div class="login-card" id="denied" hidden>
+    <div class="brand"><span class="brand-mark" data-ic="key"></span><div><h1>SMS Ledger</h1><p>TDMH Core</p></div></div>
+    <h2>This page is private</h2>
+    <p class="sub">Only the SMS administrator can open the SMS ledger. Sign in with that account to continue.</p>
+    <button class="tbtn" id="dOut" type="button">Sign out</button>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" data-ic="pulse"></span><div><h1>SMS Ledger</h1><p>Every text TDMH Core sends through Semaphore</p></div></div>
+    <span class="sp"></span>
+    <span class="who" id="who"></span>
+    <button class="tbtn" id="themeBtn" type="button"><span class="tx-swatch"></span>Display</button>
+    <button class="tbtn" id="outBtn" type="button" title="Sign out"><span data-ic="logout"></span></button>
+  </header>
+
+  <main class="wrap">
+    <section class="cx-strip ecg-paper" aria-labelledby="cxHead">
+      <div class="cx-bar"><span id="barL">SMS LEDGER · PRIVATE</span><span id="barR"></span></div>
+      <div class="cx-main">
+        <div>
+          <h2 class="cx-head" id="cxHead">Reading the ledger…</h2>
+          <p class="cx-sub" id="cxSub"></p>
+        </div>
+        <div class="hx-actions">
+          <button class="hx-act" id="syncBtn" type="button" title="Get Sent / Failed / Refunded status from Semaphore for the last 7 days"><span data-ic="check"></span><span>Sync status</span></button>
+          <button class="hx-act" id="csvBtn" type="button"><span data-ic="arrow"></span>Export CSV</button>
+        </div>
+      </div>
+      <div class="cx-trace-wrap">
+        <svg class="cx-trace" id="trace" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"></svg>
+        <span class="cx-trace-cap" id="traceCap"></span>
+      </div>
+      <div class="cx-read" id="read"></div>
+    </section>
+
+    <div class="toolbar" role="group" aria-label="Date range">
+      <div class="seg" id="presets">
+        <button type="button" data-p="today">Today</button>
+        <button type="button" data-p="7d">7 days</button>
+        <button type="button" data-p="month" aria-pressed="true">This month</button>
+        <button type="button" data-p="lastmonth">Last month</button>
+        <button type="button" data-p="90d">90 days</button>
+      </div>
+      <span class="dates"><input type="date" id="dFrom" aria-label="From">to<input type="date" id="dTo" aria-label="To"></span>
+      <span class="count" id="rangeLabel"></span>
+    </div>
+
+    <section class="hx-systems" id="sysStrip" aria-label="Cost by system"></section>
+
+    <section class="hx-bento">
+      <article class="hx-tile hx-wide">
+        <header class="hx-tile-hd"><h3>Credits per day</h3><p id="chartNote">Hover a day to see the split.</p></header>
+        <div class="tile-body">
+          <div class="legend" id="legend"></div>
+          <div class="viz" id="viz"><div class="tip" id="tip"></div></div>
+        </div>
+      </article>
+      <article class="hx-tile">
+        <header class="hx-tile-hd"><h3>Who gets the most</h3></header>
+        <div class="tile-body" id="byRcpt"></div>
+      </article>
+      <article class="hx-tile hx-full">
+        <header class="hx-tile-hd"><h3>By SMS type</h3><p>Over 160 = share of texts long enough to cost 2+ credits.</p></header>
+        <div class="tile-body"><div class="ledger" id="byEvent"></div></div>
+      </article>
+      <article class="hx-tile hx-full">
+        <header class="hx-tile-hd"><h3>Every text</h3><p>One row per recipient.</p></header>
+        <div class="logtools">
+          <input type="search" id="q" placeholder="Search message, number, name or ticket">
+          <select id="evFilter" aria-label="SMS type"><option value="">All SMS types</option></select>
+        </div>
+        <div class="ledger" id="log"></div>
+        <div class="pager"><span id="pgInfo"></span><button class="tbtn" id="pgPrev" type="button">Prev</button><button class="tbtn" id="pgNext" type="button">Next</button></div>
+      </article>
+    </section>
+
+    <p class="fineprint">
+      Costs are estimates at ₱0.56 per credit (₱0.50 plus 12% VAT). A text of up to 160 characters is 1 credit; a longer one is 1 credit per 153 characters.
+      Failed and refunded texts are left out of the cost. Rows marked legacy came from the old VTS and Maintenance logs, before Nov 26, 2026; IT Helpdesk, CSR and the
+      VTS reminders were not logged before then, and old rows have no delivery status. Sync status pulls Sent, Failed and Refunded from Semaphore for the last 7 days.
+    </p>
+  </main>
+</div>
+<div class="loading" id="loading">Opening the ledger…</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPA_URL = 'https://zcyhwdulizorgngayxya.supabase.co'
+const SUPA_KEY = 'sb_publishable_OLvJELZuF2pTxE-ihM25Hg_5Ywq7ylq'
+// Same session storage as the TDMH Core hub (index.html), so a signed-in user is not asked again.
+const SB = supabase.createClient(SUPA_URL, SUPA_KEY)
+
+const SYSTEMS = ['VTS','MNT','IT','CSR','MEQ','OTHER']
+const SYS = {
+  VTS:   { label:'Vehicle Ticketing', short:'VTS',           icon:'car' },
+  MNT:   { label:'Maintenance',       short:'Maintenance',   icon:'wrench' },
+  IT:    { label:'IT Helpdesk',       short:'IT Helpdesk',   icon:'monitor' },
+  CSR:   { label:'CSR / Supply',      short:'CSR',           icon:'clipboard' },
+  MEQ:   { label:'Medical Equipment', short:'Med Equipment', icon:'medkit' },
+  OTHER: { label:'Other',             short:'Other',         icon:'list' }
+}
+const RATE = 0.56
+const PAGE = 100
+
+const $ = s => document.querySelector(s)
+const ic = (n, s) => TDMHIcons.svg(n, s || 16)
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const peso = n => '₱' + (Number(n)||0).toLocaleString('en-PH', { minimumFractionDigits:2, maximumFractionDigits:2 })
+const int = n => (Number(n)||0).toLocaleString('en-PH')
+const last10 = p => String(p||'').replace(/\D/g,'').slice(-10)
+const manilaDate = d => new Date(new Date(d).getTime() + 8*3600e3).toISOString().slice(0,10)
+const todayYMD = () => manilaDate(new Date())
+const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+let ROWS = [], NAMES = new Map(), page = 0, preset = 'month', sysSel = ''
+
+/* ---------- auth ---------- */
+async function boot() {
+  try { TDMHTheme.useSupabase && TDMHTheme.useSupabase(SB) } catch(_) {}
+  TDMHIcons.hydrate(document)
+  $('#themeBtn').onclick = e => { try { TDMHTheme.open(e.currentTarget) } catch(_) {} }
+  const { data: { session } } = await SB.auth.getSession()
+  $('#loading').hidden = true
+  if (!session) { $('#loginScreen').hidden = false; $('#gate').hidden = false; $('#gEmail').focus(); return }
+  const { data: ok } = await SB.rpc('is_sms_admin')
+  if (ok !== true) { $('#loginScreen').hidden = false; $('#denied').hidden = false; return }
+  $('#who').textContent = session.user.email
+  $('#outBtn').onclick = () => SB.auth.signOut().then(() => location.reload())
+  $('#app').hidden = false
+  setPreset('month')
+  loadNames()
+  loadBalance()
+}
+$('#gGo').onclick = async () => {
+  $('#gErr').textContent = ''
+  const { error } = await SB.auth.signInWithPassword({ email: $('#gEmail').value.trim(), password: $('#gPass').value })
+  if (error) { $('#gErr').textContent = /invalid login/i.test(error.message) ? 'That email and password do not match. Check both and try again.' : error.message; return }
+  location.reload()
+}
+$('#gPass').addEventListener('keydown', e => { if (e.key === 'Enter') $('#gGo').click() })
+$('#dOut').onclick = () => SB.auth.signOut().then(() => location.reload())
+
+/* ---------- data ---------- */
+async function loadNames() {
+  const [u, d] = await Promise.all([
+    SB.from('users').select('full_name,phone').not('phone','is',null),
+    SB.from('vts_drivers').select('full_name,phone').not('phone','is',null)
+  ])
+  for (const r of (d.data||[])) if (r.phone) NAMES.set(last10(r.phone), r.full_name + ' (driver)')
+  for (const r of (u.data||[])) if (r.phone) NAMES.set(last10(r.phone), r.full_name)
+  renderRcpt(); renderLog()
+}
+const nameOf = p => NAMES.get(last10(p)) || ''
+
+async function loadRange() {
+  const from = $('#dFrom').value, to = $('#dTo').value
+  if (!from || !to) return
+  $('#rangeLabel').textContent = 'Loading…'
+  const fromTs = from + 'T00:00:00+08:00', toTs = to + 'T23:59:59.999+08:00'
+  let all = [], off = 0
+  while (true) {
+    const { data, error } = await SB.from('sms_central_log')
+      .select('id,sent_at,system,event,recipient,message,chars,segments,cost_php,ok,status,source')
+      .gte('sent_at', fromTs).lte('sent_at', toTs)
+      .order('sent_at', { ascending:false }).range(off, off + 999)
+    if (error) { $('#rangeLabel').textContent = 'Could not load the log: ' + error.message; return }
+    all = all.concat(data || [])
+    if (!data || data.length < 1000 || all.length >= 50000) break
+    off += 1000
+  }
+  ROWS = all
+  page = 0
+  render(true)
+}
+
+async function loadBalance() {
+  try {
+    const { data, error } = await SB.functions.invoke('sms-admin', { body: { action: 'balance' } })
+    if (error || data?.error) throw new Error(error?.message || data.error)
+    window._BAL = data
+  } catch (e) { window._BAL = { error: String(e.message || e) } }
+  renderHero(false)
+}
+
+$('#syncBtn').onclick = async () => {
+  const b = $('#syncBtn'), lbl = b.querySelector('span:last-child'); b.disabled = true; lbl.textContent = 'Syncing…'
+  try {
+    const { data, error } = await SB.functions.invoke('sms-admin', { body: { action: 'sync', days: 7 } })
+    if (error || data?.error) throw new Error(error?.message || data.error)
+    lbl.textContent = `Synced, ${int(data.updated)} updated`
+    await loadRange()
+  } catch (e) { lbl.textContent = 'Sync failed, try again'; console.warn(e) }
+  setTimeout(() => { b.disabled = false; lbl.textContent = 'Sync status' }, 4000)
+}
+
+/* ---------- filters ---------- */
+function setPreset(p) {
+  preset = p
+  document.querySelectorAll('#presets button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.p === p)))
+  const t = todayYMD(), [Y, M] = t.split('-').map(Number)
+  const ymd = (y, m, d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+  const back = n => manilaDate(Date.now() - n*864e5)
+  let f = t, to = t
+  if (p === '7d') f = back(6)
+  if (p === '90d') f = back(89)
+  if (p === 'month') f = ymd(Y, M, 1)
+  if (p === 'lastmonth') { const y = M === 1 ? Y-1 : Y, m = M === 1 ? 12 : M-1; f = ymd(y, m, 1); to = ymd(y, m, new Date(y, m, 0).getDate()) }
+  $('#dFrom').value = f; $('#dTo').value = to
+  loadRange()
+}
+document.querySelectorAll('#presets button').forEach(b => b.onclick = () => setPreset(b.dataset.p))
+;['#dFrom','#dTo'].forEach(s => $(s).onchange = () => { preset = ''; document.querySelectorAll('#presets button').forEach(b => b.setAttribute('aria-pressed','false')); loadRange() })
+$('#evFilter').onchange = () => { page = 0; renderLog() }
+$('#q').oninput = () => { page = 0; renderLog() }
+$('#pgPrev').onclick = () => { if (page > 0) { page--; renderLog() } }
+$('#pgNext').onclick = () => { page++; renderLog() }
+
+const billable = r => r.ok !== false && !['Failed','Refunded'].includes(r.status)
+const filtered = () => sysSel ? ROWS.filter(r => r.system === sysSel) : ROWS
+function days() {
+  const out = [], from = $('#dFrom').value, to = $('#dTo').value
+  for (let d = new Date(from + 'T00:00:00Z'); d <= new Date(to + 'T00:00:00Z'); d = new Date(d.getTime() + 864e5)) out.push(d.toISOString().slice(0,10))
+  return out
+}
+const shortDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { month:'short', day:'numeric' })
+const longDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric' })
+
+/* ---------- render ---------- */
+function render(animate) {
+  const n = filtered().length
+  $('#rangeLabel').textContent = `${int(ROWS.length)} text${ROWS.length === 1 ? '' : 's'} in this range` + (sysSel ? `, showing ${SYS[sysSel].short} (${int(n)})` : '')
+  renderHero(animate); renderSystems(animate); renderChart(); renderRcpt(); renderByEvent(); renderLog()
+}
+
+function totals(rows) {
+  const bill = rows.filter(billable)
+  return {
+    texts: rows.length,
+    credits: bill.reduce((s, r) => s + r.segments, 0),
+    cost: bill.reduce((s, r) => s + Number(r.cost_php), 0),
+    over: rows.filter(r => r.segments > 1).length,
+    failed: rows.length - bill.length
+  }
+}
+
+function rangeWords() {
+  if (preset === 'today') return 'today'
+  if (preset === '7d') return 'in the last 7 days'
+  if (preset === 'month') return 'this month'
+  if (preset === 'lastmonth') return 'last month'
+  if (preset === '90d') return 'in the last 90 days'
+  return 'from ' + shortDate($('#dFrom').value) + ' to ' + shortDate($('#dTo').value)
+}
+
+function renderHero(animate) {
+  const rows = filtered(), t = totals(rows)
+  const from = $('#dFrom').value, to = $('#dTo').value
+  const now = new Date()
+  $('#barL').textContent = 'SMS LEDGER · ' + (sysSel ? SYS[sysSel].label.toUpperCase() : 'ALL SYSTEMS')
+  $('#barR').textContent = (from ? (shortDate(from) + ' – ' + shortDate(to)).toUpperCase() : '') + ' · ' + now.toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})
+  $('#cxHead').innerHTML = rows.length
+    ? `<span class="amt" data-money="${t.cost.toFixed(2)}">${peso(animate ? 0 : t.cost)}</span> on ${int(t.texts)} text${t.texts === 1 ? '' : 's'} ${rangeWords()}.`
+    : `No texts ${rangeWords()}.`
+  const B = window._BAL
+  const bal = !B ? 'Checking the Semaphore balance…'
+    : B.error ? 'Could not read the Semaphore balance (' + esc(B.error) + ').'
+    : `Semaphore has ${int(B.credit_balance)} credits left, about ${peso(Number(B.credit_balance) * RATE)}.`
+  $('#cxSub').innerHTML = `${int(t.credits)} credits used. ${bal}`
+
+  let pace = '', paceSub = 'set the range to this month'
+  if (preset === 'month' && rows.length) {
+    const [Y, M, D] = todayYMD().split('-').map(Number), dim = new Date(Y, M, 0).getDate()
+    pace = Math.round(t.cost / D * dim); paceSub = 'by month end, at this pace'
+  }
+  const cell = (label, n, sub, cls, money) => `<div class="cx-cell"><span class="cx-l">${label}</span><span class="cx-n num">${money ? '<small>₱</small>' : ''}<span data-count="${n}">${animate ? 0 : int(n)}</span></span><span class="cx-s${cls ? ' ' + cls : ''}">${sub}</span></div>`
+  $('#read').innerHTML =
+      cell('TEXTS SENT', t.texts, 'one per recipient')
+    + cell('CREDITS USED', t.credits, t.texts ? (t.credits / Math.max(t.texts - t.failed, 1)).toFixed(2) + ' per text' : 'none yet')
+    + cell('OVER 160 CHARACTERS', t.over, t.texts ? Math.round(t.over / t.texts * 100) + '% cost 2+ credits' : '—', t.over / Math.max(t.texts,1) > .3 ? 'warn' : '')
+    + cell('FAILED OR REFUNDED', t.failed, t.failed ? 'not counted in cost' : 'none', t.failed ? 'warn' : 'ok')
+    + (pace !== '' ? cell('MONTH-END PACE', pace, paceSub, '', true) : '')
+
+  drawTrace(rows)
+  if (animate) countUp($('.cx-strip'))
+}
+
+/* The hub's ECG strip, drawn from data: one heartbeat per day, spike height = credits that day. */
+function drawTrace(rows) {
+  const ds = days(), per = new Map(ds.map(d => [d, 0]))
+  for (const r of rows) if (billable(r)) { const d = manilaDate(r.sent_at); if (per.has(d)) per.set(d, per.get(d) + r.segments) }
+  const vals = ds.map(d => per.get(d)), max = Math.max(1, ...vals)
+  const n = Math.max(ds.length, 1), w = 1200 / n, base = 66
+  const pts = []
+  ds.forEach((d, i) => {
+    const x0 = i * w, v = vals[i], h = v ? 10 + (v / max) * 52 : 3
+    const p = (fx, y) => pts.push((x0 + fx * w).toFixed(1) + ',' + y.toFixed(1))
+    p(0, base); p(.14, base); p(.2, base - 4); p(.26, base); p(.34, base)
+    p(.38, base + 5); p(.43, base - h); p(.48, base + Math.min(14, 4 + h * .2)); p(.53, base)
+    p(.66, base); p(.74, base - Math.min(10, 3 + h * .12)); p(.84, base); p(1, base)
+  })
+  // Replace the whole <svg> so the previous sweep loop stops (it ends when its svg leaves the page).
+  const old = $('#trace'), holder = document.createElement('div')
+  holder.innerHTML = `<svg class="cx-trace" id="trace" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"><polyline class="tx-trace" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" points="${pts.join(' ')}"></polyline></svg>`
+  const svg = holder.firstChild
+  old.replaceWith(svg)
+  const busiest = ds[vals.indexOf(Math.max(...vals))]
+  $('#traceCap').textContent = rows.length && ds.length > 1 ? `One beat per day. Busiest: ${shortDate(busiest)}, ${int(Math.max(...vals))} credits.` : ''
+  try { TDMHEcg.scan(svg.parentNode) } catch(_) {}
+}
+
+function renderSystems(animate) {
+  const all = totals(ROWS), present = SYSTEMS.filter(s => ROWS.some(r => r.system === s))
+  if (sysSel && !present.includes(sysSel)) sysSel = ''
+  $('#sysStrip').innerHTML = present.map(s => {
+    const t = totals(ROWS.filter(r => r.system === s)), share = all.cost ? Math.round(t.cost / all.cost * 100) : 0
+    return `<button type="button" class="hx-sys" data-s="${s}" aria-pressed="${sysSel === s}" style="--tint:var(--s-${s})">
+      <span class="hx-sys-top"><span>${sysSel === s ? 'SHOWING' : 'FILTER'}</span>${ic(sysSel === s ? 'x' : 'arrow', 14)}</span>
+      <span class="hx-sys-row"><span class="hx-chip" style="color:var(--s-${s})">${ic(SYS[s].icon, 22)}</span><span class="hx-sys-name">${SYS[s].short}</span></span>
+      <span class="hx-sys-num num"><small>₱</small><span data-count="${Math.round(t.cost)}">${animate ? 0 : int(Math.round(t.cost))}</span></span>
+      <span class="hx-sys-cap">${int(t.texts)} texts, ${int(t.credits)} credits</span>
+      <span class="share">${share}%</span>
+    </button>`
+  }).join('')
+  $('#sysStrip').querySelectorAll('.hx-sys').forEach(b => b.onclick = () => { sysSel = sysSel === b.dataset.s ? '' : b.dataset.s; page = 0; render(false) })
+  if (animate) countUp($('#sysStrip'))
+}
+
+function renderChart() {
+  const rows = filtered().filter(billable), ds = days()
+  const present = SYSTEMS.filter(s => rows.some(r => r.system === s))
+  const byDay = new Map(ds.map(d => [d, Object.fromEntries(present.map(s => [s, 0]))]))
+  for (const r of rows) { const o = byDay.get(manilaDate(r.sent_at)); if (o) o[r.system] += r.segments }
+  $('#legend').innerHTML = present.length > 1 ? present.map(s => `<span><span class="sw" style="background:var(--s-${s})"></span>${SYS[s].short}</span>`).join('') : ''
+  $('#chartNote').textContent = present.length === 1 ? SYS[present[0]].label + ', hover a day for the numbers.' : 'Hover a day to see the split.'
+  const W = 1100, H = 330, padL = 40, padR = 6, padT = 12, padB = 26
+  const tot = ds.map(d => present.reduce((s, k) => s + byDay.get(d)[k], 0))
+  const max = Math.max(1, ...tot), step = niceStep(max), top = Math.ceil(max / step) * step
+  const iw = W - padL - padR, ih = H - padT - padB, bw = iw / Math.max(ds.length, 1), barW = Math.max(2, Math.min(26, bw - 3))
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Credits per day by system">`
+  for (let v = 0; v <= top; v += step) {
+    const y = padT + ih - v / top * ih
+    svg += `<line x1="${padL}" x2="${W-padR}" y1="${y}" y2="${y}" stroke="${v === 0 ? 'var(--ink)' : 'var(--grid)'}" stroke-width="1"/>`
+    svg += `<text x="${padL-8}" y="${y+4}" text-anchor="end" font-size="11.5" fill="var(--txt3)">${v}</text>`
+  }
+  const every = Math.ceil(ds.length / 12)
+  ds.forEach((d, i) => {
+    const x = padL + i * bw + (bw - barW) / 2
+    let y = padT + ih
+    const segs = present.filter(s => byDay.get(d)[s] > 0)
+    segs.forEach((s, j) => {
+      const h = byDay.get(d)[s] / top * ih, gap = j > 0 ? 2 : 0, hh = Math.max(0, h - gap)
+      y -= h
+      const r = j === segs.length - 1 ? Math.min(4, barW / 2, hh) : 0
+      if (hh > 0) svg += `<path d="${roundTop(x, y + gap, barW, hh, r)}" fill="var(--s-${s})"/>`
+    })
+    svg += `<rect class="hit" x="${padL + i*bw}" y="${padT}" width="${bw}" height="${ih}" fill="transparent" data-i="${i}"/>`
+    if (i % every === 0) svg += `<text x="${x + barW/2}" y="${H-7}" text-anchor="middle" font-size="11.5" fill="var(--txt3)">${shortDate(d)}</text>`
+  })
+  svg += '</svg>'
+  const viz = $('#viz'), tip = $('#tip')
+  viz.innerHTML = rows.length ? svg : '<p class="empty">No credits used in this range.</p>'
+  viz.appendChild(tip)
+  viz.querySelectorAll('.hit').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      const d = ds[+el.dataset.i], o = byDay.get(d), sum = present.reduce((s, k) => s + o[k], 0)
+      tip.innerHTML = `<b>${longDate(d)}</b><div class="row">${int(sum)} credits<span>${peso(sum * RATE)}</span></div>` +
+        present.filter(s => o[s]).map(s => `<div class="row"><span class="sw" style="background:var(--s-${s})"></span>${SYS[s].short}<span>${int(o[s])}</span></div>`).join('')
+      const box = viz.getBoundingClientRect()
+      tip.style.display = 'block'
+      let lx = e.clientX - box.left + 14; if (lx + tip.offsetWidth > box.width) lx = e.clientX - box.left - tip.offsetWidth - 14
+      tip.style.left = lx + 'px'; tip.style.top = Math.max(0, e.clientY - box.top - 24) + 'px'
+    })
+    el.addEventListener('mouseleave', () => tip.style.display = 'none')
+  })
+}
+function roundTop(x, y, w, h, r) {
+  if (!r) return `M${x},${y}h${w}v${h}h${-w}z`
+  return `M${x},${y+h}V${y+r}Q${x},${y} ${x+r},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h}z`
+}
+function niceStep(max) { const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))); const n = raw / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p }
+
+function agg(rows, keyFn) {
+  const m = new Map()
+  for (const r of rows) {
+    const k = keyFn(r); let o = m.get(k)
+    if (!o) m.set(k, o = { key: k, texts: 0, credits: 0, cost: 0, over: 0, chars: 0, sample: r })
+    o.texts++; o.chars += r.chars || 0
+    if (r.segments > 1) o.over++
+    if (billable(r)) { o.credits += r.segments; o.cost += Number(r.cost_php) }
+  }
+  return [...m.values()].sort((a, b) => b.cost - a.cost || b.texts - a.texts)
+}
+
+function renderRcpt() {
+  const list = agg(filtered(), r => last10(r.recipient)).slice(0, 8)
+  const max = list.length ? list[0].cost || 1 : 1
+  $('#byRcpt').innerHTML = !list.length ? '<p class="empty">Nobody received a text in this range.</p>' : list.map((o, i) => `
+    <div class="rcpt">
+      <span class="rcpt-rank num">${i + 1}</span>
+      <div class="rcpt-main"><div class="rcpt-name">${esc(nameOf(o.sample.recipient) || 'Unknown number')}</div>
+        <div class="rcpt-no num">${esc(o.sample.recipient)}</div><div class="rcpt-bar"><i style="width:${(o.cost / max * 100).toFixed(1)}%"></i></div></div>
+      <div class="rcpt-val"><b class="num">${peso(o.cost)}</b>${int(o.texts)} texts</div>
+    </div>`).join('')
+}
+
+function renderByEvent() {
+  const list = agg(filtered(), r => r.system + '|' + (r.event || '—'))
+  const sel = $('#evFilter'), cur = sel.value
+  sel.innerHTML = '<option value="">All SMS types</option>' + list.map(o => `<option value="${esc(o.key)}">${esc(SYS[o.sample.system].short + ': ' + (o.sample.event || '—'))}</option>`).join('')
+  sel.value = list.some(o => o.key === cur) ? cur : ''
+  $('#byEvent').innerHTML = !list.length ? '<p class="empty">No texts in this range.</p>' : `<table>
+    <thead><tr><th>System</th><th>SMS type</th><th class="r">Texts</th><th class="r">Avg characters</th><th class="r">Over 160</th><th class="r">Credits</th><th class="r">Cost</th></tr></thead>
+    <tbody>${list.map(o => {
+      const ov = Math.round(o.over / o.texts * 100)
+      return `<tr><td><span class="sys-cell"><span class="sw" style="background:var(--s-${o.sample.system})"></span>${SYS[o.sample.system].short}</span></td>
+      <td>${esc(o.sample.event || '—')}</td><td class="r num">${int(o.texts)}</td><td class="r num">${Math.round(o.chars / o.texts)}</td>
+      <td class="r num ${ov >= 50 ? 'over' : ''}">${ov}%</td><td class="r num">${int(o.credits)}</td><td class="r money num">${peso(o.cost)}</td></tr>`}).join('')}</tbody>
+  </table>`
+}
+
+function logRows() {
+  let rows = filtered()
+  const ev = $('#evFilter').value
+  if (ev) rows = rows.filter(r => r.system + '|' + (r.event || '—') === ev)
+  const q = $('#q').value.trim().toLowerCase()
+  if (q) rows = rows.filter(r => (r.message + ' ' + r.recipient + ' ' + nameOf(r.recipient) + ' ' + r.event).toLowerCase().includes(q))
+  return rows
+}
+
+function renderLog() {
+  const rows = logRows(), pages = Math.max(1, Math.ceil(rows.length / PAGE))
+  if (page >= pages) page = pages - 1
+  const slice = rows.slice(page * PAGE, page * PAGE + PAGE)
+  $('#pgInfo').textContent = rows.length ? `${int(page*PAGE + 1)} to ${int(page*PAGE + slice.length)} of ${int(rows.length)}` : ''
+  $('#pgPrev').disabled = page === 0; $('#pgNext').disabled = page >= pages - 1
+  const st = r => r.source === 'legacy' ? '<span class="badge legacy">Legacy</span>'
+    : !billable(r) ? `<span class="badge bad">${esc(r.status || 'Failed')}</span>`
+    : r.status === 'Sent' ? '<span class="badge sent">Sent</span>'
+    : `<span class="badge wait">${esc(r.status || 'Accepted')}</span>`
+  $('#log').innerHTML = !slice.length ? '<p class="empty">No text matches. Clear the search or pick another SMS type.</p>' : `<table>
+    <thead><tr><th>When</th><th>System</th><th>To</th><th>Message</th><th class="r">Characters</th><th class="r">Credits</th><th>Status</th></tr></thead>
+    <tbody>${slice.map(r => { const d = new Date(r.sent_at); return `<tr>
+      <td class="when num">${d.toLocaleDateString('en-PH',{month:'short',day:'numeric'})}<small>${d.toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}</small></td>
+      <td><span class="sys-cell">${ic(SYS[r.system]?.icon || 'list')}${SYS[r.system]?.short || r.system}</span><span class="muted" style="font-size:12.5px">${esc(r.event || '')}</span></td>
+      <td>${esc(nameOf(r.recipient) || 'Unknown')}<div class="muted num" style="font-size:12.5px">${esc(r.recipient)}</div></td>
+      <td><div class="msg">${esc(r.message)}</div></td>
+      <td class="r num ${r.chars > 160 ? 'over' : ''}">${r.chars}</td><td class="r num">${r.segments}</td><td>${st(r)}</td></tr>` }).join('')}</tbody>
+  </table>`
+}
+
+/* One orchestrated moment: the numbers count up once when a range loads. */
+function countUp(root) {
+  root.querySelectorAll('[data-count],[data-money]').forEach(el => {
+    const money = el.hasAttribute('data-money'), target = Number(money ? el.dataset.money : el.dataset.count) || 0
+    const show = v => el.textContent = money && el.classList.contains('amt') ? peso(v) : int(Math.round(v))
+    if (reduceMotion() || !target) { show(target); return }
+    const t0 = performance.now(), dur = 750
+    const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); show(target * e); if (p < 1) requestAnimationFrame(step) }
+    requestAnimationFrame(step)
+  })
+}
+
+$('#csvBtn').onclick = () => {
+  const rows = logRows()
+  const head = ['sent_at_manila','system','type','recipient','name','chars','credits','cost_php','status','source','message']
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  const lines = [head.join(',')].concat(rows.map(r => [
+    new Date(new Date(r.sent_at).getTime() + 8*3600e3).toISOString().replace('T',' ').slice(0,19),
+    r.system, r.event, r.recipient, nameOf(r.recipient), r.chars, r.segments, billable(r) ? r.cost_php : 0, r.status || '', r.source, r.message
+  ].map(q).join(',')))
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `tdmh-sms-${$('#dFrom').value}_to_${$('#dTo').value}${sysSel ? '-' + sysSel : ''}.csv`
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000)
+}
+
+try { TDMHTheme.onChange && TDMHTheme.onChange(() => renderChart()) } catch(_) {}
+boot()
+</script>
+<style>
+/* Series colours by system: validated categorical order (blue, orange, aqua, yellow, magenta), never cycled. */
+html[data-theme="light"]{--s-VTS:#257de0;--s-MNT:#f47230;--s-IT:#00b894;--s-CSR:#f2a600;--s-MEQ:#ee7fac;--s-OTHER:#8a8fa3}
+html[data-theme="dark"] {--s-VTS:#338ced;--s-MNT:#e76624;--s-IT:#00a888;--s-CSR:#d28e05;--s-MEQ:#e24d8b;--s-OTHER:#7d8299}
+/* After core.css: core makes these sticky labels uppercase; keep the ones that are sentences readable. */
+.field-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--txt3)}
+.hx-sys .hx-chip .ic{width:22px;height:22px}
+.cx-cell .cx-n{font-size:46px}
+@media (max-width:720px){.cx-cell .cx-n{font-size:38px}}
+</style>
+</body>
+</html>
