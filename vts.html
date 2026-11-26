@@ -1079,8 +1079,10 @@ async function getEmailsForRole(role) {
 
 // Get phone numbers of all users with a given role
 async function getPhonesForRole(role) {
-  const { data } = await SB.from('users').select('phone').eq('vts_role', role).eq('is_active', true)
-  return (data || []).map(u => u.phone).filter(Boolean)
+  // role can be one VTS role or a list. Skips users who unticked VTS SMS (users.sms_vts = false).
+  const roles = Array.isArray(role) ? role : [role]
+  const { data } = await SB.from('users').select('phone,sms_vts').in('vts_role', roles).eq('is_active', true)
+  return [...new Set((data || []).filter(u => u.sms_vts !== false).map(u => u.phone).filter(Boolean))]
 }
 
 // Get ONLY the specific requester's phone and email (the person who submitted the ticket)
@@ -4491,11 +4493,7 @@ async function doPoolGateOut(poolId) {
   const ticketNos = (trips||[]).map(t=>t.ticket_no).join(', ')
   await addAudit(null, ticketNos, '🚌 Pool Gate Out', `Pool gate-out · Odo: ${odo}km · Condition: ${cond} · Guard: ${currentProfile?.full_name}`)
 
-  // SMS to driver
-  if (pool?.driver_id) {
-    const { data: drv } = await SB.from('vts_drivers').select('phone').eq('id', pool.driver_id).single()
-    if (drv?.phone) await sendSMS([drv.phone], `[TDMH VTS] Pool Gate Out cleared.\nTickets: ${ticketNos}\nOdo: ${odo.toLocaleString()} km\nSafe travels!`)
-  }
+  // (2026-11-26) Pool Gate Out SMS to driver removed — driver is already at the gate with the guard
 
   closeMO(true); renderDashboard()
 }
@@ -5164,10 +5162,7 @@ async function doGateOut(id, ticketNo) {
   const { data: t } = await SB.from('vts_trips').select('vehicle_id,driver_id,driver_name,destination,stops,purpose').eq('id',id).single()
   if (t?.vehicle_id) await SB.from('vts_vehicles').update({ odometer: odo }).eq('id', t.vehicle_id)
   await addAudit(id, ticketNo, 'Gate Out', `Odometer: ${odo} km`)
-  if (t?.driver_id) {
-    const { data: drv } = await SB.from('vts_drivers').select('phone,user_id').eq('id', t.driver_id).single()
-    if (drv?.phone) await sendSMS([drv.phone], `[TDMH VTS] Gate Out cleared for ${ticketNo}.\nYou are now cleared to depart.\nDestination: ${t.destination||''}\nSafe travels!`)
-  }
+  // (2026-11-26) Gate Out cleared SMS to driver removed — driver is already at the gate with the guard
   closeMO(true); renderTickets()
 }
 
@@ -6957,7 +6952,8 @@ async function submitNewTicket() {
     const priority = document.getElementById('ntPri')?.value || 'normal'
     Promise.all([
       addAudit(trip.id, trip.ticket_no, 'Ticket Created', purpose),
-      getPhonesForRole(approverRole).then(phones =>
+      // Regular vehicle requests: approver_admin + VTS admins (e.g. Sir Rommel). Ambulance: approver_amb only.
+      getPhonesForRole(vtype === 'ambulance' ? ['approver_amb'] : ['approver_admin','admin']).then(phones =>
         sendSMS(phones, `[TDMH VTS] ${priority==='emergency'?'🚨 EMERGENCY':priority==='urgent'?'⚡ URGENT':priority==='low'?'🕐 LOW':'📋 NORMAL'} — New request ${trip.ticket_no}\nDept: ${dept}\nPurpose: ${purpose}\nDest: ${dest}\nUrgency: ${priority?.toUpperCase()||'NORMAL'}\nDate: ${date} ${time}${groupId?'\n⚠ Part of bulk booking':''}\nPlease log in to approve.`)
       ),
       getEmailsForRole(approverRole).then(emails =>
